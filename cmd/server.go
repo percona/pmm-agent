@@ -14,6 +14,7 @@ import (
 	"github.com/percona/pmm-agent/supervisor"
 )
 
+// Server contains configuration required to start a server.
 type Server struct {
 	Addr   string
 	LogDir string
@@ -54,6 +55,7 @@ func (s Server) Serve(ctx context.Context) error {
 	return errs.Err()
 }
 
+// Flags assigns flags to cmd.
 func (s *Server) Flags(cmd *cobra.Command) {
 	cmd.Flags().StringVar(&s.Addr, "addr", "127.0.0.1:7771", "gRPC server listen address")
 	cmd.Flags().StringVar(&s.LogDir, "log-dir", "/var/log", "directory for log files")

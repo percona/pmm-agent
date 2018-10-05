@@ -67,7 +67,7 @@ func (s *SupervisorServer) Remove(ctx context.Context, req *api.RemoveRequest) (
 	return resp, err
 }
 
-// Remove all programs.
+// RemoveAll programs.
 func (s *SupervisorServer) RemoveAll(ctx context.Context, req *api.RemoveAllRequest) (*api.RemoveAllResponse, error) {
 	return &api.RemoveAllResponse{}, s.Supervisor.RemoveAll()
 }

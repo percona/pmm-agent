@@ -23,7 +23,6 @@ func (s *Safe) Add(err error) {
 	if err == nil {
 		return
 	}
-
 	s.Lock()
 	defer s.Unlock()
 	s.errs = append(s.errs, err)
