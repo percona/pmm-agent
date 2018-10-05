@@ -1,0 +1,36 @@
+language: go
+
+go:
+  - 1.10.x
+  - 1.11.x
+
+services:
+  - docker
+
+install:
+  # ensure that vendor/ is in sync with code and Gopkg.*
+  - curl https://github.com/golang/dep/releases/download/v0.5.0/dep-linux-amd64 -L -o ~/dep && chmod +x ~/dep
+  - rm -fr vendor/
+  - ~/dep ensure -v
+  - git diff --exit-code
+
+before_script:
+  - sudo service mysql stop
+  - sudo service postgresql stop
+  - docker --version
+  - docker-compose --version
+  - docker-compose up -d
+
+script:
+  - make test
+
+after_success:
+  - bash <(curl -s https://codecov.io/bash) -X fix
+
+notifications:
+  email: false
+  slack:
+    on_success: change
+    on_failure: always
+    rooms:
+      secure: "u9wd1IlYEP3vyRKJJgWtKupiZXlz2B/qbHhJ7REjnliDAqZduecbj6Pfic4yuWevnBf+vCZm0aWVvutWXdj4XVgN0OYrV4VPxnfkMioIGbsTzqDpt1qIMD8kgq56jqElRln8G9te1sgf+sTpty/GMi6dgWYLadjrCMZypMuNucFhX/pdgRHOZtSexvrMqT0jRT/g/hZjwCdl/V155RXUayWeaZJ8Beewu+VWIIBTspDaoOOy23hyZdiDDvBrwfoIH0r0Hs/wizdhRj7fuxxZAnFH1masbdO+qT4+A8Hq0yW5CQR+QsUkBG3CcEsKn13oXWtiZ3LT7jIhb0b+ukRJUju7ERhbrZBp13GC45hRmmrkpVA81VoubSr7D7Uc47bB+IyIH6qMiR5LaTcw0P2ukHFyxnNQaSe92CLtxNx3g6Q6QzN6Ei4yTNyTIAhu/XDfM9UMi2Fwrhu7kgNDVUoDQ3+/41mGJtCQHgJSseRvfppPMK3bIKdzMzSeeFT/2MOuKGHDn4VVybHimnQpCzaCNvdcvZgdeefMOzLkjWnSd0OJZvTVHmlkV9AT6NxnBYSY39+dOPtH9U85UowjNUxWerfQoO+sHlfY5mpOb/KDugbe2J48DkHvRjJwZoeJ3ov3s4WrUwZzct4qD3DKLlz/qY6zyESY2JC77jqP8XDlkJg="

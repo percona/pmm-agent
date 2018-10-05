@@ -1,0 +1,82 @@
+syntax = "proto3";
+
+package api;
+
+// Program contains information necessary to execute program.
+message Program {
+    string name = 1;
+    repeated string arg = 2;
+    repeated string env = 3;
+}
+
+// Status of the Program.
+message Status {
+    Program program = 1;
+    int64   pid     = 2;
+    bool    running = 3;
+    string  out     = 4;
+    string  err     = 5;
+}
+
+// ListRequest
+message ListRequest {}
+// ListResponse
+message ListResponse {
+    map<string, Status> statuses = 1;
+}
+
+// AddRequest
+message AddRequest {
+    string  name = 1;
+    Program program = 2;
+}
+// AddResponse
+message AddResponse {}
+
+// RemoveRequest
+message RemoveRequest {
+    string name = 1;
+}
+// RemoveResponse
+message RemoveResponse {}
+
+// StartRequest
+message StartRequest {
+    string name = 1;
+}
+// StartResponse
+message StartResponse {}
+
+// StopRequest
+message StopRequest {
+    string name = 1;
+}
+// StopResponse
+message StopResponse {}
+
+// StopAllRequest
+message StopAllRequest {}
+// StopAllResponse
+message StopAllResponse {}
+
+// StartAllRequest
+message StartAllRequest {}
+// StartAllResponse
+message StartAllResponse {}
+
+// RemoveAllRequest
+message RemoveAllRequest {}
+// RemoveAllResponse
+message RemoveAllResponse {}
+
+// Supervisor
+service Supervisor {
+    rpc List(ListRequest) returns (ListResponse) {}
+    rpc Add(AddRequest) returns (AddResponse) {}
+    rpc Remove(RemoveRequest) returns (RemoveResponse) {}
+    rpc RemoveAll(RemoveAllRequest) returns (RemoveAllResponse) {}
+    rpc Start(StartRequest) returns (StartResponse) {}
+    rpc StartAll(StartAllRequest) returns (StartAllResponse) {}
+    rpc Stop(StopRequest) returns (StopResponse) {}
+    rpc StopAll(StopAllRequest) returns (StopAllResponse) {}
+}
