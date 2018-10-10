@@ -25,7 +25,7 @@ format:	                  ## Run `goimports`.
 	goimports -local github.com/percona/pmm-agent -l -w $(shell find . -type f -name '*.go' -not -path "./vendor/*")
 
 verify:                   ## ensure that vendor/ is in sync with go.*
-	go mod vendor
+	GO111MODULE=on go mod vendor
 	git diff --exit-code
 
 help: Makefile            ## Display this help message.
