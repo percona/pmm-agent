@@ -6,9 +6,9 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/percona/pmm-agent/api"
-
 	"github.com/stretchr/testify/assert"
+
+	"github.com/percona/pmm-agent/api"
 )
 
 func TestList(t *testing.T) {
@@ -74,9 +74,12 @@ func TestList(t *testing.T) {
 			},
 		}
 		// PID is dynamic so we can't test it but we can ensure it's not empty.
+		// OUT is dynamic so we can't test it but we can ensure it's not empty.
 		for i := range resp.Statuses {
 			assert.NotEmpty(t, resp.Statuses[i].Pid)
 			resp.Statuses[i].Pid = 0
+			assert.NotEmpty(t, resp.Statuses[i].Out)
+			resp.Statuses[i].Out = ""
 		}
 		assert.Equal(t, expected, resp)
 	}
@@ -120,10 +123,13 @@ func TestList(t *testing.T) {
 				},
 			},
 		}
-		// PID is dynamic so we can't test it but we can ensure it's not empty.
+		// PID is dynamic so we can't test it but we can ensure it's empty.
+		// OUT is dynamic so we can't test it but we can ensure it's not empty.
 		for i := range resp.Statuses {
 			assert.Empty(t, resp.Statuses[i].Pid)
 			resp.Statuses[i].Pid = 0
+			assert.NotEmpty(t, resp.Statuses[i].Out)
+			resp.Statuses[i].Out = ""
 		}
 		assert.Equal(t, expected, resp)
 	}

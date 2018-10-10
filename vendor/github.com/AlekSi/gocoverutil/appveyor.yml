@@ -1,0 +1,26 @@
+version: '{build}'
+
+clone_folder: c:\gopath\src\github.com\AlekSi\gocoverutil
+
+environment:
+  GOPATH: c:\gopath
+  COVERALLS_TOKEN:
+    secure: M9iXGpzCCek6+q4P+FLTlg7lwWe570ya0aS4d76b7s1iJbeM+gT+2EGVOwUkspX2
+
+install:
+  - set PATH=%PATH%;C:\msys64\mingw64\bin;%GOPATH%\bin
+  - go version
+
+  - go get ./...
+  - go get github.com/mattn/goveralls
+
+build_script:
+  - mingw32-make install
+
+test_script:
+  - mingw32-make
+
+on_success:
+  - goveralls -coverprofile=cover.out -service=
+  - curl -s -o codecov https://codecov.io/bash
+  - bash codecov -X fix -f cover.out

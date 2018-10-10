@@ -1,3 +1,5 @@
+export GO111MODULE=on
+
 install:                  ## Install this program.
 	go install -v ./...
 
@@ -8,7 +10,15 @@ serve: install exporters  ## Start program as server and listen for incoming htt
 	pmm-agent serve
 
 test: exporters           ## Run tests.
-	go test -v -race ./...
+	go test -mod=vendor -v -race ./...
+
+test-cover: exporters
+	go install -v ./vendor/github.com/AlekSi/gocoverutil
+	gocoverutil test -v -race ./...
+
+send-cover: SHELL:=/bin/bash
+send-cover:
+	bash <(curl -s https://codecov.io/bash) -X fix
 
 gen:                      ## Run `go generate`.
 	go generate ./...
@@ -24,6 +34,11 @@ format:	                  ## Run `goimports`.
 	go install -v ./vendor/golang.org/x/tools/cmd/goimports
 	goimports -local github.com/percona/pmm-agent -l -w $(shell find . -type f -name '*.go' -not -path "./vendor/*")
 
+verify:                   ## Ensure that vendor/ is in sync with `go.*`.
+	go mod verify
+	go mod vendor
+	git diff --exit-code
+
 help: Makefile            ## Display this help message.
 	@echo "Please use \`make <target>\` where <target> is one of:"
 	@grep '^[a-zA-Z]' $(MAKEFILE_LIST) | \
@@ -31,4 +46,4 @@ help: Makefile            ## Display this help message.
 	    awk -F ':.*?## ' 'NF==2 {printf "  %-26s%s\n", $$1, $$2}'
 
 .DEFAULT_GOAL := help
-.PHONY: install exporters serve test gen api lint format help
+.PHONY: install exporters serve test test-cover send-cover gen api lint format verify help

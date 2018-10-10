@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"sync"
+	"time"
 
 	"github.com/percona/pmm-agent/errs"
 )
@@ -80,22 +81,7 @@ func (p *Program) Err() error {
 // CombinedOutput of program.
 func (p *Program) CombinedOutput() []byte {
 	stdout, stderr := p.stdOutErr()
-	if stdout == nil || stderr == nil {
-		return nil
-	}
-
-	bout, err := ioutil.ReadFile(stdout.Name())
-	if err != nil {
-		return []byte(err.Error())
-	}
-	if stdout == stderr {
-		return bout
-	}
-	berr, err := ioutil.ReadFile(stderr.Name())
-	if err != nil {
-		return []byte(err.Error())
-	}
-	return append(bout, berr...)
+	return combinedOutput(stdout, stderr)
 }
 
 // Pid of running process.
@@ -144,6 +130,19 @@ func (p *Program) run() (err error) {
 	p.done = make(chan struct{})
 	go p.wait()
 
+	// Wait until it starts to report log.
+	for {
+		select {
+		case <-time.After(100 * time.Millisecond):
+			if combinedOutput(f) != nil {
+				return nil
+			}
+		case <-time.After(1 * time.Second):
+			// Do not wait anymore.
+			return nil
+		}
+	}
+
 	return nil
 }
 
@@ -189,4 +188,20 @@ func (p *Program) stdOutErr() (*os.File, *os.File) {
 	p.RLock()
 	defer p.RUnlock()
 	return p.outfile, p.errfile
+}
+
+func combinedOutput(files ...*os.File) (out []byte) {
+	var seen = map[*os.File]struct{}{}
+	for i := range files {
+		if _, ok := seen[files[i]]; ok {
+			continue
+		}
+		data, err := ioutil.ReadFile(files[i].Name())
+		if err != nil {
+			out = append(out, []byte(err.Error())...)
+		}
+		out = append(out, data...)
+		seen[files[i]] = struct{}{}
+	}
+	return
 }
