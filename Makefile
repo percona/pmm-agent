@@ -1,3 +1,5 @@
+export GO111MODULE=on
+
 install:                  ## Install this program.
 	go install -v ./...
 
@@ -24,8 +26,9 @@ format:	                  ## Run `goimports`.
 	go install -v ./vendor/golang.org/x/tools/cmd/goimports
 	goimports -local github.com/percona/pmm-agent -l -w $(shell find . -type f -name '*.go' -not -path "./vendor/*")
 
-verify:                   ## ensure that vendor/ is in sync with go.*
-	GO111MODULE=on go mod vendor
+verify:                   ## Ensure that vendor/ is in sync with `go.*`.
+	go mod verify
+	go mod vendor
 	git diff --exit-code
 
 help: Makefile            ## Display this help message.
@@ -35,4 +38,4 @@ help: Makefile            ## Display this help message.
 	    awk -F ':.*?## ' 'NF==2 {printf "  %-26s%s\n", $$1, $$2}'
 
 .DEFAULT_GOAL := help
-.PHONY: install exporters serve test gen api lint format help
+.PHONY: install exporters serve test gen api lint format verify help
