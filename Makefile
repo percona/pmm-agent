@@ -12,6 +12,14 @@ serve: install exporters  ## Start program as server and listen for incoming htt
 test: exporters           ## Run tests.
 	go test -mod=vendor -v -race ./...
 
+test-cover: exporters
+	go install -v ./vendor/github.com/AlekSi/gocoverutil
+	gocoverutil test -v -race ./...
+
+send-cover: SHELL:=/bin/bash
+send-cover:
+	bash <(curl -s https://codecov.io/bash) -X fix
+
 gen:                      ## Run `go generate`.
 	go generate ./...
 
@@ -38,4 +46,4 @@ help: Makefile            ## Display this help message.
 	    awk -F ':.*?## ' 'NF==2 {printf "  %-26s%s\n", $$1, $$2}'
 
 .DEFAULT_GOAL := help
-.PHONY: install exporters serve test gen api lint format verify help
+.PHONY: install exporters serve test test-cover send-cover gen api lint format verify help

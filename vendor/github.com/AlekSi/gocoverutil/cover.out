@@ -1,0 +1,13 @@
+mode: count
+github.com/AlekSi/gocoverutil/internal/test/package1/file1.go:3.20,5.2 1 34
+github.com/AlekSi/gocoverutil/internal/test/package1/file2.go:7.20,9.2 1 21
+github.com/AlekSi/gocoverutil/internal/test/package1/file2.go:12.24,14.2 1 6
+github.com/AlekSi/gocoverutil/internal/test/package2/file1.go:9.29,10.28 1 1
+github.com/AlekSi/gocoverutil/internal/test/package2/file1.go:10.28,11.14 1 100
+github.com/AlekSi/gocoverutil/internal/test/package2/file1.go:11.14,13.4 1 0
+github.com/AlekSi/gocoverutil/internal/test/package2/file1.go:15.3,17.10 3 100
+github.com/AlekSi/gocoverutil/internal/test/package2/file1.go:18.17,19.36 1 6
+github.com/AlekSi/gocoverutil/internal/test/package2/file1.go:20.11,21.32 1 27
+github.com/AlekSi/gocoverutil/internal/test/package2/file1.go:22.11,23.32 1 14
+github.com/AlekSi/gocoverutil/internal/test/package2/file1.go:24.11,25.18 1 53
+github.com/AlekSi/gocoverutil/internal/test/package2/file1.go:31.19,33.2 1 1

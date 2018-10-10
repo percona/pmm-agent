@@ -1,0 +1,21 @@
+language: go
+sudo: false
+
+go:
+  - 1.8.x
+  - 1.9.x
+  - master
+
+install:
+  - go get ./...
+  - go get github.com/mattn/goveralls
+
+script:
+  - make
+
+  # make sure output not changed
+  - git diff --exit-code
+
+after_success:
+  - goveralls -coverprofile=cover.out
+  - bash <(curl -s https://codecov.io/bash) -X fix -f cover.out

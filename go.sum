@@ -1,4 +1,6 @@
 cloud.google.com/go v0.26.0/go.mod h1:aQUYkXzVsufM+DwF1aE+0xfcU+56JwCaLick0ClmMTw=
+github.com/AlekSi/gocoverutil v0.2.0 h1:lpfoGyib/qbTh7PajsBL6Upv3Fnn2o3A6Mn0naFR0E8=
+github.com/AlekSi/gocoverutil v0.2.0/go.mod h1:/SQ8potkEzPK7N0+EyZi8sPtf/nK3BnHjw7tVmlDdUs=
 github.com/BurntSushi/toml v0.3.1 h1:WXkYYl6Yr3qBf1K79EBnL4mak0OimBfB0XUf9Vl28OQ=
 github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03qcyfWMU=
 github.com/alecthomas/template v0.0.0-20160405071501-a0175ee3bccc h1:cAKDfWh5VpdgMhJosfJnn5/FoN2SRZ4p7fJNX58YPaU=

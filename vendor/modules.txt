@@ -1,3 +1,6 @@
+# github.com/AlekSi/gocoverutil v0.2.0
+github.com/AlekSi/gocoverutil
+github.com/AlekSi/gocoverutil/gocoverutil
 # github.com/alecthomas/template v0.0.0-20160405071501-a0175ee3bccc
 github.com/alecthomas/template
 github.com/alecthomas/template/parse
@@ -109,6 +112,7 @@ golang.org/x/text/unicode/bidi
 # golang.org/x/tools v0.0.0-20180828015842-6cd1fcedba52
 golang.org/x/tools/cmd/goimports
 golang.org/x/tools/imports
+golang.org/x/tools/cover
 golang.org/x/tools/go/ast/astutil
 golang.org/x/tools/internal/fastwalk
 # google.golang.org/appengine v1.1.0
