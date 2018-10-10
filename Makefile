@@ -8,7 +8,7 @@ serve: install exporters  ## Start program as server and listen for incoming htt
 	pmm-agent serve
 
 test: exporters           ## Run tests.
-	go test -v -race ./...
+	go test -mod=vendor -v -race ./...
 
 gen:                      ## Run `go generate`.
 	go generate ./...
@@ -23,6 +23,10 @@ lint:	                  ## Run `golangci-lint`.
 format:	                  ## Run `goimports`.
 	go install -v ./vendor/golang.org/x/tools/cmd/goimports
 	goimports -local github.com/percona/pmm-agent -l -w $(shell find . -type f -name '*.go' -not -path "./vendor/*")
+
+verify:                   ## ensure that vendor/ is in sync with go.*
+	go mod vendor
+	git diff --exit-code
 
 help: Makefile            ## Display this help message.
 	@echo "Please use \`make <target>\` where <target> is one of:"
