@@ -9,16 +9,24 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/percona/pmm-agent/api"
+	"github.com/percona/pmm-agent/app"
+	"github.com/percona/pmm-agent/app/server"
 )
 
 func TestList(t *testing.T) {
+	t.Parallel()
+
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	server := &Server{
-		Addr: "127.0.0.1:7771",
+	app := &app.App{
+		Server: server.Server{
+			Addr: "127.0.0.1:7771",
+		},
 	}
+	rootCmd := New(app)
+
 	go func() {
-		err := server.Serve(ctx)
+		err := app.Server.Serve(ctx)
 		assert.NoError(t, err)
 	}()
 

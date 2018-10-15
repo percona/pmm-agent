@@ -1,4 +1,4 @@
-package cmd
+package format
 
 import (
 	"github.com/spf13/cobra"
@@ -26,6 +26,6 @@ func (f Format) Format(format string, data interface{}) string {
 
 // Flags assigns flags to cmd.
 func (f *Format) Flags(cmd *cobra.Command) {
-	listCmd.Flags().StringVar(&f.format, "template", "", "print result using a Go template")
-	listCmd.Flags().BoolVar(&f.json, "json", false, "print result as json")
+	cmd.Flags().StringVar(&f.format, "template", "", "print result using a Go template")
+	cmd.Flags().BoolVar(&f.json, "json", false, "print result as json")
 }
