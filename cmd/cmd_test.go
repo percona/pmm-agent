@@ -10,24 +10,22 @@ import (
 
 	"github.com/percona/pmm-agent/api"
 	"github.com/percona/pmm-agent/app"
-	"github.com/percona/pmm-agent/app/server"
+	"github.com/percona/pmm-agent/cmd/serve"
 )
 
 func TestList(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	go func() {
-		app := &app.App{
-			Server: server.Server{
-				Addr: "127.0.0.1:7771",
-			},
-		}
-
-		err := app.Server.Serve(ctx)
-		assert.NoError(t, err)
-	}()
+	// Run app.
+	{
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		go func() {
+			cmd := serve.New(ctx, &app.App{})
+			err := cmd.Execute()
+			assert.NoError(t, err)
+		}()
+	}
 
 	var buf *bytes.Buffer
 

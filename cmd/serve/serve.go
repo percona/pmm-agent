@@ -15,7 +15,7 @@ import (
 )
 
 // New returns `serve` command.
-func New(app *app.App) *cobra.Command {
+func New(ctx context.Context, app *app.App) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "serve",
 		Short: "Serve accepts incoming connections and starts supervisor api.",
@@ -24,7 +24,7 @@ func New(app *app.App) *cobra.Command {
 			wg := &sync.WaitGroup{}
 
 			// Create context which cancels on termination signals.
-			ctx := contextWithCancelOnSignal(syscall.SIGTERM, syscall.SIGINT)
+			ctx := contextWithCancelOnSignal(ctx, syscall.SIGTERM, syscall.SIGINT)
 
 			// Start all services.
 			wg.Add(1)
@@ -46,8 +46,8 @@ func New(app *app.App) *cobra.Command {
 	return cmd
 }
 
-func contextWithCancelOnSignal(sig ...os.Signal) context.Context {
-	ctx, cancel := context.WithCancel(context.Background())
+func contextWithCancelOnSignal(ctx context.Context, sig ...os.Signal) context.Context {
+	ctx, cancel := context.WithCancel(ctx)
 
 	signals := make(chan os.Signal, 1)
 	signal.Notify(signals, sig...)

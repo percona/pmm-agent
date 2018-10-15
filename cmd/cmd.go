@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"context"
+
 	"github.com/spf13/cobra"
 
 	"github.com/percona/pmm-agent/app"
@@ -18,7 +20,7 @@ func New(app *app.App) *cobra.Command {
 	cmd := root.New(app)
 
 	cmd.AddCommand(
-		serve.New(app),
+		serve.New(context.Background(), app),
 		add.New(app),
 		remove.New(app),
 		start.New(app),
