@@ -5,12 +5,12 @@ import (
 	"text/tabwriter"
 )
 
-// Format data.
-func Format(format string, data interface{}) string {
+// Parse format and fill it with data.
+func Parse(format string, data interface{}) string {
 	b := &bytes.Buffer{}
 	w := tabwriter.NewWriter(b, 0, 0, 2, ' ', 0)
 
-	tmpl, err := Parse(format)
+	tmpl, err := NewParse("", format)
 	if err != nil {
 		return err.Error()
 	}
