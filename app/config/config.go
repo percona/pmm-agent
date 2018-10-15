@@ -11,6 +11,7 @@ type Config struct {
 	File string
 }
 
+// Read configuration.
 func (c *Config) Read() error {
 	if c.File != "" {
 		// Use config file from the flag.

@@ -13,8 +13,10 @@ import (
 	"github.com/percona/pmm-agent/cmd/stop"
 )
 
+// New returns app cmd.
 func New(app *app.App) *cobra.Command {
 	cmd := root.New(app)
+
 	cmd.AddCommand(
 		serve.New(app),
 		add.New(app),
@@ -23,5 +25,6 @@ func New(app *app.App) *cobra.Command {
 		stop.New(app),
 		list.New(app),
 	)
+
 	return cmd
 }
