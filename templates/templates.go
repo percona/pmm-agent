@@ -1,3 +1,4 @@
+// Package templates is based on https://github.com/moby/moby/blob/503b1a9b6f24488db6a67f7ba24258e4ff5ea2a7/daemon/logger/templates/templates.go
 package templates
 
 import (
@@ -27,34 +28,6 @@ var basicFunctions = template.FuncMap{
 	"upper":    strings.ToUpper,
 	"pad":      padWithSpace,
 	"truncate": truncateWithLength,
-}
-
-// HeaderFunctions are used to created headers of a table.
-// This is a replacement of basicFunctions for header generation
-// because we want the header to remain intact.
-// Some functions like `split` are irrelevant so not added.
-var HeaderFunctions = template.FuncMap{
-	"json": func(v string) string {
-		return v
-	},
-	"title": func(v string) string {
-		return v
-	},
-	"lower": func(v string) string {
-		return v
-	},
-	"upper": func(v string) string {
-		return v
-	},
-	"truncate": func(v string, _ int) string {
-		return v
-	},
-}
-
-// Parse creates a new anonymous template with the basic functions
-// and parses the given format.
-func Parse(format string) (*template.Template, error) {
-	return NewParse("", format)
 }
 
 // NewParse creates a new tagged template with the basic functions

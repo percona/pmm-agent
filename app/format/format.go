@@ -12,8 +12,8 @@ type Format struct {
 	json   bool
 }
 
-// Format data to given format.
-func (f Format) Format(format string, data interface{}) string {
+// Parse format and fill it with data.
+func (f Format) Parse(format string, data interface{}) string {
 	if f.format != "" {
 		format = f.format
 	}
@@ -21,7 +21,7 @@ func (f Format) Format(format string, data interface{}) string {
 		format = "{{ json . }}"
 	}
 
-	return templates.Format(format, data)
+	return templates.Parse(format, data)
 }
 
 // Flags assigns flags to cmd.

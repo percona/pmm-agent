@@ -70,5 +70,5 @@ func (l *list) String() string {
 	headers := strings.Join(header, "\t")
 	fields := strings.Join(field, "\t")
 	f := headers + "\n{{range $index, $element := .Statuses}}" + fields + "\n{{end}}"
-	return l.Format.Format(f, l)
+	return l.Format.Parse(f, l)
 }

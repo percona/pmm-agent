@@ -288,6 +288,42 @@ func TestList(t *testing.T) {
 		assert.Equal(t, "", buf.String())
 	}
 
+	// Stop all programs.
+	{
+		rootCmd := New(&app.App{})
+		rootCmd.SetArgs([]string{
+			"stop",
+		})
+		buf = &bytes.Buffer{}
+		rootCmd.SetOutput(buf)
+		assert.NoError(t, rootCmd.Execute())
+		assert.Equal(t, "", buf.String())
+	}
+
+	// Start all programs.
+	{
+		rootCmd := New(&app.App{})
+		rootCmd.SetArgs([]string{
+			"start",
+		})
+		buf = &bytes.Buffer{}
+		rootCmd.SetOutput(buf)
+		assert.NoError(t, rootCmd.Execute())
+		assert.Equal(t, "", buf.String())
+	}
+
+	// Remove program.
+	{
+		rootCmd := New(&app.App{})
+		rootCmd.SetArgs([]string{
+			"remove", "mysql-1",
+		})
+		buf = &bytes.Buffer{}
+		rootCmd.SetOutput(buf)
+		assert.NoError(t, rootCmd.Execute())
+		assert.Equal(t, "", buf.String())
+	}
+
 	// Remove all programs.
 	{
 		rootCmd := New(&app.App{})
