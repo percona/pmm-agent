@@ -32,6 +32,7 @@ import (
 	"gopkg.in/alecthomas/kingpin.v2"
 
 	"github.com/percona/pmm-agent/config"
+	"github.com/percona/pmm-agent/server"
 	"github.com/percona/pmm-agent/supervisor"
 	"github.com/percona/pmm-agent/utils/logger"
 )
@@ -55,36 +56,24 @@ func workLoop(ctx context.Context, cfg *config.Config, client agent.AgentClient)
 	}
 	l.Info("Two-way communication channel established.")
 	defer stream.CloseSend()
-	var id uint32 = 1
 
+	conn := server.NewConn(cfg.Address, stream)
 	// connect request/response
-	agentMessage := &agent.AgentMessage{
-		Id: id,
-		Payload: &agent.AgentMessage_Auth{
-			Auth: &agent.AuthRequest{
-				Uuid:    cfg.UUID,
-				Version: Version,
-			},
+	agentMessagePayload := &agent.AgentMessage_Auth{
+		Auth: &agent.AuthRequest{
+			Uuid:    cfg.UUID,
+			Version: Version,
 		},
 	}
-	l.Debugf("Send: %s.", agentMessage)
-	if err = stream.Send(agentMessage); err != nil {
-		l.Fatal(err)
-	}
-	serverMessage, err := stream.Recv()
+	serverMessage, err := conn.SendAndRecv(agentMessagePayload)
 	if err != nil {
 		l.Fatal(err)
 	}
-	l.Debugf("Recv: %s.", serverMessage)
 
 	for {
-		serverMessage, err = stream.Recv()
-		if err != nil {
-			l.Fatal(err)
-		}
-		l.Debugf("Recv: %s.", serverMessage)
+		serverMessage = conn.RecvRequestMessage()
 
-		agentMessage = nil
+		var agentMessage *agent.AgentMessage
 		switch payload := serverMessage.Payload.(type) {
 		case *agent.ServerMessage_Ping:
 			agentMessage = &agent.AgentMessage{
