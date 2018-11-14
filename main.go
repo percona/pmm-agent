@@ -65,13 +65,13 @@ func workLoop(ctx context.Context, cfg *config.Config, client agent.AgentClient)
 			Version: Version,
 		},
 	}
-	serverMessage, err := conn.SendAndRecv(agentMessagePayload)
+	_, err = conn.SendAndRecv(agentMessagePayload)
 	if err != nil {
 		l.Fatal(err)
 	}
 
 	for {
-		serverMessage = conn.RecvRequestMessage()
+		serverMessage := conn.RecvRequestMessage()
 
 		var agentMessage *agent.AgentMessage
 		switch payload := serverMessage.Payload.(type) {

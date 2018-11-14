@@ -69,6 +69,14 @@
   revision = "b0fbe07536d45f05077b838378bed9c079c676e6"
 
 [[projects]]
+  digest = "1:5cf3f025cbee5951a4ee961de067c8a89fc95a5adabead774f82822efabab121"
+  name = "github.com/pkg/errors"
+  packages = ["."]
+  pruneopts = "NUT"
+  revision = "645ef00459ed84a119197bfb8d8205042c6df63d"
+  version = "v0.8.0"
+
+[[projects]]
   digest = "1:d848e2bdc690ea54c4b49894b67a05db318a97ee6561879b814c2c1f82f61406"
   name = "github.com/sirupsen/logrus"
   packages = ["."]
@@ -195,6 +203,7 @@
     "github.com/golang/protobuf/ptypes",
     "github.com/percona/pmm/api/agent",
     "github.com/percona/pmm/api/inventory",
+    "github.com/pkg/errors",
     "github.com/sirupsen/logrus",
     "google.golang.org/grpc",
     "google.golang.org/grpc/credentials",

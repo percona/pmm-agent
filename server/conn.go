@@ -1,5 +1,5 @@
-// pmm-managed
-// Copyright (C) 2017 Percona LLC
+// pmm-agent
+// Copyright (C) 2018 Percona LLC
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published by
@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-// Package agents contains business logic of working with pmm-agents.
+// Package server contains business logic of working with pmm-managed.
 package server
 
 import (
@@ -26,6 +26,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+// Conn contains business logic of communication with pmm-managed.
 type Conn struct {
 	stream      agent.Agent_ConnectClient
 	lastID      uint32
@@ -35,6 +36,7 @@ type Conn struct {
 	requestChan chan *agent.ServerMessage
 }
 
+// NewConn starts goroutine to dispatch messages from server and returns new Conn object
 func NewConn(serverAddress string, stream agent.Agent_ConnectClient) *Conn {
 	conn := &Conn{
 		stream:      stream,
@@ -47,6 +49,7 @@ func NewConn(serverAddress string, stream agent.Agent_ConnectClient) *Conn {
 	return conn
 }
 
+// SendAndRecv sends requests to server and waits for response
 func (c *Conn) SendAndRecv(toServer agent.AgentMessagePayload) (*agent.ServerMessage, error) {
 	id := atomic.AddUint32(&c.lastID, 1)
 	agentMessage := &agent.AgentMessage{
@@ -70,6 +73,7 @@ func (c *Conn) SendAndRecv(toServer agent.AgentMessagePayload) (*agent.ServerMes
 	return serverMessage, nil
 }
 
+// RecvRequestMessage waits for request from server and returns it
 func (c *Conn) RecvRequestMessage() *agent.ServerMessage {
 	serverMessage := <-c.requestChan
 	c.l.Debugf("Recv: %s.", serverMessage)
@@ -90,7 +94,6 @@ func (c *Conn) startMessageDispatcher() {
 			go func(serverMessage *agent.ServerMessage) {
 				c.requestChan <- serverMessage
 			}(serverMessage)
-			break
 		}
 	}
 }
