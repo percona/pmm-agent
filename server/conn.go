@@ -62,13 +62,14 @@ func (c *Conn) SendAndRecv(toServer agent.AgentMessagePayload) (*agent.ServerMes
 	}
 
 	agentChan := make(chan *agent.ServerMessage)
-	defer close(agentChan)
 
 	c.addSubscriber(id, agentChan)
-	defer c.removeSubscriber(id, agentChan)
 
 	serverMessage := <-agentChan
 	c.l.Debugf("Recv: %s.", serverMessage)
+
+	c.removeSubscriber(id, agentChan)
+	close(agentChan)
 
 	return serverMessage, nil
 }
@@ -81,10 +82,11 @@ func (c *Conn) RecvRequestMessage() *agent.ServerMessage {
 }
 
 func (c *Conn) startMessageDispatcher() {
-	for c.stream.Context().Err() != nil {
+	context := c.stream.Context()
+	for context.Err() == nil {
 		serverMessage, err := c.stream.Recv()
 		if err != nil {
-			c.l.Warnln("Connection closed", err)
+			c.l.Warnln("Connection is closed", err)
 			return
 		}
 		switch serverMessage.GetPayload().(type) {
@@ -94,17 +96,19 @@ func (c *Conn) startMessageDispatcher() {
 			go func(serverMessage *agent.ServerMessage) {
 				c.requestChan <- serverMessage
 			}(serverMessage)
+		default:
+			c.l.Warnf("unexpected message type %T ", serverMessage.GetPayload())
 		}
 	}
 }
 
 func (c *Conn) emit(message *agent.ServerMessage) {
-	c.rw.RLock()
-	defer c.rw.RUnlock()
+	c.rw.Lock()
+	defer c.rw.Unlock()
 	if _, ok := c.subscribers[message.Id]; ok {
 		for i := range c.subscribers[message.Id] {
 			go func(subscriber chan *agent.ServerMessage) {
-				subscriber <- message
+				subscriber <- message //TODO: fix race condition
 			}(c.subscribers[message.Id][i])
 		}
 	} else {
