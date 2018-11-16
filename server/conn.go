@@ -32,7 +32,7 @@ type Conn struct {
 	lastID      uint32
 	l           *logrus.Entry
 	rw          sync.RWMutex
-	subscribers map[uint32][]chan *agent.ServerMessage
+	subscribers map[uint32]chan *agent.ServerMessage
 	requestChan chan *agent.ServerMessage
 }
 
@@ -41,7 +41,7 @@ func NewConn(serverAddress string, stream agent.Agent_ConnectClient) *Conn {
 	conn := &Conn{
 		stream:      stream,
 		l:           logrus.WithField("server-address", serverAddress),
-		subscribers: make(map[uint32][]chan *agent.ServerMessage),
+		subscribers: make(map[uint32]chan *agent.ServerMessage),
 		requestChan: make(chan *agent.ServerMessage),
 	}
 	// create goroutine to dispatch messages
@@ -61,7 +61,7 @@ func (c *Conn) SendAndRecv(toServer agent.AgentMessagePayload) (*agent.ServerMes
 		return nil, errors.Wrap(err, "failed to send message to agent")
 	}
 
-	agentChan := make(chan *agent.ServerMessage)
+	agentChan := make(chan *agent.ServerMessage, 1)
 
 	c.addSubscriber(id, agentChan)
 
@@ -106,34 +106,27 @@ func (c *Conn) emit(message *agent.ServerMessage) {
 	c.rw.Lock()
 	defer c.rw.Unlock()
 	if _, ok := c.subscribers[message.Id]; ok {
-		for i := range c.subscribers[message.Id] {
-			go func(subscriber chan *agent.ServerMessage) {
-				subscriber <- message //TODO: fix race condition
-			}(c.subscribers[message.Id][i])
-		}
+		c.subscribers[message.Id] <- message
 	} else {
 		c.l.Warnf("Unexpected message: %T %s", message, message)
 	}
 }
 
-func (c *Conn) removeSubscriber(id uint32, messageChan chan *agent.ServerMessage) {
+func (c *Conn) removeSubscriber(id uint32, subscriber chan *agent.ServerMessage) {
 	c.rw.Lock()
 	defer c.rw.Unlock()
 	if _, ok := c.subscribers[id]; ok {
-		for i := range c.subscribers[id] {
-			if c.subscribers[id][i] == messageChan {
-				c.subscribers[id] = append(c.subscribers[id][:i], c.subscribers[id][i+1:]...)
-				break
-			}
-		}
+		delete(c.subscribers, id)
+	} else {
+		c.l.Warnf("Trying to delete subscriber which is already deleted")
 	}
 }
 
-func (c *Conn) addSubscriber(id uint32, agentChan chan *agent.ServerMessage) {
+func (c *Conn) addSubscriber(id uint32, subscriber chan *agent.ServerMessage) {
 	c.rw.Lock()
 	defer c.rw.Unlock()
-	if _, ok := c.subscribers[id]; !ok {
-		c.subscribers[id] = []chan *agent.ServerMessage{}
+	if _, ok := c.subscribers[id]; ok {
+		c.l.Fatalf("Trying to add subscriber to ID which already have subscriber")
 	}
-	c.subscribers[id] = append(c.subscribers[id], agentChan)
+	c.subscribers[id] = subscriber
 }

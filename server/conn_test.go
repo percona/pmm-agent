@@ -21,18 +21,38 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/percona/pmm-agent/mocks"
-	"github.com/percona/pmm/api/agent"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+
+	"github.com/percona/pmm-agent/mocks"
+	"github.com/percona/pmm/api/agent"
 )
+
+func setup(messages []*agent.ServerMessage) (*mocks.Context, *Conn) {
+	stream := &mocks.AgentConnectClient{}
+	ctx := &mocks.Context{}
+	currentMessageID := 0
+	stream.On("Send", mock.Anything).Return(nil)
+	stream.On("Recv").Return(func() (*agent.ServerMessage, error) {
+		if currentMessageID < len(messages) {
+			serverMessage := messages[currentMessageID]
+			currentMessageID++
+			return serverMessage, nil
+		}
+		return nil, fmt.Errorf("connection is closed")
+	})
+	stream.On("Context").Return(ctx)
+	ctx.On("Err").Return(nil)
+	c := NewConn("mock-server", stream)
+	return ctx, c
+}
 
 func TestConn_SendAndRecv(t *testing.T) {
 	tests := []struct {
 		name           string
 		request        agent.AgentMessagePayload
 		serverMessages []*agent.ServerMessage
-		wantId         uint32
+		wantID         uint32
 		wantType       agent.ServerMessagePayload
 		wantErr        bool
 	}{
@@ -43,7 +63,7 @@ func TestConn_SendAndRecv(t *testing.T) {
 				Id:      1,
 				Payload: &agent.ServerMessage_Auth{},
 			}},
-			wantId:   1,
+			wantID:   1,
 			wantType: &agent.ServerMessage_Auth{},
 			wantErr:  false,
 		},
@@ -57,7 +77,7 @@ func TestConn_SendAndRecv(t *testing.T) {
 				Id:      1,
 				Payload: &agent.ServerMessage_QanData{},
 			}},
-			wantId:   1,
+			wantID:   1,
 			wantType: &agent.ServerMessage_QanData{},
 			wantErr:  false,
 		},
@@ -71,7 +91,7 @@ func TestConn_SendAndRecv(t *testing.T) {
 				Id:      1,
 				Payload: &agent.ServerMessage_QanData{},
 			}},
-			wantId:   1,
+			wantID:   1,
 			wantType: &agent.ServerMessage_QanData{},
 			wantErr:  false,
 		},
@@ -85,38 +105,21 @@ func TestConn_SendAndRecv(t *testing.T) {
 				Id:      1,
 				Payload: &agent.ServerMessage_Auth{},
 			}},
-			wantId:   1,
+			wantID:   1,
 			wantType: &agent.ServerMessage_Auth{},
 			wantErr:  false,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			stream := &mocks.AgentConnectClient{}
-			ctx := &mocks.Context{}
-			currentMessageId := 0
-
-			stream.On("Send", mock.Anything).Return(nil)
-			stream.On("Recv").Return(func() (*agent.ServerMessage, error) {
-				if currentMessageId < len(tt.serverMessages) {
-					serverMessage := tt.serverMessages[currentMessageId]
-					currentMessageId++
-					return serverMessage, nil
-				} else {
-					return nil, fmt.Errorf("connection is closed")
-				}
-			})
-			stream.On("Context").Return(ctx)
-			ctx.On("Err").Return(nil)
-
-			c := NewConn("mock-server", stream)
-			got, err := c.SendAndRecv(tt.request)
+			ctx, conn := setup(tt.serverMessages)
+			got, err := conn.SendAndRecv(tt.request)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Conn.SendAndRecv() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if got.Id != tt.wantId {
-				t.Errorf("Conn.SendAndRecv() = %v, want %v", got.Id, tt.wantId)
+			if got.Id != tt.wantID {
+				t.Errorf("Conn.SendAndRecv() = %v, want %v", got.Id, tt.wantID)
 			}
 			assert.IsTypef(t, tt.wantType, got.Payload, "Conn.SendAndRecv() payload type = %v, wantType %v")
 			ctx.On("Err").Return(fmt.Errorf("stop"))
@@ -128,7 +131,7 @@ func TestConn_RecvRequestMessage(t *testing.T) {
 	tests := []struct {
 		name           string
 		serverMessages []*agent.ServerMessage
-		wantId         uint32
+		wantID         uint32
 		wantType       agent.ServerMessagePayload
 	}{
 		{
@@ -137,7 +140,7 @@ func TestConn_RecvRequestMessage(t *testing.T) {
 				Id:      1,
 				Payload: &agent.ServerMessage_Ping{},
 			}},
-			wantId:   1,
+			wantID:   1,
 			wantType: &agent.ServerMessage_Ping{},
 		},
 		{
@@ -149,7 +152,7 @@ func TestConn_RecvRequestMessage(t *testing.T) {
 				Id:      1,
 				Payload: &agent.ServerMessage_Auth{},
 			}},
-			wantId:   1,
+			wantID:   1,
 			wantType: &agent.ServerMessage_Ping{},
 		},
 		{
@@ -161,34 +164,16 @@ func TestConn_RecvRequestMessage(t *testing.T) {
 				Id:      2,
 				Payload: &agent.ServerMessage_Ping{},
 			}},
-			wantId:   2,
+			wantID:   2,
 			wantType: &agent.ServerMessage_Ping{},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-
-			stream := &mocks.AgentConnectClient{}
-			ctx := &mocks.Context{}
-			currentMessageId := 0
-
-			stream.On("Send", mock.Anything).Return(nil)
-			stream.On("Recv").Return(func() (*agent.ServerMessage, error) {
-				if currentMessageId < len(tt.serverMessages) {
-					serverMessage := tt.serverMessages[currentMessageId]
-					currentMessageId++
-					return serverMessage, nil
-				} else {
-					return nil, fmt.Errorf("connection is closed")
-				}
-			})
-			stream.On("Context").Return(ctx)
-			ctx.On("Err").Return(nil)
-
-			c := NewConn("mock-server", stream)
-			got := c.RecvRequestMessage()
-			if got.Id != tt.wantId {
-				t.Errorf("Conn.RecvRequestMessage() = %v, want %v", got.Id, tt.wantId)
+			ctx, conn := setup(tt.serverMessages)
+			got := conn.RecvRequestMessage()
+			if got.Id != tt.wantID {
+				t.Errorf("Conn.RecvRequestMessage() = %v, want %v", got.Id, tt.wantID)
 			}
 			assert.IsTypef(t, tt.wantType, got.Payload, "Conn.RecvRequestMessage() payload type = %v, wantType %v")
 			ctx.On("Err").Return(fmt.Errorf("stop"))
