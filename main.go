@@ -24,7 +24,6 @@ import (
 
 	"github.com/golang/protobuf/ptypes"
 	"github.com/percona/pmm/api/agent"
-	"github.com/percona/pmm/api/inventory"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -86,14 +85,14 @@ func workLoop(ctx context.Context, cfg *config.Config, client agent.AgentClient)
 			}
 
 		case *agent.ServerMessage_State:
-			for _, agent := range payload.State.AgentProcesses {
-				switch agent.Type {
-				case inventory.AgentType_MYSQLD_EXPORTER:
-					if err := supervisor.StartMySQLdExporter(agent.Args, agent.Env); err != nil {
+			for _, p := range payload.State.AgentProcesses {
+				switch p.Type {
+				case agent.Type_MYSQLD_EXPORTER:
+					if err := supervisor.StartMySQLdExporter(p.Args, p.Env); err != nil {
 						l.Error(err)
 					}
 				default:
-					l.Warnf("Got unhandled agent type %s (%d), ignoring.", agent.Type, agent.Type)
+					l.Warnf("Got unhandled agent process type %s (%d), ignoring.", p.Type, p.Type)
 				}
 				// l.Infof("Starting mysqld_exporter on 127.0.0.1:%d ...", exporter.ListenPort)
 			}

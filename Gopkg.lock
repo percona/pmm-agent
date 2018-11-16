@@ -67,14 +67,14 @@
 
 [[projects]]
   branch = "PMM-2.0"
-  digest = "1:5ccf138a8ec301183a19515093de66660acd09f7fccf54201259a0e60e0c4c68"
+  digest = "1:75fbe0bb4022682126d15187f72928e98bc1405af42a681ac0344df4ca30ee04"
   name = "github.com/percona/pmm"
   packages = [
     "api/agent",
     "api/inventory",
   ]
   pruneopts = "NUT"
-  revision = "b0fbe07536d45f05077b838378bed9c079c676e6"
+  revision = "c85991634ea29d4249673646d210f88806a8696d"
 
 [[projects]]
   digest = "1:5cf3f025cbee5951a4ee961de067c8a89fc95a5adabead774f82822efabab121"
@@ -237,7 +237,6 @@
   input-imports = [
     "github.com/golang/protobuf/ptypes",
     "github.com/percona/pmm/api/agent",
-    "github.com/percona/pmm/api/inventory",
     "github.com/pkg/errors",
     "github.com/sirupsen/logrus",
     "github.com/stretchr/testify/assert",
