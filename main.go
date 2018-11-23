@@ -33,6 +33,7 @@ import (
 
 	"github.com/percona/pmm-agent/agentlocal"
 	"github.com/percona/pmm-agent/config"
+	"github.com/percona/pmm-agent/runner"
 	"github.com/percona/pmm-agent/server"
 	"github.com/percona/pmm-agent/supervisor"
 	"github.com/percona/pmm-agent/utils/logger"
@@ -64,6 +65,8 @@ func workLoop(ctx context.Context, cfg *config.Config, client agent.AgentClient)
 	channel := server.NewChannel(stream)
 	prometheus.MustRegister(channel)
 
+	svr := supervisor.NewSupervisor(ctx)
+
 	for serverMessage := range channel.Requests() {
 		var agentMessage *agent.AgentMessage
 		switch payload := serverMessage.Payload.(type) {
@@ -78,22 +81,42 @@ func workLoop(ctx context.Context, cfg *config.Config, client agent.AgentClient)
 			}
 
 		case *agent.ServerMessage_State:
-			for _, p := range payload.State.AgentProcesses {
-				switch p.Type {
-				case agent.Type_MYSQLD_EXPORTER:
-					if err := supervisor.StartMySQLdExporter(p.Args, p.Env); err != nil {
-						l.Error(err)
-					}
-				default:
-					l.Warnf("Got unhandled agent process type %s (%d), ignoring.", p.Type, p.Type)
+
+			var agentProcessesStates []*agent.SetStateResponse_AgentProcess
+
+			for _, agentProcess := range payload.State.AgentProcesses {
+
+				params := &runner.AgentParams{
+					AgentId: agentProcess.AgentId,
+					Type:    agentProcess.Type,
+					Args:    agentProcess.Args,
+					Configs: agentProcess.Configs,
+					Env:     agentProcess.Env,
+					Port:    9172,
 				}
+				err := svr.Start(params)
+				var status inventory.AgentProcessStatus
+				if err != nil {
+					l.Error(err)
+					status = inventory.AgentProcessStatus_DISABLED
+				} else {
+					status = inventory.AgentProcessStatus_RUNNING
+				}
+				state := &agent.SetStateResponse_AgentProcess{
+					AgentId:    agentProcess.AgentId,
+					ListenPort: params.Port,
+					Status:     status,
+				}
+				agentProcessesStates = append(agentProcessesStates, state)
 				// l.Infof("Starting mysqld_exporter on 127.0.0.1:%d ...", exporter.ListenPort)
 			}
 
 			agentMessage = &agent.AgentMessage{
 				Id: serverMessage.Id,
 				Payload: &agent.AgentMessage_State{
-					State: &agent.SetStateResponse{},
+					State: &agent.SetStateResponse{
+						AgentProcesses: agentProcessesStates,
+					},
 				},
 			}
 
