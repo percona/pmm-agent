@@ -28,10 +28,10 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/percona/pmm/api/agent"
 	"github.com/sirupsen/logrus"
 
 	"github.com/percona/pmm-agent/utils/logger"
-	"github.com/percona/pmm/api/inventory"
 )
 
 type State int32
@@ -40,12 +40,12 @@ const (
 	INVALID State = 0
 	RUNNING State = 1
 	STOPPED State = 2
-	CRASHED State = 3
+	EXITED  State = 3
 )
 
 type AgentParams struct {
 	AgentId uint32
-	Type    inventory.AgentType
+	Type    agent.Type
 	Args    []string
 	Env     []string
 	Configs map[string]string
@@ -97,7 +97,7 @@ func (m *SubAgent) Start(ctx context.Context) error {
 
 	err = cmd.Start()
 	if err != nil {
-		m.state = CRASHED
+		m.state = EXITED
 		return err
 	}
 	m.cmd = cmd
@@ -106,7 +106,7 @@ func (m *SubAgent) Start(ctx context.Context) error {
 	go func() {
 		_ = m.cmd.Wait()
 		if m.state != STOPPED {
-			m.state = CRASHED
+			m.state = EXITED
 			close(m.restartChan)
 		}
 	}()
@@ -140,7 +140,7 @@ func (m *SubAgent) Done() <-chan struct{} {
 
 func (m *SubAgent) binary() string {
 	switch m.params.Type {
-	case inventory.AgentType_MYSQLD_EXPORTER:
+	case agent.Type_MYSQLD_EXPORTER:
 		return "mysqld_exporter"
 	default:
 		m.l.Panic("unhandled type of agent", m.params.Type)

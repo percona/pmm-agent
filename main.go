@@ -26,6 +26,7 @@ import (
 
 	"github.com/golang/protobuf/ptypes"
 	"github.com/percona/pmm/api/agent"
+	"github.com/percona/pmm/api/inventory"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
