@@ -33,6 +33,7 @@ import (
 
 	"github.com/percona/pmm-agent/agentlocal"
 	"github.com/percona/pmm-agent/config"
+	"github.com/percona/pmm-agent/ports"
 	"github.com/percona/pmm-agent/runner"
 	"github.com/percona/pmm-agent/server"
 	"github.com/percona/pmm-agent/supervisor"
@@ -66,6 +67,7 @@ func workLoop(ctx context.Context, cfg *config.Config, client agent.AgentClient)
 	prometheus.MustRegister(channel)
 
 	svr := supervisor.NewSupervisor(ctx)
+	registry := ports.NewRegistry(10000, 20000, nil)
 
 	for serverMessage := range channel.Requests() {
 		var agentMessage *agent.AgentMessage
@@ -86,25 +88,32 @@ func workLoop(ctx context.Context, cfg *config.Config, client agent.AgentClient)
 
 			for _, agentProcess := range payload.State.AgentProcesses {
 
-				params := &runner.AgentParams{
-					AgentId: agentProcess.AgentId,
-					Type:    agentProcess.Type,
-					Args:    agentProcess.Args,
-					Configs: agentProcess.Configs,
-					Env:     agentProcess.Env,
-					Port:    9172,
-				}
-				err := svr.Start(params)
 				var status inventory.AgentProcessStatus
+				port, err := registry.Reserve()
 				if err != nil {
 					l.Error(err)
 					status = inventory.AgentProcessStatus_DISABLED
 				} else {
-					status = inventory.AgentProcessStatus_RUNNING
+					params := &runner.AgentParams{
+						AgentId: agentProcess.AgentId,
+						Type:    agentProcess.Type,
+						Args:    agentProcess.Args,
+						Configs: agentProcess.Configs,
+						Env:     agentProcess.Env,
+						Port:    uint32(port),
+					}
+					err = svr.Start(params)
+					if err != nil {
+						l.Error(err)
+						_ = registry.Release(port)
+						status = inventory.AgentProcessStatus_DISABLED
+					} else {
+						status = inventory.AgentProcessStatus_RUNNING
+					}
 				}
 				state := &agent.SetStateResponse_AgentProcess{
 					AgentId:    agentProcess.AgentId,
-					ListenPort: params.Port,
+					ListenPort: uint32(port),
 					Status:     status,
 				}
 				agentProcessesStates = append(agentProcessesStates, state)

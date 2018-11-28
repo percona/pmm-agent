@@ -17,35 +17,42 @@
 package logger
 
 import (
-	"container/ring"
-	"sync"
+	"bufio"
+	"bytes"
 )
 
 type CircularWriter struct {
-	r  *ring.Ring
-	rw sync.Mutex
+	data   []string
+	i      uint32
+	buffer bytes.Buffer
 }
 
 func New(len int) *CircularWriter {
-	return &CircularWriter{
-		r: ring.New(len),
+	writer := CircularWriter{
+		data:   make([]string, len),
+		i:      0,
+		buffer: bytes.Buffer{},
+	}
+	go writer.write()
+	return &writer
+}
+
+func (c *CircularWriter) write() {
+	scanner := bufio.NewScanner(&c.buffer)
+	for scanner.Scan() {
+		c.data[c.i] = scanner.Text()
+		c.i = (c.i + 1) % uint32(len(c.data))
 	}
 }
 
 func (c *CircularWriter) Write(p []byte) (n int, err error) {
-	c.rw.Lock()
-	defer c.rw.Unlock()
-	c.r.Value = p
-	c.r = c.r.Next()
-	return len(p), nil
+	return c.buffer.Write(p)
 }
 
-func (c *CircularWriter) String() string {
+func (c *CircularWriter) Read() string {
 	result := ""
-	c.r.Do(func(i interface{}) {
-		if i != nil {
-			result += string(i.([]byte))
-		}
-	})
+	for i := c.i + 1; i < c.i+uint32(len(c.data)); i++ {
+		result += c.data[i%uint32(len(c.data))]
+	}
 	return result
 }

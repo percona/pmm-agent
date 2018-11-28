@@ -17,7 +17,20 @@
 package runner
 
 import (
+	"bytes"
 	"context"
+	"fmt"
+	"io"
+	"math"
+	"math/rand"
+	"os"
+	"os/exec"
+	"text/template"
+	"time"
+
+	"github.com/sirupsen/logrus"
+
+	"github.com/percona/pmm-agent/utils/logger"
 	"github.com/percona/pmm/api/inventory"
 )
 
@@ -39,9 +52,137 @@ type AgentParams struct {
 	Port    uint32
 }
 
-type SubAgent interface {
-	Start(ctx context.Context) error
-	Stop() error
-	GetLogs() string
-	GetState() State
+type SubAgent struct {
+	cmd    *exec.Cmd
+	log    *logger.CircularWriter
+	l      *logrus.Entry
+	state  State
+	params *AgentParams
+
+	restartChan  chan struct{}
+	restartCount int
+}
+
+type templateParams struct {
+	ListenPort uint32
+}
+
+func NewSubAgent(params *AgentParams) *SubAgent {
+	l := logrus.WithField("component", "runner").
+		WithField("agentID", params.AgentId).
+		WithField("type", params.Type)
+
+	return &SubAgent{
+		params: params,
+		log:    logger.New(10),
+		l:      l,
+		state:  INVALID,
+	}
+}
+
+func (m *SubAgent) Start(ctx context.Context) error {
+	if m.GetState() == RUNNING {
+		return fmt.Errorf("can't start the process, process is already running")
+	}
+	name := m.binary()
+	args, err := m.args()
+	if err != nil {
+		m.l.Errorln(err)
+		return err
+	}
+	cmd := exec.CommandContext(ctx, name, args...)
+	cmd.Env = m.params.Env
+	cmd.Stdout = io.MultiWriter(os.Stdout, m.log)
+	cmd.Stderr = io.MultiWriter(os.Stderr, m.log)
+
+	err = cmd.Start()
+	if err != nil {
+		m.state = CRASHED
+		return err
+	}
+	m.cmd = cmd
+	m.state = RUNNING
+	m.restartChan = make(chan struct{})
+	go func() {
+		_ = m.cmd.Wait()
+		if m.state != STOPPED {
+			m.state = CRASHED
+			close(m.restartChan)
+		}
+	}()
+	return nil
+}
+
+func (m *SubAgent) args() ([]string, error) {
+	params := templateParams{
+		ListenPort: m.params.Port,
+	}
+	var args []string
+	for _, arg := range m.params.Args {
+		buffer := &bytes.Buffer{}
+		tmpl, err := template.New(arg).Parse(arg)
+		if err != nil {
+			return nil, err
+		}
+		err = tmpl.Execute(buffer, params)
+		if err != nil {
+			return nil, err
+		}
+		args = append(args, buffer.String())
+	}
+	return args, nil
+}
+
+func (m *SubAgent) Done() <-chan struct{} {
+	r := m.restartChan
+	return r
+}
+
+func (m *SubAgent) binary() string {
+	switch m.params.Type {
+	case inventory.AgentType_MYSQLD_EXPORTER:
+		return "mysqld_exporter"
+	default:
+		m.l.Panic("unhandled type of agent", m.params.Type)
+		return ""
+	}
+}
+
+func (m *SubAgent) Stop() error {
+	if m.GetState() != RUNNING {
+		return fmt.Errorf("can't kill the process, process is not running")
+	}
+	m.state = STOPPED
+	err := m.cmd.Process.Kill()
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *SubAgent) GetLogs() string {
+	return m.log.Read()
+}
+
+func (m *SubAgent) GetState() State {
+	return m.state
+}
+
+func (m *SubAgent) String() string {
+	return fmt.Sprintf("agent id=%d, type=%s", m.params.AgentId, m.params.Type)
+}
+
+func (m *SubAgent) Restart(ctx context.Context) error {
+	max := math.Pow(2, float64(m.restartCount))
+	delay := rand.Int63n(int64(max))
+	startTime := time.After(time.Duration(delay) * time.Millisecond)
+	m.l.Debugf("restarting agent in %d milliseconds", delay)
+	select {
+	case <-ctx.Done():
+		return nil
+	case <-startTime:
+		m.restartCount++
+		err := m.Start(ctx)
+		return err
+	}
 }
