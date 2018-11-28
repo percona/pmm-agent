@@ -20,6 +20,8 @@ import (
 	"context"
 	"crypto/tls"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/golang/protobuf/ptypes"
@@ -154,8 +156,16 @@ func main() {
 
 	_ = agentlocal.AgentLocalServer{}
 
-	// TODO add signal handling, etc
-	ctx := context.TODO()
+	ctx, cancelFunc := context.WithCancel(context.Background())
+
+	var gracefulStop = make(chan os.Signal)
+	signal.Notify(gracefulStop, syscall.SIGTERM)
+	signal.Notify(gracefulStop, syscall.SIGINT)
+	go func() {
+		sig := <-gracefulStop
+		logrus.Debugf("caught sig: %+v", sig)
+		cancelFunc()
+	}()
 
 	if cfg.Address == "" {
 		logrus.Error("PMM Server address is not provided, halting.")
