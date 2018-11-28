@@ -21,26 +21,23 @@ import (
 	"fmt"
 	"github.com/sirupsen/logrus"
 	"sync"
-	"time"
 
 	"github.com/percona/pmm-agent/runner"
-	"github.com/percona/pmm/api/inventory"
 )
 
 type Supervisor struct {
 	rw     sync.RWMutex
-	agents map[uint32]runner.SubAgent
+	agents map[uint32]*runner.SubAgent
 	l      *logrus.Entry
 	ctx    context.Context
 }
 
 func NewSupervisor(ctx context.Context) *Supervisor {
 	supervisor := &Supervisor{
-		agents: make(map[uint32]runner.SubAgent),
+		agents: make(map[uint32]*runner.SubAgent),
 		l:      logrus.WithField("component", "supervisor"),
 		ctx:    ctx,
 	}
-	go supervisor.StartRestarter()
 	return supervisor
 }
 
@@ -49,10 +46,7 @@ func (s *Supervisor) Start(agentParams *runner.AgentParams) error {
 	defer s.rw.Unlock()
 	agent, ok := s.agents[agentParams.AgentId]
 	if !ok {
-		switch agentParams.Type {
-		case inventory.AgentType_MYSQLD_EXPORTER:
-			agent = runner.NewMySQLdExporter(agentParams)
-		}
+		agent = runner.NewSubAgent(agentParams)
 	}
 	if agent.GetState() == runner.RUNNING {
 		return fmt.Errorf("agent id=%d has already run", agentParams.AgentId)
@@ -63,6 +57,7 @@ func (s *Supervisor) Start(agentParams *runner.AgentParams) error {
 		}
 		s.l.Debugf("agent %d is started", agentParams.AgentId)
 		s.agents[agentParams.AgentId] = agent
+		go s.watchSubAgent(agent)
 		return nil
 	}
 }
@@ -83,26 +78,16 @@ func (s *Supervisor) Stop(id uint32) error {
 	return nil
 }
 
-func (s *Supervisor) StartRestarter() { //TODO: better naming
-
-	t := time.NewTicker(10 * time.Second)
-	defer t.Stop()
-
+func (s *Supervisor) watchSubAgent(agent *runner.SubAgent) {
 	for {
 		select {
 		case <-s.ctx.Done():
 			return
-		case <-t.C:
-			s.rw.RLock()
-			for id, agent := range s.agents {
-				if agent.GetState() != runner.RUNNING {
-					err := agent.Start(s.ctx) //TODO: restart with exponential backoff
-					if err != nil {
-						s.l.Warnf("Error on restarting agent with id %d", id)
-					}
-				}
+		case <-agent.Done():
+			err := agent.Restart(s.ctx)
+			if err != nil {
+				s.l.Warnf("Error on restarting agent %s", agent.String())
 			}
-			s.rw.RUnlock()
 		}
 	}
 }
