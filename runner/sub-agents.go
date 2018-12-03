@@ -20,16 +20,12 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/percona/pmm/api/agent"
+	"github.com/sirupsen/logrus"
 	"io"
-	"math"
-	"math/rand"
 	"os"
 	"os/exec"
 	"text/template"
-	"time"
-
-	"github.com/percona/pmm/api/agent"
-	"github.com/sirupsen/logrus"
 
 	"github.com/percona/pmm-agent/utils/logger"
 )
@@ -43,6 +39,7 @@ const (
 	EXITED  State = 3
 )
 
+// AgentParams is params to run sub-agents.
 type AgentParams struct {
 	AgentId uint32
 	Type    agent.Type
@@ -52,6 +49,7 @@ type AgentParams struct {
 	Port    uint32
 }
 
+// SubAgent is structure for sub-agents.
 type SubAgent struct {
 	cmd    *exec.Cmd
 	log    *logger.CircularWriter
@@ -59,14 +57,14 @@ type SubAgent struct {
 	state  State
 	params *AgentParams
 
-	restartChan  chan struct{}
-	restartCount int
+	runningChan chan struct{}
 }
 
 type templateParams struct {
 	ListenPort uint32
 }
 
+// NewSubAgent creates new SubAgent.
 func NewSubAgent(params *AgentParams) *SubAgent {
 	l := logrus.WithField("component", "runner").
 		WithField("agentID", params.AgentId).
@@ -80,6 +78,7 @@ func NewSubAgent(params *AgentParams) *SubAgent {
 	}
 }
 
+// Start starts sub-agent.
 func (m *SubAgent) Start(ctx context.Context) error {
 	if m.GetState() == RUNNING {
 		return fmt.Errorf("can't start the process, process is already running")
@@ -102,15 +101,44 @@ func (m *SubAgent) Start(ctx context.Context) error {
 	}
 	m.cmd = cmd
 	m.state = RUNNING
-	m.restartChan = make(chan struct{})
+	m.runningChan = make(chan struct{})
 	go func() {
 		_ = m.cmd.Wait()
 		if m.state != STOPPED {
 			m.state = EXITED
-			close(m.restartChan)
+			close(m.runningChan)
 		}
 	}()
 	return nil
+}
+
+// Done returns channel to restart agent.
+func (m *SubAgent) Done() <-chan struct{} {
+	r := m.runningChan
+	return r
+}
+
+// Stop stops sub-agent
+func (m *SubAgent) Stop() error {
+	if m.GetState() != RUNNING {
+		return fmt.Errorf("can't kill the process, process is not running")
+	}
+	m.state = STOPPED
+	err := m.cmd.Process.Kill()
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// GetLogs returns logs from sub-agent STDOut and STDErr.
+func (m *SubAgent) GetLogs() []string {
+	return m.log.Data()
+}
+
+// GetState returns state of sub-agent.
+func (m *SubAgent) GetState() State {
+	return m.state
 }
 
 func (m *SubAgent) args() ([]string, error) {
@@ -133,11 +161,6 @@ func (m *SubAgent) args() ([]string, error) {
 	return args, nil
 }
 
-func (m *SubAgent) Done() <-chan struct{} {
-	r := m.restartChan
-	return r
-}
-
 func (m *SubAgent) binary() string {
 	switch m.params.Type {
 	case agent.Type_MYSQLD_EXPORTER:
@@ -145,44 +168,5 @@ func (m *SubAgent) binary() string {
 	default:
 		m.l.Panic("unhandled type of agent", m.params.Type)
 		return ""
-	}
-}
-
-func (m *SubAgent) Stop() error {
-	if m.GetState() != RUNNING {
-		return fmt.Errorf("can't kill the process, process is not running")
-	}
-	m.state = STOPPED
-	err := m.cmd.Process.Kill()
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (m *SubAgent) GetLogs() string {
-	return m.log.Read()
-}
-
-func (m *SubAgent) GetState() State {
-	return m.state
-}
-
-func (m *SubAgent) String() string {
-	return fmt.Sprintf("agent id=%d, type=%s", m.params.AgentId, m.params.Type)
-}
-
-func (m *SubAgent) Restart(ctx context.Context) error {
-	max := math.Pow(2, float64(m.restartCount))
-	delay := rand.Int63n(int64(max))
-	startTime := time.After(time.Duration(delay) * time.Millisecond)
-	m.l.Debugf("restarting agent in %d milliseconds", delay)
-	select {
-	case <-ctx.Done():
-		return nil
-	case <-startTime:
-		m.restartCount++
-		err := m.Start(ctx)
-		return err
 	}
 }

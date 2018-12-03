@@ -86,11 +86,9 @@ func workLoop(ctx context.Context, cfg *config.Config, client agent.AgentClient)
 			}
 
 		case *agent.ServerMessage_State:
-
 			var agentProcessesStates []*agent.SetStateResponse_AgentProcess
 
 			for _, agentProcess := range payload.State.AgentProcesses {
-
 				var status inventory.AgentProcessStatus
 				port, err := registry.Reserve()
 				if err != nil {
