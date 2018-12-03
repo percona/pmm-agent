@@ -20,12 +20,13 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/percona/pmm/api/agent"
-	"github.com/sirupsen/logrus"
 	"io"
 	"os"
 	"os/exec"
 	"text/template"
+
+	"github.com/percona/pmm/api/agent"
+	"github.com/sirupsen/logrus"
 
 	"github.com/percona/pmm-agent/utils/logger"
 )
