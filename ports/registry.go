@@ -37,6 +37,7 @@ type Registry struct {
 	m        map[uint16]struct{}
 }
 
+// NewRegistry creates new Registry object.
 func NewRegistry(min, max uint16, reserved []uint16) *Registry {
 	if min > max {
 		panic("min > max")
@@ -53,6 +54,7 @@ func NewRegistry(min, max uint16, reserved []uint16) *Registry {
 	}
 }
 
+// Reserve reserves next free port.
 func (r *Registry) Reserve() (uint16, error) {
 	r.lock.Lock()
 	defer r.lock.Unlock()
@@ -77,6 +79,7 @@ func (r *Registry) Reserve() (uint16, error) {
 	return 0, errNoFreePort
 }
 
+// Release releases port.
 func (r *Registry) Release(port uint16) error {
 	r.lock.Lock()
 	defer r.lock.Unlock()

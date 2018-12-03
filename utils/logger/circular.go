@@ -23,7 +23,7 @@ import (
 
 type CircularWriter struct {
 	data   []string
-	i      uint32
+	i      int
 	buffer bytes.Buffer
 }
 
@@ -41,7 +41,7 @@ func (c *CircularWriter) write() {
 	scanner := bufio.NewScanner(&c.buffer)
 	for scanner.Scan() {
 		c.data[c.i] = scanner.Text()
-		c.i = (c.i + 1) % uint32(len(c.data))
+		c.i = (c.i + 1) % len(c.data)
 	}
 }
 
@@ -49,10 +49,10 @@ func (c *CircularWriter) Write(p []byte) (n int, err error) {
 	return c.buffer.Write(p)
 }
 
-func (c *CircularWriter) Read() string {
-	result := ""
-	for i := c.i + 1; i < c.i+uint32(len(c.data)); i++ {
-		result += c.data[i%uint32(len(c.data))]
+func (c *CircularWriter) Data() []string {
+	var result []string
+	for i := c.i + 1; i < c.i+len(c.data); i++ {
+		result = append(result, c.data[i%len(c.data)])
 	}
 	return result
 }

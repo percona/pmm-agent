@@ -17,10 +17,11 @@
 package runner
 
 import (
+	"github.com/stretchr/testify/assert"
 	"testing"
 )
 
-func TestSubAgent_args(t *testing.T) {
+func TestSubAgentArgs(t *testing.T) {
 	type fields struct {
 		params *AgentParams
 	}
@@ -36,7 +37,7 @@ func TestSubAgent_args(t *testing.T) {
 				Args: []string{},
 				Port: 1234,
 			}},
-			[]string{},
+			nil,
 			false,
 		},
 		{
@@ -67,16 +68,7 @@ func TestSubAgent_args(t *testing.T) {
 				return
 			}
 
-			if len(got) != len(tt.want) {
-				t.Errorf("SubAgent.args() = %v, want %v", got, tt.want)
-				return
-			}
-			for i := range got {
-				if got[i] != tt.want[i] {
-					t.Errorf("SubAgent.args() = %v, want %v", got, tt.want)
-					return
-				}
-			}
+			assert.Equal(t, tt.want, got)
 		})
 	}
 }

@@ -20,7 +20,10 @@ import (
 	"context"
 	"fmt"
 	"github.com/sirupsen/logrus"
+	"math"
+	"math/rand"
 	"sync"
+	"time"
 
 	"github.com/percona/pmm-agent/runner"
 )
@@ -41,6 +44,7 @@ func NewSupervisor(ctx context.Context) *Supervisor {
 	return supervisor
 }
 
+// Start starts new sub-agent and adds it into map.
 func (s *Supervisor) Start(agentParams *runner.AgentParams) error {
 	s.rw.Lock()
 	defer s.rw.Unlock()
@@ -57,11 +61,12 @@ func (s *Supervisor) Start(agentParams *runner.AgentParams) error {
 		}
 		s.l.Debugf("agent %d is started", agentParams.AgentId)
 		s.agents[agentParams.AgentId] = agent
-		go s.watchSubAgent(agent)
+		go s.watchSubAgent(agentParams.AgentId, agent)
 		return nil
 	}
 }
 
+// Stop stops new sub-agent and adds it into map.
 func (s *Supervisor) Stop(id uint32) error {
 	s.rw.Lock()
 	defer s.rw.Unlock()
@@ -78,16 +83,24 @@ func (s *Supervisor) Stop(id uint32) error {
 	return nil
 }
 
-func (s *Supervisor) watchSubAgent(agent *runner.SubAgent) {
+func (s *Supervisor) watchSubAgent(id uint32, agent *runner.SubAgent) {
+	restartCount := 0
+	var startTime <-chan time.Time
 	for {
 		select {
 		case <-s.ctx.Done():
 			return
 		case <-agent.Done():
-			err := agent.Restart(s.ctx)
+			max := math.Pow(2, float64(restartCount))
+			delay := rand.Int63n(int64(max))
+			startTime = time.After(time.Duration(delay) * time.Millisecond)
+			s.l.Debugf("restarting agent in %d milliseconds", delay)
+		case <-startTime:
+			err := agent.Start(s.ctx)
 			if err != nil {
-				s.l.Warnf("Error on restarting agent %s", agent.String())
+				s.l.Warnf("Error on restarting agent with id %s", id)
 			}
+			restartCount++
 		}
 	}
 }
