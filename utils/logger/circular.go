@@ -19,40 +19,71 @@ package logger
 import (
 	"bufio"
 	"bytes"
+	"sync"
+
+	"github.com/sirupsen/logrus"
 )
 
+//CircularWriter is a Writer which write in circular list.
 type CircularWriter struct {
 	data   []string
 	i      int
-	buffer bytes.Buffer
+	l      *logrus.Entry
+	buffer *syncBuffer
 }
 
+// New creates new CircularWriter.
 func New(len int) *CircularWriter {
 	writer := CircularWriter{
-		data:   make([]string, len),
-		i:      0,
-		buffer: bytes.Buffer{},
+		data: make([]string, len),
+		i:    0,
+		buffer: &syncBuffer{
+			b: bytes.Buffer{},
+		},
+		l: logrus.WithField("component", "CircularWriter"),
 	}
 	go writer.write()
 	return &writer
 }
 
 func (c *CircularWriter) write() {
-	scanner := bufio.NewScanner(&c.buffer)
+	scanner := bufio.NewScanner(c.buffer)
 	for scanner.Scan() {
 		c.data[c.i] = scanner.Text()
 		c.i = (c.i + 1) % len(c.data)
 	}
+	if err := scanner.Err(); err != nil {
+		c.l.Fatalln("can't read from buffer", err)
+	}
 }
 
+// Write writes new data into buffer.
 func (c *CircularWriter) Write(p []byte) (n int, err error) {
 	return c.buffer.Write(p)
 }
 
+// Data returns string array from circular list.
 func (c *CircularWriter) Data() []string {
 	var result []string
-	for i := c.i + 1; i < c.i+len(c.data); i++ {
+	currentIndex := c.i
+	for i := currentIndex + 1; i <= currentIndex+len(c.data); i++ {
 		result = append(result, c.data[i%len(c.data)])
 	}
 	return result
+}
+
+type syncBuffer struct {
+	b bytes.Buffer
+	m sync.Mutex
+}
+
+func (b *syncBuffer) Read(p []byte) (n int, err error) {
+	b.m.Lock()
+	defer b.m.Unlock()
+	return b.b.Read(p)
+}
+func (b *syncBuffer) Write(p []byte) (n int, err error) {
+	b.m.Lock()
+	defer b.m.Unlock()
+	return b.b.Write(p)
 }
