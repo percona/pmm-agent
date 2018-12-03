@@ -98,7 +98,7 @@ func (s *Supervisor) watchSubAgent(id uint32, agent *runner.SubAgent) {
 		case <-startTime:
 			err := agent.Start(s.ctx)
 			if err != nil {
-				s.l.Warnf("Error on restarting agent with id %s", id)
+				s.l.Warnf("Error on restarting agent with id %d", id)
 			}
 			restartCount++
 		}
