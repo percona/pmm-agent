@@ -26,7 +26,6 @@ import (
 
 	"github.com/golang/protobuf/ptypes"
 	"github.com/percona/pmm/api/agent"
-	"github.com/percona/pmm/api/inventory"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
@@ -93,11 +92,11 @@ func workLoop(ctx context.Context, cfg *config.Config, client agent.AgentClient)
 			var agentProcessesStates []*agent.SetStateResponse_AgentProcess
 
 			for _, agentProcess := range payload.State.AgentProcesses {
-				var status inventory.AgentProcessStatus
+				var disabled bool
 				port, err := registry.Reserve()
 				if err != nil {
 					l.Error(err)
-					status = inventory.AgentProcessStatus_DISABLED
+					disabled = true
 				} else {
 					params := &runner.AgentParams{
 						AgentId: agentProcess.AgentId,
@@ -111,15 +110,15 @@ func workLoop(ctx context.Context, cfg *config.Config, client agent.AgentClient)
 					if err != nil {
 						l.Error(err)
 						_ = registry.Release(port)
-						status = inventory.AgentProcessStatus_DISABLED
+						disabled = true
 					} else {
-						status = inventory.AgentProcessStatus_RUNNING
+						disabled = false
 					}
 				}
 				state := &agent.SetStateResponse_AgentProcess{
 					AgentId:    agentProcess.AgentId,
 					ListenPort: uint32(port),
-					Status:     status,
+					Disabled:   disabled,
 				}
 				agentProcessesStates = append(agentProcessesStates, state)
 				// l.Infof("Starting mysqld_exporter on 127.0.0.1:%d ...", exporter.ListenPort)

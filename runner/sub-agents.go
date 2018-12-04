@@ -33,13 +33,6 @@ import (
 
 type State int32
 
-const (
-	INVALID State = 0
-	RUNNING State = 1
-	STOPPED State = 2
-	EXITED  State = 3
-)
-
 // AgentParams is params to run sub-agents.
 type AgentParams struct {
 	AgentId uint32
@@ -55,7 +48,7 @@ type SubAgent struct {
 	cmd    *exec.Cmd
 	log    *logger.CircularWriter
 	l      *logrus.Entry
-	state  State
+	enable bool
 	params *AgentParams
 
 	runningChan chan struct{}
@@ -75,15 +68,16 @@ func NewSubAgent(params *AgentParams) *SubAgent {
 		params: params,
 		log:    logger.New(10),
 		l:      l,
-		state:  INVALID,
+		enable: false,
 	}
 }
 
 // Start starts sub-agent.
 func (m *SubAgent) Start(ctx context.Context) error {
-	if m.GetState() == RUNNING {
+	if m.GetState() != nil && m.GetState().Exited() {
 		return fmt.Errorf("can't start the process, process is already running")
 	}
+	m.enable = true
 	name := m.binary()
 	args, err := m.args()
 	if err != nil {
@@ -97,17 +91,14 @@ func (m *SubAgent) Start(ctx context.Context) error {
 
 	err = cmd.Start()
 	if err != nil {
-		m.state = EXITED
 		return err
 	}
 	m.cmd = cmd
-	m.state = RUNNING
 	m.runningChan = make(chan struct{})
 	go func() {
 		_ = m.cmd.Wait()
-		if m.state != STOPPED {
-			m.state = EXITED
-			close(m.runningChan)
+		if m.enable {
+			m.runningChan <- struct{}{}
 		}
 	}()
 	return nil
@@ -121,10 +112,10 @@ func (m *SubAgent) Done() <-chan struct{} {
 
 // Stop stops sub-agent
 func (m *SubAgent) Stop() error {
-	if m.GetState() != RUNNING {
+	if m.GetState() == nil || m.GetState().Exited() {
 		return fmt.Errorf("can't kill the process, process is not running")
 	}
-	m.state = STOPPED
+	m.enable = false
 	err := m.cmd.Process.Kill()
 	if err != nil {
 		return err
@@ -138,8 +129,11 @@ func (m *SubAgent) GetLogs() []string {
 }
 
 // GetState returns state of sub-agent.
-func (m *SubAgent) GetState() State {
-	return m.state
+func (m *SubAgent) GetState() *os.ProcessState {
+	if m.cmd != nil {
+		return m.cmd.ProcessState
+	}
+	return nil
 }
 
 func (m *SubAgent) args() ([]string, error) {

@@ -52,14 +52,14 @@ func (s *Supervisor) Start(agentParams *runner.AgentParams) error {
 	if !ok {
 		agent = runner.NewSubAgent(agentParams)
 	}
-	if agent.GetState() == runner.RUNNING {
+	if agent.GetState() != nil && !agent.GetState().Exited() {
 		return fmt.Errorf("agent id=%d has already run", agentParams.AgentId)
 	} else {
 		err := agent.Start(s.ctx)
 		if err != nil {
 			return err
 		}
-		s.l.Debugf("agent %d is started", agentParams.AgentId)
+		s.l.Debugf("agent id=%d is started", agentParams.AgentId)
 		s.agents[agentParams.AgentId] = agent
 		go s.watchSubAgent(agentParams.AgentId, agent)
 		return nil
