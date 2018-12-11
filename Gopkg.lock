@@ -295,6 +295,7 @@
   analyzer-name = "dep"
   analyzer-version = 1
   input-imports = [
+    "github.com/golang/protobuf/proto",
     "github.com/golang/protobuf/ptypes",
     "github.com/percona/exporter_shared/helpers",
     "github.com/percona/pmm/api/agent",
