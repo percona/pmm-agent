@@ -78,10 +78,7 @@ func TestUpdateStateSimple(t *testing.T) {
 		})
 	}
 
-	response, err := s.UpdateState(processes)
-	if err != nil {
-		t.Errorf("Supervisor.UpdateState() error = %v", err)
-	}
+	response := s.UpdateState(processes)
 	time.Sleep(1 * time.Second)
 	for _, process := range response {
 		checkResponse(t, process, false)
@@ -110,11 +107,7 @@ func TestUpdateStateSimple(t *testing.T) {
 		processes = append(processes, process)
 	}
 
-	response, err = s.UpdateState(processes)
-	if err != nil {
-		t.Errorf("Supervisor.UpdateState() error = %v", err)
-	}
-
+	response = s.UpdateState(processes)
 	if uint32(len(s.agents)) != 2 || uint32(len(response)) != agentsCount {
 		t.Errorf("%d agents started, expected %d", len(s.agents), agentsCount)
 	}

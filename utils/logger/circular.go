@@ -38,6 +38,7 @@ func New(len int) *CircularWriter {
 		data: make([]string, len),
 		i:    0,
 		l:    logrus.WithField("component", "CircularWriter"),
+		m:    &sync.RWMutex{},
 	}
 	return &writer
 }
@@ -70,7 +71,10 @@ func (c *CircularWriter) Data() []string {
 	var result []string
 	currentIndex := c.i
 	for i := currentIndex + 1; i <= currentIndex+len(c.data); i++ {
-		result = append(result, c.data[i%len(c.data)])
+		data := c.data[i%len(c.data)]
+		if data != "" {
+			result = append(result, data)
+		}
 	}
 	return result
 }
