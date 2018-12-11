@@ -50,6 +50,7 @@ func NewSupervisor(ctx context.Context) *Supervisor {
 	return supervisor
 }
 
+// UpdateState starts or updates all agents placed in args and stops all agents not placed in args, but already run.
 func (s *Supervisor) UpdateState(processes []*agent.SetStateRequest_AgentProcess) []*agent.SetStateResponse_AgentProcess {
 	var agentProcessesStates []*agent.SetStateResponse_AgentProcess
 	processesMaps := make(map[uint32]bool)

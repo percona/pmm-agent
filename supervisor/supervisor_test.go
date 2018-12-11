@@ -26,8 +26,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func agentProcessIsExists(t *testing.T, s *Supervisor, agentId uint32) (int, bool) {
-	subAgent, ok := s.agents[agentId]
+func agentProcessIsExists(t *testing.T, s *Supervisor, agentID uint32) (int, bool) {
+	subAgent, ok := s.agents[agentID]
 	if !ok {
 		t.Errorf("Sub-agent not added to map")
 	}
@@ -131,9 +131,9 @@ func TestSimpleStartStopSubAgent(t *testing.T) {
 	cancel, s, arguments, env := setup()
 	defer cancel()
 
-	agentId := uint32(1)
+	agentID := uint32(1)
 	params := &agent.SetStateRequest_AgentProcess{
-		AgentId: agentId,
+		AgentId: agentID,
 		Type:    agent.Type_MYSQLD_EXPORTER,
 		Args:    arguments,
 		Env:     env,
@@ -143,11 +143,11 @@ func TestSimpleStartStopSubAgent(t *testing.T) {
 		t.Errorf("Supervisor.Start() error = %v", err)
 	}
 	time.Sleep(1 * time.Second)
-	pid, procExists := agentProcessIsExists(t, s, agentId)
+	pid, procExists := agentProcessIsExists(t, s, agentID)
 	if !procExists {
 		t.Errorf("Sub-agent process not found error = %v", err)
 	}
-	err = s.Stop(agentId)
+	err = s.Stop(agentID)
 	if err != nil {
 		t.Errorf("Supervisor.Stop() error = %v", err)
 	}

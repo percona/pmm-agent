@@ -19,12 +19,15 @@ package runner
 import (
 	"testing"
 
+	"github.com/percona/pmm/api/agent"
+
 	"github.com/stretchr/testify/assert"
 )
 
 func TestSubAgentArgs(t *testing.T) {
 	type fields struct {
-		params *AgentParams
+		params *agent.SetStateRequest_AgentProcess
+		port   uint32
 	}
 	tests := []struct {
 		name    string
@@ -34,35 +37,41 @@ func TestSubAgentArgs(t *testing.T) {
 	}{
 		{
 			"No args test",
-			fields{&AgentParams{
-				Args: []string{},
-				Port: 1234,
-			}},
+			fields{
+				&agent.SetStateRequest_AgentProcess{
+					Args: []string{},
+				},
+				1234,
+			},
 			nil,
 			false,
 		},
 		{
 			"Simple test",
-			fields{&AgentParams{
-				Args: []string{"-web.listen-address=127.0.0.1:{{ .ListenPort }}"},
-				Port: 1234,
-			}},
+			fields{
+				&agent.SetStateRequest_AgentProcess{
+					Args: []string{"-web.listen-address=127.0.0.1:{{ .ListenPort }}"},
+				},
+				1234,
+			},
 			[]string{"-web.listen-address=127.0.0.1:1234"},
 			false,
 		},
 		{
 			"Multiple args test",
-			fields{&AgentParams{
-				Args: []string{"-collect.binlog_size", "-web.listen-address=127.0.0.1:{{ .ListenPort }}"},
-				Port: 9175,
-			}},
+			fields{
+				&agent.SetStateRequest_AgentProcess{
+					Args: []string{"-collect.binlog_size", "-web.listen-address=127.0.0.1:{{ .ListenPort }}"},
+				},
+				9175,
+			},
 			[]string{"-collect.binlog_size", "-web.listen-address=127.0.0.1:9175"},
 			false,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			m := NewSubAgent(tt.fields.params)
+			m := NewSubAgent(tt.fields.params, tt.fields.port)
 			got, err := m.args()
 			if (err != nil) != tt.wantErr {
 				t.Errorf("SubAgent.args() error = %v, wantErr %v", err, tt.wantErr)
