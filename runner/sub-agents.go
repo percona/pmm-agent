@@ -33,23 +33,14 @@ import (
 
 type State int32
 
-// AgentParams is params to run sub-agents.
-type AgentParams struct {
-	AgentId uint32
-	Type    agent.Type
-	Args    []string
-	Env     []string
-	Configs map[string]string
-	Port    uint32
-}
-
 // SubAgent is structure for sub-agents.
 type SubAgent struct {
 	cmd    *exec.Cmd
 	log    *logger.CircularWriter
 	l      *logrus.Entry
 	enable bool
-	params *AgentParams
+	Params *agent.SetStateRequest_AgentProcess
+	port   uint32
 
 	runningChan chan struct{}
 }
@@ -59,22 +50,23 @@ type templateParams struct {
 }
 
 // NewSubAgent creates new SubAgent.
-func NewSubAgent(params *AgentParams) *SubAgent {
+func NewSubAgent(params *agent.SetStateRequest_AgentProcess, port uint32) *SubAgent {
 	l := logrus.WithField("component", "runner").
 		WithField("agentID", params.AgentId).
 		WithField("type", params.Type)
 
 	return &SubAgent{
-		params: params,
+		Params: params,
 		log:    logger.New(10),
 		l:      l,
 		enable: false,
+		port:   port,
 	}
 }
 
 // Start starts sub-agent.
 func (m *SubAgent) Start(ctx context.Context) error {
-	if m.GetState() != nil && m.GetState().Exited() {
+	if m.Running() {
 		return fmt.Errorf("can't start the process, process is already running")
 	}
 	m.enable = true
@@ -85,7 +77,7 @@ func (m *SubAgent) Start(ctx context.Context) error {
 		return err
 	}
 	cmd := exec.CommandContext(ctx, name, args...)
-	cmd.Env = m.params.Env
+	cmd.Env = m.Params.Env
 	cmd.Stdout = io.MultiWriter(os.Stdout, m.log)
 	cmd.Stderr = io.MultiWriter(os.Stderr, m.log)
 
@@ -112,7 +104,7 @@ func (m *SubAgent) Done() <-chan struct{} {
 
 // Stop stops sub-agent
 func (m *SubAgent) Stop() error {
-	if m.GetState() == nil || m.GetState().Exited() {
+	if !m.Running() {
 		return fmt.Errorf("can't kill the process, process is not running")
 	}
 	m.enable = false
@@ -128,20 +120,30 @@ func (m *SubAgent) GetLogs() []string {
 	return m.log.Data()
 }
 
-// GetState returns state of sub-agent.
-func (m *SubAgent) GetState() *os.ProcessState {
-	if m.cmd != nil {
-		return m.cmd.ProcessState
+// Running returns state of sub-agent.
+func (m *SubAgent) Running() bool {
+	return m.cmd != nil && m.cmd.ProcessState == nil
+}
+
+// Pid returns pid of running process
+func (m *SubAgent) Pid() *int {
+	if m.Running() {
+		return &m.cmd.Process.Pid
 	}
 	return nil
 }
 
+// Port returns listen port
+func (m *SubAgent) Port() uint32 {
+	return m.port
+}
+
 func (m *SubAgent) args() ([]string, error) {
 	params := templateParams{
-		ListenPort: m.params.Port,
+		ListenPort: m.port,
 	}
 	var args []string
-	for _, arg := range m.params.Args {
+	for _, arg := range m.Params.Args {
 		buffer := &bytes.Buffer{}
 		tmpl, err := template.New(arg).Parse(arg)
 		if err != nil {
@@ -157,11 +159,11 @@ func (m *SubAgent) args() ([]string, error) {
 }
 
 func (m *SubAgent) binary() string {
-	switch m.params.Type {
+	switch m.Params.Type {
 	case agent.Type_MYSQLD_EXPORTER:
 		return "mysqld_exporter"
 	default:
-		m.l.Panic("unhandled type of agent", m.params.Type)
+		m.l.Panic("unhandled type of agent", m.Params.Type)
 		return ""
 	}
 }

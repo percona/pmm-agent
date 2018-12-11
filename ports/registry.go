@@ -33,17 +33,17 @@ var (
 // Registry keeps track of reserved ports.
 type Registry struct {
 	lock     sync.Mutex
-	min, max uint16
-	m        map[uint16]struct{}
+	min, max uint32
+	m        map[uint32]struct{}
 }
 
 // NewRegistry creates new Registry object.
-func NewRegistry(min, max uint16, reserved []uint16) *Registry {
+func NewRegistry(min, max uint32, reserved []uint32) *Registry {
 	if min > max {
 		panic("min > max")
 	}
 
-	m := make(map[uint16]struct{})
+	m := make(map[uint32]struct{})
 	for _, p := range reserved {
 		m[p] = struct{}{}
 	}
@@ -55,7 +55,7 @@ func NewRegistry(min, max uint16, reserved []uint16) *Registry {
 }
 
 // Reserve reserves next free port.
-func (r *Registry) Reserve() (uint16, error) {
+func (r *Registry) Reserve() (uint32, error) {
 	r.lock.Lock()
 	defer r.lock.Unlock()
 
@@ -66,7 +66,7 @@ func (r *Registry) Reserve() (uint16, error) {
 
 		l, err := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", port))
 		if l != nil {
-			l.Close()
+			_ = l.Close()
 		}
 		if err != nil {
 			continue
@@ -80,7 +80,7 @@ func (r *Registry) Reserve() (uint16, error) {
 }
 
 // Release releases port.
-func (r *Registry) Release(port uint16) error {
+func (r *Registry) Release(port uint32) error {
 	r.lock.Lock()
 	defer r.lock.Unlock()
 
@@ -90,7 +90,7 @@ func (r *Registry) Release(port uint16) error {
 
 	l, err := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", port))
 	if l != nil {
-		l.Close()
+		_ = l.Close()
 	}
 	if err != nil {
 		return errPortBusy

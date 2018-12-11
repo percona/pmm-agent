@@ -35,8 +35,6 @@ import (
 
 	"github.com/percona/pmm-agent/agentlocal"
 	"github.com/percona/pmm-agent/config"
-	"github.com/percona/pmm-agent/ports"
-	"github.com/percona/pmm-agent/runner"
 	"github.com/percona/pmm-agent/server"
 	"github.com/percona/pmm-agent/supervisor"
 	"github.com/percona/pmm-agent/utils/logger"
@@ -69,7 +67,6 @@ func workLoop(ctx context.Context, cfg *config.Config, client agent.AgentClient)
 	prometheus.MustRegister(channel)
 
 	svr := supervisor.NewSupervisor(ctx)
-	registry := ports.NewRegistry(10000, 20000, nil)
 
 	for serverMessage := range channel.Requests() {
 		var agentMessage *agent.AgentMessage
@@ -85,40 +82,7 @@ func workLoop(ctx context.Context, cfg *config.Config, client agent.AgentClient)
 			}
 
 		case *agent.ServerMessage_State:
-			var agentProcessesStates []*agent.SetStateResponse_AgentProcess
-
-			for _, agentProcess := range payload.State.AgentProcesses {
-				var disabled bool
-				port, err := registry.Reserve()
-				if err != nil {
-					l.Error(err)
-					disabled = true
-				} else {
-					params := &runner.AgentParams{
-						AgentId: agentProcess.AgentId,
-						Type:    agentProcess.Type,
-						Args:    agentProcess.Args,
-						Configs: agentProcess.Configs,
-						Env:     agentProcess.Env,
-						Port:    uint32(port),
-					}
-					err = svr.Start(params)
-					if err != nil {
-						l.Error(err)
-						_ = registry.Release(port)
-						disabled = true
-					} else {
-						disabled = false
-					}
-				}
-				state := &agent.SetStateResponse_AgentProcess{
-					AgentId:    agentProcess.AgentId,
-					ListenPort: uint32(port),
-					Disabled:   disabled,
-				}
-				agentProcessesStates = append(agentProcessesStates, state)
-				// l.Infof("Starting mysqld_exporter on 127.0.0.1:%d ...", exporter.ListenPort)
-			}
+			agentProcessesStates := svr.UpdateState(payload.State.AgentProcesses)
 
 			agentMessage = &agent.AgentMessage{
 				Id: serverMessage.Id,
