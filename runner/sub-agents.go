@@ -31,8 +31,6 @@ import (
 	"github.com/percona/pmm-agent/utils/logger"
 )
 
-type State int32
-
 // SubAgent is structure for sub-agents.
 type SubAgent struct {
 	cmd    *exec.Cmd
@@ -162,6 +160,8 @@ func (m *SubAgent) binary() string {
 	switch m.Params.Type {
 	case agent.Type_MYSQLD_EXPORTER:
 		return "mysqld_exporter"
+	case agent.Type_NODE_EXPORTER:
+		return "node_exporter"
 	default:
 		m.l.Panic("unhandled type of agent", m.Params.Type)
 		return ""

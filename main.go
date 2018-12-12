@@ -120,9 +120,8 @@ func main() {
 
 	ctx, cancelFunc := context.WithCancel(context.Background())
 
-	var gracefulStop = make(chan os.Signal)
-	signal.Notify(gracefulStop, syscall.SIGTERM)
-	signal.Notify(gracefulStop, syscall.SIGINT)
+	var gracefulStop = make(chan os.Signal, 1)
+	signal.Notify(gracefulStop, syscall.SIGTERM, syscall.SIGINT)
 	go func() {
 		sig := <-gracefulStop
 		logrus.Debugf("caught sig: %+v", sig)
