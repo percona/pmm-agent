@@ -25,16 +25,16 @@ import (
 func TestCircularWriter(t *testing.T) {
 	tests := []struct {
 		name     string
-		len      int
-		args     [][]byte
+		cap      int
+		args     []string
 		wantData []string
 		wantErr  bool
 	}{
 		{
 			"simple one",
 			4,
-			[][]byte{
-				[]byte("text\n"),
+			[]string{
+				"text\n",
 			},
 			[]string{"text"},
 			false,
@@ -42,8 +42,8 @@ func TestCircularWriter(t *testing.T) {
 		{
 			"two line in one write",
 			4,
-			[][]byte{
-				[]byte("text\nsecond line\n"),
+			[]string{
+				"text\nsecond line\n",
 			},
 			[]string{"text", "second line"},
 			false,
@@ -51,9 +51,9 @@ func TestCircularWriter(t *testing.T) {
 		{
 			"three line in two writes",
 			4,
-			[][]byte{
-				[]byte("text\nsecond "),
-				[]byte("line\nthird row\n"),
+			[]string{
+				"text\nsecond ",
+				"line\nthird row\n",
 			},
 			[]string{"text", "second line", "third row"},
 			false,
@@ -61,9 +61,9 @@ func TestCircularWriter(t *testing.T) {
 		{
 			"three line in two writes",
 			4,
-			[][]byte{
-				[]byte("text\nsecond "),
-				[]byte("line\nthird row\n"),
+			[]string{
+				"text\nsecond ",
+				"line\nthird row\n",
 			},
 			[]string{"text", "second line", "third row"},
 			false,
@@ -71,9 +71,9 @@ func TestCircularWriter(t *testing.T) {
 		{
 			"log overflow",
 			2,
-			[][]byte{
-				[]byte("text\nsecond "),
-				[]byte("line\nthird row\n"),
+			[]string{
+				"text\nsecond ",
+				"line\nthird row\n",
 			},
 			[]string{"second line", "third row"},
 			false,
@@ -81,11 +81,11 @@ func TestCircularWriter(t *testing.T) {
 		{
 			"another log overflow",
 			2,
-			[][]byte{
-				[]byte("text\nsecond "),
-				[]byte("line\nthird row\n"),
-				[]byte("fourth "),
-				[]byte("line\nlast row\n"),
+			[]string{
+				"text\nsecond ",
+				"line\nthird row\n",
+				"fourth ",
+				"line\nlast row\n",
 			},
 			[]string{"fourth line", "last row"},
 			false,
@@ -93,8 +93,8 @@ func TestCircularWriter(t *testing.T) {
 		{
 			"don't write not finished line",
 			10,
-			[][]byte{
-				[]byte("text\nsecond line"),
+			[]string{
+				"text\nsecond line",
 			},
 			[]string{"text"},
 			false,
@@ -102,9 +102,9 @@ func TestCircularWriter(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c := New(tt.len)
+			c := New(tt.cap)
 			for _, arg := range tt.args {
-				_, err := c.Write(arg)
+				_, err := c.Write([]byte(arg))
 				if (err != nil) != tt.wantErr {
 					t.Errorf("CircularWriter.Write() error = %v, wantErr %v", err, tt.wantErr)
 					return

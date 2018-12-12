@@ -30,6 +30,7 @@ func agentProcessIsExists(t *testing.T, s *Supervisor, agentID uint32) (int, boo
 	subAgent, ok := s.agents[agentID]
 	if !ok {
 		t.Errorf("Sub-agent not added to map")
+		return 0, false
 	}
 	pid := *subAgent.Pid()
 	procExists := processIsExists(pid)
