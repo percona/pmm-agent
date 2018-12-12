@@ -20,15 +20,17 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestCircularWriter(t *testing.T) {
 	tests := []struct {
-		name     string
-		cap      int
-		args     []string
-		wantData []string
-		wantErr  bool
+		name        string
+		cap         int
+		args        []string
+		wantData    []string
+		expectedLen int
+		expectedCap int
 	}{
 		{
 			"simple one",
@@ -37,7 +39,8 @@ func TestCircularWriter(t *testing.T) {
 				"text\n",
 			},
 			[]string{"text"},
-			false,
+			0,
+			0,
 		},
 		{
 			"two line in one write",
@@ -46,7 +49,8 @@ func TestCircularWriter(t *testing.T) {
 				"text\nsecond line\n",
 			},
 			[]string{"text", "second line"},
-			false,
+			0,
+			0,
 		},
 		{
 			"three line in two writes",
@@ -56,17 +60,8 @@ func TestCircularWriter(t *testing.T) {
 				"line\nthird row\n",
 			},
 			[]string{"text", "second line", "third row"},
-			false,
-		},
-		{
-			"three line in two writes",
-			4,
-			[]string{
-				"text\nsecond ",
-				"line\nthird row\n",
-			},
-			[]string{"text", "second line", "third row"},
-			false,
+			0,
+			0,
 		},
 		{
 			"log overflow",
@@ -76,7 +71,8 @@ func TestCircularWriter(t *testing.T) {
 				"line\nthird row\n",
 			},
 			[]string{"second line", "third row"},
-			false,
+			0,
+			0,
 		},
 		{
 			"another log overflow",
@@ -88,7 +84,8 @@ func TestCircularWriter(t *testing.T) {
 				"line\nlast row\n",
 			},
 			[]string{"fourth line", "last row"},
-			false,
+			0,
+			0,
 		},
 		{
 			"don't write not finished line",
@@ -97,7 +94,8 @@ func TestCircularWriter(t *testing.T) {
 				"text\nsecond line",
 			},
 			[]string{"text"},
-			false,
+			11,
+			16,
 		},
 	}
 	for _, tt := range tests {
@@ -105,13 +103,12 @@ func TestCircularWriter(t *testing.T) {
 			c := New(tt.cap)
 			for _, arg := range tt.args {
 				_, err := c.Write([]byte(arg))
-				if (err != nil) != tt.wantErr {
-					t.Errorf("CircularWriter.Write() error = %v, wantErr %v", err, tt.wantErr)
-					return
-				}
+				require.NoError(t, err)
 			}
 			data := c.Data()
 			assert.Equal(t, tt.wantData, data)
+			assert.Len(t, c.buf, tt.expectedLen)
+			assert.Equal(t, tt.expectedCap, cap(c.buf), "%s", c.buf)
 		})
 	}
 }
