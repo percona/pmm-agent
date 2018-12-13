@@ -64,11 +64,12 @@ func (s *Supervisor) UpdateState(processes []*agent.SetStateRequest_AgentProcess
 	defer s.rw.Unlock()
 	for _, agentProcess := range processes {
 		subAgent, ok := s.agents[agentProcess.AgentId]
-		if !ok {
+		switch {
+		case !ok:
 			agentsToStart = append(agentsToStart, agentProcess.AgentId)
-		} else if !proto.Equal(subAgent.params, agentProcess) {
+		case ok && !proto.Equal(subAgent.params, agentProcess):
 			agentsToRestart = append(agentsToRestart, agentProcess.AgentId)
-		} else {
+		default:
 			state := &agent.SetStateResponse_AgentProcess{
 				AgentId:    agentProcess.AgentId,
 				ListenPort: subAgent.port,

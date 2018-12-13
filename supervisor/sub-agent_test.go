@@ -44,7 +44,7 @@ func TestSubAgentArgs(t *testing.T) {
 				},
 				1234,
 			},
-			nil,
+			[]string{},
 			false,
 		},
 		{
