@@ -32,13 +32,6 @@ import (
 	"github.com/percona/pmm-agent/utils/logger"
 )
 
-var closedChan = make(chan struct{})
-var emptyChan = make(chan struct{}, 1)
-
-func init() {
-	close(closedChan)
-}
-
 // subAgent is structure for sub-agents.
 type subAgent struct {
 	log          *logger.CircularWriter
@@ -54,11 +47,12 @@ type templateParams struct {
 	ListenPort uint32
 }
 
-// NewSubAgent creates new subAgent.
-func NewSubAgent(params *agent.SetStateRequest_AgentProcess, port uint32) *subAgent {
+func newSubAgent(params *agent.SetStateRequest_AgentProcess, port uint32) *subAgent {
 	l := logrus.WithField("component", "runner").
 		WithField("agentID", params.AgentId).
 		WithField("type", params.Type)
+	var closedChan = make(chan struct{})
+	close(closedChan)
 
 	return &subAgent{
 		params:       params,
@@ -104,7 +98,7 @@ func (m *subAgent) Start(ctx context.Context) error {
 func (m *subAgent) Restart() <-chan struct{} {
 	select {
 	case <-m.disabledChan:
-		return emptyChan
+		return make(chan struct{}, 1)
 	default:
 		return m.runningChan
 	}
@@ -150,8 +144,8 @@ func (m *subAgent) args() ([]string, error) {
 	params := templateParams{
 		ListenPort: m.port,
 	}
-	var args []string
-	for _, arg := range m.params.Args {
+	args := make([]string, len(m.params.Args))
+	for i, arg := range m.params.Args {
 		buffer := &bytes.Buffer{}
 		tmpl, err := template.New(arg).Parse(arg)
 		if err != nil {
@@ -161,7 +155,7 @@ func (m *subAgent) args() ([]string, error) {
 		if err != nil {
 			return nil, err
 		}
-		args = append(args, buffer.String())
+		args[i] = buffer.String()
 	}
 	return args, nil
 }

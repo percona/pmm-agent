@@ -72,7 +72,7 @@ func TestSubAgentArgs(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			m := NewSubAgent(tt.fields.params, tt.fields.port)
+			m := newSubAgent(tt.fields.params, tt.fields.port)
 			got, err := m.args()
 			if (err != nil) != tt.wantErr {
 				t.Errorf("subAgent.args() error = %v, wantErr %v", err, tt.wantErr)
@@ -85,7 +85,7 @@ func TestSubAgentArgs(t *testing.T) {
 }
 
 func TestRaceCondition(t *testing.T) {
-	m := NewSubAgent(&agent.SetStateRequest_AgentProcess{
+	m := newSubAgent(&agent.SetStateRequest_AgentProcess{
 		Type: agent.Type_MYSQLD_EXPORTER,
 		Args: []string{"-web.listen-address=127.0.0.1:{{ .ListenPort }}"},
 		Env: []string{
@@ -96,6 +96,7 @@ func TestRaceCondition(t *testing.T) {
 	err := m.Start(ctx)
 	if err != nil {
 		t.Errorf("subAgent.start() error = %v", err)
+		cancel()
 		return
 	}
 	go func() {

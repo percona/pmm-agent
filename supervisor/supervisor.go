@@ -41,6 +41,7 @@ type Supervisor struct {
 	registry *ports.Registry
 }
 
+// NewSupervisor creates new Supervisor object.
 func NewSupervisor(ctx context.Context, portsCfg config.Ports) *Supervisor {
 	supervisor := &Supervisor{
 		agents:   make(map[uint32]*subAgent),
@@ -63,18 +64,16 @@ func (s *Supervisor) UpdateState(processes []*agent.SetStateRequest_AgentProcess
 	defer s.rw.Unlock()
 	for _, agentProcess := range processes {
 		subAgent, ok := s.agents[agentProcess.AgentId]
-		if ok {
-			if !proto.Equal(subAgent.params, agentProcess) {
-				agentsToRestart = append(agentsToRestart, agentProcess.AgentId)
-			} else {
-				state := &agent.SetStateResponse_AgentProcess{
-					AgentId:    agentProcess.AgentId,
-					ListenPort: subAgent.port,
-				}
-				agentProcessesStates = append(agentProcessesStates, state)
-			}
-		} else {
+		if !ok {
 			agentsToStart = append(agentsToStart, agentProcess.AgentId)
+		} else if !proto.Equal(subAgent.params, agentProcess) {
+			agentsToRestart = append(agentsToRestart, agentProcess.AgentId)
+		} else {
+			state := &agent.SetStateResponse_AgentProcess{
+				AgentId:    agentProcess.AgentId,
+				ListenPort: subAgent.port,
+			}
+			agentProcessesStates = append(agentProcessesStates, state)
 		}
 		processesMaps[agentProcess.AgentId] = agentProcess
 	}
@@ -144,7 +143,7 @@ func (s *Supervisor) start(agentParams *agent.SetStateRequest_AgentProcess) erro
 
 	subAgent, ok := s.agents[agentParams.AgentId]
 	if !ok {
-		subAgent = NewSubAgent(agentParams, port)
+		subAgent = newSubAgent(agentParams, port)
 	}
 	if subAgent.Running() {
 		return fmt.Errorf("subAgent id=%d has already run", agentParams.AgentId)
