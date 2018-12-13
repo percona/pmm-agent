@@ -21,6 +21,12 @@ import (
 	"gopkg.in/alecthomas/kingpin.v2"
 )
 
+// Ports represents ports configuration.
+type Ports struct {
+	Min uint32
+	Max uint32
+}
+
 // Config represents pmm-agent's static configuration.
 type Config struct {
 	Address string
@@ -32,6 +38,8 @@ type Config struct {
 		MySQLdExporter string
 		RDSExporter    string
 	}
+
+	Ports Ports
 
 	UUID string
 }

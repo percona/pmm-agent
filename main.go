@@ -66,7 +66,7 @@ func workLoop(ctx context.Context, cfg *config.Config, client agent.AgentClient)
 	channel := server.NewChannel(stream)
 	prometheus.MustRegister(channel)
 
-	svr := supervisor.NewSupervisor(ctx)
+	svr := supervisor.NewSupervisor(ctx, cfg.Ports)
 
 	for serverMessage := range channel.Requests() {
 		var agentMessage *agent.AgentMessage

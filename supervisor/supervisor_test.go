@@ -24,6 +24,8 @@ import (
 
 	"github.com/percona/pmm/api/agent"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/percona/pmm-agent/config"
 )
 
 func agentProcessIsExists(t *testing.T, s *Supervisor, agentID uint32) (int, bool) {
@@ -32,7 +34,7 @@ func agentProcessIsExists(t *testing.T, s *Supervisor, agentID uint32) (int, boo
 		t.Errorf("Sub-agent not added to map")
 		return 0, false
 	}
-	pid := *subAgent.Pid()
+	pid := subAgent.pid()
 	procExists := processIsExists(pid)
 	return pid, procExists
 }
@@ -46,7 +48,7 @@ func processIsExists(pid int) bool {
 func checkResponse(t *testing.T, process *agent.SetStateResponse_AgentProcess, disabled bool) {
 	expectedResponse := agent.SetStateResponse_AgentProcess{
 		AgentId:    process.AgentId,
-		ListenPort: process.AgentId + 9999,
+		ListenPort: process.AgentId + 10000,
 		Disabled:   disabled,
 	}
 	assert.Equal(t, expectedResponse, *process)
@@ -54,7 +56,7 @@ func checkResponse(t *testing.T, process *agent.SetStateResponse_AgentProcess, d
 
 func setup() (context.CancelFunc, *Supervisor, []string, []string) {
 	ctx, cancel := context.WithCancel(context.TODO())
-	s := NewSupervisor(ctx)
+	s := NewSupervisor(ctx, config.Ports{Min: 10001, Max: 20000})
 	arguments := []string{
 		"-web.listen-address=127.0.0.1:{{ .ListenPort }}",
 	}
@@ -90,7 +92,7 @@ func TestUpdateStateSimple(t *testing.T) {
 	}
 	pids := make(map[uint32]int)
 	for i, subAgent := range s.agents {
-		pid := *subAgent.Pid()
+		pid := subAgent.pid()
 		pids[i] = pid
 		if !processIsExists(pid) {
 			t.Errorf("Sub-agent with id %d is not run", pid)
@@ -109,8 +111,11 @@ func TestUpdateStateSimple(t *testing.T) {
 	}
 
 	response = s.UpdateState(processes)
-	if uint32(len(s.agents)) != 2 || uint32(len(response)) != agentsCount {
-		t.Errorf("%d agents started, expected %d", len(s.agents), agentsCount)
+	if uint32(len(response)) != agentsCount {
+		t.Errorf("%d process states returned, expected %d", len(response), agentsCount)
+	}
+	if uint32(len(s.agents)) != 2 {
+		t.Errorf("%d agents works, expected %d", len(s.agents), 2)
 	}
 
 	for _, process := range response {
@@ -139,18 +144,18 @@ func TestSimpleStartStopSubAgent(t *testing.T) {
 		Args:    arguments,
 		Env:     env,
 	}
-	err := s.Start(params, 10000)
+	err := s.start(params)
 	if err != nil {
-		t.Errorf("Supervisor.Start() error = %v", err)
+		t.Errorf("Supervisor.start() error = %v", err)
 	}
 	time.Sleep(1 * time.Second)
 	pid, procExists := agentProcessIsExists(t, s, agentID)
 	if !procExists {
 		t.Errorf("Sub-agent process not found error = %v", err)
 	}
-	err = s.Stop(agentID)
+	err = s.stop(agentID)
 	if err != nil {
-		t.Errorf("Supervisor.Stop() error = %v", err)
+		t.Errorf("Supervisor.stop() error = %v", err)
 	}
 	time.Sleep(1 * time.Second)
 	procExists = processIsExists(pid)
@@ -168,9 +173,9 @@ func TestContextDoneStopSubAgents(t *testing.T) {
 		Args:    arguments,
 		Env:     env,
 	}
-	err := s.Start(params, 10000)
+	err := s.start(params)
 	if err != nil {
-		t.Errorf("Supervisor.Start() error = %v", err)
+		t.Errorf("Supervisor.start() error = %v", err)
 	}
 	pid, procExists := agentProcessIsExists(t, s, 1)
 	if !procExists {
@@ -194,12 +199,12 @@ func TestSupervisorStartTwice(t *testing.T) {
 		Args:    arguments,
 		Env:     env,
 	}
-	err := s.Start(params, 10000)
+	err := s.start(params)
 	if err != nil {
-		t.Errorf("Supervisor.Start() error = %v", err)
+		t.Errorf("Supervisor.start() error = %v", err)
 	}
 	time.Sleep(1 * time.Second)
-	err = s.Start(params, 10001)
+	err = s.start(params)
 	if err == nil {
 		t.Errorf("Starting sub-agent second time should return error")
 	}

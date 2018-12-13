@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-package runner
+package supervisor
 
 import (
 	"bytes"
@@ -23,6 +23,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"syscall"
 	"text/template"
 
 	"github.com/percona/pmm/api/agent"
@@ -31,43 +32,50 @@ import (
 	"github.com/percona/pmm-agent/utils/logger"
 )
 
-// SubAgent is structure for sub-agents.
-type SubAgent struct {
-	cmd    *exec.Cmd
-	log    *logger.CircularWriter
-	l      *logrus.Entry
-	enable bool
-	Params *agent.SetStateRequest_AgentProcess
-	port   uint32
+var closedChan = make(chan struct{})
+var emptyChan = make(chan struct{}, 1)
 
-	runningChan chan struct{}
+func init() {
+	close(closedChan)
+}
+
+// subAgent is structure for sub-agents.
+type subAgent struct {
+	log          *logger.CircularWriter
+	l            *logrus.Entry
+	params       *agent.SetStateRequest_AgentProcess
+	port         uint32
+	runningChan  chan struct{}
+	disabledChan chan struct{}
+	cmd          *exec.Cmd
 }
 
 type templateParams struct {
 	ListenPort uint32
 }
 
-// NewSubAgent creates new SubAgent.
-func NewSubAgent(params *agent.SetStateRequest_AgentProcess, port uint32) *SubAgent {
+// NewSubAgent creates new subAgent.
+func NewSubAgent(params *agent.SetStateRequest_AgentProcess, port uint32) *subAgent {
 	l := logrus.WithField("component", "runner").
 		WithField("agentID", params.AgentId).
 		WithField("type", params.Type)
 
-	return &SubAgent{
-		Params: params,
-		log:    logger.New(10),
-		l:      l,
-		enable: false,
-		port:   port,
+	return &subAgent{
+		params:       params,
+		log:          logger.New(10),
+		l:            l,
+		port:         port,
+		runningChan:  closedChan,
+		disabledChan: closedChan,
 	}
 }
 
-// Start starts sub-agent.
-func (m *SubAgent) Start(ctx context.Context) error {
+// start starts sub-agent.
+func (m *subAgent) Start(ctx context.Context) error {
 	if m.Running() {
 		return fmt.Errorf("can't start the process, process is already running")
 	}
-	m.enable = true
+	m.disabledChan = make(chan struct{}, 1)
 	name := m.binary()
 	args, err := m.args()
 	if err != nil {
@@ -75,7 +83,7 @@ func (m *SubAgent) Start(ctx context.Context) error {
 		return err
 	}
 	cmd := exec.CommandContext(ctx, name, args...)
-	cmd.Env = m.Params.Env
+	cmd.Env = m.params.Env
 	cmd.Stdout = io.MultiWriter(os.Stdout, m.log)
 	cmd.Stderr = io.MultiWriter(os.Stderr, m.log)
 
@@ -84,29 +92,32 @@ func (m *SubAgent) Start(ctx context.Context) error {
 		return err
 	}
 	m.cmd = cmd
-	m.runningChan = make(chan struct{})
+	m.runningChan = make(chan struct{}, 1)
 	go func() {
 		_ = m.cmd.Wait()
-		if m.enable {
-			m.runningChan <- struct{}{}
-		}
+		close(m.runningChan)
 	}()
 	return nil
 }
 
-// Done returns channel to restart agent.
-func (m *SubAgent) Done() <-chan struct{} {
-	r := m.runningChan
-	return r
+// Restart returns channel to restart agent.
+func (m *subAgent) Restart() <-chan struct{} {
+	select {
+	case <-m.disabledChan:
+		return emptyChan
+	default:
+		return m.runningChan
+	}
 }
 
-// Stop stops sub-agent
-func (m *SubAgent) Stop() error {
+// stop stops sub-agent
+func (m *subAgent) Stop() error {
 	if !m.Running() {
 		return fmt.Errorf("can't kill the process, process is not running")
 	}
-	m.enable = false
-	err := m.cmd.Process.Kill()
+
+	close(m.disabledChan)
+	err := m.cmd.Process.Signal(syscall.SIGINT)
 	if err != nil {
 		return err
 	}
@@ -114,34 +125,33 @@ func (m *SubAgent) Stop() error {
 }
 
 // GetLogs returns logs from sub-agent STDOut and STDErr.
-func (m *SubAgent) GetLogs() []string {
+func (m *subAgent) GetLogs() []string {
 	return m.log.Data()
 }
 
 // Running returns state of sub-agent.
-func (m *SubAgent) Running() bool {
-	return m.cmd != nil && m.cmd.ProcessState == nil
-}
-
-// Pid returns pid of running process
-func (m *SubAgent) Pid() *int {
-	if m.Running() {
-		return &m.cmd.Process.Pid
+func (m *subAgent) Running() bool {
+	select {
+	case <-m.runningChan:
+		return false
+	default:
+		return true
 	}
-	return nil
 }
 
-// Port returns listen port
-func (m *SubAgent) Port() uint32 {
-	return m.port
+func (m *subAgent) pid() int {
+	if m.Running() {
+		return m.cmd.Process.Pid
+	}
+	return 0
 }
 
-func (m *SubAgent) args() ([]string, error) {
+func (m *subAgent) args() ([]string, error) {
 	params := templateParams{
 		ListenPort: m.port,
 	}
 	var args []string
-	for _, arg := range m.Params.Args {
+	for _, arg := range m.params.Args {
 		buffer := &bytes.Buffer{}
 		tmpl, err := template.New(arg).Parse(arg)
 		if err != nil {
@@ -156,14 +166,18 @@ func (m *SubAgent) args() ([]string, error) {
 	return args, nil
 }
 
-func (m *SubAgent) binary() string {
-	switch m.Params.Type {
+func (m *subAgent) binary() string {
+	switch m.params.Type {
 	case agent.Type_MYSQLD_EXPORTER:
 		return "mysqld_exporter"
 	case agent.Type_NODE_EXPORTER:
 		return "node_exporter"
 	default:
-		m.l.Panic("unhandled type of agent", m.Params.Type)
+		m.l.Panic("unhandled type of agent", m.params.Type)
 		return ""
 	}
+}
+
+func (m *subAgent) Disabled() chan struct{} {
+	return m.disabledChan
 }

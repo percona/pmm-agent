@@ -14,13 +14,14 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-package runner
+package supervisor
 
 import (
+	"context"
 	"testing"
+	"time"
 
 	"github.com/percona/pmm/api/agent"
-
 	"github.com/stretchr/testify/assert"
 )
 
@@ -74,11 +75,36 @@ func TestSubAgentArgs(t *testing.T) {
 			m := NewSubAgent(tt.fields.params, tt.fields.port)
 			got, err := m.args()
 			if (err != nil) != tt.wantErr {
-				t.Errorf("SubAgent.args() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("subAgent.args() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 
 			assert.Equal(t, tt.want, got)
 		})
+	}
+}
+
+func TestRaceCondition(t *testing.T) {
+	m := NewSubAgent(&agent.SetStateRequest_AgentProcess{
+		Type: agent.Type_MYSQLD_EXPORTER,
+		Args: []string{"-web.listen-address=127.0.0.1:{{ .ListenPort }}"},
+		Env: []string{
+			`DATA_SOURCE_NAME="pmm:pmm@(127.0.0.1:3306)/pmm-managed-dev"`,
+		},
+	}, 12345)
+	ctx, cancel := context.WithCancel(context.Background())
+	err := m.Start(ctx)
+	if err != nil {
+		t.Errorf("subAgent.start() error = %v", err)
+		return
+	}
+	go func() {
+		time.Sleep(1 * time.Second)
+		cancel()
+	}()
+	for {
+		if !m.Running() {
+			break
+		}
 	}
 }

@@ -25,27 +25,28 @@ import (
 	"time"
 
 	"github.com/golang/protobuf/proto"
-	"github.com/percona/pmm-agent/ports"
 	"github.com/percona/pmm/api/agent"
 	"github.com/sirupsen/logrus"
 
-	"github.com/percona/pmm-agent/runner"
+	"github.com/percona/pmm-agent/config"
+	"github.com/percona/pmm-agent/ports"
 )
 
 type Supervisor struct {
-	rw       sync.RWMutex
-	agents   map[uint32]*runner.SubAgent
+	rw     sync.Mutex
+	agents map[uint32]*subAgent
+
 	l        *logrus.Entry
 	ctx      context.Context
 	registry *ports.Registry
 }
 
-func NewSupervisor(ctx context.Context) *Supervisor {
+func NewSupervisor(ctx context.Context, portsCfg config.Ports) *Supervisor {
 	supervisor := &Supervisor{
-		agents:   make(map[uint32]*runner.SubAgent),
+		agents:   make(map[uint32]*subAgent),
 		l:        logrus.WithField("component", "supervisor"),
 		ctx:      ctx,
-		registry: ports.NewRegistry(10000, 20000, nil),
+		registry: ports.NewRegistry(portsCfg.Min, portsCfg.Max, nil),
 	}
 	return supervisor
 }
@@ -53,96 +54,114 @@ func NewSupervisor(ctx context.Context) *Supervisor {
 // UpdateState starts or updates all agents placed in args and stops all agents not placed in args, but already run.
 func (s *Supervisor) UpdateState(processes []*agent.SetStateRequest_AgentProcess) []*agent.SetStateResponse_AgentProcess {
 	var agentProcessesStates []*agent.SetStateResponse_AgentProcess
-	processesMaps := make(map[uint32]bool)
+	processesMaps := make(map[uint32]*agent.SetStateRequest_AgentProcess)
+	var agentsToStart []uint32
+	var agentsToRestart []uint32
+	var agentsToStop []uint32
+
+	s.rw.Lock()
+	defer s.rw.Unlock()
 	for _, agentProcess := range processes {
-		var port uint32
 		subAgent, ok := s.agents[agentProcess.AgentId]
 		if ok {
-			if !proto.Equal(subAgent.Params, agentProcess) {
-				subAgent.Params = agentProcess
-				err := subAgent.Stop()
-				if err != nil {
-					s.l.Error(err)
-					continue
-				}
-				err = subAgent.Start(s.ctx)
-				if err != nil {
-					s.l.Error(err)
-					continue
-				}
-			}
-			port = subAgent.Port()
-		} else {
-			var err error
-			port, err = s.registry.Reserve()
-			if err != nil {
-				s.l.Error(err)
-				continue
+			if !proto.Equal(subAgent.params, agentProcess) {
+				agentsToRestart = append(agentsToRestart, agentProcess.AgentId)
 			} else {
-				err = s.Start(agentProcess, port)
-				if err != nil {
-					s.l.Error(err)
-					_ = s.registry.Release(port)
-					continue
+				state := &agent.SetStateResponse_AgentProcess{
+					AgentId:    agentProcess.AgentId,
+					ListenPort: subAgent.port,
 				}
+				agentProcessesStates = append(agentProcessesStates, state)
 			}
+		} else {
+			agentsToStart = append(agentsToStart, agentProcess.AgentId)
 		}
-		processesMaps[agentProcess.AgentId] = true
+		processesMaps[agentProcess.AgentId] = agentProcess
+	}
+	for id := range s.agents {
+		if _, ok := processesMaps[id]; !ok {
+			agentsToStop = append(agentsToStop, id)
+		}
+	}
 
+	for _, id := range agentsToStop {
+		port := s.agents[id].port
+		err := s.stop(id)
+		if err != nil {
+			s.l.Error(err)
+			continue
+		}
 		state := &agent.SetStateResponse_AgentProcess{
-			AgentId:    agentProcess.AgentId,
+			AgentId:    id,
 			ListenPort: port,
-			Disabled:   false,
+			Disabled:   true,
 		}
 		agentProcessesStates = append(agentProcessesStates, state)
 	}
-	for id, subAgent := range s.agents {
-		_, ok := processesMaps[id]
-		if !ok {
-			err := s.Stop(id)
-			if err != nil {
-				s.l.Error(err)
-				continue
-			}
-			state := &agent.SetStateResponse_AgentProcess{
-				AgentId:    id,
-				ListenPort: subAgent.Port(),
-				Disabled:   true,
-			}
-			agentProcessesStates = append(agentProcessesStates, state)
+
+	for _, id := range agentsToStart {
+		err := s.start(processesMaps[id])
+		if err != nil {
+			s.l.Error(err)
+			continue
 		}
+		state := &agent.SetStateResponse_AgentProcess{
+			AgentId:    id,
+			ListenPort: s.agents[id].port,
+		}
+		agentProcessesStates = append(agentProcessesStates, state)
+	}
+
+	for _, id := range agentsToRestart {
+		subAgent := s.agents[id]
+		subAgent.params = processesMaps[id]
+		err := subAgent.Stop()
+		if err != nil {
+			s.l.Error(err)
+			continue
+		}
+		err = subAgent.Start(s.ctx)
+		if err != nil {
+			s.l.Error(err)
+			continue
+		}
+		go s.watchSubAgent(id, subAgent)
+		state := &agent.SetStateResponse_AgentProcess{
+			AgentId:    id,
+			ListenPort: subAgent.port,
+		}
+		agentProcessesStates = append(agentProcessesStates, state)
 	}
 
 	return agentProcessesStates
 }
 
-// Start starts new sub-agent and adds it into map.
-func (s *Supervisor) Start(agentParams *agent.SetStateRequest_AgentProcess, port uint32) error {
-	s.rw.Lock()
-	defer s.rw.Unlock()
+func (s *Supervisor) start(agentParams *agent.SetStateRequest_AgentProcess) error {
+	port, err := s.registry.Reserve()
+	if err != nil {
+		return err
+	}
+
 	subAgent, ok := s.agents[agentParams.AgentId]
 	if !ok {
-		subAgent = runner.NewSubAgent(agentParams, port)
+		subAgent = NewSubAgent(agentParams, port)
 	}
 	if subAgent.Running() {
 		return fmt.Errorf("subAgent id=%d has already run", agentParams.AgentId)
-	} else {
-		err := subAgent.Start(s.ctx)
-		if err != nil {
-			return err
-		}
-		s.l.Debugf("subAgent id=%d is started", agentParams.AgentId)
-		s.agents[agentParams.AgentId] = subAgent
-		go s.watchSubAgent(agentParams.AgentId, subAgent)
-		return nil
 	}
+
+	err = subAgent.Start(s.ctx)
+	if err != nil {
+		_ = s.registry.Release(port)
+		return err
+	}
+	s.l.Debugf("subAgent id=%d is started", agentParams.AgentId)
+	s.agents[agentParams.AgentId] = subAgent
+	go s.watchSubAgent(agentParams.AgentId, subAgent)
+	return nil
 }
 
-// Stop stops new sub-agent and adds it into map.
-func (s *Supervisor) Stop(id uint32) error {
-	s.rw.Lock()
-	defer s.rw.Unlock()
-
+func (s *Supervisor) stop(id uint32) error {
 	subAgent, ok := s.agents[id]
 	if !ok {
 		return fmt.Errorf("subAgent with id %d not found", id)
@@ -151,19 +170,21 @@ func (s *Supervisor) Stop(id uint32) error {
 	if err != nil {
 		return err
 	}
-	_ = s.registry.Release(subAgent.Port())
+	_ = s.registry.Release(subAgent.port)
 	delete(s.agents, id)
 	return nil
 }
 
-func (s *Supervisor) watchSubAgent(id uint32, agent *runner.SubAgent) {
+func (s *Supervisor) watchSubAgent(id uint32, agent *subAgent) {
 	restartCount := 0
 	var startTime <-chan time.Time
 	for {
 		select {
 		case <-s.ctx.Done():
 			return
-		case <-agent.Done():
+		case <-agent.Disabled():
+			return
+		case <-agent.Restart():
 			max := math.Pow(2, float64(restartCount))
 			delay := rand.Int63n(int64(max))
 			startTime = time.After(time.Duration(delay) * time.Millisecond)
