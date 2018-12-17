@@ -60,8 +60,6 @@ func newSubAgent(params *agent.SetStateRequest_AgentProcess, port uint32) *subAg
 	l := logrus.WithField("component", "runner").
 		WithField("agentID", params.AgentId).
 		WithField("type", params.Type)
-	var closedChan = make(chan struct{})
-	close(closedChan)
 
 	state := fsm.NewFSM(
 		NEW,
