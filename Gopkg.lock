@@ -74,6 +74,14 @@
   version = "v1.0.1"
 
 [[projects]]
+  branch = "master"
+  digest = "1:8520e78cbe9878f6bf0cfdcfaed5761cd575b3568c260a1c891ac1f5c5c6a726"
+  name = "github.com/looplab/fsm"
+  packages = ["."]
+  pruneopts = "NUT"
+  revision = "f980bdb68a8962823200eafe6c0aa99e917be0d7"
+
+[[projects]]
   digest = "1:5985ef4caf91ece5d54817c11ea25f182697534f8ae6521eadcd628c142ac4b6"
   name = "github.com/matttproud/golang_protobuf_extensions"
   packages = ["pbutil"]
@@ -297,6 +305,7 @@
   input-imports = [
     "github.com/golang/protobuf/proto",
     "github.com/golang/protobuf/ptypes",
+    "github.com/looplab/fsm",
     "github.com/percona/exporter_shared/helpers",
     "github.com/percona/pmm/api/agent",
     "github.com/percona/pmm/api/agentlocal",

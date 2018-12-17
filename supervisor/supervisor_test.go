@@ -28,6 +28,8 @@ import (
 	"github.com/percona/pmm-agent/config"
 )
 
+const sleepTime = 200 * time.Millisecond
+
 func agentProcessIsExists(t *testing.T, s *Supervisor, agentID uint32) (int, bool) {
 	subAgent, ok := s.agents[agentID]
 	if !ok {
@@ -121,8 +123,7 @@ func TestUpdateStateSimple(t *testing.T) {
 	for _, process := range response {
 		checkResponse(t, process, process.AgentId < 4)
 	}
-
-	time.Sleep(1 * time.Second)
+	time.Sleep(sleepTime)
 
 	for i := uint32(1); i <= agentsCount; i++ {
 		procExists := processIsExists(pids[i])
@@ -148,7 +149,7 @@ func TestSimpleStartStopSubAgent(t *testing.T) {
 	if err != nil {
 		t.Errorf("Supervisor.start() error = %v", err)
 	}
-	time.Sleep(1 * time.Second)
+	time.Sleep(sleepTime)
 	pid, procExists := agentProcessIsExists(t, s, agentID)
 	if !procExists {
 		t.Errorf("Sub-agent process not found error = %v", err)
@@ -157,7 +158,7 @@ func TestSimpleStartStopSubAgent(t *testing.T) {
 	if err != nil {
 		t.Errorf("Supervisor.stop() error = %v", err)
 	}
-	time.Sleep(1 * time.Second)
+	time.Sleep(sleepTime)
 	procExists = processIsExists(pid)
 	if procExists {
 		t.Errorf("sub-agent with pid %d is not stopped", pid)
@@ -182,7 +183,7 @@ func TestContextDoneStopSubAgents(t *testing.T) {
 		t.Errorf("Sub-agent process not found error = %v", err)
 	}
 	cancel()
-	time.Sleep(1 * time.Second)
+	time.Sleep(sleepTime)
 	procExists = processIsExists(pid)
 	if procExists {
 		t.Errorf("sub-agent with pid %d is not stopped", pid)
@@ -203,7 +204,7 @@ func TestSupervisorStartTwice(t *testing.T) {
 	if err != nil {
 		t.Errorf("Supervisor.start() error = %v", err)
 	}
-	time.Sleep(1 * time.Second)
+	time.Sleep(sleepTime)
 	err = s.start(params)
 	if err == nil {
 		t.Errorf("Starting sub-agent second time should return error")

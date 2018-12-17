@@ -19,28 +19,37 @@ package supervisor
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"io"
 	"os"
 	"os/exec"
 	"syscall"
 	"text/template"
 
+	"github.com/looplab/fsm"
 	"github.com/percona/pmm/api/agent"
 	"github.com/sirupsen/logrus"
 
 	"github.com/percona/pmm-agent/utils/logger"
 )
 
+const (
+	NEW      = "new"
+	STARTING = "starting"
+	RUNNING  = "running"
+	EXITED   = "exited"
+	BACKOFF  = "backoff"
+	STOPPING = "stopping"
+	STOPPED  = "stopped"
+)
+
 // subAgent is structure for sub-agents.
 type subAgent struct {
-	log          *logger.CircularWriter
-	l            *logrus.Entry
-	params       *agent.SetStateRequest_AgentProcess
-	port         uint32
-	runningChan  chan struct{}
-	disabledChan chan struct{}
-	cmd          *exec.Cmd
+	log    *logger.CircularWriter
+	l      *logrus.Entry
+	params *agent.SetStateRequest_AgentProcess
+	port   uint32
+	cmd    *exec.Cmd
+	state  *fsm.FSM
 }
 
 type templateParams struct {
@@ -54,22 +63,34 @@ func newSubAgent(params *agent.SetStateRequest_AgentProcess, port uint32) *subAg
 	var closedChan = make(chan struct{})
 	close(closedChan)
 
+	state := fsm.NewFSM(
+		NEW,
+		fsm.Events{
+			{Name: STARTING, Src: []string{NEW, BACKOFF, STOPPED}, Dst: STARTING},
+			{Name: RUNNING, Src: []string{STARTING}, Dst: RUNNING},
+			{Name: EXITED, Src: []string{RUNNING}, Dst: EXITED},
+			{Name: BACKOFF, Src: []string{EXITED, STARTING}, Dst: BACKOFF},
+			{Name: STOPPING, Src: []string{RUNNING}, Dst: STOPPING},
+			{Name: STOPPED, Src: []string{STOPPING, BACKOFF}, Dst: STOPPED},
+		},
+		fsm.Callbacks{},
+	)
+
 	return &subAgent{
-		params:       params,
-		log:          logger.New(10),
-		l:            l,
-		port:         port,
-		runningChan:  closedChan,
-		disabledChan: closedChan,
+		params: params,
+		log:    logger.New(10),
+		l:      l,
+		port:   port,
+		state:  state,
 	}
 }
 
 // start starts sub-agent.
 func (m *subAgent) Start(ctx context.Context) error {
-	if m.Running() {
-		return fmt.Errorf("can't start the process, process is already running")
+	err := m.state.Event(STARTING)
+	if err != nil {
+		return err
 	}
-	m.disabledChan = make(chan struct{}, 1)
 	name := m.binary()
 	args, err := m.args()
 	if err != nil {
@@ -86,35 +107,47 @@ func (m *subAgent) Start(ctx context.Context) error {
 		return err
 	}
 	m.cmd = cmd
-	m.runningChan = make(chan struct{}, 1)
+	err = m.state.Event(RUNNING)
+	if err != nil {
+		return err
+	}
 	go func() {
-		_ = m.cmd.Wait()
-		close(m.runningChan)
+		err := m.cmd.Wait()
+		if err != nil {
+			m.l.Debug(err)
+		}
+		err = m.state.Event(EXITED)
+		if err != nil {
+			m.l.Debug(err)
+		}
 	}()
 	return nil
 }
 
-// Restart returns channel to restart agent.
-func (m *subAgent) Restart() <-chan struct{} {
-	select {
-	case <-m.disabledChan:
-		return make(chan struct{}, 1)
-	default:
-		return m.runningChan
-	}
-}
-
 // stop stops sub-agent
 func (m *subAgent) Stop() error {
-	if !m.Running() {
-		return fmt.Errorf("can't kill the process, process is not running")
-	}
-
-	close(m.disabledChan)
-	err := m.cmd.Process.Signal(syscall.SIGINT)
+	err := m.state.Event(STOPPING)
 	if err != nil {
 		return err
 	}
+
+	err = m.cmd.Process.Signal(syscall.SIGINT)
+	if err != nil {
+		return err
+	}
+
+	if syscall.Kill(m.cmd.Process.Pid, syscall.Signal(0)) == nil {
+		err := m.cmd.Process.Kill()
+		if err != nil {
+			return err
+		}
+	}
+
+	err = m.state.Event(STOPPED)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -123,18 +156,13 @@ func (m *subAgent) GetLogs() []string {
 	return m.log.Data()
 }
 
-// Running returns state of sub-agent.
-func (m *subAgent) Running() bool {
-	select {
-	case <-m.runningChan:
-		return false
-	default:
-		return true
-	}
+// GetState returns state of sub-agent
+func (m *subAgent) GetState() string {
+	return m.state.Current()
 }
 
 func (m *subAgent) pid() int {
-	if m.Running() {
+	if m.state.Is(RUNNING) {
 		return m.cmd.Process.Pid
 	}
 	return 0
@@ -170,8 +198,4 @@ func (m *subAgent) binary() string {
 		m.l.Panic("unhandled type of agent", m.params.Type)
 		return ""
 	}
-}
-
-func (m *subAgent) Disabled() chan struct{} {
-	return m.disabledChan
 }

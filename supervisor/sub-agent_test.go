@@ -104,8 +104,10 @@ func TestRaceCondition(t *testing.T) {
 		cancel()
 	}()
 	for {
-		if !m.Running() {
+		if !m.state.Is(RUNNING) {
 			break
 		}
 	}
+	time.Sleep(sleepTime)
+	assert.Equal(t, EXITED, m.state.Current())
 }

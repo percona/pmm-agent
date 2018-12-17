@@ -18,7 +18,6 @@ package supervisor
 
 import (
 	"context"
-	"fmt"
 	"math"
 	"math/rand"
 	"sync"
@@ -26,6 +25,7 @@ import (
 
 	"github.com/golang/protobuf/proto"
 	"github.com/percona/pmm/api/agent"
+	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 
 	"github.com/percona/pmm-agent/config"
@@ -56,9 +56,7 @@ func NewSupervisor(ctx context.Context, portsCfg config.Ports) *Supervisor {
 func (s *Supervisor) UpdateState(processes []*agent.SetStateRequest_AgentProcess) []*agent.SetStateResponse_AgentProcess {
 	var agentProcessesStates []*agent.SetStateResponse_AgentProcess
 	processesMaps := make(map[uint32]*agent.SetStateRequest_AgentProcess)
-	var agentsToStart []uint32
-	var agentsToRestart []uint32
-	var agentsToStop []uint32
+	var toStart, toRestart, toStop []uint32
 
 	s.rw.Lock()
 	defer s.rw.Unlock()
@@ -66,9 +64,9 @@ func (s *Supervisor) UpdateState(processes []*agent.SetStateRequest_AgentProcess
 		subAgent, ok := s.agents[agentProcess.AgentId]
 		switch {
 		case !ok:
-			agentsToStart = append(agentsToStart, agentProcess.AgentId)
+			toStart = append(toStart, agentProcess.AgentId)
 		case ok && !proto.Equal(subAgent.params, agentProcess):
-			agentsToRestart = append(agentsToRestart, agentProcess.AgentId)
+			toRestart = append(toRestart, agentProcess.AgentId)
 		default:
 			state := &agent.SetStateResponse_AgentProcess{
 				AgentId:    agentProcess.AgentId,
@@ -80,11 +78,11 @@ func (s *Supervisor) UpdateState(processes []*agent.SetStateRequest_AgentProcess
 	}
 	for id := range s.agents {
 		if _, ok := processesMaps[id]; !ok {
-			agentsToStop = append(agentsToStop, id)
+			toStop = append(toStop, id)
 		}
 	}
 
-	for _, id := range agentsToStop {
+	for _, id := range toStop {
 		port := s.agents[id].port
 		err := s.stop(id)
 		if err != nil {
@@ -99,7 +97,7 @@ func (s *Supervisor) UpdateState(processes []*agent.SetStateRequest_AgentProcess
 		agentProcessesStates = append(agentProcessesStates, state)
 	}
 
-	for _, id := range agentsToStart {
+	for _, id := range toStart {
 		err := s.start(processesMaps[id])
 		if err != nil {
 			s.l.Error(err)
@@ -112,7 +110,7 @@ func (s *Supervisor) UpdateState(processes []*agent.SetStateRequest_AgentProcess
 		agentProcessesStates = append(agentProcessesStates, state)
 	}
 
-	for _, id := range agentsToRestart {
+	for _, id := range toRestart {
 		subAgent := s.agents[id]
 		subAgent.params = processesMaps[id]
 		err := subAgent.Stop()
@@ -146,8 +144,8 @@ func (s *Supervisor) start(agentParams *agent.SetStateRequest_AgentProcess) erro
 	if !ok {
 		subAgent = newSubAgent(agentParams, port)
 	}
-	if subAgent.Running() {
-		return fmt.Errorf("subAgent id=%d has already run", agentParams.AgentId)
+	if subAgent.state.Is(RUNNING) {
+		return errors.Errorf("subAgent id=%d has already run", agentParams.AgentId)
 	}
 
 	err = subAgent.Start(s.ctx)
@@ -164,7 +162,7 @@ func (s *Supervisor) start(agentParams *agent.SetStateRequest_AgentProcess) erro
 func (s *Supervisor) stop(id uint32) error {
 	subAgent, ok := s.agents[id]
 	if !ok {
-		return fmt.Errorf("subAgent with id %d not found", id)
+		return errors.Errorf("subAgent with id %d not found", id)
 	}
 	err := subAgent.Stop()
 	if err != nil {
@@ -182,19 +180,26 @@ func (s *Supervisor) watchSubAgent(id uint32, agent *subAgent) {
 		select {
 		case <-s.ctx.Done():
 			return
-		case <-agent.Disabled():
-			return
-		case <-agent.Restart():
-			max := math.Pow(2, float64(restartCount))
-			delay := rand.Int63n(int64(max))
-			startTime = time.After(time.Duration(delay) * time.Millisecond)
-			s.l.Debugf("restarting agent in %d milliseconds", delay)
 		case <-startTime:
 			err := agent.Start(s.ctx)
 			if err != nil {
 				s.l.Warnf("Error on restarting agent with id %d", id)
 			}
 			restartCount++
+		default:
+			switch agent.GetState() {
+			case EXITED:
+				max := math.Pow(2, float64(restartCount))
+				delay := rand.Int63n(int64(max))
+				startTime = time.After(time.Duration(delay) * time.Millisecond)
+				s.l.Debugf("restarting agent in %d milliseconds", delay)
+				err := agent.state.Event(BACKOFF)
+				if err != nil {
+					s.l.Warn(err)
+				}
+			case STOPPED:
+				return
+			}
 		}
 	}
 }

@@ -18,7 +18,6 @@
 package server
 
 import (
-	"fmt"
 	"sync"
 	"sync/atomic"
 
@@ -223,7 +222,7 @@ func (c *Channel) publish(id uint32, payload agent.ServerMessagePayload) {
 	ch := c.responses[id]
 	if ch == nil {
 		c.m.Unlock()
-		c.close(errors.WithStack(fmt.Errorf("no subscriber for ID %d", id)))
+		c.close(errors.WithStack(errors.Errorf("no subscriber for ID %d", id)))
 		return
 	}
 
