@@ -18,6 +18,7 @@ package server
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"net"
 	"strings"
@@ -323,7 +324,7 @@ func TestUnexpectedResponseFromServer(t *testing.T) {
 		return nil
 	}
 
-	channel, _, teardown := setup(t, connect, errors.Errorf("no subscriber for ID 111"))
+	channel, _, teardown := setup(t, connect, fmt.Errorf("no subscriber for ID 111"))
 	defer teardown(t)
 
 	// after receiving unexpected response, channel is closed
