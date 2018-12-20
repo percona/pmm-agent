@@ -18,96 +18,31 @@ package supervisor
 
 import (
 	"context"
+	"github.com/sirupsen/logrus"
 	"testing"
 	"time"
 
 	"github.com/percona/pmm/api/agent"
-	"github.com/stretchr/testify/assert"
 )
 
-func TestSubAgentArgs(t *testing.T) {
-	type fields struct {
-		params *agent.SetStateRequest_AgentProcess
-		port   uint32
-	}
-	tests := []struct {
-		name    string
-		fields  fields
-		want    []string
-		wantErr bool
-	}{
-		{
-			"No args test",
-			fields{
-				&agent.SetStateRequest_AgentProcess{
-					Args: []string{},
-				},
-				1234,
-			},
-			[]string{},
-			false,
-		},
-		{
-			"Simple test",
-			fields{
-				&agent.SetStateRequest_AgentProcess{
-					Args: []string{"-web.listen-address=127.0.0.1:{{ .ListenPort }}"},
-				},
-				1234,
-			},
-			[]string{"-web.listen-address=127.0.0.1:1234"},
-			false,
-		},
-		{
-			"Multiple args test",
-			fields{
-				&agent.SetStateRequest_AgentProcess{
-					Args: []string{"-collect.binlog_size", "-web.listen-address=127.0.0.1:{{ .ListenPort }}"},
-				},
-				9175,
-			},
-			[]string{"-collect.binlog_size", "-web.listen-address=127.0.0.1:9175"},
-			false,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			m := newSubAgent(tt.fields.params, tt.fields.port)
-			got, err := m.args()
-			if (err != nil) != tt.wantErr {
-				t.Errorf("subAgent.args() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-
-			assert.Equal(t, tt.want, got)
-		})
-	}
-}
-
 func TestRaceCondition(t *testing.T) {
-	m := newSubAgent(&agent.SetStateRequest_AgentProcess{
+	logrus.SetLevel(logrus.DebugLevel)
+	ctx, cancel := context.WithCancel(context.Background())
+	m := New(ctx, &agent.SetStateRequest_AgentProcess{
 		Type: agent.Type_MYSQLD_EXPORTER,
-		Args: []string{"-web.listen-address=127.0.0.1:{{ .ListenPort }}"},
+		Args: []string{"-web.listen-address=127.0.0.1:11111"},
 		Env: []string{
 			`DATA_SOURCE_NAME="pmm:pmm@(127.0.0.1:3306)/pmm-managed-dev"`,
 		},
-	}, 12345)
-	ctx, cancel := context.WithCancel(context.Background())
-	err := m.Start(ctx)
-	if err != nil {
-		t.Errorf("subAgent.start() error = %v", err)
-		cancel()
-		return
-	}
+	})
 	go func() {
 		time.Sleep(1 * time.Second)
 		cancel()
 	}()
 	for {
-		if !m.state.Is(RUNNING) {
+		state := <-m.Changes()
+		if state == STOPPED {
 			break
 		}
 	}
-	time.Sleep(sleepTime)
-	assert.Equal(t, EXITED, m.state.Current())
 }

@@ -17,15 +17,13 @@
 package supervisor
 
 import (
+	"bytes"
 	"context"
-	"math"
-	"math/rand"
 	"sync"
-	"time"
+	"text/template"
 
 	"github.com/golang/protobuf/proto"
 	"github.com/percona/pmm/api/agent"
-	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 
 	"github.com/percona/pmm-agent/config"
@@ -35,16 +33,24 @@ import (
 type Supervisor struct {
 	rw     sync.Mutex
 	agents map[uint32]*subAgent
+	params map[uint32]*agent.SetStateRequest_AgentProcess
+	ports  map[uint32]uint32
 
 	l        *logrus.Entry
 	ctx      context.Context
 	registry *ports.Registry
 }
 
+type templateParams struct {
+	ListenPort uint32
+}
+
 // NewSupervisor creates new Supervisor object.
 func NewSupervisor(ctx context.Context, portsCfg config.Ports) *Supervisor {
 	supervisor := &Supervisor{
 		agents:   make(map[uint32]*subAgent),
+		params:   make(map[uint32]*agent.SetStateRequest_AgentProcess),
+		ports:    make(map[uint32]uint32),
 		l:        logrus.WithField("component", "supervisor"),
 		ctx:      ctx,
 		registry: ports.NewRegistry(portsCfg.Min, portsCfg.Max, nil),
@@ -61,16 +67,16 @@ func (s *Supervisor) UpdateState(processes []*agent.SetStateRequest_AgentProcess
 	s.rw.Lock()
 	defer s.rw.Unlock()
 	for _, agentProcess := range processes {
-		subAgent, ok := s.agents[agentProcess.AgentId]
+		_, ok := s.agents[agentProcess.AgentId]
 		switch {
 		case !ok:
 			toStart = append(toStart, agentProcess.AgentId)
-		case ok && !proto.Equal(subAgent.params, agentProcess):
+		case ok && !proto.Equal(s.params[agentProcess.AgentId], agentProcess):
 			toRestart = append(toRestart, agentProcess.AgentId)
 		default:
 			state := &agent.SetStateResponse_AgentProcess{
 				AgentId:    agentProcess.AgentId,
-				ListenPort: subAgent.port,
+				ListenPort: s.ports[agentProcess.AgentId],
 			}
 			agentProcessesStates = append(agentProcessesStates, state)
 		}
@@ -82,13 +88,28 @@ func (s *Supervisor) UpdateState(processes []*agent.SetStateRequest_AgentProcess
 		}
 	}
 
-	for _, id := range toStop {
-		port := s.agents[id].port
-		err := s.stop(id)
+	for _, id := range toStart {
+		port, err := s.registry.Reserve()
+		if err != nil {
+			continue
+		}
+
+		err = s.start(*processesMaps[id], port)
 		if err != nil {
 			s.l.Error(err)
 			continue
 		}
+		s.params[id] = processesMaps[id]
+		state := &agent.SetStateResponse_AgentProcess{
+			AgentId:    id,
+			ListenPort: port,
+		}
+		agentProcessesStates = append(agentProcessesStates, state)
+	}
+
+	for _, id := range toStop {
+		port := s.ports[id]
+		s.stop(id, false)
 		state := &agent.SetStateResponse_AgentProcess{
 			AgentId:    id,
 			ListenPort: port,
@@ -97,36 +118,18 @@ func (s *Supervisor) UpdateState(processes []*agent.SetStateRequest_AgentProcess
 		agentProcessesStates = append(agentProcessesStates, state)
 	}
 
-	for _, id := range toStart {
-		err := s.start(processesMaps[id])
-		if err != nil {
-			s.l.Error(err)
-			continue
-		}
-		state := &agent.SetStateResponse_AgentProcess{
-			AgentId:    id,
-			ListenPort: s.agents[id].port,
-		}
-		agentProcessesStates = append(agentProcessesStates, state)
-	}
-
 	for _, id := range toRestart {
-		subAgent := s.agents[id]
-		subAgent.params = processesMaps[id]
-		err := subAgent.Stop()
+		port := s.ports[id]
+		s.stop(id, true)
+		err := s.start(*processesMaps[id], port)
 		if err != nil {
 			s.l.Error(err)
 			continue
 		}
-		err = subAgent.Start(s.ctx)
-		if err != nil {
-			s.l.Error(err)
-			continue
-		}
-		go s.watchSubAgent(id, subAgent)
+		s.params[id] = processesMaps[id]
 		state := &agent.SetStateResponse_AgentProcess{
 			AgentId:    id,
-			ListenPort: subAgent.port,
+			ListenPort: port,
 		}
 		agentProcessesStates = append(agentProcessesStates, state)
 	}
@@ -134,72 +137,62 @@ func (s *Supervisor) UpdateState(processes []*agent.SetStateRequest_AgentProcess
 	return agentProcessesStates
 }
 
-func (s *Supervisor) start(agentParams *agent.SetStateRequest_AgentProcess) error {
-	port, err := s.registry.Reserve()
+func (s *Supervisor) start(agentParams agent.SetStateRequest_AgentProcess, port uint32) (err error) {
+	agentParams.Args, err = s.args(agentParams.Args, templateParams{ListenPort: port})
 	if err != nil {
-		return err
+		return
 	}
+	subAgent := New(s.ctx, &agentParams)
 
-	subAgent, ok := s.agents[agentParams.AgentId]
-	if !ok {
-		subAgent = newSubAgent(agentParams, port)
-	}
-	if subAgent.state.Is(RUNNING) {
-		return errors.Errorf("subAgent id=%d has already run", agentParams.AgentId)
-	}
-
-	err = subAgent.Start(s.ctx)
-	if err != nil {
-		_ = s.registry.Release(port)
-		return err
-	}
 	s.l.Debugf("subAgent id=%d is started", agentParams.AgentId)
 	s.agents[agentParams.AgentId] = subAgent
-	go s.watchSubAgent(agentParams.AgentId, subAgent)
-	return nil
+	s.ports[agentParams.AgentId] = port
+	return
 }
 
-func (s *Supervisor) stop(id uint32) error {
-	subAgent, ok := s.agents[id]
-	if !ok {
-		return errors.Errorf("subAgent with id %d not found", id)
-	}
-	err := subAgent.Stop()
-	if err != nil {
-		return err
-	}
-	_ = s.registry.Release(subAgent.port)
-	delete(s.agents, id)
-	return nil
-}
-
-func (s *Supervisor) watchSubAgent(id uint32, agent *subAgent) {
-	restartCount := 0
-	var startTime <-chan time.Time
-	for {
-		select {
-		case <-s.ctx.Done():
-			return
-		case <-startTime:
-			err := agent.Start(s.ctx)
-			if err != nil {
-				s.l.Warnf("Error on restarting agent with id %d", id)
-			}
-			restartCount++
-		default:
-			switch agent.GetState() {
-			case EXITED:
-				max := math.Pow(2, float64(restartCount))
-				delay := rand.Int63n(int64(max))
-				startTime = time.After(time.Duration(delay) * time.Millisecond)
-				s.l.Debugf("restarting agent in %d milliseconds", delay)
-				err := agent.state.Event(BACKOFF)
-				if err != nil {
-					s.l.Warn(err)
-				}
-			case STOPPED:
-				return
+func (s *Supervisor) stop(id uint32, wait bool) {
+	subAgent := s.agents[id]
+	subAgent.Stop()
+	if wait {
+		for {
+			_, more := <-subAgent.Changes()
+			if !more {
+				break
 			}
 		}
+	}
+
+	_ = s.registry.Release(s.ports[id])
+	delete(s.agents, id)
+	delete(s.ports, id)
+	delete(s.params, id)
+}
+
+func (s *Supervisor) args(args []string, params templateParams) ([]string, error) {
+	result := make([]string, len(args))
+	for i, arg := range args {
+		buffer := &bytes.Buffer{}
+		tmpl, err := template.New(arg).Parse(arg)
+		if err != nil {
+			return nil, err
+		}
+		err = tmpl.Execute(buffer, params)
+		if err != nil {
+			return nil, err
+		}
+		result[i] = buffer.String()
+	}
+	return result, nil
+}
+
+func (m *subAgent) binary() string {
+	switch m.params.Type {
+	case agent.Type_MYSQLD_EXPORTER:
+		return "mysqld_exporter"
+	case agent.Type_NODE_EXPORTER:
+		return "node_exporter"
+	default:
+		m.l.Panic("unhandled type of agent", m.params.Type)
+		return ""
 	}
 }

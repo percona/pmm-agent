@@ -22,6 +22,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sirupsen/logrus"
+
 	"github.com/percona/pmm/api/agent"
 	"github.com/stretchr/testify/assert"
 
@@ -43,8 +45,7 @@ func agentProcessIsExists(t *testing.T, s *Supervisor, agentID uint32) (int, boo
 
 func processIsExists(pid int) bool {
 	killErr := syscall.Kill(pid, syscall.Signal(0))
-	procExists := killErr == nil
-	return procExists
+	return killErr == nil
 }
 
 func checkResponse(t *testing.T, process *agent.SetStateResponse_AgentProcess, disabled bool) {
@@ -57,6 +58,7 @@ func checkResponse(t *testing.T, process *agent.SetStateResponse_AgentProcess, d
 }
 
 func setup() (context.CancelFunc, *Supervisor, []string, []string) {
+	logrus.SetLevel(logrus.DebugLevel)
 	ctx, cancel := context.WithCancel(context.TODO())
 	s := NewSupervisor(ctx, config.Ports{Min: 10001, Max: 20000})
 	arguments := []string{
@@ -84,13 +86,20 @@ func TestUpdateStateSimple(t *testing.T) {
 	}
 
 	response := s.UpdateState(processes)
-	time.Sleep(1 * time.Second)
 	for _, process := range response {
 		checkResponse(t, process, false)
 	}
 
 	if uint32(len(s.agents)) != agentsCount || uint32(len(response)) != agentsCount {
 		t.Errorf("%d agents started, expected %d", len(s.agents), agentsCount)
+	}
+	for _, subAgent := range s.agents {
+		for {
+			state := <-subAgent.Changes()
+			if state == RUNNING {
+				break
+			}
+		}
 	}
 	pids := make(map[uint32]int)
 	for i, subAgent := range s.agents {
@@ -112,19 +121,29 @@ func TestUpdateStateSimple(t *testing.T) {
 		processes = append(processes, process)
 	}
 
+	// Restart if params updated
+	process := &agent.SetStateRequest_AgentProcess{
+		AgentId: 3,
+		Type:    agent.Type_MYSQLD_EXPORTER,
+		Args:    append(arguments, "-collect.binlog_size"),
+		Env:     env,
+	}
+	processes = append(processes, process)
+
 	response = s.UpdateState(processes)
 	if uint32(len(response)) != agentsCount {
 		t.Errorf("%d process states returned, expected %d", len(response), agentsCount)
 	}
-	if uint32(len(s.agents)) != 2 {
-		t.Errorf("%d agents works, expected %d", len(s.agents), 2)
+	if uint32(len(s.agents)) != 3 {
+		t.Errorf("%d agents works, expected %d", len(s.agents), 3)
 	}
 
 	for _, process := range response {
-		checkResponse(t, process, process.AgentId < 4)
+		checkResponse(t, process, process.AgentId < 3)
 	}
 	time.Sleep(sleepTime)
 
+	assert.NotEqual(t, pids[3], s.agents[3].pid())
 	for i := uint32(1); i <= agentsCount; i++ {
 		procExists := processIsExists(pids[i])
 		enabled := i >= 4
@@ -134,30 +153,93 @@ func TestUpdateStateSimple(t *testing.T) {
 	}
 }
 
+func TestSubAgentArgs(t *testing.T) {
+	type fields struct {
+		params *agent.SetStateRequest_AgentProcess
+		port   uint32
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		want    []string
+		wantErr bool
+	}{
+		{
+			"No args test",
+			fields{
+				&agent.SetStateRequest_AgentProcess{
+					Args: []string{},
+				},
+				1234,
+			},
+			[]string{},
+			false,
+		},
+		{
+			"Simple test",
+			fields{
+				&agent.SetStateRequest_AgentProcess{
+					Args: []string{"-web.listen-address=127.0.0.1:{{ .ListenPort }}"},
+				},
+				1234,
+			},
+			[]string{"-web.listen-address=127.0.0.1:1234"},
+			false,
+		},
+		{
+			"Multiple args test",
+			fields{
+				&agent.SetStateRequest_AgentProcess{
+					Args: []string{"-collect.binlog_size", "-web.listen-address=127.0.0.1:{{ .ListenPort }}"},
+				},
+				9175,
+			},
+			[]string{"-collect.binlog_size", "-web.listen-address=127.0.0.1:9175"},
+			false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			m := NewSupervisor(ctx, config.Ports{Min: 10000, Max: 20000})
+			got, err := m.args(tt.fields.params.Args, templateParams{ListenPort: tt.fields.port})
+			if (err != nil) != tt.wantErr {
+				t.Errorf("subAgent.args() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
 func TestSimpleStartStopSubAgent(t *testing.T) {
 	cancel, s, arguments, env := setup()
 	defer cancel()
 
 	agentID := uint32(1)
-	params := &agent.SetStateRequest_AgentProcess{
+	params := agent.SetStateRequest_AgentProcess{
 		AgentId: agentID,
 		Type:    agent.Type_MYSQLD_EXPORTER,
 		Args:    arguments,
 		Env:     env,
 	}
-	err := s.start(params)
+	err := s.start(params, 12345)
 	if err != nil {
 		t.Errorf("Supervisor.start() error = %v", err)
 	}
-	time.Sleep(sleepTime)
+	for {
+		state := <-s.agents[agentID].Changes()
+		if state == RUNNING {
+			break
+		}
+	}
 	pid, procExists := agentProcessIsExists(t, s, agentID)
 	if !procExists {
 		t.Errorf("Sub-agent process not found error = %v", err)
 	}
-	err = s.stop(agentID)
-	if err != nil {
-		t.Errorf("Supervisor.stop() error = %v", err)
-	}
+	s.stop(agentID, true)
 	time.Sleep(sleepTime)
 	procExists = processIsExists(pid)
 	if procExists {
@@ -168,15 +250,21 @@ func TestSimpleStartStopSubAgent(t *testing.T) {
 func TestContextDoneStopSubAgents(t *testing.T) {
 	cancel, s, arguments, env := setup()
 
-	params := &agent.SetStateRequest_AgentProcess{
+	params := agent.SetStateRequest_AgentProcess{
 		AgentId: 1,
 		Type:    agent.Type_MYSQLD_EXPORTER,
 		Args:    arguments,
 		Env:     env,
 	}
-	err := s.start(params)
+	err := s.start(params, 12346)
 	if err != nil {
 		t.Errorf("Supervisor.start() error = %v", err)
+	}
+	for {
+		state := <-s.agents[1].Changes()
+		if state == RUNNING {
+			break
+		}
 	}
 	pid, procExists := agentProcessIsExists(t, s, 1)
 	if !procExists {
@@ -187,26 +275,5 @@ func TestContextDoneStopSubAgents(t *testing.T) {
 	procExists = processIsExists(pid)
 	if procExists {
 		t.Errorf("sub-agent with pid %d is not stopped", pid)
-	}
-}
-
-func TestSupervisorStartTwice(t *testing.T) {
-	cancel, s, arguments, env := setup()
-	defer cancel()
-
-	params := &agent.SetStateRequest_AgentProcess{
-		AgentId: 1,
-		Type:    agent.Type_MYSQLD_EXPORTER,
-		Args:    arguments,
-		Env:     env,
-	}
-	err := s.start(params)
-	if err != nil {
-		t.Errorf("Supervisor.start() error = %v", err)
-	}
-	time.Sleep(sleepTime)
-	err = s.start(params)
-	if err == nil {
-		t.Errorf("Starting sub-agent second time should return error")
 	}
 }
