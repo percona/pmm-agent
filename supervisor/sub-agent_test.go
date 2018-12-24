@@ -18,9 +18,12 @@ package supervisor
 
 import (
 	"context"
-	"github.com/sirupsen/logrus"
+	"syscall"
 	"testing"
 	"time"
+
+	"github.com/sirupsen/logrus"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/percona/pmm/api/agent"
 )
@@ -39,10 +42,36 @@ func TestRaceCondition(t *testing.T) {
 		time.Sleep(1 * time.Second)
 		cancel()
 	}()
-	for {
-		state := <-m.Changes()
-		if state == STOPPED {
-			break
+	assert.NotPanics(t, func() {
+		for {
+			state := <-m.Changes()
+			if state == STOPPED {
+				break
+			}
 		}
-	}
+	})
+}
+
+func TestStates(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	m := New(ctx, &agent.SetStateRequest_AgentProcess{
+		Type: agent.Type_MYSQLD_EXPORTER,
+		Args: []string{"-web.listen-address=127.0.0.1:11112"},
+		Env: []string{
+			`DATA_SOURCE_NAME="pmm:pmm@(127.0.0.1:3306)/pmm-managed-dev"`,
+		},
+	})
+
+	time.Sleep(3 * time.Second)
+	err := syscall.Kill(m.pid(), syscall.SIGKILL)
+	assert.NoError(t, err)
+	assert.Equal(t, STARTING, <-m.Changes())
+	assert.Equal(t, RUNNING, <-m.Changes())
+	assert.Equal(t, BACKOFF, <-m.Changes())
+	assert.Equal(t, STARTING, <-m.Changes())
+	assert.Equal(t, RUNNING, <-m.Changes())
+	m.Stop()
+	assert.Equal(t, STOPPING, <-m.Changes())
+	assert.Equal(t, STOPPED, <-m.Changes())
 }

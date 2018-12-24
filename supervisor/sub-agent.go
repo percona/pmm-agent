@@ -63,6 +63,7 @@ type subAgent struct {
 	changesChan chan string
 }
 
+//New starts subAgent process and returns new subAgent object.
 func New(ctx context.Context, params *agent.SetStateRequest_AgentProcess) *subAgent {
 	l := logrus.WithField("component", "runner").
 		WithField("agentID", params.AgentId).
@@ -148,12 +149,12 @@ func (m *subAgent) exec(ctx context.Context, filename string) bool {
 		return false
 	}
 	m.cmd = cmd
-	time.Sleep(2 * time.Second)
-	if !m.processExists() {
-		return false
-	}
 	err = m.state.Event(STARTED)
 	if err != nil {
+		return false
+	}
+	time.Sleep(2 * time.Second)
+	if !m.processExists() {
 		return false
 	}
 	err = m.cmd.Wait()
