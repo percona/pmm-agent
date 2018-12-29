@@ -67,6 +67,17 @@ func workLoop(ctx context.Context, cfg *config.Config, client agent.AgentClient)
 	prometheus.MustRegister(channel)
 
 	svr := supervisor.NewSupervisor(ctx, cfg.Ports)
+	go func() {
+		for {
+			select {
+			case update, more := <-svr.StateUpdates():
+				l.Debugf("Agent %d changed state to %s", update.AgentId, update.State)
+				if !more {
+					return
+				}
+			}
+		}
+	}()
 
 	for serverMessage := range channel.Requests() {
 		var agentMessage *agent.AgentMessage

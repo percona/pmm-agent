@@ -19,10 +19,9 @@ package supervisor
 import (
 	"context"
 	"io"
-	"math"
-	"math/rand"
 	"os"
 	"os/exec"
+	"sync"
 	"syscall"
 	"time"
 
@@ -54,22 +53,27 @@ const (
 
 // subAgent is structure for sub-agents.
 type subAgent struct {
-	log         *logger.CircularWriter
-	l           *logrus.Entry
-	params      *agent.SetStateRequest_AgentProcess
-	port        uint32
-	cmd         *exec.Cmd
-	state       *fsm.FSM
-	changesChan chan string
+	log            *logger.CircularWriter
+	l              *logrus.Entry
+	params         *agent.SetStateRequest_AgentProcess
+	port           uint32
+	state          *fsm.FSM
+	changesChan    chan string
+	restartCounter *restartCounter
+
+	md       sync.Mutex
+	doneChan chan struct{}
+
+	mc  sync.Mutex
+	cmd *exec.Cmd
 }
 
-//New starts subAgent process and returns new subAgent object.
-func New(ctx context.Context, params *agent.SetStateRequest_AgentProcess) *subAgent {
-	l := logrus.WithField("component", "runner").
+func newSubAgent(ctx context.Context, params *agent.SetStateRequest_AgentProcess) *subAgent {
+	l := logrus.WithField("component", "sub-agent").
 		WithField("agentID", params.AgentId).
 		WithField("type", params.Type)
 
-	changesChan := make(chan string, 10) // TODO: writing into changesChan blocks logic.
+	changesChan := make(chan string, 10)
 
 	state := fsm.NewFSM(
 		NEW,
@@ -91,128 +95,161 @@ func New(ctx context.Context, params *agent.SetStateRequest_AgentProcess) *subAg
 	)
 
 	sAgent := &subAgent{
-		params:      params,
-		log:         logger.New(10),
-		l:           l,
-		state:       state,
-		changesChan: changesChan,
+		params:         params,
+		log:            logger.New(10),
+		l:              l,
+		state:          state,
+		changesChan:    changesChan,
+		restartCounter: &restartCounter{count: 1},
+		doneChan:       make(chan struct{}),
 	}
 	go sAgent.start(ctx)
 	return sAgent
 }
 
 // start starts sub-agent.
-func (m *subAgent) start(ctx context.Context) {
-	restartCount := 0
+func (a *subAgent) start(ctx context.Context) {
+	filename := a.binary()
+	for a.state.Can(START) {
 
-	for m.state.Can(START) {
-		err := m.state.Event(START)
+		a.mc.Lock()
+		err := a.state.Event(START)
 		if err != nil {
+			a.l.Debug(err)
+			a.mc.Unlock()
 			return
 		}
-		filename := m.binary()
-		if m.exec(ctx, filename) {
-			restartCount = 0
-		}
-		max := math.Pow(2, float64(restartCount))
-		delay := rand.Int63n(int64(max))
-		startTime := time.After(time.Duration(delay) * time.Millisecond)
-		err = m.state.Event(RESTART)
+		a.md.Lock()
+		a.doneChan = make(chan struct{})
+		a.md.Unlock()
+		cmd := exec.Command(filename, a.params.Args...)
+		cmd.Env = a.params.Env
+		cmd.Stdout = io.MultiWriter(os.Stdout, a.log)
+		cmd.Stderr = io.MultiWriter(os.Stderr, a.log)
+		err = cmd.Start()
 		if err != nil {
-			m.l.Debug(err)
-			return
-		}
-	L:
-		for {
-			select {
-			case <-ctx.Done():
-				err = m.state.Event(EXIT)
-				if err != nil {
-					m.l.Debug(err)
-				}
+			a.l.Debug(err)
+			a.mc.Unlock()
+			if !a.backoff(ctx) {
 				return
-			case <-startTime:
-				restartCount++
-				break L
 			}
+		}
+		a.cmd = cmd
+		err = a.state.Event(STARTED)
+		a.mc.Unlock()
+		if err != nil {
+			a.l.Debug(err)
+			if !a.backoff(ctx) {
+				return
+			}
+		}
+		go func() {
+			resetTime := time.After(2 * time.Second)
+			select {
+			case <-resetTime:
+				a.restartCounter.Reset()
+			case <-a.done():
+				return
+			}
+		}()
+		err = a.cmd.Wait()
+		if err != nil {
+			a.l.Debugf("sub-agent exited with message: %s", err)
+		}
+		close(a.doneChan)
+		err = a.state.Event(RESTART)
+		if err != nil {
+			a.l.Debug(err)
+			return
+		}
+		if !a.backoff(ctx) {
+			return
 		}
 	}
 }
 
-func (m *subAgent) exec(ctx context.Context, filename string) bool {
-	cmd := exec.CommandContext(ctx, filename, m.params.Args...)
-	cmd.Env = m.params.Env
-	cmd.Stdout = io.MultiWriter(os.Stdout, m.log)
-	cmd.Stderr = io.MultiWriter(os.Stderr, m.log)
-	err := cmd.Start()
-	if err != nil {
-		return false
+func (a *subAgent) backoff(ctx context.Context) bool {
+	delay := a.restartCounter.Delay()
+	startTime := time.After(delay)
+	for {
+		select {
+		case <-ctx.Done():
+			err := a.state.Event(EXIT)
+			if err != nil {
+				a.l.Debug(err)
+			}
+			a.l.Debugf("exited on context done")
+			return false
+		case <-startTime:
+			a.l.Debugf("restarted after %v", delay)
+			a.restartCounter.Inc()
+			return true
+		}
 	}
-	m.cmd = cmd
-	err = m.state.Event(STARTED)
-	if err != nil {
-		return false
-	}
-	time.Sleep(2 * time.Second)
-	if !m.processExists() {
-		return false
-	}
-	err = m.cmd.Wait()
-	if err != nil {
-		m.l.Debug(err)
-	}
-	return true
 }
 
 // stop stops sub-agent
-func (m *subAgent) Stop() {
+func (a *subAgent) Stop() {
 	go func() {
-		err := m.state.Event(STOP)
+		a.mc.Lock()
+		defer a.mc.Unlock()
+		err := a.state.Event(STOP)
 		if err != nil {
-			m.l.Warnln("Can't change state to STOPPING")
+			a.l.Warnln("Can't change state to STOPPING", err)
 			return
 		}
 
-		err = m.cmd.Process.Signal(syscall.SIGINT)
+		err = a.cmd.Process.Signal(syscall.SIGINT)
 		if err != nil {
-			m.l.Warnln("Can't stop sub-agent")
+			a.l.Warnln("Can't stop sub-agent", err)
 			return
 		}
 
-		time.Sleep(5 * time.Second)
+		killTime := time.After(5 * time.Second)
 
-		if m.processExists() {
-			err := m.cmd.Process.Kill()
+		select {
+		case <-killTime:
+			err := a.cmd.Process.Kill()
 			if err != nil {
-				m.l.Warnln("Can't kill sub-agent")
+				a.l.Warnln("Can't kill sub-agent", err)
 				return
 			}
+		case <-a.done():
+			break
 		}
 
-		err = m.state.Event(EXIT)
+		err = a.state.Event(EXIT)
 		if err != nil {
-			m.l.Warnln("Can't change state to STOPPING")
+			a.l.Warnln("Can't change state to STOPPING", err)
 			return
 		}
 	}()
 }
 
-func (m *subAgent) processExists() bool {
-	return syscall.Kill(m.cmd.Process.Pid, syscall.Signal(0)) == nil
+func (a *subAgent) done() <-chan struct{} {
+	a.md.Lock()
+	done := a.doneChan
+	a.md.Unlock()
+	return done
 }
 
 // GetLogs returns logs from sub-agent STDOut and STDErr.
-func (m *subAgent) GetLogs() []string {
-	return m.log.Data()
+func (a *subAgent) GetLogs() []string {
+	return a.log.Data()
 }
 
-func (m *subAgent) pid() int {
-	if m.state.Is(RUNNING) {
-		return m.cmd.Process.Pid
+func (a *subAgent) Changes() <-chan string {
+	return a.changesChan
+}
+
+func (a *subAgent) binary() string {
+	switch a.params.Type {
+	case agent.Type_MYSQLD_EXPORTER:
+		return "mysqld_exporter"
+	case agent.Type_NODE_EXPORTER:
+		return "node_exporter"
+	default:
+		a.l.Panic("unhandled type of agent", a.params.Type)
+		return ""
 	}
-	return 0
-}
-
-func (m *subAgent) Changes() <-chan string {
-	return m.changesChan
 }

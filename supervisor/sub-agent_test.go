@@ -31,7 +31,8 @@ import (
 func TestRaceCondition(t *testing.T) {
 	logrus.SetLevel(logrus.DebugLevel)
 	ctx, cancel := context.WithCancel(context.Background())
-	m := New(ctx, &agent.SetStateRequest_AgentProcess{
+	defer cancel()
+	m := newSubAgent(ctx, &agent.SetStateRequest_AgentProcess{
 		Type: agent.Type_MYSQLD_EXPORTER,
 		Args: []string{"-web.listen-address=127.0.0.1:11111"},
 		Env: []string{
@@ -40,7 +41,7 @@ func TestRaceCondition(t *testing.T) {
 	})
 	go func() {
 		time.Sleep(1 * time.Second)
-		cancel()
+		m.Stop()
 	}()
 	assert.NotPanics(t, func() {
 		for {
@@ -55,7 +56,7 @@ func TestRaceCondition(t *testing.T) {
 func TestStates(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	m := New(ctx, &agent.SetStateRequest_AgentProcess{
+	m := newSubAgent(ctx, &agent.SetStateRequest_AgentProcess{
 		Type: agent.Type_MYSQLD_EXPORTER,
 		Args: []string{"-web.listen-address=127.0.0.1:11112"},
 		Env: []string{
@@ -63,15 +64,54 @@ func TestStates(t *testing.T) {
 		},
 	})
 
-	time.Sleep(3 * time.Second)
-	err := syscall.Kill(m.pid(), syscall.SIGKILL)
-	assert.NoError(t, err)
 	assert.Equal(t, STARTING, <-m.Changes())
 	assert.Equal(t, RUNNING, <-m.Changes())
+	m.mc.Lock()
+	err := syscall.Kill(m.cmd.Process.Pid, syscall.SIGKILL)
+	m.mc.Unlock()
+	assert.NoError(t, err)
 	assert.Equal(t, BACKOFF, <-m.Changes())
 	assert.Equal(t, STARTING, <-m.Changes())
 	assert.Equal(t, RUNNING, <-m.Changes())
 	m.Stop()
 	assert.Equal(t, STOPPING, <-m.Changes())
 	assert.Equal(t, STOPPED, <-m.Changes())
+}
+
+func TestStatesOnCancel(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	m := newSubAgent(ctx, &agent.SetStateRequest_AgentProcess{
+		Type: agent.Type_MYSQLD_EXPORTER,
+		Args: []string{"-web.listen-address=127.0.0.1:11112"},
+		Env: []string{
+			`DATA_SOURCE_NAME="pmm:pmm@(127.0.0.1:3306)/pmm-managed-dev"`,
+		},
+	})
+
+	assert.Equal(t, STARTING, <-m.Changes())
+	assert.Equal(t, RUNNING, <-m.Changes())
+	m.Stop()
+	assert.Equal(t, STOPPING, <-m.Changes())
+	assert.Equal(t, STOPPED, <-m.Changes())
+}
+
+func TestStopOnStartingState(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	m := newSubAgent(ctx, &agent.SetStateRequest_AgentProcess{
+		Type: agent.Type_MYSQLD_EXPORTER,
+		Args: []string{"-web.listen-address=127.0.0.1:11112"},
+		Env: []string{
+			`DATA_SOURCE_NAME="pmm:pmm@(127.0.0.1:3306)/pmm-managed-dev"`,
+		},
+	})
+
+	assert.Equal(t, STARTING, <-m.Changes())
+	m.Stop()
+	time.Sleep(1 * time.Second)
+	assert.Equal(t, RUNNING, <-m.Changes())
+	assert.Equal(t, STOPPING, <-m.Changes())
+	assert.Equal(t, STOPPED, <-m.Changes())
+
 }

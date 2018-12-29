@@ -30,6 +30,11 @@ import (
 	"github.com/percona/pmm-agent/ports"
 )
 
+type StateUpdate struct {
+	AgentId uint32
+	State   string
+}
+
 type Supervisor struct {
 	rw     sync.Mutex
 	agents map[uint32]*subAgent
@@ -39,6 +44,7 @@ type Supervisor struct {
 	l        *logrus.Entry
 	ctx      context.Context
 	registry *ports.Registry
+	changes  chan StateUpdate
 }
 
 type templateParams struct {
@@ -54,7 +60,9 @@ func NewSupervisor(ctx context.Context, portsCfg config.Ports) *Supervisor {
 		l:        logrus.WithField("component", "supervisor"),
 		ctx:      ctx,
 		registry: ports.NewRegistry(portsCfg.Min, portsCfg.Max, nil),
+		changes:  make(chan StateUpdate),
 	}
+	go supervisor.handleContextDone()
 	return supervisor
 }
 
@@ -137,12 +145,17 @@ func (s *Supervisor) UpdateState(processes []*agent.SetStateRequest_AgentProcess
 	return agentProcessesStates
 }
 
+func (s *Supervisor) StateUpdates() <-chan StateUpdate {
+	return s.changes
+}
+
 func (s *Supervisor) start(agentParams agent.SetStateRequest_AgentProcess, port uint32) (err error) {
 	agentParams.Args, err = s.args(agentParams.Args, templateParams{ListenPort: port})
 	if err != nil {
 		return
 	}
-	subAgent := New(s.ctx, &agentParams)
+	subAgent := newSubAgent(s.ctx, &agentParams)
+	go s.watchUpdates(agentParams.AgentId, subAgent)
 
 	s.l.Debugf("subAgent id=%d is started", agentParams.AgentId)
 	s.agents[agentParams.AgentId] = subAgent
@@ -185,14 +198,29 @@ func (s *Supervisor) args(args []string, params templateParams) ([]string, error
 	return result, nil
 }
 
-func (m *subAgent) binary() string {
-	switch m.params.Type {
-	case agent.Type_MYSQLD_EXPORTER:
-		return "mysqld_exporter"
-	case agent.Type_NODE_EXPORTER:
-		return "node_exporter"
-	default:
-		m.l.Panic("unhandled type of agent", m.params.Type)
-		return ""
+func (s *Supervisor) watchUpdates(id uint32, sa *subAgent) {
+	for {
+		select {
+		case state, more := <-sa.Changes():
+			s.changes <- StateUpdate{AgentId: id, State: state}
+			if !more {
+				return
+			}
+		}
+	}
+}
+
+func (s *Supervisor) handleContextDone() {
+
+	for {
+		select {
+		case <-s.ctx.Done():
+			s.rw.Lock()
+			for i := range s.agents {
+				s.stop(i, false)
+			}
+			s.rw.Unlock()
+			return
+		}
 	}
 }

@@ -20,25 +20,21 @@ import (
 	"context"
 	"syscall"
 	"testing"
-	"time"
-
-	"github.com/sirupsen/logrus"
 
 	"github.com/percona/pmm/api/agent"
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/percona/pmm-agent/config"
 )
 
-const sleepTime = 200 * time.Millisecond
-
 func agentProcessIsExists(t *testing.T, s *Supervisor, agentID uint32) (int, bool) {
 	subAgent, ok := s.agents[agentID]
 	if !ok {
-		t.Errorf("Sub-agent not added to map")
+		t.Errorf("Sub-agent is not added to map")
 		return 0, false
 	}
-	pid := subAgent.pid()
+	pid := subAgent.cmd.Process.Pid
 	procExists := processIsExists(pid)
 	return pid, procExists
 }
@@ -46,6 +42,18 @@ func agentProcessIsExists(t *testing.T, s *Supervisor, agentID uint32) (int, boo
 func processIsExists(pid int) bool {
 	killErr := syscall.Kill(pid, syscall.Signal(0))
 	return killErr == nil
+}
+
+func waitUntil(supervisor *Supervisor, stateUpdates []StateUpdate) {
+	for len(stateUpdates) > 0 {
+		state := <-supervisor.StateUpdates()
+		for i := range stateUpdates {
+			if state == stateUpdates[i] {
+				stateUpdates = append(stateUpdates[:i], stateUpdates[i+1:]...)
+				break
+			}
+		}
+	}
 }
 
 func checkResponse(t *testing.T, process *agent.SetStateResponse_AgentProcess, disabled bool) {
@@ -93,20 +101,12 @@ func TestUpdateStateSimple(t *testing.T) {
 	if uint32(len(s.agents)) != agentsCount || uint32(len(response)) != agentsCount {
 		t.Errorf("%d agents started, expected %d", len(s.agents), agentsCount)
 	}
-	for _, subAgent := range s.agents {
-		for {
-			state := <-subAgent.Changes()
-			if state == RUNNING {
-				break
-			}
-		}
-	}
+	waitUntil(s, []StateUpdate{{1, RUNNING}, {2, RUNNING}, {3, RUNNING}, {4, RUNNING}, {5, RUNNING}})
 	pids := make(map[uint32]int)
 	for i, subAgent := range s.agents {
-		pid := subAgent.pid()
-		pids[i] = pid
-		if !processIsExists(pid) {
-			t.Errorf("Sub-agent with id %d is not run", pid)
+		pids[i] = subAgent.cmd.Process.Pid
+		if !processIsExists(pids[i]) {
+			t.Errorf("Sub-agent with id %d is not run", pids[i])
 		}
 	}
 
@@ -141,9 +141,9 @@ func TestUpdateStateSimple(t *testing.T) {
 	for _, process := range response {
 		checkResponse(t, process, process.AgentId < 3)
 	}
-	time.Sleep(sleepTime)
+	waitUntil(s, []StateUpdate{{3, RUNNING}, {1, STOPPED}, {2, STOPPED}})
 
-	assert.NotEqual(t, pids[3], s.agents[3].pid())
+	assert.NotEqual(t, pids[3], s.agents[3].cmd.Process.Pid)
 	for i := uint32(1); i <= agentsCount; i++ {
 		procExists := processIsExists(pids[i])
 		enabled := i >= 4
@@ -229,18 +229,12 @@ func TestSimpleStartStopSubAgent(t *testing.T) {
 	if err != nil {
 		t.Errorf("Supervisor.start() error = %v", err)
 	}
-	for {
-		state := <-s.agents[agentID].Changes()
-		if state == RUNNING {
-			break
-		}
-	}
+	waitUntil(s, []StateUpdate{{agentID, RUNNING}})
 	pid, procExists := agentProcessIsExists(t, s, agentID)
 	if !procExists {
 		t.Errorf("Sub-agent process not found error = %v", err)
 	}
 	s.stop(agentID, true)
-	time.Sleep(sleepTime)
 	procExists = processIsExists(pid)
 	if procExists {
 		t.Errorf("sub-agent with pid %d is not stopped", pid)
@@ -250,8 +244,9 @@ func TestSimpleStartStopSubAgent(t *testing.T) {
 func TestContextDoneStopSubAgents(t *testing.T) {
 	cancel, s, arguments, env := setup()
 
+	agentID := uint32(1)
 	params := agent.SetStateRequest_AgentProcess{
-		AgentId: 1,
+		AgentId: agentID,
 		Type:    agent.Type_MYSQLD_EXPORTER,
 		Args:    arguments,
 		Env:     env,
@@ -260,18 +255,13 @@ func TestContextDoneStopSubAgents(t *testing.T) {
 	if err != nil {
 		t.Errorf("Supervisor.start() error = %v", err)
 	}
-	for {
-		state := <-s.agents[1].Changes()
-		if state == RUNNING {
-			break
-		}
-	}
-	pid, procExists := agentProcessIsExists(t, s, 1)
+	waitUntil(s, []StateUpdate{{agentID, RUNNING}})
+	pid, procExists := agentProcessIsExists(t, s, agentID)
 	if !procExists {
 		t.Errorf("Sub-agent process not found error = %v", err)
 	}
 	cancel()
-	time.Sleep(sleepTime)
+	waitUntil(s, []StateUpdate{{agentID, STOPPED}})
 	procExists = processIsExists(pid)
 	if procExists {
 		t.Errorf("sub-agent with pid %d is not stopped", pid)
