@@ -30,11 +30,13 @@ import (
 	"github.com/percona/pmm-agent/ports"
 )
 
+// StateUpdate contains info about agent and current state.
 type StateUpdate struct {
-	AgentId uint32
+	AgentID uint32
 	State   string
 }
 
+// Supervisor manages all agents.
 type Supervisor struct {
 	rw     sync.Mutex
 	agents map[uint32]*subAgent
@@ -145,6 +147,7 @@ func (s *Supervisor) UpdateState(processes []*agent.SetStateRequest_AgentProcess
 	return agentProcessesStates
 }
 
+// StateUpdates returns update changes for all agents
 func (s *Supervisor) StateUpdates() <-chan StateUpdate {
 	return s.changes
 }
@@ -202,7 +205,7 @@ func (s *Supervisor) watchUpdates(id uint32, sa *subAgent) {
 	for {
 		select {
 		case state, more := <-sa.Changes():
-			s.changes <- StateUpdate{AgentId: id, State: state}
+			s.changes <- StateUpdate{AgentID: id, State: state}
 			if !more {
 				return
 			}

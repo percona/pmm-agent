@@ -71,7 +71,7 @@ func workLoop(ctx context.Context, cfg *config.Config, client agent.AgentClient)
 		for {
 			select {
 			case update, more := <-svr.StateUpdates():
-				l.Debugf("Agent %d changed state to %s", update.AgentId, update.State)
+				l.Debugf("Agent %d changed state to %s", update.AgentID, update.State)
 				if !more {
 					return
 				}

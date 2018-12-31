@@ -56,7 +56,6 @@ type subAgent struct {
 	log            *logger.CircularWriter
 	l              *logrus.Entry
 	params         *agent.SetStateRequest_AgentProcess
-	port           uint32
 	state          *fsm.FSM
 	changesChan    chan string
 	restartCounter *restartCounter
@@ -238,6 +237,7 @@ func (a *subAgent) GetLogs() []string {
 	return a.log.Data()
 }
 
+// Changes returns all state changes for current sub-agent.
 func (a *subAgent) Changes() <-chan string {
 	return a.changesChan
 }
