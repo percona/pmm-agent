@@ -51,6 +51,11 @@ const (
 	EXIT    = "exit"
 )
 
+const (
+	Type_TESTING_NOT_FOUND = agent.Type(100500)
+	Type_TESTING_SLEEP     = agent.Type(100501)
+)
+
 // subAgent is structure for sub-agents.
 type subAgent struct {
 	log            *logger.CircularWriter
@@ -248,6 +253,10 @@ func (a *subAgent) binary() string {
 		return "mysqld_exporter"
 	case agent.Type_NODE_EXPORTER:
 		return "node_exporter"
+	case Type_TESTING_NOT_FOUND:
+		return "testing_not_found"
+	case Type_TESTING_SLEEP:
+		return "sleep"
 	default:
 		a.l.Panic("unhandled type of agent", a.params.Type)
 		return ""

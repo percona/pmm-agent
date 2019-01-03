@@ -113,5 +113,16 @@ func TestStopOnStartingState(t *testing.T) {
 	assert.Equal(t, RUNNING, <-m.Changes())
 	assert.Equal(t, STOPPING, <-m.Changes())
 	assert.Equal(t, STOPPED, <-m.Changes())
+}
 
+func TestNotFoundBackoff(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	m := newSubAgent(ctx, &agent.SetStateRequest_AgentProcess{
+		Type: Type_TESTING_NOT_FOUND,
+	})
+
+	assert.Equal(t, STARTING, <-m.Changes())
+	m.Stop()
+	time.Sleep(1 * time.Second)
 }
