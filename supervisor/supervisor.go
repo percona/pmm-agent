@@ -36,10 +36,15 @@ type StateUpdate struct {
 	State   string
 }
 
+type subAgentInfo struct {
+	*subAgent
+	cancel func()
+}
+
 // Supervisor manages all agents.
 type Supervisor struct {
 	rw     sync.Mutex
-	agents map[uint32]*subAgent
+	agents map[uint32]*subAgentInfo
 	params map[uint32]*agent.SetStateRequest_AgentProcess
 	ports  map[uint32]uint32
 
@@ -56,7 +61,7 @@ type templateParams struct {
 // NewSupervisor creates new Supervisor object.
 func NewSupervisor(ctx context.Context, portsCfg config.Ports) *Supervisor {
 	supervisor := &Supervisor{
-		agents:   make(map[uint32]*subAgent),
+		agents:   make(map[uint32]*subAgentInfo),
 		params:   make(map[uint32]*agent.SetStateRequest_AgentProcess),
 		ports:    make(map[uint32]uint32),
 		l:        logrus.WithField("component", "supervisor"),
@@ -157,21 +162,25 @@ func (s *Supervisor) start(agentParams agent.SetStateRequest_AgentProcess, port 
 	if err != nil {
 		return
 	}
-	subAgent := newSubAgent(s.ctx, &agentParams)
+	ctx, cancel := context.WithCancel(s.ctx)
+	subAgent := newSubAgent(ctx, &agentParams)
 	go s.watchUpdates(agentParams.AgentId, subAgent)
 
 	s.l.Debugf("subAgent id=%d is started", agentParams.AgentId)
-	s.agents[agentParams.AgentId] = subAgent
+	s.agents[agentParams.AgentId] = &subAgentInfo{
+		subAgent: subAgent,
+		cancel:   cancel,
+	}
 	s.ports[agentParams.AgentId] = port
 	return
 }
 
 func (s *Supervisor) stop(id uint32, wait bool) {
-	subAgent := s.agents[id]
-	subAgent.Stop()
+	subAgentInfo := s.agents[id]
+	subAgentInfo.cancel()
 	if wait {
 		for {
-			_, more := <-subAgent.Changes()
+			_, more := <-subAgentInfo.Changes()
 			if !more {
 				break
 			}

@@ -22,24 +22,23 @@ import (
 	"os"
 	"os/exec"
 	"sync"
-	"syscall"
 	"time"
 
-	"github.com/looplab/fsm"
 	"github.com/percona/pmm/api/agent"
 	"github.com/sirupsen/logrus"
+	"golang.org/x/sys/unix"
 
 	"github.com/percona/pmm-agent/utils/logger"
 )
 
-//States
+// Stated.
+// TODO Switch to agent.Status enum.
 const (
-	NEW      = "new"
-	STARTING = "starting"
-	RUNNING  = "running"
-	BACKOFF  = "backoff"
-	STOPPING = "stopping"
-	STOPPED  = "stopped"
+	STARTING = "STARTING"
+	RUNNING  = "RUNNING"
+	WAITING  = "WAITING"
+	STOPPING = "STOPPING"
+	STOPPED  = "STOPPED"
 )
 
 //Events
@@ -58,18 +57,18 @@ const (
 
 // subAgent is structure for sub-agents.
 type subAgent struct {
+	ctx            context.Context
 	log            *logger.CircularWriter
 	l              *logrus.Entry
 	params         *agent.SetStateRequest_AgentProcess
-	state          *fsm.FSM
-	changesChan    chan string
+	changesCh      chan string
 	restartCounter *restartCounter
 
-	md       sync.Mutex
-	doneChan chan struct{}
+	wantStop chan struct{}
 
-	mc  sync.Mutex
-	cmd *exec.Cmd
+	cmdM    sync.Mutex
+	cmd     *exec.Cmd
+	cmdWait chan struct{}
 }
 
 func newSubAgent(ctx context.Context, params *agent.SetStateRequest_AgentProcess) *subAgent {
@@ -77,174 +76,149 @@ func newSubAgent(ctx context.Context, params *agent.SetStateRequest_AgentProcess
 		WithField("agentID", params.AgentId).
 		WithField("type", params.Type)
 
-	changesChan := make(chan string, 10)
-
-	state := fsm.NewFSM(
-		NEW,
-		fsm.Events{
-			{Name: START, Src: []string{NEW, BACKOFF}, Dst: STARTING},
-			{Name: STARTED, Src: []string{STARTING}, Dst: RUNNING},
-			{Name: RESTART, Src: []string{STARTING, RUNNING}, Dst: BACKOFF},
-			{Name: STOP, Src: []string{RUNNING, BACKOFF}, Dst: STOPPING},
-			{Name: EXIT, Src: []string{STOPPING, BACKOFF}, Dst: STOPPED},
-		},
-		fsm.Callbacks{
-			"enter_state": func(event *fsm.Event) {
-				changesChan <- event.Dst
-			},
-			"after_exit": func(event *fsm.Event) {
-				close(changesChan)
-			},
-		},
-	)
+	changesCh := make(chan string, 10)
 
 	sAgent := &subAgent{
-		params:         params,
+		ctx:            ctx,
 		log:            logger.New(10),
 		l:              l,
-		state:          state,
-		changesChan:    changesChan,
+		params:         params,
+		changesCh:      changesCh,
 		restartCounter: &restartCounter{count: 1},
-		doneChan:       make(chan struct{}),
+		wantStop:       make(chan struct{}),
 	}
-	go sAgent.start(ctx)
+
+	go func() {
+		<-ctx.Done()
+		close(sAgent.wantStop)
+	}()
+
+	go sAgent.toStarting()
+
 	return sAgent
 }
 
-// start starts sub-agent.
-func (a *subAgent) start(ctx context.Context) {
-	filename := a.binary()
-	for a.state.Can(START) {
+// starting -> running;
+// starting -> waiting;
+func (a *subAgent) toStarting() {
+	a.l.Infof("Starting...")
+	a.changesCh <- STARTING
 
-		a.mc.Lock()
-		err := a.state.Event(START)
-		if err != nil {
-			a.l.Debug(err)
-			a.mc.Unlock()
-			return
-		}
-		a.md.Lock()
-		a.doneChan = make(chan struct{})
-		a.md.Unlock()
-		cmd := exec.Command(filename, a.params.Args...)
-		cmd.Env = a.params.Env
-		cmd.Stdout = io.MultiWriter(os.Stdout, a.log)
-		cmd.Stderr = io.MultiWriter(os.Stderr, a.log)
-		err = cmd.Start()
-		if err != nil {
-			a.l.Debug(err)
-			a.mc.Unlock()
-			if !a.backoff(ctx) {
-				return
-			}
-		}
-		a.cmd = cmd
-		err = a.state.Event(STARTED)
-		a.mc.Unlock()
-		if err != nil {
-			a.l.Debug(err)
-			if !a.backoff(ctx) {
-				return
-			}
-		}
-		go func() {
-			resetTime := time.After(2 * time.Second)
-			select {
-			case <-resetTime:
-				a.restartCounter.Reset()
-			case <-a.done():
-				return
-			}
-		}()
-		err = a.cmd.Wait()
-		if err != nil {
-			a.l.Debugf("sub-agent exited with message: %s", err)
-		}
-		close(a.doneChan)
-		err = a.state.Event(RESTART)
-		if err != nil {
-			a.l.Debug(err)
-			return
-		}
-		if !a.backoff(ctx) {
-			return
-		}
+	cmd := exec.Command(a.binary(), a.params.Args...)
+	cmd.Env = a.params.Env
+	cmd.Stdout = io.MultiWriter(os.Stdout, a.log)
+	cmd.Stderr = io.MultiWriter(os.Stderr, a.log)
+	cmdWait := make(chan struct{})
+
+	a.cmdM.Lock()
+	a.cmd = cmd
+	a.cmdWait = cmdWait
+	a.cmdM.Unlock()
+
+	if err := cmd.Start(); err != nil {
+		a.l.Errorf("Failed to start: %s.", err)
+		go a.toWaiting()
+		return
 	}
-}
-
-func (a *subAgent) backoff(ctx context.Context) bool {
-	delay := a.restartCounter.Delay()
-	startTime := time.After(delay)
-	for {
-		select {
-		case <-ctx.Done():
-			err := a.state.Event(EXIT)
-			if err != nil {
-				a.l.Debug(err)
-			}
-			a.l.Debugf("exited on context done")
-			return false
-		case <-startTime:
-			a.l.Debugf("restarted after %v", delay)
-			a.restartCounter.Inc()
-			return true
-		}
-	}
-}
-
-// stop stops sub-agent
-func (a *subAgent) Stop() {
 	go func() {
-		a.mc.Lock()
-		defer a.mc.Unlock()
-		err := a.state.Event(STOP)
-		if err != nil {
-			a.l.Warnln("Can't change state to STOPPING", err)
-			return
-		}
-
-		err = a.cmd.Process.Signal(syscall.SIGINT)
-		if err != nil {
-			a.l.Warnln("Can't stop sub-agent", err)
-			return
-		}
-
-		killTime := time.After(5 * time.Second)
-
-		select {
-		case <-killTime:
-			err := a.cmd.Process.Kill()
-			if err != nil {
-				a.l.Warnln("Can't kill sub-agent", err)
-				return
-			}
-		case <-a.done():
-			break
-		}
-
-		err = a.state.Event(EXIT)
-		if err != nil {
-			a.l.Warnln("Can't change state to STOPPING", err)
-			return
-		}
+		cmd.Wait()
+		close(cmdWait)
 	}()
+
+	select {
+	case <-time.After(time.Second):
+		go a.toRunning()
+	case <-cmdWait:
+		a.l.Errorf("Failed to start: %s.", a.cmd.ProcessState)
+		go a.toWaiting()
+	}
 }
 
-func (a *subAgent) done() <-chan struct{} {
-	a.md.Lock()
-	done := a.doneChan
-	a.md.Unlock()
-	return done
+// running  -> stopping;
+// running  -> waiting;
+func (a *subAgent) toRunning() {
+	a.l.Infof("Running.")
+	a.changesCh <- RUNNING
+
+	a.restartCounter.Reset()
+
+	select {
+	case <-a.wantStop:
+		go a.toStopping()
+	case <-a.wait():
+		a.l.Errorf("Exited: %s.", a.cmd.ProcessState)
+		go a.toWaiting()
+	}
+}
+
+// waiting  -> starting;
+// waiting  -> stopped;
+func (a *subAgent) toWaiting() {
+	a.restartCounter.Inc()
+	delay := a.restartCounter.Delay()
+
+	a.l.Infof("Waiting %s.", delay)
+	a.changesCh <- WAITING
+
+	select {
+	case <-time.After(delay):
+		go a.toStarting()
+	case <-a.wantStop:
+		go a.toStopping()
+	}
+}
+
+// stopping -> stopped;
+func (a *subAgent) toStopping() {
+	a.l.Infof("Stopping...")
+	a.changesCh <- STOPPING
+
+	if a.cmd.Process == nil {
+		go a.stopped()
+		return
+	}
+
+	err := a.cmd.Process.Signal(unix.SIGTERM)
+	if err != nil {
+		a.l.Errorf("Failed to send SIGTERM: %s.", err)
+	}
+
+	wait := a.wait()
+	select {
+	case <-wait:
+		// nothing
+	case <-time.After(5 * time.Second):
+		err := a.cmd.Process.Signal(unix.SIGKILL)
+		if err != nil {
+			a.l.Errorf("Failed to send SIGKILL: %s.", err)
+		}
+		<-wait
+	}
+
+	go a.stopped()
+}
+
+func (a *subAgent) stopped() {
+	a.l.Infof("Stopped.")
+	a.changesCh <- STOPPED
+	close(a.changesCh)
+}
+
+func (a *subAgent) wait() <-chan struct{} {
+	a.cmdM.Lock()
+	wait := a.cmdWait
+	a.cmdM.Unlock()
+	return wait
+}
+
+// Changes returns all state changes for current sub-agent.
+func (a *subAgent) Changes() <-chan string {
+	return a.changesCh
 }
 
 // GetLogs returns logs from sub-agent STDOut and STDErr.
 func (a *subAgent) GetLogs() []string {
 	return a.log.Data()
-}
-
-// Changes returns all state changes for current sub-agent.
-func (a *subAgent) Changes() <-chan string {
-	return a.changesChan
 }
 
 func (a *subAgent) binary() string {
