@@ -46,6 +46,7 @@ type Supervisor struct {
 	rw     sync.Mutex
 	agents map[uint32]*subAgentInfo
 	params map[uint32]*agent.SetStateRequest_AgentProcess
+	paths  *config.Paths
 	ports  map[uint32]uint32
 
 	l        *logrus.Entry
@@ -59,10 +60,11 @@ type templateParams struct {
 }
 
 // NewSupervisor creates new Supervisor object.
-func NewSupervisor(ctx context.Context, portsCfg config.Ports) *Supervisor {
+func NewSupervisor(ctx context.Context, paths *config.Paths, portsCfg config.Ports) *Supervisor {
 	supervisor := &Supervisor{
 		agents:   make(map[uint32]*subAgentInfo),
 		params:   make(map[uint32]*agent.SetStateRequest_AgentProcess),
+		paths:    paths,
 		ports:    make(map[uint32]uint32),
 		l:        logrus.WithField("component", "supervisor"),
 		ctx:      ctx,
@@ -163,7 +165,7 @@ func (s *Supervisor) start(agentParams agent.SetStateRequest_AgentProcess, port 
 		return
 	}
 	ctx, cancel := context.WithCancel(s.ctx)
-	subAgent := newSubAgent(ctx, &agentParams)
+	subAgent := newSubAgent(ctx, s.paths, &agentParams)
 	go s.watchUpdates(agentParams.AgentId, subAgent)
 
 	s.l.Debugf("subAgent id=%d is started", agentParams.AgentId)

@@ -28,10 +28,11 @@ import (
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
 
+	"github.com/percona/pmm-agent/config"
 	"github.com/percona/pmm-agent/utils/logger"
 )
 
-// Stated.
+// States.
 // TODO Switch to agent.Status enum.
 const (
 	STARTING = "STARTING"
@@ -41,23 +42,16 @@ const (
 	STOPPED  = "STOPPED"
 )
 
-//Events
+// Agents for testing.
 const (
-	START   = "start"
-	STARTED = "started"
-	RESTART = "restart"
-	STOP    = "stop"
-	EXIT    = "exit"
-)
-
-const (
-	Type_TESTING_NOT_FOUND = agent.Type(100500)
-	Type_TESTING_SLEEP     = agent.Type(100501)
+	type_TESTING_NOT_FOUND = agent.Type(100500)
+	type_TESTING_SLEEP     = agent.Type(100501)
 )
 
 // subAgent is structure for sub-agents.
 type subAgent struct {
 	ctx            context.Context
+	paths          *config.Paths
 	log            *logger.CircularWriter
 	l              *logrus.Entry
 	params         *agent.SetStateRequest_AgentProcess
@@ -71,7 +65,7 @@ type subAgent struct {
 	cmdWait chan struct{}
 }
 
-func newSubAgent(ctx context.Context, params *agent.SetStateRequest_AgentProcess) *subAgent {
+func newSubAgent(ctx context.Context, paths *config.Paths, params *agent.SetStateRequest_AgentProcess) *subAgent {
 	l := logrus.WithField("component", "sub-agent").
 		WithField("agentID", params.AgentId).
 		WithField("type", params.Type)
@@ -80,6 +74,7 @@ func newSubAgent(ctx context.Context, params *agent.SetStateRequest_AgentProcess
 
 	sAgent := &subAgent{
 		ctx:            ctx,
+		paths:          paths,
 		log:            logger.New(10),
 		l:              l,
 		params:         params,
@@ -104,7 +99,23 @@ func (a *subAgent) toStarting() {
 	a.l.Infof("Starting...")
 	a.changesCh <- STARTING
 
-	cmd := exec.Command(a.binary(), a.params.Args...)
+	var name string
+	switch a.params.Type {
+	case agent.Type_NODE_EXPORTER:
+		name = a.paths.NodeExporter
+	case agent.Type_MYSQLD_EXPORTER:
+		name = a.paths.MySQLdExporter
+	case type_TESTING_NOT_FOUND:
+		name = "testing_not_found"
+	case type_TESTING_SLEEP:
+		name = "sleep"
+	default:
+		a.l.Errorf("Failed to start: unhandled agent type %[1]s (%[1]d).", a.params.Type)
+		go a.toWaiting()
+		return
+	}
+
+	cmd := exec.Command(name, a.params.Args...)
 	cmd.Env = a.params.Env
 	cmd.Stdout = io.MultiWriter(os.Stdout, a.log)
 	cmd.Stderr = io.MultiWriter(os.Stderr, a.log)
@@ -219,20 +230,4 @@ func (a *subAgent) Changes() <-chan string {
 // GetLogs returns logs from sub-agent STDOut and STDErr.
 func (a *subAgent) GetLogs() []string {
 	return a.log.Data()
-}
-
-func (a *subAgent) binary() string {
-	switch a.params.Type {
-	case agent.Type_MYSQLD_EXPORTER:
-		return "mysqld_exporter"
-	case agent.Type_NODE_EXPORTER:
-		return "node_exporter"
-	case Type_TESTING_NOT_FOUND:
-		return "testing_not_found"
-	case Type_TESTING_SLEEP:
-		return "sleep"
-	default:
-		a.l.Panic("unhandled type of agent", a.params.Type)
-		return ""
-	}
 }

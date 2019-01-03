@@ -22,16 +22,21 @@ import (
 	"testing"
 	"time"
 
+	"github.com/percona/pmm/api/agent"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/percona/pmm/api/agent"
+	"github.com/percona/pmm-agent/config"
 )
+
+var paths = &config.Paths{
+	MySQLdExporter: "mysqld_exporter",
+}
 
 func TestRaceCondition(t *testing.T) {
 	logrus.SetLevel(logrus.DebugLevel)
 	ctx, cancel := context.WithCancel(context.Background())
-	m := newSubAgent(ctx, &agent.SetStateRequest_AgentProcess{
+	m := newSubAgent(ctx, paths, &agent.SetStateRequest_AgentProcess{
 		Type: agent.Type_MYSQLD_EXPORTER,
 		Args: []string{"-web.listen-address=127.0.0.1:11111"},
 		Env: []string{
@@ -54,7 +59,7 @@ func TestRaceCondition(t *testing.T) {
 
 func TestStates(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
-	m := newSubAgent(ctx, &agent.SetStateRequest_AgentProcess{
+	m := newSubAgent(ctx, paths, &agent.SetStateRequest_AgentProcess{
 		Type: agent.Type_MYSQLD_EXPORTER,
 		Args: []string{"-web.listen-address=127.0.0.1:11112"},
 		Env: []string{
@@ -78,7 +83,7 @@ func TestStates(t *testing.T) {
 
 func TestStatesOnCancel(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
-	m := newSubAgent(ctx, &agent.SetStateRequest_AgentProcess{
+	m := newSubAgent(ctx, paths, &agent.SetStateRequest_AgentProcess{
 		Type: agent.Type_MYSQLD_EXPORTER,
 		Args: []string{"-web.listen-address=127.0.0.1:11112"},
 		Env: []string{
@@ -95,7 +100,7 @@ func TestStatesOnCancel(t *testing.T) {
 
 func TestStopOnStartingState(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
-	m := newSubAgent(ctx, &agent.SetStateRequest_AgentProcess{
+	m := newSubAgent(ctx, paths, &agent.SetStateRequest_AgentProcess{
 		Type: agent.Type_MYSQLD_EXPORTER,
 		Args: []string{"-web.listen-address=127.0.0.1:11112"},
 		Env: []string{
@@ -113,8 +118,8 @@ func TestStopOnStartingState(t *testing.T) {
 
 func TestNotFoundBackoff(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
-	m := newSubAgent(ctx, &agent.SetStateRequest_AgentProcess{
-		Type: Type_TESTING_NOT_FOUND,
+	m := newSubAgent(ctx, paths, &agent.SetStateRequest_AgentProcess{
+		Type: type_TESTING_NOT_FOUND,
 	})
 
 	assert.Equal(t, STARTING, <-m.Changes())

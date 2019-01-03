@@ -66,7 +66,7 @@ func workLoop(ctx context.Context, cfg *config.Config, client agent.AgentClient)
 	channel := server.NewChannel(stream)
 	prometheus.MustRegister(channel)
 
-	svr := supervisor.NewSupervisor(ctx, cfg.Ports)
+	svr := supervisor.NewSupervisor(ctx, cfg.Paths, cfg.Ports)
 	go func() {
 		for {
 			select {
@@ -119,6 +119,7 @@ func main() {
 	app := config.Application(&cfg, Version)
 	kingpin.MustParse(app.Parse(os.Args[1:]))
 
+	cfg.Paths.Lookup()
 	logrus.Infof("Loaded configuration: %+v.", cfg)
 
 	if cfg.Debug {

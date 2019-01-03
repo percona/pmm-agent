@@ -18,8 +18,22 @@
 package config
 
 import (
+	"os/exec"
+
 	"gopkg.in/alecthomas/kingpin.v2"
 )
+
+// Paths represents binaries paths configuration.
+type Paths struct {
+	NodeExporter   string
+	MySQLdExporter string
+}
+
+// Lookup replaces paths with absolute paths.
+func (p *Paths) Lookup() {
+	p.NodeExporter, _ = exec.LookPath(p.NodeExporter)
+	p.MySQLdExporter, _ = exec.LookPath(p.MySQLdExporter)
+}
 
 // Ports represents ports configuration.
 type Ports struct {
@@ -34,11 +48,7 @@ type Config struct {
 
 	WithoutNginx bool // FIXME remove this before 2.0.0-proto
 
-	Paths struct {
-		MySQLdExporter string
-		RDSExporter    string
-	}
-
+	Paths *Paths
 	Ports Ports
 
 	UUID string
@@ -53,6 +63,9 @@ func Application(cfg *Config, version string) *kingpin.Application {
 	app.Flag("uuid", "UUID of this pmm-agent.").Envar("PMM_AGENT_UUID").StringVar(&cfg.UUID)
 
 	app.Flag("without-nginx", "Connect directly to pmm-managed, not via nginx.").BoolVar(&cfg.WithoutNginx)
+
+	app.Flag("node_exporter", "Path to node_exporter to use.").Envar("PMM_NODE_EXPORTER").Default("node_exporter").StringVar(&cfg.Paths.NodeExporter)
+	app.Flag("mysqld_exporter", "Path to mysqld_exporter to use.").Envar("PMM_MYSQLD_EXPORTER").Default("mysqld_exporter").StringVar(&cfg.Paths.MySQLdExporter)
 
 	// TODO load configuration from file with kingpin.ExpandArgsFromFile
 	// TODO show environment variables in help

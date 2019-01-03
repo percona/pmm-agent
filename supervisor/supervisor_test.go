@@ -68,7 +68,7 @@ func checkResponse(t *testing.T, process *agent.SetStateResponse_AgentProcess, d
 func setup() (context.CancelFunc, *Supervisor, []string, []string) {
 	logrus.SetLevel(logrus.DebugLevel)
 	ctx, cancel := context.WithCancel(context.TODO())
-	s := NewSupervisor(ctx, config.Ports{Min: 10001, Max: 20000})
+	s := NewSupervisor(ctx, paths, config.Ports{Min: 10001, Max: 20000})
 	arguments := []string{
 		"-web.listen-address=127.0.0.1:{{ .ListenPort }}",
 	}
@@ -202,7 +202,7 @@ func TestSubAgentArgs(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
-			m := NewSupervisor(ctx, config.Ports{Min: 10000, Max: 20000})
+			m := NewSupervisor(ctx, paths, config.Ports{Min: 10000, Max: 20000})
 			got, err := m.args(tt.fields.params.Args, templateParams{ListenPort: tt.fields.port})
 			if (err != nil) != tt.wantErr {
 				t.Errorf("subAgent.args() error = %v, wantErr %v", err, tt.wantErr)
