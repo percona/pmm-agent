@@ -17,32 +17,31 @@
 package supervisor
 
 import (
-	"math"
 	"math/rand"
-	"sync/atomic"
+	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
 )
 
-type restartCounter struct {
-	count int32
-	rand  *rand.Rand
-}
-
-func (r *restartCounter) Inc() {
-	atomic.AddInt32(&r.count, 1)
-}
-
-func (r *restartCounter) Reset() {
-	atomic.CompareAndSwapInt32(&r.count, r.count, 1)
-}
-
-func (r *restartCounter) Delay() time.Duration {
-	max := math.Pow(2, float64(r.count)) - 1
-	var delay int64
-	if r.rand == nil {
-		delay = rand.Int63n(int64(max))
-	} else {
-		delay = r.rand.Int63n(int64(max))
+func TestDelay(t *testing.T) {
+	rand := rand.New(rand.NewSource(0))
+	rc := &restartCounter{
+		count: 1,
+		rand:  rand,
 	}
-	return (1 + time.Duration(delay)) * time.Millisecond
+	for _, expected := range []time.Duration{
+		time.Millisecond,
+		time.Millisecond,
+		4 * time.Millisecond,
+		15 * time.Millisecond,
+		21 * time.Millisecond,
+		time.Millisecond,
+		15 * time.Millisecond,
+		187 * time.Millisecond,
+		464 * time.Millisecond,
+	} {
+		assert.Equal(t, expected, rc.Delay(), "count = %d", rc.count)
+		rc.Inc()
+	}
 }
