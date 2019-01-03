@@ -21,7 +21,6 @@ import (
 	"io"
 	"os"
 	"os/exec"
-	"sync"
 	"time"
 
 	"github.com/percona/pmm/api/agent"
@@ -60,7 +59,6 @@ type subAgent struct {
 
 	wantStop chan struct{}
 
-	cmdM    sync.Mutex
 	cmd     *exec.Cmd
 	cmdWait chan struct{}
 }
@@ -68,7 +66,7 @@ type subAgent struct {
 func newSubAgent(ctx context.Context, paths *config.Paths, params *agent.SetStateRequest_AgentProcess) *subAgent {
 	l := logrus.WithField("component", "sub-agent").
 		WithField("agentID", params.AgentId).
-		WithField("type", params.Type)
+		WithField("type", params.Type.String())
 
 	changesCh := make(chan string, 10)
 
@@ -95,40 +93,39 @@ func newSubAgent(ctx context.Context, paths *config.Paths, params *agent.SetStat
 
 // starting -> running;
 // starting -> waiting;
-func (a *subAgent) toStarting() {
-	a.l.Infof("Starting...")
-	a.changesCh <- STARTING
+func (sa *subAgent) toStarting() {
+	sa.l.Infof("Starting...")
+	sa.changesCh <- STARTING
 
 	var name string
-	switch a.params.Type {
+	switch sa.params.Type {
 	case agent.Type_NODE_EXPORTER:
-		name = a.paths.NodeExporter
+		name = sa.paths.NodeExporter
 	case agent.Type_MYSQLD_EXPORTER:
-		name = a.paths.MySQLdExporter
+		name = sa.paths.MySQLdExporter
 	case type_TESTING_NOT_FOUND:
 		name = "testing_not_found"
 	case type_TESTING_SLEEP:
 		name = "sleep"
 	default:
-		a.l.Errorf("Failed to start: unhandled agent type %[1]s (%[1]d).", a.params.Type)
-		go a.toWaiting()
+		sa.l.Errorf("Failed to start: unhandled agent type %[1]s (%[1]d).", sa.params.Type)
+		go sa.toWaiting()
 		return
 	}
 
-	cmd := exec.Command(name, a.params.Args...)
-	cmd.Env = a.params.Env
-	cmd.Stdout = io.MultiWriter(os.Stdout, a.log)
-	cmd.Stderr = io.MultiWriter(os.Stderr, a.log)
+	cmd := exec.Command(name, sa.params.Args...)
+	cmd.Env = sa.params.Env
+	cmd.Stdout = io.MultiWriter(os.Stdout, sa.log)
+	cmd.Stderr = io.MultiWriter(os.Stderr, sa.log) // FIXME race
+	// TODO a.cmd.SysProcAttr https://jira.percona.com/browse/PMM-3173
 	cmdWait := make(chan struct{})
 
-	a.cmdM.Lock()
-	a.cmd = cmd
-	a.cmdWait = cmdWait
-	a.cmdM.Unlock()
+	sa.cmd = cmd
+	sa.cmdWait = cmdWait
 
 	if err := cmd.Start(); err != nil {
-		a.l.Errorf("Failed to start: %s.", err)
-		go a.toWaiting()
+		sa.l.Errorf("Failed to start: %s.", err)
+		go sa.toWaiting()
 		return
 	}
 	go func() {
@@ -138,96 +135,89 @@ func (a *subAgent) toStarting() {
 
 	select {
 	case <-time.After(time.Second):
-		go a.toRunning()
+		go sa.toRunning()
 	case <-cmdWait:
-		a.l.Errorf("Failed to start: %s.", a.cmd.ProcessState)
-		go a.toWaiting()
+		sa.l.Errorf("Failed to start: %s.", sa.cmd.ProcessState)
+		go sa.toWaiting()
 	}
 }
 
 // running  -> stopping;
 // running  -> waiting;
-func (a *subAgent) toRunning() {
-	a.l.Infof("Running.")
-	a.changesCh <- RUNNING
+func (sa *subAgent) toRunning() {
+	sa.l.Infof("Running.")
+	sa.changesCh <- RUNNING
 
-	a.restartCounter.Reset()
+	sa.restartCounter.Reset()
 
 	select {
-	case <-a.wantStop:
-		go a.toStopping()
-	case <-a.wait():
-		a.l.Errorf("Exited: %s.", a.cmd.ProcessState)
-		go a.toWaiting()
+	case <-sa.wantStop:
+		go sa.toStopping()
+	case <-sa.cmdWait:
+		sa.l.Errorf("Exited: %s.", sa.cmd.ProcessState)
+		go sa.toWaiting()
 	}
 }
 
 // waiting  -> starting;
 // waiting  -> stopped;
-func (a *subAgent) toWaiting() {
-	a.restartCounter.Inc()
-	delay := a.restartCounter.Delay()
+func (sa *subAgent) toWaiting() {
+	sa.restartCounter.Inc()
+	delay := sa.restartCounter.Delay()
 
-	a.l.Infof("Waiting %s.", delay)
-	a.changesCh <- WAITING
+	sa.l.Infof("Waiting %s.", delay)
+	sa.changesCh <- WAITING
 
 	select {
 	case <-time.After(delay):
-		go a.toStarting()
-	case <-a.wantStop:
-		go a.toStopping()
+		go sa.toStarting()
+	case <-sa.wantStop:
+		go sa.toStopping()
 	}
 }
 
 // stopping -> stopped;
-func (a *subAgent) toStopping() {
-	a.l.Infof("Stopping...")
-	a.changesCh <- STOPPING
+func (sa *subAgent) toStopping() {
+	sa.l.Infof("Stopping...")
+	sa.changesCh <- STOPPING
 
-	if a.cmd.Process == nil {
-		go a.stopped()
+	if sa.cmd.Process == nil {
+		go sa.stopped()
 		return
 	}
 
-	err := a.cmd.Process.Signal(unix.SIGTERM)
+	err := sa.cmd.Process.Signal(unix.SIGTERM)
 	if err != nil {
-		a.l.Errorf("Failed to send SIGTERM: %s.", err)
+		sa.l.Errorf("Failed to send SIGTERM: %s.", err)
 	}
 
-	wait := a.wait()
 	select {
-	case <-wait:
+	case <-sa.cmdWait:
 		// nothing
 	case <-time.After(5 * time.Second):
-		err := a.cmd.Process.Signal(unix.SIGKILL)
+		err := sa.cmd.Process.Signal(unix.SIGKILL)
 		if err != nil {
-			a.l.Errorf("Failed to send SIGKILL: %s.", err)
+			sa.l.Errorf("Failed to send SIGKILL: %s.", err)
 		}
-		<-wait
+		<-sa.cmdWait
 	}
 
-	go a.stopped()
+	go sa.stopped()
 }
 
-func (a *subAgent) stopped() {
-	a.l.Infof("Stopped.")
-	a.changesCh <- STOPPED
-	close(a.changesCh)
-}
+func (sa *subAgent) stopped() {
+	sa.l.Infof("Stopped.")
+	sa.changesCh <- STOPPED
 
-func (a *subAgent) wait() <-chan struct{} {
-	a.cmdM.Lock()
-	wait := a.cmdWait
-	a.cmdM.Unlock()
-	return wait
+	close(sa.changesCh)
 }
 
 // Changes returns all state changes for current sub-agent.
-func (a *subAgent) Changes() <-chan string {
-	return a.changesCh
+func (sa *subAgent) Changes() <-chan string {
+	return sa.changesCh
 }
 
 // GetLogs returns logs from sub-agent STDOut and STDErr.
-func (a *subAgent) GetLogs() []string {
-	return a.log.Data()
+func (sa *subAgent) GetLogs() []string {
+	return sa.log.Data()
 }

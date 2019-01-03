@@ -18,7 +18,6 @@ package supervisor
 
 import (
 	"context"
-	"syscall"
 	"testing"
 	"time"
 
@@ -31,6 +30,16 @@ import (
 
 var paths = &config.Paths{
 	MySQLdExporter: "mysqld_exporter",
+}
+
+func assertStates(t *testing.T, sa *subAgent, expected ...string) {
+	t.Helper()
+
+	actual := make([]string, len(expected))
+	for i := 0; i < len(expected); i++ {
+		actual[i] = <-sa.Changes()
+	}
+	assert.Equal(t, expected, actual)
 }
 
 func TestRaceCondition(t *testing.T) {
@@ -60,25 +69,13 @@ func TestRaceCondition(t *testing.T) {
 func TestStates(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	m := newSubAgent(ctx, paths, &agent.SetStateRequest_AgentProcess{
-		Type: agent.Type_MYSQLD_EXPORTER,
-		Args: []string{"-web.listen-address=127.0.0.1:11112"},
-		Env: []string{
-			`DATA_SOURCE_NAME="pmm:pmm@(127.0.0.1:3306)/pmm-managed-dev"`,
-		},
+		Type: type_TESTING_SLEEP,
+		Args: []string{"1"},
 	})
 
-	assert.Equal(t, STARTING, <-m.Changes())
-	assert.Equal(t, RUNNING, <-m.Changes())
-	m.cmdM.Lock()
-	err := syscall.Kill(m.cmd.Process.Pid, syscall.SIGKILL)
-	m.cmdM.Unlock()
-	assert.NoError(t, err)
-	assert.Equal(t, WAITING, <-m.Changes())
-	assert.Equal(t, STARTING, <-m.Changes())
-	assert.Equal(t, RUNNING, <-m.Changes())
+	assertStates(t, m, STARTING, RUNNING, WAITING, STARTING, RUNNING)
 	cancel()
-	assert.Equal(t, STOPPING, <-m.Changes())
-	assert.Equal(t, STOPPED, <-m.Changes())
+	assertStates(t, m, WAITING, STOPPING, STOPPED, "")
 }
 
 func TestStatesOnCancel(t *testing.T) {
@@ -91,11 +88,9 @@ func TestStatesOnCancel(t *testing.T) {
 		},
 	})
 
-	assert.Equal(t, STARTING, <-m.Changes())
-	assert.Equal(t, RUNNING, <-m.Changes())
+	assertStates(t, m, STARTING, RUNNING)
 	cancel()
-	assert.Equal(t, STOPPING, <-m.Changes())
-	assert.Equal(t, STOPPED, <-m.Changes())
+	assertStates(t, m, STOPPING, STOPPED, "")
 }
 
 func TestStopOnStartingState(t *testing.T) {
@@ -108,12 +103,10 @@ func TestStopOnStartingState(t *testing.T) {
 		},
 	})
 
-	assert.Equal(t, STARTING, <-m.Changes())
+	assertStates(t, m, STARTING)
 	cancel()
 	time.Sleep(1 * time.Second)
-	assert.Equal(t, RUNNING, <-m.Changes())
-	assert.Equal(t, STOPPING, <-m.Changes())
-	assert.Equal(t, STOPPED, <-m.Changes())
+	assertStates(t, m, RUNNING, STOPPING, STOPPED, "")
 }
 
 func TestNotFoundBackoff(t *testing.T) {
@@ -122,7 +115,8 @@ func TestNotFoundBackoff(t *testing.T) {
 		Type: type_TESTING_NOT_FOUND,
 	})
 
-	assert.Equal(t, STARTING, <-m.Changes())
+	assertStates(t, m, STARTING)
 	cancel()
 	time.Sleep(1 * time.Second)
+	assertStates(t, m, WAITING, STOPPING, STOPPED, "")
 }
