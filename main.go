@@ -21,13 +21,13 @@ import (
 	"crypto/tls"
 	"os"
 	"os/signal"
-	"syscall"
 	"time"
 
 	"github.com/golang/protobuf/ptypes"
 	"github.com/percona/pmm/api/agent"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sirupsen/logrus"
+	"golang.org/x/sys/unix"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/grpclog"
@@ -129,14 +129,16 @@ func main() {
 
 	_ = agentlocal.AgentLocalServer{}
 
-	ctx, cancelFunc := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(context.Background())
 
-	var gracefulStop = make(chan os.Signal, 1)
-	signal.Notify(gracefulStop, syscall.SIGTERM, syscall.SIGINT)
+	// handle termination signals
+	signals := make(chan os.Signal, 1)
+	signal.Notify(signals, unix.SIGTERM, unix.SIGINT)
 	go func() {
-		sig := <-gracefulStop
-		logrus.Debugf("caught sig: %+v", sig)
-		cancelFunc()
+		s := <-signals
+		signal.Stop(signals)
+		logrus.Warnf("Got %s, shutting down...", unix.SignalName(s.(unix.Signal)))
+		cancel()
 	}()
 
 	if cfg.Address == "" {
