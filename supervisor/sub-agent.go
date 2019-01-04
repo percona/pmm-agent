@@ -28,7 +28,6 @@ import (
 	"golang.org/x/sys/unix"
 
 	"github.com/percona/pmm-agent/config"
-	"github.com/percona/pmm-agent/utils/logger"
 )
 
 // States.
@@ -42,6 +41,7 @@ const (
 )
 
 // Agents for testing.
+//nolint:golint
 const (
 	type_TESTING_NOT_FOUND = agent.Type(100500)
 	type_TESTING_SLEEP     = agent.Type(100501)
@@ -51,7 +51,7 @@ const (
 type subAgent struct {
 	ctx            context.Context
 	paths          *config.Paths
-	log            *logger.CircularWriter
+	log            *circularWriter
 	l              *logrus.Entry
 	params         *agent.SetStateRequest_AgentProcess
 	changesCh      chan string
@@ -68,15 +68,13 @@ func newSubAgent(ctx context.Context, paths *config.Paths, params *agent.SetStat
 		WithField("agentID", params.AgentId).
 		WithField("type", params.Type.String())
 
-	changesCh := make(chan string, 10)
-
 	sAgent := &subAgent{
 		ctx:            ctx,
 		paths:          paths,
-		log:            logger.New(10),
+		log:            newCircularWriter(10),
 		l:              l,
 		params:         params,
-		changesCh:      changesCh,
+		changesCh:      make(chan string, 10),
 		restartCounter: &restartCounter{count: 1},
 		wantStop:       make(chan struct{}),
 	}

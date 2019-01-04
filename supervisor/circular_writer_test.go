@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-package logger
+package supervisor
 
 import (
 	"testing"
@@ -25,12 +25,12 @@ import (
 
 func TestCircularWriter(t *testing.T) {
 	tests := []struct {
-		name        string
-		cap         int
-		args        []string
-		wantData    []string
-		expectedLen int
-		expectedCap int
+		testName     string
+		writerLines  int
+		writeArgs    []string
+		expectedData []string
+		expectedLen  int
+		expectedCap  int
 	}{
 		{
 			"simple one",
@@ -97,18 +97,28 @@ func TestCircularWriter(t *testing.T) {
 			11,
 			16,
 		},
+		{
+			"preserve empty lines",
+			10,
+			[]string{
+				"\n1\n\n2\n\n",
+			},
+			[]string{"", "1", "", "2", ""},
+			0,
+			0,
+		},
 	}
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			c := New(tt.cap)
-			for _, arg := range tt.args {
-				_, err := c.Write([]byte(arg))
+		t.Run(tt.testName, func(t *testing.T) {
+			cw := newCircularWriter(tt.writerLines)
+			for _, arg := range tt.writeArgs {
+				_, err := cw.Write([]byte(arg))
 				require.NoError(t, err)
 			}
-			data := c.Data()
-			assert.Equal(t, tt.wantData, data)
-			assert.Len(t, c.buf, tt.expectedLen)
-			assert.Equal(t, tt.expectedCap, cap(c.buf), "%s", c.buf)
+			data := cw.Data()
+			assert.Equal(t, tt.expectedData, data)
+			assert.Len(t, cw.buf, tt.expectedLen, "Unexpected buf len.")
+			assert.Equal(t, tt.expectedCap, cap(cw.buf), "Unexpected buf cap. buf: %s", cw.buf)
 		})
 	}
 }

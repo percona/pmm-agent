@@ -14,63 +14,66 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-package logger
+package supervisor
 
 import (
 	"bytes"
 	"sync"
+
+	"github.com/AlekSi/pointer"
 )
 
-// CircularWriter is a Writer that holds several latest lines written.
-type CircularWriter struct {
+// circularWriter is a Writer that holds several latest lines written.
+type circularWriter struct {
 	m    sync.RWMutex
 	buf  []byte
 	i    int
-	data []string
+	data []*string
 }
 
-// New creates new CircularWriter with a given amount of lines to hold.
-func New(lines int) *CircularWriter {
-	writer := CircularWriter{
-		data: make([]string, lines),
+// newCircularWriter creates new circularWriter with a given amount of lines to hold.
+func newCircularWriter(lines int) *circularWriter {
+	return &circularWriter{
+		data: make([]*string, lines),
 	}
-	return &writer
 }
 
 // Write splits lines and add them to lines list.
-func (c *CircularWriter) Write(p []byte) (n int, err error) {
-	b := bytes.NewBuffer(c.buf)
+// This method is thread-safe.
+func (cw *circularWriter) Write(p []byte) (n int, err error) {
+	cw.m.Lock()
+	defer cw.m.Unlock()
+
+	b := bytes.NewBuffer(cw.buf)
 	n, err = b.Write(p)
 	if err != nil {
 		return
 	}
 
-	c.m.Lock()
-	defer c.m.Unlock()
-
 	var line string
 	for {
 		line, err = b.ReadString('\n')
 		if err != nil {
-			c.buf = []byte(line)
+			cw.buf = []byte(line)
 			err = nil
 			return
 		}
-		c.data[c.i] = line[:len(line)-1]
-		c.i = (c.i + 1) % len(c.data)
+		cw.data[cw.i] = pointer.ToString(line[:len(line)-1])
+		cw.i = (cw.i + 1) % len(cw.data)
 	}
 }
 
 // Data returns string array from circular list.
-func (c *CircularWriter) Data() []string {
-	c.m.RLock()
-	defer c.m.RUnlock()
+// This method is thread-safe.
+func (cw *circularWriter) Data() []string {
+	cw.m.RLock()
+	defer cw.m.RUnlock()
 
-	var result []string
-	for i := c.i; i < c.i+len(c.data); i++ {
-		data := c.data[i%len(c.data)]
-		if data != "" {
-			result = append(result, data)
+	result := make([]string, 0, len(cw.data))
+	for i := cw.i; i < cw.i+len(cw.data); i++ {
+		line := cw.data[i%len(cw.data)]
+		if line != nil {
+			result = append(result, *line)
 		}
 	}
 	return result
