@@ -75,7 +75,7 @@ func newSubAgent(ctx context.Context, paths *config.Paths, params *agent.SetStat
 		l:              l,
 		params:         params,
 		changesCh:      make(chan string, 10),
-		restartCounter: &restartCounter{count: 1},
+		restartCounter: new(restartCounter),
 		wantStop:       make(chan struct{}),
 	}
 
@@ -160,7 +160,6 @@ func (sa *subAgent) toRunning() {
 // waiting  -> starting;
 // waiting  -> stopped;
 func (sa *subAgent) toWaiting() {
-	sa.restartCounter.Inc()
 	delay := sa.restartCounter.Delay()
 
 	sa.l.Infof("Waiting %s.", delay)

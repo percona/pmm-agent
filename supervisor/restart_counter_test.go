@@ -27,21 +27,19 @@ import (
 func TestDelay(t *testing.T) {
 	rand := rand.New(rand.NewSource(0))
 	rc := &restartCounter{
-		count: 1,
-		rand:  rand,
+		rand: rand,
 	}
-	for _, expected := range []time.Duration{
-		time.Millisecond,
-		time.Millisecond,
-		4 * time.Millisecond,
-		15 * time.Millisecond,
-		21 * time.Millisecond,
-		time.Millisecond,
-		15 * time.Millisecond,
-		187 * time.Millisecond,
-		464 * time.Millisecond,
+	for i, expected := range []time.Duration{
+		0: time.Millisecond,
+		1: time.Millisecond,
+		2: 4 * time.Millisecond,
+		3: 15 * time.Millisecond,
+		4: 21 * time.Millisecond,
+		5: time.Millisecond,
+		6: 15 * time.Millisecond,
+		7: 187 * time.Millisecond,
+		8: 464 * time.Millisecond,
 	} {
-		assert.Equal(t, expected, rc.Delay(), "count = %d", rc.count)
-		rc.Inc()
+		assert.Equal(t, expected, rc.Delay(), "i = %d", i)
 	}
 }

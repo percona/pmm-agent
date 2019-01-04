@@ -24,20 +24,18 @@ import (
 )
 
 type restartCounter struct {
-	count int32
+	count int64
 	rand  *rand.Rand
 }
 
-func (r *restartCounter) Inc() {
-	atomic.AddInt32(&r.count, 1)
-}
-
 func (r *restartCounter) Reset() {
-	atomic.CompareAndSwapInt32(&r.count, r.count, 1)
+	atomic.CompareAndSwapInt64(&r.count, r.count, 0)
 }
 
 func (r *restartCounter) Delay() time.Duration {
-	max := math.Pow(2, float64(r.count)) - 1
+	count := atomic.AddInt64(&r.count, 1)
+
+	max := math.Pow(2, float64(count)) - 1
 	var delay int64
 	if r.rand == nil {
 		delay = rand.Int63n(int64(max))
