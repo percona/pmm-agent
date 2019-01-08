@@ -14,33 +14,12 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
+// +build draw
+
+// Export some identifiers just for backoff_draw.go.
+
 package supervisor
 
-import (
-	"math"
-	"math/rand"
-	"sync/atomic"
-	"time"
-)
+type Backoff = backoff
 
-type restartCounter struct {
-	count int64
-	rand  *rand.Rand
-}
-
-func (r *restartCounter) Reset() {
-	atomic.CompareAndSwapInt64(&r.count, r.count, 0)
-}
-
-func (r *restartCounter) Delay() time.Duration {
-	count := atomic.AddInt64(&r.count, 1)
-
-	max := math.Pow(2, float64(count)) - 1
-	var delay int64
-	if r.rand == nil {
-		delay = rand.Int63n(int64(max))
-	} else {
-		delay = r.rand.Int63n(int64(max))
-	}
-	return (1 + time.Duration(delay)) * time.Millisecond
-}
+const DelayBaseMax = delayBaseMax

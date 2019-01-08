@@ -49,13 +49,13 @@ const (
 
 // subAgent is structure for sub-agents.
 type subAgent struct {
-	ctx            context.Context
-	paths          *config.Paths
-	log            *circularWriter
-	l              *logrus.Entry
-	params         *agent.SetStateRequest_AgentProcess
-	changesCh      chan string
-	restartCounter *restartCounter
+	ctx       context.Context
+	paths     *config.Paths
+	log       *circularWriter
+	l         *logrus.Entry
+	params    *agent.SetStateRequest_AgentProcess
+	changesCh chan string
+	backoff   *backoff
 
 	wantStop chan struct{}
 
@@ -68,15 +68,17 @@ func newSubAgent(ctx context.Context, paths *config.Paths, params *agent.SetStat
 		WithField("agentID", params.AgentId).
 		WithField("type", params.Type.String())
 
+	b := new(backoff)
+	b.Reset()
 	sAgent := &subAgent{
-		ctx:            ctx,
-		paths:          paths,
-		log:            newCircularWriter(10),
-		l:              l,
-		params:         params,
-		changesCh:      make(chan string, 10),
-		restartCounter: new(restartCounter),
-		wantStop:       make(chan struct{}),
+		ctx:       ctx,
+		paths:     paths,
+		log:       newCircularWriter(10),
+		l:         l,
+		params:    params,
+		changesCh: make(chan string, 10),
+		backoff:   b,
+		wantStop:  make(chan struct{}),
 	}
 
 	go func() {
@@ -146,7 +148,7 @@ func (sa *subAgent) toRunning() {
 	sa.l.Infof("Running.")
 	sa.changesCh <- RUNNING
 
-	sa.restartCounter.Reset()
+	sa.backoff.Reset()
 
 	select {
 	case <-sa.wantStop:
@@ -160,7 +162,7 @@ func (sa *subAgent) toRunning() {
 // waiting  -> starting;
 // waiting  -> stopped;
 func (sa *subAgent) toWaiting() {
-	delay := sa.restartCounter.Delay()
+	delay := sa.backoff.Delay()
 
 	sa.l.Infof("Waiting %s.", delay)
 	sa.changesCh <- WAITING
