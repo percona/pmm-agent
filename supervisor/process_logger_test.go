@@ -23,14 +23,14 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestCircularWriter(t *testing.T) {
+func TestProcessLogger(t *testing.T) {
 	tests := []struct {
-		testName     string
-		writerLines  int
-		writeArgs    []string
-		expectedData []string
-		expectedLen  int
-		expectedCap  int
+		testName       string
+		writerLines    int
+		writeArgs      []string
+		expectedLatest []string
+		expectedLen    int
+		expectedCap    int
 	}{
 		{
 			"simple one",
@@ -110,15 +110,15 @@ func TestCircularWriter(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.testName, func(t *testing.T) {
-			cw := newCircularWriter(tt.writerLines)
+			pl := newProcessLogger(nil, tt.writerLines)
 			for _, arg := range tt.writeArgs {
-				_, err := cw.Write([]byte(arg))
+				_, err := pl.Write([]byte(arg))
 				require.NoError(t, err)
 			}
-			data := cw.Data()
-			assert.Equal(t, tt.expectedData, data)
-			assert.Len(t, cw.buf, tt.expectedLen, "Unexpected buf len.")
-			assert.Equal(t, tt.expectedCap, cap(cw.buf), "Unexpected buf cap. buf: %s", cw.buf)
+			latest := pl.Latest()
+			assert.Equal(t, tt.expectedLatest, latest)
+			assert.Len(t, pl.buf, tt.expectedLen, "Unexpected buf len.")
+			assert.Equal(t, tt.expectedCap, cap(pl.buf), "Unexpected buf cap. buf: %s", pl.buf)
 		})
 	}
 }

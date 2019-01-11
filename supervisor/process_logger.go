@@ -18,33 +18,39 @@ package supervisor
 
 import (
 	"bytes"
+	"io"
+	"strings"
 	"sync"
 
 	"github.com/AlekSi/pointer"
+	"github.com/sirupsen/logrus"
 )
 
-// circularWriter is a Writer that holds several latest lines written.
-type circularWriter struct {
+// processLogger is a Writer that logs full lines and keeps several latest lines in memory.
+type processLogger struct {
+	l *logrus.Entry
+
 	m    sync.RWMutex
 	buf  []byte
 	i    int
 	data []*string
 }
 
-// newCircularWriter creates new circularWriter with a given amount of lines to hold.
-func newCircularWriter(lines int) *circularWriter {
-	return &circularWriter{
+// newProcessLogger creates new processLogger with a given logger and a given amount of lines to keep.
+func newProcessLogger(l *logrus.Entry, lines int) *processLogger {
+	return &processLogger{
+		l:    l,
 		data: make([]*string, lines),
 	}
 }
 
-// Write splits lines and add them to lines list.
+// Write implements io.Writer.
 // This method is thread-safe.
-func (cw *circularWriter) Write(p []byte) (n int, err error) {
-	cw.m.Lock()
-	defer cw.m.Unlock()
+func (pl *processLogger) Write(p []byte) (n int, err error) {
+	pl.m.Lock()
+	defer pl.m.Unlock()
 
-	b := bytes.NewBuffer(cw.buf)
+	b := bytes.NewBuffer(pl.buf)
 	n, err = b.Write(p)
 	if err != nil {
 		return
@@ -54,27 +60,36 @@ func (cw *circularWriter) Write(p []byte) (n int, err error) {
 	for {
 		line, err = b.ReadString('\n')
 		if err != nil {
-			cw.buf = []byte(line)
+			pl.buf = []byte(line)
 			err = nil
 			return
 		}
-		cw.data[cw.i] = pointer.ToString(line[:len(line)-1])
-		cw.i = (cw.i + 1) % len(cw.data)
+		line = strings.TrimSuffix(line, "\n")
+		if pl.l != nil {
+			pl.l.Infoln(line)
+		}
+		pl.data[pl.i] = pointer.ToString(line)
+		pl.i = (pl.i + 1) % len(pl.data)
 	}
 }
 
-// Data returns string array from circular list.
+// Latest returns kept lines.
 // This method is thread-safe.
-func (cw *circularWriter) Data() []string {
-	cw.m.RLock()
-	defer cw.m.RUnlock()
+func (pl *processLogger) Latest() []string {
+	pl.m.RLock()
+	defer pl.m.RUnlock()
 
-	result := make([]string, 0, len(cw.data))
-	for i := cw.i; i < cw.i+len(cw.data); i++ {
-		line := cw.data[i%len(cw.data)]
+	result := make([]string, 0, len(pl.data))
+	for i := pl.i; i < pl.i+len(pl.data); i++ {
+		line := pl.data[i%len(pl.data)]
 		if line != nil {
 			result = append(result, *line)
 		}
 	}
 	return result
 }
+
+// check interfaces
+var (
+	_ io.Writer = (*processLogger)(nil)
+)
