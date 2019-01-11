@@ -30,7 +30,6 @@ const (
 
 type backoff struct {
 	delayBaseNext time.Duration
-	rand          *rand.Rand
 }
 
 func (b *backoff) Reset() {
@@ -48,13 +47,7 @@ func (b *backoff) Delay() time.Duration {
 	// We could use normal distribution for jitter:
 	// f64 = rand.NormFloat64() / 3.0 (three sigma rule)
 	// but pure random seems to be better overall.
-
-	var f64 float64 // [-1.0,1.0] with some possible outliers
-	if b.rand == nil {
-		f64 = rand.Float64()*2.0 - 1.0
-	} else {
-		f64 = b.rand.Float64()*2.0 - 1.0
-	}
+	f64 := rand.Float64()*2.0 - 1.0 // [-1.0,1.0]
 
 	delay += time.Duration(float64(delay) * f64 * delayJitter)
 	if delay < 0 {
