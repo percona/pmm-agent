@@ -110,7 +110,7 @@ func (p *process) toStarting() {
 	p.cmd.Env = p.params.env
 	p.cmd.Stdout = p.pl
 	p.cmd.Stderr = p.pl
-	// TODO a.cmd.SysProcAttr https://jira.percona.com/browse/PMM-3173
+	setSysProcAttr(p.cmd)
 
 	p.cmdDone = make(chan struct{})
 
