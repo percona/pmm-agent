@@ -16,13 +16,13 @@
 
 package supervisor
 
+/*
 import (
 	"context"
 	"syscall"
 	"testing"
 
 	"github.com/percona/pmm/api/agent"
-	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/percona/pmm-agent/config"
@@ -66,7 +66,9 @@ func checkResponse(t *testing.T, process *agent.SetStateResponse_AgentProcess, d
 }
 
 func setup() (context.CancelFunc, *Supervisor, []string, []string) {
-	logrus.SetLevel(logrus.DebugLevel)
+	paths := &config.Paths{
+		MySQLdExporter: "mysqld_exporter",
+	}
 	ctx, cancel := context.WithCancel(context.TODO())
 	s := NewSupervisor(ctx, paths, config.Ports{Min: 10001, Max: 20000})
 	arguments := []string{
@@ -200,9 +202,9 @@ func TestSubAgentArgs(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ctx, cancel := context.WithCancel(context.Background())
+			cancel, m, _, _ := setup()
 			defer cancel()
-			m := NewSupervisor(ctx, paths, config.Ports{Min: 10000, Max: 20000})
+			// m := NewSupervisor(ctx, paths, config.Ports{Min: 10000, Max: 20000})
 			got, err := m.args(tt.fields.params.Args, templateParams{ListenPort: tt.fields.port})
 			if (err != nil) != tt.wantErr {
 				t.Errorf("subAgent.args() error = %v, wantErr %v", err, tt.wantErr)
@@ -267,3 +269,4 @@ func TestContextDoneStopSubAgents(t *testing.T) {
 		t.Errorf("sub-agent with pid %d is not stopped", pid)
 	}
 }
+*/

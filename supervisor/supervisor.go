@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
+// Package supervisor provides process supervisor for running sub-agents.
 package supervisor
 
 import (
@@ -24,6 +25,7 @@ import (
 
 	"github.com/golang/protobuf/proto"
 	"github.com/percona/pmm/api/agent"
+	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 
 	"github.com/percona/pmm-agent/config"
@@ -33,11 +35,11 @@ import (
 // StateUpdate contains info about agent and current state.
 type StateUpdate struct {
 	AgentID uint32
-	State   string
+	State   Status
 }
 
 type subAgentInfo struct {
-	*subAgent
+	*process
 	cancel func()
 }
 
@@ -159,22 +161,42 @@ func (s *Supervisor) StateUpdates() <-chan StateUpdate {
 	return s.changes
 }
 
-func (s *Supervisor) start(agentParams agent.SetStateRequest_AgentProcess, port uint32) (err error) {
+func (s *Supervisor) start(agentParams agent.SetStateRequest_AgentProcess, port uint32) error {
+	var path string
+	switch agentParams.Type {
+	case agent.Type_NODE_EXPORTER:
+		path = s.paths.NodeExporter
+	case agent.Type_MYSQLD_EXPORTER:
+		path = s.paths.MySQLdExporter
+	default:
+		return errors.Errorf("unhandled agent type %[1]s (%[1]d).", agentParams.Type)
+	}
+
+	var err error
 	agentParams.Args, err = s.args(agentParams.Args, templateParams{ListenPort: port})
 	if err != nil {
-		return
+		return err
 	}
+
 	ctx, cancel := context.WithCancel(s.ctx)
-	subAgent := newSubAgent(ctx, s.paths, &agentParams)
+	l := logrus.WithField("component", "sub-agent").
+		WithField("agentID", agentParams.AgentId).
+		WithField("type", agentParams.Type.String())
+	params := &processParams{
+		path: path,
+		args: agentParams.Args,
+		env:  agentParams.Env,
+	}
+	subAgent := newProcess(ctx, params, l)
 	go s.watchUpdates(agentParams.AgentId, subAgent)
 
 	s.l.Debugf("subAgent id=%d is started", agentParams.AgentId)
 	s.agents[agentParams.AgentId] = &subAgentInfo{
-		subAgent: subAgent,
-		cancel:   cancel,
+		process: subAgent,
+		cancel:  cancel,
 	}
 	s.ports[agentParams.AgentId] = port
-	return
+	return nil
 }
 
 func (s *Supervisor) stop(id uint32, wait bool) {
@@ -212,7 +234,7 @@ func (s *Supervisor) args(args []string, params templateParams) ([]string, error
 	return result, nil
 }
 
-func (s *Supervisor) watchUpdates(id uint32, sa *subAgent) {
+func (s *Supervisor) watchUpdates(id uint32, sa *process) {
 	for {
 		select {
 		case state, more := <-sa.Changes():
