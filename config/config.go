@@ -43,32 +43,34 @@ type Ports struct {
 
 // Config represents pmm-agent's static configuration.
 type Config struct {
+	ID      string
 	Address string
-	Debug   bool
 
-	WithoutNginx bool // FIXME remove this before 2.0.0-proto
+	Debug       bool
+	InsecureTLS bool
 
-	Paths *Paths
+	Paths Paths
 	Ports Ports
-
-	UUID string
 }
 
 func Application(cfg *Config, version string) *kingpin.Application {
 	app := kingpin.New("pmm-agent", "Version "+version+".")
 	app.HelpFlag.Short('h')
 	app.Version(version)
-	app.Flag("address", "PMM Server address.").Envar("PMM_AGENT_ADDRESS").StringVar(&cfg.Address)
-	app.Flag("debug", "Enable debug output.").Envar("PMM_AGENT_DEBUG").BoolVar(&cfg.Debug)
-	app.Flag("uuid", "UUID of this pmm-agent.").Envar("PMM_AGENT_UUID").StringVar(&cfg.UUID)
+	app.Flag("id", "ID of this pmm-agent.").Envar("PMM_AGENT_ID").StringVar(&cfg.ID)
+	app.Flag("address", "PMM Server address (host:port).").Envar("PMM_AGENT_ADDRESS").StringVar(&cfg.Address)
 
-	app.Flag("without-nginx", "Connect directly to pmm-managed, not via nginx.").BoolVar(&cfg.WithoutNginx)
+	app.Flag("debug", "Enable debug output.").Envar("PMM_AGENT_DEBUG").BoolVar(&cfg.Debug)
+	app.Flag("insecure-tls", "Skip TLS certificate validation.").Envar("PMM_AGENT_INSECURE_TLS").BoolVar(&cfg.InsecureTLS)
 
 	app.Flag("node_exporter", "Path to node_exporter to use.").Envar("PMM_NODE_EXPORTER").Default("node_exporter").StringVar(&cfg.Paths.NodeExporter)
 	app.Flag("mysqld_exporter", "Path to mysqld_exporter to use.").Envar("PMM_MYSQLD_EXPORTER").Default("mysqld_exporter").StringVar(&cfg.Paths.MySQLdExporter)
 
 	// TODO load configuration from file with kingpin.ExpandArgsFromFile
 	// TODO show environment variables in help
+
+	// TODO use [32768,60999] range for ports by default
+	//      or try to read /proc/sys/net/ipv4/ip_local_port_range ?
 
 	return app
 }

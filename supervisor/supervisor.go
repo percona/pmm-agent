@@ -14,12 +14,13 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-// Package supervisor provides process supervisor for running sub-agents.
+// Package supervisor provides process supervisor for running Agents.
 package supervisor
 
 import (
 	"bytes"
 	"context"
+	"sort"
 	"sync"
 	"text/template"
 
@@ -29,234 +30,241 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"github.com/percona/pmm-agent/config"
-	"github.com/percona/pmm-agent/ports"
 )
 
-// StateUpdate contains info about agent and current state.
-type StateUpdate struct {
-	AgentID uint32
-	State   Status
-}
-
-type subAgentInfo struct {
-	*process
-	cancel func()
-}
-
-// Supervisor manages all agents.
+// Supervisor manages all agent's processes.
 type Supervisor struct {
-	rw     sync.Mutex
-	agents map[uint32]*subAgentInfo
-	params map[uint32]*agent.SetStateRequest_AgentProcess
-	paths  *config.Paths
-	ports  map[uint32]uint32
+	ctx           context.Context
+	paths         *config.Paths
+	portsRegistry *portsRegistry
+	changes       chan agent.StateChangedRequest
+	l             *logrus.Entry
 
-	l        *logrus.Entry
-	ctx      context.Context
-	registry *ports.Registry
-	changes  chan StateUpdate
+	m      sync.Mutex
+	agents map[string]*agentInfo
+}
+
+type agentInfo struct {
+	process        *process
+	cancel         func()
+	done           chan struct{}
+	requestedState *agent.SetStateRequest_AgentProcess
+	listenPort     uint16
 }
 
 type templateParams struct {
-	ListenPort uint32
+	ListenPort uint16
 }
 
 // NewSupervisor creates new Supervisor object.
-func NewSupervisor(ctx context.Context, paths *config.Paths, portsCfg config.Ports) *Supervisor {
+func NewSupervisor(ctx context.Context, paths *config.Paths, ports *config.Ports) *Supervisor {
 	supervisor := &Supervisor{
-		agents:   make(map[uint32]*subAgentInfo),
-		params:   make(map[uint32]*agent.SetStateRequest_AgentProcess),
-		paths:    paths,
-		ports:    make(map[uint32]uint32),
-		l:        logrus.WithField("component", "supervisor"),
-		ctx:      ctx,
-		registry: ports.NewRegistry(portsCfg.Min, portsCfg.Max, nil),
-		changes:  make(chan StateUpdate),
+		ctx:           ctx,
+		paths:         paths,
+		portsRegistry: newPortsRegistry(ports.Min, ports.Max, nil),
+		changes:       make(chan agent.StateChangedRequest, 10),
+		l:             logrus.WithField("component", "supervisor"),
+
+		agents: make(map[string]*agentInfo),
 	}
-	go supervisor.handleContextDone()
+
+	go func() {
+		<-ctx.Done()
+		supervisor.stopAll()
+	}()
+
 	return supervisor
 }
 
-// UpdateState starts or updates all agents placed in args and stops all agents not placed in args, but already run.
-func (s *Supervisor) UpdateState(processes []*agent.SetStateRequest_AgentProcess) []*agent.SetStateResponse_AgentProcess {
-	var agentProcessesStates []*agent.SetStateResponse_AgentProcess
-	processesMaps := make(map[uint32]*agent.SetStateRequest_AgentProcess)
-	var toStart, toRestart, toStop []uint32
+// SetState starts or updates all agents placed in args and stops all agents not placed in args, but already run.
+func (s *Supervisor) SetState(agentProcesses map[string]*agent.SetStateRequest_AgentProcess) {
+	s.m.Lock()
+	defer s.m.Unlock()
 
-	s.rw.Lock()
-	defer s.rw.Unlock()
-	for _, agentProcess := range processes {
-		_, ok := s.agents[agentProcess.AgentId]
-		switch {
-		case !ok:
-			toStart = append(toStart, agentProcess.AgentId)
-		case ok && !proto.Equal(s.params[agentProcess.AgentId], agentProcess):
-			toRestart = append(toRestart, agentProcess.AgentId)
-		default:
-			state := &agent.SetStateResponse_AgentProcess{
-				AgentId:    agentProcess.AgentId,
-				ListenPort: s.ports[agentProcess.AgentId],
-			}
-			agentProcessesStates = append(agentProcessesStates, state)
-		}
-		processesMaps[agentProcess.AgentId] = agentProcess
+	if err := s.ctx.Err(); err != nil {
+		s.l.Errorf("Ignoring SetState: %s.", err)
+		return
 	}
-	for id := range s.agents {
-		if _, ok := processesMaps[id]; !ok {
-			toStop = append(toStop, id)
+
+	// existing agents not present in the new requested state should be stopped
+	var toStop []string
+	for agentID := range s.agents {
+		if agentProcesses[agentID] == nil {
+			toStop = append(toStop, agentID)
 		}
 	}
 
-	for _, id := range toStart {
-		port, err := s.registry.Reserve()
-		if err != nil {
+	// detect new and changed agents
+	var toStart, toRestart []string
+	for agentID, agentProcess := range agentProcesses {
+		agent := s.agents[agentID]
+		if agent == nil {
+			toStart = append(toStart, agentID)
 			continue
 		}
 
-		err = s.start(*processesMaps[id], port)
-		if err != nil {
-			s.l.Error(err)
+		// compare parameters before templating
+		if proto.Equal(agent.requestedState, agentProcess) {
 			continue
 		}
-		s.params[id] = processesMaps[id]
-		state := &agent.SetStateResponse_AgentProcess{
-			AgentId:    id,
-			ListenPort: port,
-		}
-		agentProcessesStates = append(agentProcessesStates, state)
+
+		toRestart = append(toRestart, agentID)
 	}
 
-	for _, id := range toStop {
-		port := s.ports[id]
-		s.stop(id, false)
-		state := &agent.SetStateResponse_AgentProcess{
-			AgentId:    id,
-			ListenPort: port,
-			Disabled:   true,
+	sort.Strings(toStop)
+	sort.Strings(toRestart)
+	sort.Strings(toStart)
+
+	// We have to wait for processes to terminate before starting a new ones to reuse ports.
+	// If that place is slow, we can cancel them all in parallel, but then we still have to wait.
+
+	// stop first to avoid extra load
+	for _, agentID := range toStop {
+		agent := s.agents[agentID]
+		agent.cancel()
+		<-agent.done // wait before releasing port
+
+		if err := s.portsRegistry.Release(agent.listenPort); err != nil {
+			s.l.Errorf("Failed to release port: %s.", err)
 		}
-		agentProcessesStates = append(agentProcessesStates, state)
+		delete(s.agents, agentID)
 	}
 
-	for _, id := range toRestart {
-		port := s.ports[id]
-		s.stop(id, true)
-		err := s.start(*processesMaps[id], port)
+	// restart while preserving port
+	for _, agentID := range toRestart {
+		agent := s.agents[agentID]
+		agent.cancel()
+		<-agent.done // wait before reusing port
+
+		agent, err := s.start(agentID, agentProcesses[agentID], agent.listenPort)
 		if err != nil {
-			s.l.Error(err)
+			s.l.Errorf("Failed to start Agent: %s.", err)
+			// TODO report that error to server
 			continue
 		}
-		s.params[id] = processesMaps[id]
-		state := &agent.SetStateResponse_AgentProcess{
-			AgentId:    id,
-			ListenPort: port,
-		}
-		agentProcessesStates = append(agentProcessesStates, state)
+		s.agents[agentID] = agent
 	}
 
-	return agentProcessesStates
+	// start new agents
+	for _, agentID := range toStart {
+		port, err := s.portsRegistry.Reserve()
+		if err != nil {
+			s.l.Errorf("Failed to reserve port: %s.", err)
+			// TODO report that error to server
+			continue
+		}
+
+		agent, err := s.start(agentID, agentProcesses[agentID], port)
+		if err != nil {
+			s.l.Errorf("Failed to start Agent: %s.", err)
+			// TODO report that error to server
+			continue
+		}
+		s.agents[agentID] = agent
+	}
 }
 
-// StateUpdates returns update changes for all agents
-func (s *Supervisor) StateUpdates() <-chan StateUpdate {
+// Changes returns channel with agent's state changes.
+func (s *Supervisor) Changes() <-chan agent.StateChangedRequest {
 	return s.changes
 }
 
-func (s *Supervisor) start(agentParams agent.SetStateRequest_AgentProcess, port uint32) error {
-	var path string
-	switch agentParams.Type {
-	case agent.Type_NODE_EXPORTER:
-		path = s.paths.NodeExporter
-	case agent.Type_MYSQLD_EXPORTER:
-		path = s.paths.MySQLdExporter
-	default:
-		return errors.Errorf("unhandled agent type %[1]s (%[1]d).", agentParams.Type)
-	}
-
-	var err error
-	agentParams.Args, err = s.args(agentParams.Args, templateParams{ListenPort: port})
+func (s *Supervisor) start(agentID string, agentProcess *agent.SetStateRequest_AgentProcess, port uint16) (*agentInfo, error) {
+	processParams, err := s.processParams(agentProcess, &templateParams{
+		ListenPort: port,
+	})
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	ctx, cancel := context.WithCancel(s.ctx)
-	l := logrus.WithField("component", "sub-agent").
-		WithField("agentID", agentParams.AgentId).
-		WithField("type", agentParams.Type.String())
-	params := &processParams{
-		path: path,
-		args: agentParams.Args,
-		env:  agentParams.Env,
-	}
-	subAgent := newProcess(ctx, params, l)
-	go s.watchUpdates(agentParams.AgentId, subAgent)
+	l := logrus.WithFields(logrus.Fields{
+		"component": "agent",
+		"agentID":   agentID,
+		"type":      agentProcess.Type.String(),
+	})
+	process := newProcess(ctx, processParams, l)
 
-	s.l.Debugf("subAgent id=%d is started", agentParams.AgentId)
-	s.agents[agentParams.AgentId] = &subAgentInfo{
-		process: subAgent,
-		cancel:  cancel,
-	}
-	s.ports[agentParams.AgentId] = port
-	return nil
-}
-
-func (s *Supervisor) stop(id uint32, wait bool) {
-	subAgentInfo := s.agents[id]
-	subAgentInfo.cancel()
-	if wait {
-		for {
-			_, more := <-subAgentInfo.Changes()
-			if !more {
-				break
+	done := make(chan struct{})
+	go func() {
+		for status := range process.Changes() {
+			s.changes <- agent.StateChangedRequest{
+				AgentId:    agentID,
+				Status:     status,
+				ListenPort: uint32(port),
 			}
 		}
-	}
+		close(done)
+	}()
 
-	_ = s.registry.Release(s.ports[id])
-	delete(s.agents, id)
-	delete(s.ports, id)
-	delete(s.params, id)
+	return &agentInfo{
+		process:        process,
+		cancel:         cancel,
+		done:           done,
+		requestedState: agentProcess,
+		listenPort:     port,
+	}, nil
 }
 
-func (s *Supervisor) args(args []string, params templateParams) ([]string, error) {
-	result := make([]string, len(args))
-	for i, arg := range args {
-		buffer := &bytes.Buffer{}
-		tmpl, err := template.New(arg).Parse(arg)
+// processParams makes processParams from SetStateRequest parameters and template data.
+func (s *Supervisor) processParams(agentProcess *agent.SetStateRequest_AgentProcess, templateParams *templateParams) (*processParams, error) {
+	var processParams processParams
+	switch agentProcess.Type {
+	case agent.Type_NODE_EXPORTER:
+		processParams.path = s.paths.NodeExporter
+	case agent.Type_MYSQLD_EXPORTER:
+		processParams.path = s.paths.MySQLdExporter
+	default:
+		return nil, errors.Errorf("unhandled agent type %[1]s (%[1]d).", agentProcess.Type)
+	}
+
+	processParams.args = make([]string, len(agentProcess.Args))
+	for i, e := range agentProcess.Args {
+		t, err := template.New("").Parse(e)
 		if err != nil {
-			return nil, err
+			return nil, errors.WithStack(err)
 		}
-		err = tmpl.Execute(buffer, params)
+		var buf bytes.Buffer
+		if err = t.Execute(&buf, templateParams); err != nil {
+			return nil, errors.WithStack(err)
+		}
+		processParams.args[i] = buf.String()
+	}
+
+	processParams.env = make([]string, len(agentProcess.Env))
+	for i, e := range agentProcess.Env {
+		t, err := template.New("").Parse(e)
 		if err != nil {
-			return nil, err
+			return nil, errors.WithStack(err)
 		}
-		result[i] = buffer.String()
+		var buf bytes.Buffer
+		if err = t.Execute(&buf, templateParams); err != nil {
+			return nil, errors.WithStack(err)
+		}
+		processParams.env[i] = buf.String()
 	}
-	return result, nil
+
+	// https://jira.percona.com/browse/PMM-3437
+	if len(agentProcess.Configs) != 0 {
+		s.l.Warn("Agents Configs are not supported yet.")
+	}
+
+	return &processParams, nil
 }
 
-func (s *Supervisor) watchUpdates(id uint32, sa *process) {
-	for {
-		select {
-		case state, more := <-sa.Changes():
-			s.changes <- StateUpdate{AgentID: id, State: state}
-			if !more {
-				return
-			}
-		}
-	}
-}
+func (s *Supervisor) stopAll() {
+	s.m.Lock()
+	defer s.m.Unlock()
 
-func (s *Supervisor) handleContextDone() {
-
-	for {
-		select {
-		case <-s.ctx.Done():
-			s.rw.Lock()
-			for i := range s.agents {
-				s.stop(i, false)
-			}
-			s.rw.Unlock()
-			return
-		}
+	wait := make([]chan struct{}, 0, len(s.agents))
+	for _, agent := range s.agents {
+		agent.cancel()
+		wait = append(wait, agent.done)
 	}
+	s.agents = nil
+
+	for _, ch := range wait {
+		<-ch
+	}
+	close(s.changes)
 }

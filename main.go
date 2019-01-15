@@ -19,6 +19,7 @@ package main
 import (
 	"context"
 	"crypto/tls"
+	"net"
 	"os"
 	"os/signal"
 	"time"
@@ -54,7 +55,7 @@ func workLoop(ctx context.Context, cfg *config.Config, client agent.AgentClient)
 
 	l.Info("Establishing two-way communication channel ...")
 	ctx = agent.AddAgentConnectMetadata(ctx, &agent.AgentConnectMetadata{
-		UUID:    cfg.UUID,
+		ID:      cfg.ID,
 		Version: Version,
 	})
 	stream, err := client.Connect(ctx)
@@ -66,16 +67,10 @@ func workLoop(ctx context.Context, cfg *config.Config, client agent.AgentClient)
 	channel := server.NewChannel(stream)
 	prometheus.MustRegister(channel)
 
-	svr := supervisor.NewSupervisor(ctx, cfg.Paths, cfg.Ports)
+	svr := supervisor.NewSupervisor(ctx, &cfg.Paths, &cfg.Ports)
 	go func() {
-		for {
-			select {
-			case update, more := <-svr.StateUpdates():
-				l.Debugf("Agent %d changed state to %s", update.AgentID, update.State)
-				if !more {
-					return
-				}
-			}
+		for status := range svr.Changes() {
+			l.Debugf("Agent %s changed state to %s", status.AgentId, status.Status)
 		}
 	}()
 
@@ -93,14 +88,12 @@ func workLoop(ctx context.Context, cfg *config.Config, client agent.AgentClient)
 			}
 
 		case *agent.ServerMessage_State:
-			agentProcessesStates := svr.UpdateState(payload.State.AgentProcesses)
+			svr.SetState(payload.State.AgentProcesses)
 
 			agentMessage = &agent.AgentMessage{
 				Id: serverMessage.Id,
 				Payload: &agent.AgentMessage_State{
-					State: &agent.SetStateResponse{
-						AgentProcesses: agentProcessesStates,
-					},
+					State: &agent.SetStateResponse{},
 				},
 			}
 
@@ -148,17 +141,17 @@ func main() {
 		return
 	}
 
+	host, _, _ := net.SplitHostPort(cfg.Address)
+	tlsConfig := &tls.Config{
+		ServerName:         host,
+		InsecureSkipVerify: cfg.InsecureTLS, //nolint:gosec
+	}
 	opts := []grpc.DialOption{
 		grpc.WithBlock(),
 		grpc.WithWaitForHandshake(),
 		grpc.WithBackoffMaxDelay(backoffMaxDelay),
 		grpc.WithUserAgent("pmm-agent/" + Version),
-	}
-	if cfg.WithoutNginx {
-		opts = append(opts, grpc.WithInsecure())
-	} else {
-		creds := credentials.NewTLS(&tls.Config{})
-		opts = append(opts, grpc.WithTransportCredentials(creds))
+		grpc.WithTransportCredentials(credentials.NewTLS(tlsConfig)),
 	}
 
 	logrus.Infof("Connecting to %s ...", cfg.Address)
