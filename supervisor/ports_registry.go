@@ -20,14 +20,12 @@ import (
 	"fmt"
 	"net"
 	"sync"
-
-	"github.com/pkg/errors"
 )
 
 var (
-	errNoFreePort      = errors.New("ports registry: no free port")
-	errPortBusy        = errors.New("ports registry: port busy")
-	errNotReservedPort = errors.New("ports registry: not reserved port")
+	errNoFreePort      = fmt.Errorf("no free port")
+	errPortBusy        = fmt.Errorf("port busy")
+	errPortNotReserved = fmt.Errorf("port not reserved")
 )
 
 // portsRegistry keeps track of reserved ports.
@@ -93,7 +91,7 @@ func (r *portsRegistry) Release(port uint16) error {
 	defer r.m.Unlock()
 
 	if _, ok := r.reserved[port]; !ok {
-		return errNotReservedPort
+		return errPortNotReserved
 	}
 
 	l, err := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", port))

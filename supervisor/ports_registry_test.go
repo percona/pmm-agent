@@ -44,7 +44,7 @@ func TestRegistry(t *testing.T) {
 	err = r.Release(10000)
 	assert.NoError(t, err)
 	err = r.Release(10001)
-	assert.Equal(t, errNotReservedPort, err)
+	assert.Equal(t, errPortNotReserved, err)
 	err = r.Release(10002)
 	assert.Equal(t, errPortBusy, err)
 
