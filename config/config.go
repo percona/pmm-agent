@@ -37,8 +37,8 @@ func (p *Paths) Lookup() {
 
 // Ports represents ports configuration.
 type Ports struct {
-	Min uint32
-	Max uint32
+	Min uint16
+	Max uint16
 }
 
 // Config represents pmm-agent's static configuration.

@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-package ports
+package supervisor
 
 import (
 	"fmt"
@@ -30,32 +30,31 @@ var (
 	errNotReservedPort = errors.New("ports registry: not reserved port")
 )
 
-// Registry keeps track of reserved ports.
-type Registry struct {
+// portsRegistry keeps track of reserved ports.
+type portsRegistry struct {
 	lock     sync.Mutex
-	min, max uint32
-	m        map[uint32]struct{}
+	min, max uint16
+	m        map[uint16]struct{}
 }
 
-// NewRegistry creates new Registry object.
-func NewRegistry(min, max uint32, reserved []uint32) *Registry {
+func newPortsRegistry(min, max uint16, reserved []uint16) *portsRegistry {
 	if min > max {
 		panic("min > max")
 	}
 
-	m := make(map[uint32]struct{})
+	m := make(map[uint16]struct{})
 	for _, p := range reserved {
 		m[p] = struct{}{}
 	}
 
-	return &Registry{
+	return &portsRegistry{
 		min: min, max: max,
 		m: m,
 	}
 }
 
 // Reserve reserves next free port.
-func (r *Registry) Reserve() (uint32, error) {
+func (r *portsRegistry) Reserve() (uint16, error) {
 	r.lock.Lock()
 	defer r.lock.Unlock()
 
@@ -80,7 +79,7 @@ func (r *Registry) Reserve() (uint32, error) {
 }
 
 // Release releases port.
-func (r *Registry) Release(port uint32) error {
+func (r *portsRegistry) Release(port uint16) error {
 	r.lock.Lock()
 	defer r.lock.Unlock()
 
