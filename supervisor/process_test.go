@@ -24,15 +24,16 @@ import (
 	"strconv"
 	"testing"
 
+	"github.com/percona/pmm/api/agent"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func assertStates(t *testing.T, sa *process, expected ...Status) {
+func assertStates(t *testing.T, sa *process, expected ...agent.Status) {
 	t.Helper()
 
-	actual := make([]Status, len(expected))
+	actual := make([]agent.Status, len(expected))
 	for i := range expected {
 		actual[i] = <-sa.Changes()
 	}
@@ -52,9 +53,9 @@ func TestProcess(t *testing.T) {
 		ctx, cancel, l := setup(t)
 		p := newProcess(ctx, &processParams{path: "sleep", args: []string{"100500"}}, l)
 
-		assertStates(t, p, STARTING, RUNNING)
+		assertStates(t, p, agent.Status_STARTING, agent.Status_RUNNING)
 		cancel()
-		assertStates(t, p, STOPPING, DONE, "")
+		assertStates(t, p, agent.Status_STOPPING, agent.Status_DONE, agent.Status_STATUS_INVALID)
 	})
 
 	t.Run("FailedToStart", func(t *testing.T) {
@@ -63,9 +64,9 @@ func TestProcess(t *testing.T) {
 		ctx, cancel, l := setup(t)
 		p := newProcess(ctx, &processParams{path: "no_such_command"}, l)
 
-		assertStates(t, p, STARTING, WAITING, STARTING, WAITING)
+		assertStates(t, p, agent.Status_STARTING, agent.Status_WAITING, agent.Status_STARTING, agent.Status_WAITING)
 		cancel()
-		assertStates(t, p, DONE, "")
+		assertStates(t, p, agent.Status_DONE, agent.Status_STATUS_INVALID)
 	})
 
 	t.Run("ExitedEarly", func(t *testing.T) {
@@ -75,9 +76,9 @@ func TestProcess(t *testing.T) {
 		ctx, cancel, l := setup(t)
 		p := newProcess(ctx, &processParams{path: "sleep", args: []string{sleep}}, l)
 
-		assertStates(t, p, STARTING, WAITING, STARTING, WAITING)
+		assertStates(t, p, agent.Status_STARTING, agent.Status_WAITING, agent.Status_STARTING, agent.Status_WAITING)
 		cancel()
-		assertStates(t, p, DONE, "")
+		assertStates(t, p, agent.Status_DONE, agent.Status_STATUS_INVALID)
 	})
 
 	t.Run("CancelStarting", func(t *testing.T) {
@@ -87,9 +88,9 @@ func TestProcess(t *testing.T) {
 		sleep := strconv.FormatFloat(runningT.Seconds()-0.5, 'f', -1, 64)
 		p := newProcess(ctx, &processParams{path: "sleep", args: []string{sleep}}, l)
 
-		assertStates(t, p, STARTING, WAITING, STARTING)
+		assertStates(t, p, agent.Status_STARTING, agent.Status_WAITING, agent.Status_STARTING)
 		cancel()
-		assertStates(t, p, WAITING, DONE, "")
+		assertStates(t, p, agent.Status_WAITING, agent.Status_DONE, agent.Status_STATUS_INVALID)
 	})
 
 	t.Run("Exited", func(t *testing.T) {
@@ -99,9 +100,9 @@ func TestProcess(t *testing.T) {
 		sleep := strconv.FormatFloat(runningT.Seconds()+0.5, 'f', -1, 64)
 		p := newProcess(ctx, &processParams{path: "sleep", args: []string{sleep}}, l)
 
-		assertStates(t, p, STARTING, RUNNING, WAITING)
+		assertStates(t, p, agent.Status_STARTING, agent.Status_RUNNING, agent.Status_WAITING)
 		cancel()
-		assertStates(t, p, DONE, "")
+		assertStates(t, p, agent.Status_DONE, agent.Status_STATUS_INVALID)
 	})
 
 	t.Run("Killed", func(t *testing.T) {
@@ -123,8 +124,8 @@ func TestProcess(t *testing.T) {
 		ctx, cancel, l := setup(t)
 		p := newProcess(ctx, &processParams{path: f.Name()}, l)
 
-		assertStates(t, p, STARTING, RUNNING)
+		assertStates(t, p, agent.Status_STARTING, agent.Status_RUNNING)
 		cancel()
-		assertStates(t, p, STOPPING, DONE, "")
+		assertStates(t, p, agent.Status_STOPPING, agent.Status_DONE, agent.Status_STATUS_INVALID)
 	})
 }

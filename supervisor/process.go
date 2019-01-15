@@ -21,21 +21,9 @@ import (
 	"os/exec"
 	"time"
 
+	"github.com/percona/pmm/api/agent"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
-)
-
-// Status represents process status.
-// TODO Switch to agent.Status enum.
-type Status string
-
-//nolint
-const (
-	STARTING Status = "STARTING"
-	RUNNING  Status = "RUNNING"
-	WAITING  Status = "WAITING"
-	STOPPING Status = "STOPPING"
-	DONE     Status = "DONE"
 )
 
 const (
@@ -49,9 +37,9 @@ const (
 //
 // Process object should be created with newProcess. It then handles process starting, restarting with backoff,
 // reading its output. Process is gracefully stopped when context passed to newProcess is canceled.
-// Changes of process state are reported via Changes channel which must be read until it is closed.
+// Changes of process status are reported via Changes channel which must be read until it is closed.
 //
-// Process state is changed by finite state machine (see agent_status.dot).
+// Process status is changed by finite state machine (see agent_status.dot).
 // Each state logic is encapsulated in toXXX methods. Each method sends a new status to the changes channel,
 // implements its own logic, and then switches to then next state via "go toXXX()". "go" statement is used
 // only to avoid stack overflow; there are no extra goroutines for states.
@@ -60,7 +48,7 @@ type process struct {
 	params  *processParams
 	l       *logrus.Entry
 	pl      *processLogger
-	changes chan Status
+	changes chan agent.Status
 	backoff *backoff
 	ctxDone chan struct{}
 
@@ -84,7 +72,7 @@ func newProcess(ctx context.Context, params *processParams, l *logrus.Entry) *pr
 		params:  params,
 		l:       l,
 		pl:      newProcessLogger(l, keepLogLines),
-		changes: make(chan Status, 1),
+		changes: make(chan agent.Status, 1),
 		backoff: b,
 		ctxDone: make(chan struct{}),
 	}
@@ -104,7 +92,7 @@ func newProcess(ctx context.Context, params *processParams, l *logrus.Entry) *pr
 // STARTING -> WAITING
 func (p *process) toStarting() {
 	p.l.Infof("Process: starting.")
-	p.changes <- STARTING
+	p.changes <- agent.Status_STARTING
 
 	p.cmd = exec.Command(p.params.path, p.params.args...) //nolint:gosec
 	p.cmd.Env = p.params.env
@@ -141,7 +129,7 @@ func (p *process) toStarting() {
 // RUNNING -> WAITING
 func (p *process) toRunning() {
 	p.l.Infof("Process: running.")
-	p.changes <- RUNNING
+	p.changes <- agent.Status_RUNNING
 
 	p.backoff.Reset()
 
@@ -160,7 +148,7 @@ func (p *process) toWaiting() {
 	delay := p.backoff.Delay()
 
 	p.l.Infof("Process: waiting %s.", delay)
-	p.changes <- WAITING
+	p.changes <- agent.Status_WAITING
 
 	t := time.NewTimer(delay)
 	defer t.Stop()
@@ -175,7 +163,7 @@ func (p *process) toWaiting() {
 // STOPPING -> DONE
 func (p *process) toStopping() {
 	p.l.Infof("Process: stopping (sending SIGTERM)...")
-	p.changes <- STOPPING
+	p.changes <- agent.Status_STOPPING
 
 	if err := p.cmd.Process.Signal(unix.SIGTERM); err != nil {
 		p.l.Errorf("Process: failed to send SIGTERM: %s.", err)
@@ -200,13 +188,13 @@ func (p *process) toStopping() {
 
 func (p *process) toDone() {
 	p.l.Info("Process: done.")
-	p.changes <- DONE
+	p.changes <- agent.Status_DONE
 
 	close(p.changes)
 }
 
 // Changes returns channel that should be read until it is closed.
-func (p *process) Changes() <-chan Status {
+func (p *process) Changes() <-chan agent.Status {
 	return p.changes
 }
 
