@@ -69,3 +69,44 @@ func TestRegistry(t *testing.T) {
 	_, err = r.Reserve()
 	assert.Equal(t, errNoFreePort, err)
 }
+
+func TestPreferNewPort(t *testing.T) {
+	r := newPortsRegistry(10000, 10002, nil)
+
+	p, err := r.Reserve()
+	assert.NoError(t, err)
+	assert.EqualValues(t, 10000, p)
+
+	err = r.Release(p)
+	assert.NoError(t, err)
+
+	p, err = r.Reserve()
+	assert.NoError(t, err)
+	assert.EqualValues(t, 10001, p)
+
+	p, err = r.Reserve()
+	assert.NoError(t, err)
+	assert.EqualValues(t, 10002, p)
+
+	p, err = r.Reserve()
+	assert.NoError(t, err)
+	assert.EqualValues(t, 10000, p)
+}
+
+func TestSinglePort(t *testing.T) {
+	r := newPortsRegistry(10000, 10000, nil)
+
+	p, err := r.Reserve()
+	assert.NoError(t, err)
+	assert.EqualValues(t, 10000, p)
+
+	_, err = r.Reserve()
+	assert.Equal(t, errNoFreePort, err)
+
+	err = r.Release(p)
+	assert.NoError(t, err)
+
+	p, err = r.Reserve()
+	assert.NoError(t, err)
+	assert.EqualValues(t, 10000, p)
+}

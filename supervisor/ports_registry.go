@@ -32,34 +32,42 @@ var (
 
 // portsRegistry keeps track of reserved ports.
 type portsRegistry struct {
-	lock     sync.Mutex
-	min, max uint16
-	m        map[uint16]struct{}
+	m        sync.Mutex
+	min      uint16
+	max      uint16
+	last     uint16
+	reserved map[uint16]struct{}
 }
 
 func newPortsRegistry(min, max uint16, reserved []uint16) *portsRegistry {
 	if min > max {
-		panic("min > max")
+		panic(fmt.Sprintf("min port (%d) > max port (%d)", min, max))
 	}
 
-	m := make(map[uint16]struct{})
+	r := &portsRegistry{
+		min:      min,
+		max:      max,
+		last:     min - 1,
+		reserved: make(map[uint16]struct{}, len(reserved)),
+	}
 	for _, p := range reserved {
-		m[p] = struct{}{}
+		r.reserved[p] = struct{}{}
 	}
 
-	return &portsRegistry{
-		min: min, max: max,
-		m: m,
-	}
+	return r
 }
 
 // Reserve reserves next free port.
+// It tries to reuse ports as little as possible to avoid erroneous Prometheus scrapes
+// to the different exporter type when Prometheus configuration is being reloaded.
 func (r *portsRegistry) Reserve() (uint16, error) {
-	r.lock.Lock()
-	defer r.lock.Unlock()
+	r.m.Lock()
+	defer r.m.Unlock()
 
-	for port := r.min; port <= r.max; port++ {
-		if _, ok := r.m[port]; ok {
+	size := r.max - r.min + 1
+	for i := uint16(1); i <= size; i++ {
+		port := r.min + (r.last-r.min+i)%size
+		if _, ok := r.reserved[port]; ok {
 			continue
 		}
 
@@ -71,7 +79,8 @@ func (r *portsRegistry) Reserve() (uint16, error) {
 			continue
 		}
 
-		r.m[port] = struct{}{}
+		r.reserved[port] = struct{}{}
+		r.last = port
 		return port, nil
 	}
 
@@ -80,10 +89,10 @@ func (r *portsRegistry) Reserve() (uint16, error) {
 
 // Release releases port.
 func (r *portsRegistry) Release(port uint16) error {
-	r.lock.Lock()
-	defer r.lock.Unlock()
+	r.m.Lock()
+	defer r.m.Unlock()
 
-	if _, ok := r.m[port]; !ok {
+	if _, ok := r.reserved[port]; !ok {
 		return errNotReservedPort
 	}
 
@@ -95,6 +104,6 @@ func (r *portsRegistry) Release(port uint16) error {
 		return errPortBusy
 	}
 
-	delete(r.m, port)
+	delete(r.reserved, port)
 	return nil
 }
