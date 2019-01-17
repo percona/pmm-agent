@@ -16,257 +16,143 @@
 
 package supervisor
 
-/*
 import (
 	"context"
-	"syscall"
+	"io/ioutil"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/percona/pmm/api/agent"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/percona/pmm-agent/config"
 )
 
-func agentProcessIsExists(t *testing.T, s *Supervisor, agentID uint32) (int, bool) {
-	subAgent, ok := s.agents[agentID]
-	if !ok {
-		t.Errorf("Sub-agent is not added to map")
-		return 0, false
-	}
-	pid := subAgent.cmd.Process.Pid
-	procExists := processIsExists(pid)
-	return pid, procExists
+func TestSupervisorFilter(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	s := NewSupervisor(ctx, nil, new(config.Ports))
+
+	t.Run("Normal", func(t *testing.T) {
+		s.agents = map[string]*agentInfo{
+			"toRestart": {
+				cancel: cancel,
+				requestedState: &agent.SetStateRequest_AgentProcess{
+					Type: agent.Type_NODE_EXPORTER,
+				},
+			},
+			"toStop": {
+				cancel:         cancel,
+				requestedState: &agent.SetStateRequest_AgentProcess{},
+			},
+			"notChanged": {
+				cancel:         cancel,
+				requestedState: &agent.SetStateRequest_AgentProcess{},
+			},
+		}
+
+		agentProcesses := map[string]*agent.SetStateRequest_AgentProcess{
+			"toStart":    {},
+			"toRestart":  {Type: agent.Type_MYSQLD_EXPORTER},
+			"notChanged": {},
+		}
+		toStart, toRestart, toStop := s.filter(agentProcesses)
+		assert.Equal(t, []string{"toStart"}, toStart)
+		assert.Equal(t, []string{"toRestart"}, toRestart)
+		assert.Equal(t, []string{"toStop"}, toStop)
+	})
 }
 
-func processIsExists(pid int) bool {
-	killErr := syscall.Kill(pid, syscall.Signal(0))
-	return killErr == nil
-}
+func TestSupervisorProcessParams(t *testing.T) {
+	setup := func() (*Supervisor, func()) {
+		temp, err := ioutil.TempDir("", "pmm-agent-")
+		require.NoError(t, err)
 
-func waitUntil(supervisor *Supervisor, stateUpdates []StateUpdate) {
-	for len(stateUpdates) > 0 {
-		state := <-supervisor.StateUpdates()
-		for i := range stateUpdates {
-			if state == stateUpdates[i] {
-				stateUpdates = append(stateUpdates[:i], stateUpdates[i+1:]...)
-				break
+		ctx, cancel := context.WithCancel(context.Background())
+		paths := &config.Paths{
+			MySQLdExporter: "/path/to/mysql_exporter",
+			TempDir:        temp,
+		}
+		s := NewSupervisor(ctx, paths, new(config.Ports))
+
+		teardown := func() {
+			cancel()
+			if t.Failed() {
+				t.Logf("%s is kept.", paths.TempDir)
+			} else {
+				require.NoError(t, os.RemoveAll(paths.TempDir))
 			}
 		}
-	}
-}
-
-func checkResponse(t *testing.T, process *agent.SetStateResponse_AgentProcess, disabled bool) {
-	expectedResponse := agent.SetStateResponse_AgentProcess{
-		AgentId:    process.AgentId,
-		ListenPort: process.AgentId + 10000,
-		Disabled:   disabled,
-	}
-	assert.Equal(t, expectedResponse, *process)
-}
-
-func setup() (context.CancelFunc, *Supervisor, []string, []string) {
-	paths := &config.Paths{
-		MySQLdExporter: "mysqld_exporter",
-	}
-	ctx, cancel := context.WithCancel(context.TODO())
-	s := NewSupervisor(ctx, paths, config.Ports{Min: 10001, Max: 20000})
-	arguments := []string{
-		"-web.listen-address=127.0.0.1:{{ .ListenPort }}",
-	}
-	env := []string{
-		`DATA_SOURCE_NAME="pmm:pmm@(127.0.0.1:3306)/pmm-managed-dev"`,
-	}
-	return cancel, s, arguments, env
-}
-
-func TestUpdateStateSimple(t *testing.T) {
-	cancel, s, arguments, env := setup()
-	defer cancel()
-
-	var processes []*agent.SetStateRequest_AgentProcess
-	agentsCount := uint32(5)
-	for i := uint32(1); i <= agentsCount; i++ {
-		processes = append(processes, &agent.SetStateRequest_AgentProcess{
-			AgentId: i,
-			Type:    agent.Type_MYSQLD_EXPORTER,
-			Args:    arguments,
-			Env:     env,
-		})
+		return s, teardown
 	}
 
-	response := s.UpdateState(processes)
-	for _, process := range response {
-		checkResponse(t, process, false)
-	}
+	t.Run("Normal", func(t *testing.T) {
+		t.Parallel()
+		s, teardown := setup()
+		defer teardown()
 
-	if uint32(len(s.agents)) != agentsCount || uint32(len(response)) != agentsCount {
-		t.Errorf("%d agents started, expected %d", len(s.agents), agentsCount)
-	}
-	waitUntil(s, []StateUpdate{{1, RUNNING}, {2, RUNNING}, {3, RUNNING}, {4, RUNNING}, {5, RUNNING}})
-	pids := make(map[uint32]int)
-	for i, subAgent := range s.agents {
-		pids[i] = subAgent.cmd.Process.Pid
-		if !processIsExists(pids[i]) {
-			t.Errorf("Sub-agent with id %d is not run", pids[i])
-		}
-	}
-
-	processes = []*agent.SetStateRequest_AgentProcess{}
-	for i := uint32(4); i <= agentsCount; i++ {
 		process := &agent.SetStateRequest_AgentProcess{
-			AgentId: i,
-			Type:    agent.Type_MYSQLD_EXPORTER,
-			Args:    arguments,
-			Env:     env,
+			Type: agent.Type_MYSQLD_EXPORTER,
+			Args: []string{
+				"-web.listen-address=:{{ .ListenPort }}",
+				"-web.ssl-cert-file={{ .TextFiles.Cert }}",
+			},
+			Env: []string{
+				"HTTP_AUTH=pmm:secret",
+				"TEST=:{{ .ListenPort }}",
+			},
+			TextFiles: map[string]string{
+				"Cert":   "-----BEGIN CERTIFICATE-----\n...",
+				"Config": "test={{ .ListenPort }}",
+			},
 		}
-		processes = append(processes, process)
-	}
+		actual, err := s.processParams("ID", process, 12345)
+		require.NoError(t, err)
 
-	// Restart if params updated
-	process := &agent.SetStateRequest_AgentProcess{
-		AgentId: 3,
-		Type:    agent.Type_MYSQLD_EXPORTER,
-		Args:    append(arguments, "-collect.binlog_size"),
-		Env:     env,
-	}
-	processes = append(processes, process)
-
-	response = s.UpdateState(processes)
-	if uint32(len(response)) != agentsCount {
-		t.Errorf("%d process states returned, expected %d", len(response), agentsCount)
-	}
-	if uint32(len(s.agents)) != 3 {
-		t.Errorf("%d agents works, expected %d", len(s.agents), 3)
-	}
-
-	for _, process := range response {
-		checkResponse(t, process, process.AgentId < 3)
-	}
-	waitUntil(s, []StateUpdate{{3, RUNNING}, {1, STOPPED}, {2, STOPPED}})
-
-	assert.NotEqual(t, pids[3], s.agents[3].cmd.Process.Pid)
-	for i := uint32(1); i <= agentsCount; i++ {
-		procExists := processIsExists(pids[i])
-		enabled := i >= 4
-		if procExists != enabled {
-			t.Errorf("Sub-agent pid %d is run = %v, expected %v", pids[i], procExists, enabled)
+		expected := processParams{
+			path: "/path/to/mysql_exporter",
+			args: []string{
+				"-web.listen-address=:12345",
+				"-web.ssl-cert-file=" + filepath.Join(s.paths.TempDir, "mysqld_exporter-ID", "Cert"),
+			},
+			env: []string{
+				"HTTP_AUTH=pmm:secret",
+				"TEST=:12345",
+			},
 		}
-	}
+		assert.Equal(t, expected, *actual)
+	})
+
+	t.Run("BadTemplate", func(t *testing.T) {
+		t.Parallel()
+		s, teardown := setup()
+		defer teardown()
+
+		process := &agent.SetStateRequest_AgentProcess{
+			Type: agent.Type_MYSQLD_EXPORTER,
+			Args: []string{"-foo=:{{ .bar }}"},
+		}
+		_, err := s.processParams("ID", process, 0)
+		require.Error(t, err)
+		assert.Regexp(t, `map has no entry for key "bar"`, err.Error())
+
+		process = &agent.SetStateRequest_AgentProcess{
+			Type:      agent.Type_MYSQLD_EXPORTER,
+			TextFiles: map[string]string{"foo": "{{ .bar }}"},
+		}
+		_, err = s.processParams("ID", process, 0)
+		require.Error(t, err)
+		assert.Regexp(t, `map has no entry for key "bar"`, err.Error())
+
+		process = &agent.SetStateRequest_AgentProcess{
+			Type:      agent.Type_MYSQLD_EXPORTER,
+			TextFiles: map[string]string{"bar": "{{ .ListenPort }}"},
+			Args:      []string{"-foo=:{{ .TextFiles.baz }}"},
+		}
+		_, err = s.processParams("ID", process, 0)
+		require.Error(t, err)
+		assert.Regexp(t, `map has no entry for key "baz"`, err.Error())
+	})
 }
-
-func TestSubAgentArgs(t *testing.T) {
-	type fields struct {
-		params *agent.SetStateRequest_AgentProcess
-		port   uint32
-	}
-	tests := []struct {
-		name    string
-		fields  fields
-		want    []string
-		wantErr bool
-	}{
-		{
-			"No args test",
-			fields{
-				&agent.SetStateRequest_AgentProcess{
-					Args: []string{},
-				},
-				1234,
-			},
-			[]string{},
-			false,
-		},
-		{
-			"Simple test",
-			fields{
-				&agent.SetStateRequest_AgentProcess{
-					Args: []string{"-web.listen-address=127.0.0.1:{{ .ListenPort }}"},
-				},
-				1234,
-			},
-			[]string{"-web.listen-address=127.0.0.1:1234"},
-			false,
-		},
-		{
-			"Multiple args test",
-			fields{
-				&agent.SetStateRequest_AgentProcess{
-					Args: []string{"-collect.binlog_size", "-web.listen-address=127.0.0.1:{{ .ListenPort }}"},
-				},
-				9175,
-			},
-			[]string{"-collect.binlog_size", "-web.listen-address=127.0.0.1:9175"},
-			false,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			cancel, m, _, _ := setup()
-			defer cancel()
-			// m := NewSupervisor(ctx, paths, config.Ports{Min: 10000, Max: 20000})
-			got, err := m.args(tt.fields.params.Args, templateParams{ListenPort: tt.fields.port})
-			if (err != nil) != tt.wantErr {
-				t.Errorf("subAgent.args() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-
-			assert.Equal(t, tt.want, got)
-		})
-	}
-}
-
-func TestSimpleStartStopSubAgent(t *testing.T) {
-	cancel, s, arguments, env := setup()
-	defer cancel()
-
-	agentID := uint32(1)
-	params := agent.SetStateRequest_AgentProcess{
-		AgentId: agentID,
-		Type:    agent.Type_MYSQLD_EXPORTER,
-		Args:    arguments,
-		Env:     env,
-	}
-	err := s.start(params, 12345)
-	if err != nil {
-		t.Errorf("Supervisor.start() error = %v", err)
-	}
-	waitUntil(s, []StateUpdate{{agentID, RUNNING}})
-	pid, procExists := agentProcessIsExists(t, s, agentID)
-	if !procExists {
-		t.Errorf("Sub-agent process not found error = %v", err)
-	}
-	s.stop(agentID, true)
-	procExists = processIsExists(pid)
-	if procExists {
-		t.Errorf("sub-agent with pid %d is not stopped", pid)
-	}
-}
-
-func TestContextDoneStopSubAgents(t *testing.T) {
-	cancel, s, arguments, env := setup()
-
-	agentID := uint32(1)
-	params := agent.SetStateRequest_AgentProcess{
-		AgentId: agentID,
-		Type:    agent.Type_MYSQLD_EXPORTER,
-		Args:    arguments,
-		Env:     env,
-	}
-	err := s.start(params, 12346)
-	if err != nil {
-		t.Errorf("Supervisor.start() error = %v", err)
-	}
-	waitUntil(s, []StateUpdate{{agentID, RUNNING}})
-	pid, procExists := agentProcessIsExists(t, s, agentID)
-	if !procExists {
-		t.Errorf("Sub-agent process not found error = %v", err)
-	}
-	cancel()
-	waitUntil(s, []StateUpdate{{agentID, STOPPED}})
-	procExists = processIsExists(pid)
-	if procExists {
-		t.Errorf("sub-agent with pid %d is not stopped", pid)
-	}
-}
-*/

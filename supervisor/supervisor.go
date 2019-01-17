@@ -20,7 +20,13 @@ package supervisor
 import (
 	"bytes"
 	"context"
+	"fmt"
+	"io/ioutil"
+	"os"
+	"path/filepath"
+	"regexp"
 	"sort"
+	"strings"
 	"sync"
 	"text/template"
 
@@ -50,10 +56,6 @@ type agentInfo struct {
 	done           chan struct{}
 	requestedState *agent.SetStateRequest_AgentProcess
 	listenPort     uint16
-}
-
-type templateParams struct {
-	ListenPort uint16
 }
 
 // NewSupervisor creates new Supervisor object.
@@ -86,34 +88,7 @@ func (s *Supervisor) SetState(agentProcesses map[string]*agent.SetStateRequest_A
 		return
 	}
 
-	// existing agents not present in the new requested state should be stopped
-	var toStop []string
-	for agentID := range s.agents {
-		if agentProcesses[agentID] == nil {
-			toStop = append(toStop, agentID)
-		}
-	}
-
-	// detect new and changed agents
-	var toStart, toRestart []string
-	for agentID, agentProcess := range agentProcesses {
-		agent := s.agents[agentID]
-		if agent == nil {
-			toStart = append(toStart, agentID)
-			continue
-		}
-
-		// compare parameters before templating
-		if proto.Equal(agent.requestedState, agentProcess) {
-			continue
-		}
-
-		toRestart = append(toRestart, agentID)
-	}
-
-	sort.Strings(toStop)
-	sort.Strings(toRestart)
-	sort.Strings(toStart)
+	toStart, toRestart, toStop := s.filter(agentProcesses)
 
 	// We have to wait for processes to terminate before starting a new ones to reuse ports.
 	// If that place is slow, we can cancel them all in parallel, but then we still have to wait.
@@ -169,10 +144,41 @@ func (s *Supervisor) Changes() <-chan agent.StateChangedRequest {
 	return s.changes
 }
 
+// filter extracts IDs of the Agents that should be started, restarted with new parameters, or stopped,
+// and filters out IDs of the Agents that should not be changed.
+func (s *Supervisor) filter(agentProcesses map[string]*agent.SetStateRequest_AgentProcess) (toStart, toRestart, toStop []string) {
+	// existing agents not present in the new requested state should be stopped
+	for agentID := range s.agents {
+		if agentProcesses[agentID] == nil {
+			toStop = append(toStop, agentID)
+		}
+	}
+
+	// detect new and changed agents
+	for agentID, agentProcess := range agentProcesses {
+		agent := s.agents[agentID]
+		if agent == nil {
+			toStart = append(toStart, agentID)
+			continue
+		}
+
+		// compare parameters before templating
+		if proto.Equal(agent.requestedState, agentProcess) {
+			continue
+		}
+
+		toRestart = append(toRestart, agentID)
+	}
+
+	sort.Strings(toStop)
+	sort.Strings(toRestart)
+	sort.Strings(toStart)
+	return
+}
+
+// start starts agent and returns its info.
 func (s *Supervisor) start(agentID string, agentProcess *agent.SetStateRequest_AgentProcess, port uint16) (*agentInfo, error) {
-	processParams, err := s.processParams(agentProcess, &templateParams{
-		ListenPort: port,
-	})
+	processParams, err := s.processParams(agentID, agentProcess, port)
 	if err != nil {
 		return nil, err
 	}
@@ -181,7 +187,7 @@ func (s *Supervisor) start(agentID string, agentProcess *agent.SetStateRequest_A
 	l := logrus.WithFields(logrus.Fields{
 		"component": "agent",
 		"agentID":   agentID,
-		"type":      agentProcess.Type.String(),
+		"type":      strings.ToLower(agentProcess.Type.String()),
 	})
 	process := newProcess(ctx, processParams, l)
 
@@ -201,13 +207,16 @@ func (s *Supervisor) start(agentID string, agentProcess *agent.SetStateRequest_A
 		process:        process,
 		cancel:         cancel,
 		done:           done,
-		requestedState: agentProcess,
+		requestedState: proto.Clone(agentProcess).(*agent.SetStateRequest_AgentProcess),
 		listenPort:     port,
 	}, nil
 }
 
-// processParams makes processParams from SetStateRequest parameters and template data.
-func (s *Supervisor) processParams(agentProcess *agent.SetStateRequest_AgentProcess, templateParams *templateParams) (*processParams, error) {
+// _ as a first rune is kept for possible extensions
+var textFileRE = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9_]*$`)
+
+// processParams makes processParams from SetStateRequest parameters and other data.
+func (s *Supervisor) processParams(agentID string, agentProcess *agent.SetStateRequest_AgentProcess, port uint16) (*processParams, error) {
 	var processParams processParams
 	switch agentProcess.Type {
 	case agent.Type_NODE_EXPORTER:
@@ -218,35 +227,69 @@ func (s *Supervisor) processParams(agentProcess *agent.SetStateRequest_AgentProc
 		return nil, errors.Errorf("unhandled agent type %[1]s (%[1]d).", agentProcess.Type)
 	}
 
+	renderTemplate := func(name, text string, params map[string]interface{}) ([]byte, error) {
+		t := template.New(name)
+		t.Delims(agentProcess.TemplateLeftDelim, agentProcess.TemplateRightDelim)
+		t.Option("missingkey=error")
+
+		var buf bytes.Buffer
+		if _, err := t.Parse(text); err != nil {
+			return nil, errors.WithStack(err)
+		}
+		if err := t.Execute(&buf, params); err != nil {
+			return nil, errors.WithStack(err)
+		}
+		return buf.Bytes(), nil
+	}
+
+	templateParams := map[string]interface{}{
+		"ListenPort": port,
+	}
+
+	dir := filepath.Join(s.paths.TempDir, fmt.Sprintf("%s-%s", strings.ToLower(agentProcess.Type.String()), agentID))
+	if err := os.RemoveAll(dir); err != nil {
+		return nil, errors.WithStack(err)
+	}
+	if err := os.MkdirAll(dir, 0750); err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+	textFiles := make(map[string]string, len(agentProcess.TextFiles)) // template name => full file path
+	for name, text := range agentProcess.TextFiles {
+		// avoid /, .., ., \, and other special symbols
+		if !textFileRE.MatchString(name) {
+			return nil, errors.Errorf("invalid text file name %q", name)
+		}
+
+		b, err := renderTemplate(name, text, templateParams)
+		if err != nil {
+			return nil, err
+		}
+
+		path := filepath.Join(dir, name)
+		if err = ioutil.WriteFile(path, b, 0640); err != nil {
+			return nil, errors.WithStack(err)
+		}
+		textFiles[name] = path
+	}
+	templateParams["TextFiles"] = textFiles
+
 	processParams.args = make([]string, len(agentProcess.Args))
 	for i, e := range agentProcess.Args {
-		t, err := template.New("").Parse(e)
+		b, err := renderTemplate("args", e, templateParams)
 		if err != nil {
-			return nil, errors.WithStack(err)
+			return nil, err
 		}
-		var buf bytes.Buffer
-		if err = t.Execute(&buf, templateParams); err != nil {
-			return nil, errors.WithStack(err)
-		}
-		processParams.args[i] = buf.String()
+		processParams.args[i] = string(b)
 	}
 
 	processParams.env = make([]string, len(agentProcess.Env))
 	for i, e := range agentProcess.Env {
-		t, err := template.New("").Parse(e)
+		b, err := renderTemplate("env", e, templateParams)
 		if err != nil {
-			return nil, errors.WithStack(err)
+			return nil, err
 		}
-		var buf bytes.Buffer
-		if err = t.Execute(&buf, templateParams); err != nil {
-			return nil, errors.WithStack(err)
-		}
-		processParams.env[i] = buf.String()
-	}
-
-	// https://jira.percona.com/browse/PMM-3437
-	if len(agentProcess.Configs) != 0 {
-		s.l.Warn("Agents Configs are not supported yet.")
+		processParams.env[i] = string(b)
 	}
 
 	return &processParams, nil
