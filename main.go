@@ -67,10 +67,15 @@ func workLoop(ctx context.Context, cfg *config.Config, client agent.AgentClient)
 	channel := server.NewChannel(stream)
 	prometheus.MustRegister(channel)
 
-	svr := supervisor.NewSupervisor(ctx, &cfg.Paths, &cfg.Ports)
+	s := supervisor.NewSupervisor(ctx, &cfg.Paths, &cfg.Ports)
 	go func() {
-		for status := range svr.Changes() {
-			l.Debugf("Agent %s changed state to %s", status.AgentId, status.Status)
+		for state := range s.Changes() {
+			res := channel.SendRequest(&agent.AgentMessage_StateChanged{
+				StateChanged: &state,
+			})
+			if res == nil {
+				l.Warn("Failed to send StateChanged request.")
+			}
 		}
 	}()
 
@@ -88,7 +93,7 @@ func workLoop(ctx context.Context, cfg *config.Config, client agent.AgentClient)
 			}
 
 		case *agent.ServerMessage_State:
-			svr.SetState(payload.State.AgentProcesses)
+			s.SetState(payload.State.AgentProcesses)
 
 			agentMessage = &agent.AgentMessage{
 				Id: serverMessage.Id,
@@ -121,6 +126,7 @@ func main() {
 		logrus.Debug("Debug logging enabled.")
 	}
 
+	// TODO
 	_ = agentlocal.AgentLocalServer{}
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -164,6 +170,7 @@ func main() {
 	logrus.Infof("Connected to %s.", cfg.Address)
 	client := agent.NewAgentClient(conn)
 
+	// TODO
 	// if cfg.UUID == "" {
 	// 	logrus.Info("Registering pmm-agent ...")
 	// 	resp, err := client.Register(ctx, &agent.RegisterRequest{})
