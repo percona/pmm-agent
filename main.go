@@ -92,13 +92,13 @@ func workLoop(ctx context.Context, cfg *config.Config, client agent.AgentClient)
 				},
 			}
 
-		case *agent.ServerMessage_State:
-			s.SetState(payload.State.AgentProcesses)
+		case *agent.ServerMessage_SetState:
+			s.SetState(payload.SetState.AgentProcesses)
 
 			agentMessage = &agent.AgentMessage{
 				Id: serverMessage.Id,
-				Payload: &agent.AgentMessage_State{
-					State: &agent.SetStateResponse{},
+				Payload: &agent.AgentMessage_SetState{
+					SetState: &agent.SetStateResponse{},
 				},
 			}
 

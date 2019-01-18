@@ -178,7 +178,7 @@ func (c *Channel) runReceiver() {
 
 		switch msg.Payload.(type) {
 		// requests
-		case *agent.ServerMessage_Ping, *agent.ServerMessage_State:
+		case *agent.ServerMessage_Ping, *agent.ServerMessage_SetState:
 			c.requests <- msg
 
 		// responses
