@@ -118,7 +118,7 @@
 
 [[projects]]
   branch = "PMM-2.0"
-  digest = "1:e458b890978448d99b48e1922d331ed5811c3bb04507697b908af7cb7d8a0934"
+  digest = "1:57cd057caa38954042fe64bc9feb1c49612c52209eb6220b99174a0d66f75d82"
   name = "github.com/percona/pmm"
   packages = [
     "api/agent",
@@ -126,7 +126,7 @@
     "api/inventory",
   ]
   pruneopts = "NUT"
-  revision = "c12a91b0fdfc1a9abd5837eff817f4654518cbd7"
+  revision = "f324fd100d3364ad1ac9ac96c78a755831155602"
 
 [[projects]]
   digest = "1:5cf3f025cbee5951a4ee961de067c8a89fc95a5adabead774f82822efabab121"
@@ -328,6 +328,7 @@
     "github.com/percona/exporter_shared/helpers",
     "github.com/percona/pmm/api/agent",
     "github.com/percona/pmm/api/agent_local",
+    "github.com/percona/pmm/api/inventory",
     "github.com/pkg/errors",
     "github.com/prometheus/client_golang/prometheus",
     "github.com/sirupsen/logrus",

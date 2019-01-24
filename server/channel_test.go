@@ -169,7 +169,7 @@ func TestServerRequest(t *testing.T) {
 			err := stream.Send(&agent.ServerMessage{
 				Id: i,
 				Payload: &agent.ServerMessage_Ping{
-					Ping: new(agent.PingRequest),
+					Ping: new(agent.Ping),
 				},
 			})
 			assert.NoError(t, err)
@@ -179,9 +179,9 @@ func TestServerRequest(t *testing.T) {
 			msg, err := stream.Recv()
 			require.NoError(t, err)
 			assert.Equal(t, i, msg.Id)
-			pingResponse := msg.GetPing()
-			require.NotNil(t, pingResponse)
-			ts, err := ptypes.Timestamp(pingResponse.CurrentTime)
+			pong := msg.GetPong()
+			require.NotNil(t, pong)
+			ts, err := ptypes.Timestamp(pong.CurrentTime)
 			assert.NoError(t, err)
 			assert.InDelta(t, time.Now().Unix(), ts.Unix(), 1)
 		}
@@ -198,8 +198,8 @@ func TestServerRequest(t *testing.T) {
 
 		channel.SendResponse(&agent.AgentMessage{
 			Id: req.Id,
-			Payload: &agent.AgentMessage_Ping{
-				Ping: &agent.PingResponse{
+			Payload: &agent.AgentMessage_Pong{
+				Pong: &agent.Pong{
 					CurrentTime: ptypes.TimestampNow(),
 				},
 			},
@@ -251,7 +251,7 @@ func TestAgentClosesStream(t *testing.T) {
 		err := stream.Send(&agent.ServerMessage{
 			Id: 1,
 			Payload: &agent.ServerMessage_Ping{
-				Ping: new(agent.PingRequest),
+				Ping: new(agent.Ping),
 			},
 		})
 		assert.NoError(t, err)
@@ -279,7 +279,7 @@ func TestAgentClosesConnection(t *testing.T) {
 		err := stream.Send(&agent.ServerMessage{
 			Id: 1,
 			Payload: &agent.ServerMessage_Ping{
-				Ping: new(agent.PingRequest),
+				Ping: new(agent.Ping),
 			},
 		})
 		assert.NoError(t, err)

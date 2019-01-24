@@ -50,22 +50,54 @@ const (
 	backoffMaxDelay = 10 * time.Second
 )
 
-func workLoop(ctx context.Context, cfg *config.Config, client agent.AgentClient) {
-	l := logrus.WithField("component", "conn")
-
-	l.Info("Establishing two-way communication channel ...")
-	ctx = agent.AddAgentConnectMetadata(ctx, &agent.AgentConnectMetadata{
+func workLoop(ctx context.Context, cfg *config.Config, l *logrus.Entry, client agent.AgentClient) {
+	// use separate context for stream to cancel it after supervisor is done sending last changes
+	streamCtx, streamCancel := context.WithCancel(context.Background())
+	streamCtx = agent.AddAgentConnectMetadata(streamCtx, &agent.AgentConnectMetadata{
 		ID:      cfg.ID,
 		Version: Version,
 	})
-	stream, err := client.Connect(ctx)
+
+	l.Info("Establishing two-way communication channel ...")
+	stream, err := client.Connect(streamCtx)
 	if err != nil {
-		l.Fatal(err)
+		l.Errorf("Failed to establish two-way communication channel: %s.", err)
+		streamCancel()
+		return
 	}
-	l.Info("Two-way communication channel established.")
 
 	channel := server.NewChannel(stream)
 	prometheus.MustRegister(channel)
+	defer func() {
+		err = channel.Wait()
+		switch err {
+		case nil:
+			l.Info("Two-way communication channel closed.")
+		default:
+			l.Errorf("Two-way communication channel closed: %s", err)
+		}
+	}()
+
+	// So far nginx can handle all that itself without pmm-managed.
+	// We need to send ping to ensure that pmm-managed is alive.
+	start := time.Now()
+	res := channel.SendRequest(&agent.AgentMessage_Ping{
+		Ping: new(agent.Ping),
+	})
+	if res == nil {
+		// error will be logged by channel code
+		streamCancel()
+		return
+	}
+	latency := time.Since(start) / 2
+	t, err := ptypes.Timestamp(res.(*agent.ServerMessage_Pong).Pong.CurrentTime)
+	if err != nil {
+		l.Errorf("Failed to decode Pong.current_time: %s.", err)
+		streamCancel()
+		return
+	}
+	clockDrift := t.Sub(start.Add(latency))
+	l.Infof("Two-way communication channel established. Latency: %s. Clock drift: %s.", latency, clockDrift)
 
 	s := supervisor.NewSupervisor(ctx, &cfg.Paths, &cfg.Ports)
 	go func() {
@@ -77,6 +109,8 @@ func workLoop(ctx context.Context, cfg *config.Config, client agent.AgentClient)
 				l.Warn("Failed to send StateChanged request.")
 			}
 		}
+		l.Info("Supervisor done.")
+		streamCancel()
 	}()
 
 	for serverMessage := range channel.Requests() {
@@ -85,8 +119,8 @@ func workLoop(ctx context.Context, cfg *config.Config, client agent.AgentClient)
 		case *agent.ServerMessage_Ping:
 			agentMessage = &agent.AgentMessage{
 				Id: serverMessage.Id,
-				Payload: &agent.AgentMessage_Ping{
-					Ping: &agent.PingResponse{
+				Payload: &agent.AgentMessage_Pong{
+					Pong: &agent.Pong{
 						CurrentTime: ptypes.TimestampNow(),
 					},
 				},
@@ -108,8 +142,6 @@ func workLoop(ctx context.Context, cfg *config.Config, client agent.AgentClient)
 
 		channel.SendResponse(agentMessage)
 	}
-
-	l.Error(channel.Wait())
 }
 
 func main() {
@@ -160,14 +192,25 @@ func main() {
 		grpc.WithTransportCredentials(credentials.NewTLS(tlsConfig)),
 	}
 
-	logrus.Infof("Connecting to %s ...", cfg.Address)
-	dialCtx, cancel := context.WithTimeout(ctx, dialTimeout)
+	l := logrus.WithField("component", "connection")
+	l.Infof("Connecting to %s ...", cfg.Address)
+	dialCtx, dialCancel := context.WithTimeout(ctx, dialTimeout)
 	conn, err := grpc.DialContext(dialCtx, cfg.Address, opts...)
-	cancel()
+	dialCancel()
 	if err != nil {
-		logrus.Fatalf("Failed to connect to %s: %s.", cfg.Address, err)
+		l.Fatalf("Failed to connect to %s: %s.", cfg.Address, err)
 	}
-	logrus.Infof("Connected to %s.", cfg.Address)
+	defer func() {
+		err := conn.Close()
+		switch err {
+		case nil:
+			l.Info("Connection closed.")
+		default:
+			l.Errorf("Connection closed: %s.", err)
+		}
+	}()
+
+	l.Infof("Connected to %s.", cfg.Address)
 	client := agent.NewAgentClient(conn)
 
 	// TODO
@@ -181,5 +224,5 @@ func main() {
 	// 	logrus.Infof("pmm-agent registered: %s.", cfg.UUID)
 	// }
 
-	workLoop(ctx, &cfg, client)
+	workLoop(ctx, &cfg, l, client)
 }

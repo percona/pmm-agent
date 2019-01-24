@@ -17,14 +17,20 @@ var _ = fmt.Errorf
 var _ = math.Inf
 
 func (this *RegisterRequest) Validate() error {
-	if this.Node != nil {
-		if err := github_com_mwitkow_go_proto_validators.CallValidatorIfExists(this.Node); err != nil {
-			return github_com_mwitkow_go_proto_validators.FieldError("Node", err)
-		}
-	}
 	return nil
 }
 func (this *RegisterResponse) Validate() error {
+	return nil
+}
+func (this *Ping) Validate() error {
+	return nil
+}
+func (this *Pong) Validate() error {
+	if this.CurrentTime != nil {
+		if err := github_com_mwitkow_go_proto_validators.CallValidatorIfExists(this.CurrentTime); err != nil {
+			return github_com_mwitkow_go_proto_validators.FieldError("CurrentTime", err)
+		}
+	}
 	return nil
 }
 func (this *QANDataRequest) Validate() error {
@@ -44,17 +50,6 @@ func (this *StateChangedRequest) Validate() error {
 func (this *StateChangedResponse) Validate() error {
 	return nil
 }
-func (this *PingRequest) Validate() error {
-	return nil
-}
-func (this *PingResponse) Validate() error {
-	if this.CurrentTime != nil {
-		if err := github_com_mwitkow_go_proto_validators.CallValidatorIfExists(this.CurrentTime); err != nil {
-			return github_com_mwitkow_go_proto_validators.FieldError("CurrentTime", err)
-		}
-	}
-	return nil
-}
 func (this *SetStateRequest) Validate() error {
 	// Validation of proto3 map<> fields is unsupported.
 	return nil
@@ -67,10 +62,10 @@ func (this *SetStateResponse) Validate() error {
 	return nil
 }
 func (this *AgentMessage) Validate() error {
-	if oneOfNester, ok := this.GetPayload().(*AgentMessage_QanData); ok {
-		if oneOfNester.QanData != nil {
-			if err := github_com_mwitkow_go_proto_validators.CallValidatorIfExists(oneOfNester.QanData); err != nil {
-				return github_com_mwitkow_go_proto_validators.FieldError("QanData", err)
+	if oneOfNester, ok := this.GetPayload().(*AgentMessage_Ping); ok {
+		if oneOfNester.Ping != nil {
+			if err := github_com_mwitkow_go_proto_validators.CallValidatorIfExists(oneOfNester.Ping); err != nil {
+				return github_com_mwitkow_go_proto_validators.FieldError("Ping", err)
 			}
 		}
 	}
@@ -81,10 +76,17 @@ func (this *AgentMessage) Validate() error {
 			}
 		}
 	}
-	if oneOfNester, ok := this.GetPayload().(*AgentMessage_Ping); ok {
-		if oneOfNester.Ping != nil {
-			if err := github_com_mwitkow_go_proto_validators.CallValidatorIfExists(oneOfNester.Ping); err != nil {
-				return github_com_mwitkow_go_proto_validators.FieldError("Ping", err)
+	if oneOfNester, ok := this.GetPayload().(*AgentMessage_QanData); ok {
+		if oneOfNester.QanData != nil {
+			if err := github_com_mwitkow_go_proto_validators.CallValidatorIfExists(oneOfNester.QanData); err != nil {
+				return github_com_mwitkow_go_proto_validators.FieldError("QanData", err)
+			}
+		}
+	}
+	if oneOfNester, ok := this.GetPayload().(*AgentMessage_Pong); ok {
+		if oneOfNester.Pong != nil {
+			if err := github_com_mwitkow_go_proto_validators.CallValidatorIfExists(oneOfNester.Pong); err != nil {
+				return github_com_mwitkow_go_proto_validators.FieldError("Pong", err)
 			}
 		}
 	}
@@ -98,10 +100,10 @@ func (this *AgentMessage) Validate() error {
 	return nil
 }
 func (this *ServerMessage) Validate() error {
-	if oneOfNester, ok := this.GetPayload().(*ServerMessage_QanData); ok {
-		if oneOfNester.QanData != nil {
-			if err := github_com_mwitkow_go_proto_validators.CallValidatorIfExists(oneOfNester.QanData); err != nil {
-				return github_com_mwitkow_go_proto_validators.FieldError("QanData", err)
+	if oneOfNester, ok := this.GetPayload().(*ServerMessage_Pong); ok {
+		if oneOfNester.Pong != nil {
+			if err := github_com_mwitkow_go_proto_validators.CallValidatorIfExists(oneOfNester.Pong); err != nil {
+				return github_com_mwitkow_go_proto_validators.FieldError("Pong", err)
 			}
 		}
 	}
@@ -109,6 +111,13 @@ func (this *ServerMessage) Validate() error {
 		if oneOfNester.StateChanged != nil {
 			if err := github_com_mwitkow_go_proto_validators.CallValidatorIfExists(oneOfNester.StateChanged); err != nil {
 				return github_com_mwitkow_go_proto_validators.FieldError("StateChanged", err)
+			}
+		}
+	}
+	if oneOfNester, ok := this.GetPayload().(*ServerMessage_QanData); ok {
+		if oneOfNester.QanData != nil {
+			if err := github_com_mwitkow_go_proto_validators.CallValidatorIfExists(oneOfNester.QanData); err != nil {
+				return github_com_mwitkow_go_proto_validators.FieldError("QanData", err)
 			}
 		}
 	}

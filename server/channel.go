@@ -182,11 +182,11 @@ func (c *Channel) runReceiver() {
 			c.requests <- msg
 
 		// responses
-		case *agent.ServerMessage_QanData:
+		case *agent.ServerMessage_Pong, *agent.ServerMessage_StateChanged, *agent.ServerMessage_QanData:
 			c.publish(msg.Id, msg.Payload)
 
 		default:
-			c.close(errors.Wrapf(err, "failed to handle received message %s", msg))
+			c.close(errors.Errorf("failed to handle received message %s", msg))
 			return
 		}
 	}
