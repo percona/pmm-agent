@@ -14,19 +14,22 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-package supervisor
+// +build ignore
+
+package main
 
 import (
+	"flag"
+	"fmt"
 	"os/exec"
-
-	"golang.org/x/sys/unix"
 )
 
-// https://jira.percona.com/browse/PMM-3173
-// TODO test it
-func setSysProcAttr(cmd *exec.Cmd) {
-	cmd.SysProcAttr = &unix.SysProcAttr{
-		Pdeathsig: unix.SIGKILL,
-		Setpgid: true,
-	}
+func main() {
+	flag.Parse()
+
+	cmd := exec.Command("sleep", "30")
+	cmd.Start()
+
+	fmt.Println(cmd.Process.Pid)
+	cmd.Wait()
 }
