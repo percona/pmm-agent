@@ -27,7 +27,7 @@ import (
 func main() {
 	flag.Parse()
 
-	cmd := exec.Command("sleep", "30")
+	cmd := exec.Command("sleep", "300")
 	cmd.Start()
 
 	fmt.Println(cmd.Process.Pid)

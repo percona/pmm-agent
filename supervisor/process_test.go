@@ -132,6 +132,7 @@ func TestProcess(t *testing.T) {
 
 		logs := p.Logs()
 		pid, err := strconv.Atoi(logs[0])
+		require.NoError(t, err)
 		proc, err := os.FindProcess(pid)
 		require.NoError(t, err)
 
