@@ -14,22 +14,38 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-// +build ignore
+//+build ignore
+
+// Run it with:
+//   go run -tags child process_child.go
 
 package main
 
 import (
+	"bytes"
+	"context"
 	"flag"
 	"fmt"
-	"os/exec"
+	"time"
+
+	"github.com/sirupsen/logrus"
+
+	"github.com/percona/pmm-agent/supervisor"
 )
 
 func main() {
 	flag.Parse()
+	logger := logrus.New()
+	logger.SetOutput(&bytes.Buffer{})
+	l := logrus.NewEntry(logger)
 
-	cmd := exec.Command("sleep", "300")
-	cmd.Start()
+	process := supervisor.NewProcess(context.Background(), supervisor.NewProcessParams("sleep", []string{"100500"}), l)
+
+	<-process.Changes()
+	<-process.Changes()
+
+	cmd := supervisor.ExportCmd(process)
 
 	fmt.Println(cmd.Process.Pid)
-	cmd.Wait()
+	time.Sleep(30 * time.Second)
 }

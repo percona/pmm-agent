@@ -24,6 +24,7 @@ import (
 	"strconv"
 	"syscall"
 	"testing"
+	"time"
 
 	"github.com/percona/pmm/api/agent"
 	"github.com/sirupsen/logrus"
@@ -107,10 +108,10 @@ func TestProcess(t *testing.T) {
 		assertStates(t, p, agent.Status_DONE, agent.Status_STATUS_INVALID)
 	})
 
-	t.Run("Kill Grandchild", func(t *testing.T) {
+	t.Run("Gracefully stop child", func(t *testing.T) {
 		t.Parallel()
 
-		f, err := ioutil.TempFile("", "pmm-agent-process-test-grandchild")
+		f, err := ioutil.TempFile("", "pmm-agent-process-test-child")
 		require.NoError(t, err)
 		require.NoError(t, f.Close())
 		defer func() {
@@ -118,7 +119,7 @@ func TestProcess(t *testing.T) {
 		}()
 
 		t.Logf("building to %s", f.Name())
-		cmd := exec.Command("go", "build", "-o", f.Name(), "process_grandchild.go") //nolint:gosec
+		cmd := exec.Command("go", "build", "-tags", "child", "-o", f.Name(), "process_child.go") //nolint:gosec
 		cmd.Stdout = os.Stderr
 		cmd.Stderr = os.Stderr
 		require.NoError(t, cmd.Run(), "failed to build process_grandchild.go")
@@ -127,17 +128,76 @@ func TestProcess(t *testing.T) {
 		p := newProcess(ctx, &processParams{path: f.Name()}, l)
 
 		assertStates(t, p, agent.Status_STARTING, agent.Status_RUNNING)
+		var logs []string
+		for {
+			logs = p.Logs()
+			if len(logs) > 0 {
+				break
+			}
+		}
 		cancel()
-		assertStates(t, p, agent.Status_STOPPING, agent.Status_DONE, agent.Status_STATUS_INVALID)
+		assertStates(t, p, agent.Status_STOPPING, agent.Status_DONE)
+		time.Sleep(200 * time.Millisecond)
 
-		logs := p.Logs()
 		pid, err := strconv.Atoi(logs[0])
 		require.NoError(t, err)
 		proc, err := os.FindProcess(pid)
 		require.NoError(t, err)
 
+		err = cmd.Process.Signal(syscall.Signal(0))
+		require.NotNilf(t, err, "process with pid %v is not killed", cmd.Process.Pid)
+
 		err = proc.Signal(syscall.Signal(0))
-		require.NotNilf(t, err, "grand child process with pid %v is not killed", logs[0])
+		require.NotNilf(t, err, "child process with pid %v is not killed", logs[0])
+	})
+
+	t.Run("Kill child", func(t *testing.T) {
+		t.Parallel()
+
+		f, err := ioutil.TempFile("", "pmm-agent-process-test-child")
+		require.NoError(t, err)
+		require.NoError(t, f.Close())
+		defer func() {
+			require.NoError(t, os.Remove(f.Name()))
+		}()
+
+		t.Logf("building to %s", f.Name())
+		cmd := exec.Command("go", "build", "-tags", "child", "-o", f.Name(), "process_child.go") //nolint:gosec
+		cmd.Stdout = os.Stderr
+		cmd.Stderr = os.Stderr
+		require.NoError(t, cmd.Run(), "failed to build process_grandchild.go")
+
+		ctx, cancel, l := setup(t)
+		defer cancel()
+
+		logger := newProcessLogger(l, 2)
+
+		pCmd := exec.CommandContext(ctx, f.Name())
+		pCmd.Stdout = logger
+		err = pCmd.Start()
+		require.NoError(t, err)
+
+		var logs []string
+		for {
+			logs = logger.Latest()
+			if len(logs) > 0 {
+				break
+			}
+		}
+		err = pCmd.Process.Kill()
+		require.NoError(t, err)
+		time.Sleep(200 * time.Millisecond)
+
+		pid, err := strconv.Atoi(logs[0])
+		require.NoError(t, err)
+		proc, err := os.FindProcess(pid)
+		require.NoError(t, err)
+
+		err = cmd.Process.Signal(syscall.Signal(0))
+		require.NotNilf(t, err, "process with pid %v is not killed", cmd.Process.Pid)
+
+		err = proc.Signal(syscall.Signal(0))
+		require.NotNilf(t, err, "child process with pid %v is not killed", logs[0])
 	})
 
 	t.Run("Killed", func(t *testing.T) {

@@ -19,7 +19,6 @@ package supervisor
 import (
 	"context"
 	"os/exec"
-	"syscall"
 	"time"
 
 	"github.com/percona/pmm/api/agent"
@@ -166,11 +165,8 @@ func (p *process) toStopping() {
 	p.l.Infof("Process: stopping (sending SIGTERM)...")
 	p.changes <- agent.Status_STOPPING
 
-	pgid, err := syscall.Getpgid(p.cmd.Process.Pid)
-	if err == nil {
-		if err := syscall.Kill(-pgid, unix.SIGTERM); err != nil {
-			p.l.Errorf("Process: failed to send SIGTERM: %s.", err)
-		}
+	if err := p.cmd.Process.Signal(unix.SIGTERM); err != nil {
+		p.l.Errorf("Process: failed to send SIGTERM: %s.", err)
 	}
 
 	t := time.NewTimer(killT)
@@ -180,12 +176,8 @@ func (p *process) toStopping() {
 		// nothing
 	case <-t.C:
 		p.l.Warnf("Process: still alive after %s, sending SIGKILL...", killT)
-
-		pgid, err := syscall.Getpgid(p.cmd.Process.Pid)
-		if err == nil {
-			if err := syscall.Kill(-pgid, unix.SIGKILL); err != nil {
-				p.l.Errorf("Process: failed to send SIGKILL: %s.", err)
-			}
+		if err := p.cmd.Process.Signal(unix.SIGKILL); err != nil {
+			p.l.Errorf("Process: failed to send SIGKILL: %s.", err)
 		}
 		<-p.cmdDone
 	}

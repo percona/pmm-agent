@@ -14,18 +14,23 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
+//+build child
+
+// Export some identifiers just for process_child.go.
+
 package supervisor
 
-import (
-	"os/exec"
+import "os/exec"
 
-	"golang.org/x/sys/unix"
-)
-
-// https://jira.percona.com/browse/PMM-3173
-// TODO test it
-func setSysProcAttr(cmd *exec.Cmd) {
-	cmd.SysProcAttr = &unix.SysProcAttr{
-		Pdeathsig: unix.SIGKILL,
+func NewProcessParams(path string, args []string) *processParams {
+	return &processParams{
+		path: path,
+		args: args,
 	}
+}
+
+var NewProcess = newProcess
+
+func ExportCmd(pcs *process) *exec.Cmd {
+	return pcs.cmd
 }
