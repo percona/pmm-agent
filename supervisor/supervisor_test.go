@@ -158,16 +158,16 @@ func TestSupervisorProcessParams(t *testing.T) {
 		process := &agent.SetStateRequest_AgentProcess{
 			Type: agent.Type_MYSQLD_EXPORTER,
 			Args: []string{
-				"-web.listen-address=:{{ .ListenPort }}",
+				"-web.listen-address=:{{ .listen_port }}",
 				"-web.ssl-cert-file={{ .TextFiles.Cert }}",
 			},
 			Env: []string{
 				"HTTP_AUTH=pmm:secret",
-				"TEST=:{{ .ListenPort }}",
+				"TEST=:{{ .listen_port }}",
 			},
 			TextFiles: map[string]string{
 				"Cert":   "-----BEGIN CERTIFICATE-----\n...",
-				"Config": "test={{ .ListenPort }}",
+				"Config": "test={{ .listen_port }}",
 			},
 		}
 		actual, err := s.processParams("ID", process, 12345)
@@ -210,7 +210,7 @@ func TestSupervisorProcessParams(t *testing.T) {
 
 		process = &agent.SetStateRequest_AgentProcess{
 			Type:      agent.Type_MYSQLD_EXPORTER,
-			TextFiles: map[string]string{"bar": "{{ .ListenPort }}"},
+			TextFiles: map[string]string{"bar": "{{ .listen_port }}"},
 			Args:      []string{"-foo=:{{ .TextFiles.baz }}"},
 		}
 		_, err = s.processParams("ID", process, 0)
