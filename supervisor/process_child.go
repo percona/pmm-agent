@@ -26,13 +26,12 @@ import (
 	"flag"
 	"fmt"
 	"io/ioutil"
-	"os"
 	"time"
 
+	"github.com/percona/pmm/api/agent"
 	"github.com/sirupsen/logrus"
 
 	"github.com/percona/pmm-agent/supervisor"
-	"github.com/percona/pmm/api/agent"
 )
 
 func main() {
@@ -43,18 +42,18 @@ func main() {
 
 	process := supervisor.NewProcess(context.Background(), supervisor.NewProcessParams("sleep", []string{"100500"}), l)
 
-	// Waiting until process is run.
+	// Wait until the process is running.
 	state := <-process.Changes()
 	if state != agent.Status_STARTING {
-		os.Exit(1)
+		panic("process isn't moved to starting state.")
 	}
 	state = <-process.Changes()
 	if state != agent.Status_RUNNING {
-		os.Exit(1)
+		panic("process isn't moved to running state.")
 	}
 
 	cmd := supervisor.GetCmd(process)
 
-	fmt.Println(cmd.Process.Pid) // Printing Pid to let test check if child process is dead or not.
-	time.Sleep(30 * time.Second) // Waiting until test kill this process.
+	fmt.Println(cmd.Process.Pid) // Printing PID of the child process to let test check if the child process is dead or not.
+	time.Sleep(30 * time.Second) // Waiting until test kills this process.
 }
