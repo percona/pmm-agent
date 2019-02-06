@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-//+build ignore
+// +build ignore
 
 // Run it with:
 //   go run -tags child process_child.go
@@ -22,30 +22,39 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"flag"
 	"fmt"
+	"io/ioutil"
+	"os"
 	"time"
 
 	"github.com/sirupsen/logrus"
 
 	"github.com/percona/pmm-agent/supervisor"
+	"github.com/percona/pmm/api/agent"
 )
 
 func main() {
 	flag.Parse()
 	logger := logrus.New()
-	logger.SetOutput(&bytes.Buffer{})
+	logger.SetOutput(ioutil.Discard)
 	l := logrus.NewEntry(logger)
 
 	process := supervisor.NewProcess(context.Background(), supervisor.NewProcessParams("sleep", []string{"100500"}), l)
 
-	<-process.Changes()
-	<-process.Changes()
+	// Waiting until process is run.
+	state := <-process.Changes()
+	if state != agent.Status_STARTING {
+		os.Exit(1)
+	}
+	state = <-process.Changes()
+	if state != agent.Status_RUNNING {
+		os.Exit(1)
+	}
 
-	cmd := supervisor.ExportCmd(process)
+	cmd := supervisor.GetCmd(process)
 
-	fmt.Println(cmd.Process.Pid)
-	time.Sleep(30 * time.Second)
+	fmt.Println(cmd.Process.Pid) // Printing Pid to let test check if child process is dead or not.
+	time.Sleep(30 * time.Second) // Waiting until test kill this process.
 }

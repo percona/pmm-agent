@@ -22,7 +22,6 @@ import (
 	"os"
 	"os/exec"
 	"strconv"
-	"syscall"
 	"testing"
 	"time"
 
@@ -30,6 +29,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/sys/unix"
 )
 
 // assertStates checks expected statuses in the same order.
@@ -41,6 +41,20 @@ func assertStates(t *testing.T, sa *process, expected ...agent.Status) {
 		actual[i] = <-sa.Changes()
 	}
 	assert.Equal(t, expected, actual)
+}
+
+// builds helper app.
+func build(t *testing.T, tag string, fileName string, outputFile *os.File) *exec.Cmd {
+	args := []string{"build"}
+	if tag != "" {
+		args = append(args, "-tags", tag)
+	}
+	args = append(args, "-o", outputFile.Name(), fileName)
+	cmd := exec.Command("go", args...) //nolint:gosec
+	cmd.Stdout = os.Stderr
+	cmd.Stderr = os.Stderr
+	require.NoError(t, cmd.Run(), "failed to build %s", fileName)
+	return cmd
 }
 
 func setup(t *testing.T) (context.Context, context.CancelFunc, *logrus.Entry) {
@@ -119,36 +133,30 @@ func TestProcess(t *testing.T) {
 		}()
 
 		t.Logf("building to %s", f.Name())
-		cmd := exec.Command("go", "build", "-tags", "child", "-o", f.Name(), "process_child.go") //nolint:gosec
-		cmd.Stdout = os.Stderr
-		cmd.Stderr = os.Stderr
-		require.NoError(t, cmd.Run(), "failed to build process_grandchild.go")
+		build(t, "child", "process_child.go", f)
 
 		ctx, cancel, l := setup(t)
 		p := newProcess(ctx, &processParams{path: f.Name()}, l)
 
 		assertStates(t, p, agent.Status_STARTING, agent.Status_RUNNING)
 		var logs []string
-		for {
-			logs = p.Logs()
-			if len(logs) > 0 {
-				break
-			}
+		for ; len(logs) == 0; logs = p.Logs() {
+			time.Sleep(50 * time.Millisecond)
 		}
 		cancel()
 		assertStates(t, p, agent.Status_STOPPING, agent.Status_DONE)
-		time.Sleep(200 * time.Millisecond)
+		time.Sleep(200 * time.Millisecond) // Waiting until process is stopped.
 
 		pid, err := strconv.Atoi(logs[0])
 		require.NoError(t, err)
 		proc, err := os.FindProcess(pid)
 		require.NoError(t, err)
 
-		err = cmd.Process.Signal(syscall.Signal(0))
-		require.NotNilf(t, err, "process with pid %v is not killed", cmd.Process.Pid)
+		err = p.cmd.Process.Signal(unix.Signal(0))
+		require.EqualError(t, err, "os: process already finished", "process with pid %v is not killed", p.cmd.Process.Pid)
 
-		err = proc.Signal(syscall.Signal(0))
-		require.NotNilf(t, err, "child process with pid %v is not killed", logs[0])
+		err = proc.Signal(unix.Signal(0))
+		require.EqualError(t, err, "os: process already finished", "child process with pid %v is not killed", logs[0])
 	})
 
 	t.Run("Kill child", func(t *testing.T) {
@@ -162,10 +170,7 @@ func TestProcess(t *testing.T) {
 		}()
 
 		t.Logf("building to %s", f.Name())
-		cmd := exec.Command("go", "build", "-tags", "child", "-o", f.Name(), "process_child.go") //nolint:gosec
-		cmd.Stdout = os.Stderr
-		cmd.Stderr = os.Stderr
-		require.NoError(t, cmd.Run(), "failed to build process_grandchild.go")
+		build(t, "child", "process_child.go", f)
 
 		ctx, cancel, l := setup(t)
 		defer cancel()
@@ -186,18 +191,20 @@ func TestProcess(t *testing.T) {
 		}
 		err = pCmd.Process.Kill()
 		require.NoError(t, err)
-		time.Sleep(200 * time.Millisecond)
+		err = pCmd.Wait()
+		require.Error(t, err)
+		time.Sleep(200 * time.Millisecond) // Waiting to be sure that child process is killed.
 
 		pid, err := strconv.Atoi(logs[0])
 		require.NoError(t, err)
 		proc, err := os.FindProcess(pid)
 		require.NoError(t, err)
 
-		err = cmd.Process.Signal(syscall.Signal(0))
-		require.NotNilf(t, err, "process with pid %v is not killed", cmd.Process.Pid)
+		err = pCmd.Process.Signal(unix.Signal(0))
+		require.EqualError(t, err, "os: process already finished", "process with pid %v is not killed", pCmd.Process.Pid)
 
-		err = proc.Signal(syscall.Signal(0))
-		require.NotNilf(t, err, "child process with pid %v is not killed", logs[0])
+		err = proc.Signal(unix.Signal(0))
+		require.EqualError(t, err, "os: process already finished", "child process with pid %v is not killed", logs[0])
 	})
 
 	t.Run("Killed", func(t *testing.T) {
@@ -211,6 +218,7 @@ func TestProcess(t *testing.T) {
 		}()
 
 		t.Logf("building to %s", f.Name())
+		build(t, "", "process_noterm.go", f)
 		cmd := exec.Command("go", "build", "-o", f.Name(), "process_noterm.go") //nolint:gosec
 		cmd.Stdout = os.Stderr
 		cmd.Stderr = os.Stderr
