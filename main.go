@@ -25,7 +25,8 @@ import (
 	"time"
 
 	"github.com/golang/protobuf/ptypes"
-	"github.com/percona/pmm/api/agent"
+	api "github.com/percona/pmm/api/agent"
+	"github.com/percona/pmm/version"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
@@ -41,21 +42,18 @@ import (
 	"github.com/percona/pmm-agent/utils/logger"
 )
 
-var (
-	Version = "2.0.0-dev"
-)
-
 const (
-	dialTimeout     = 10 * time.Second
-	backoffMaxDelay = 10 * time.Second
+	dialTimeout       = 10 * time.Second
+	backoffMaxDelay   = 10 * time.Second
+	clockDriftWarning = 5 * time.Second
 )
 
-func workLoop(ctx context.Context, cfg *config.Config, l *logrus.Entry, client agent.AgentClient) {
+func workLoop(ctx context.Context, cfg *config.Config, l *logrus.Entry, client api.AgentClient) {
 	// use separate context for stream to cancel it after supervisor is done sending last changes
 	streamCtx, streamCancel := context.WithCancel(context.Background())
-	streamCtx = agent.AddAgentConnectMetadata(streamCtx, &agent.AgentConnectMetadata{
+	streamCtx = api.AddAgentConnectMetadata(streamCtx, &api.AgentConnectMetadata{
 		ID:      cfg.ID,
-		Version: Version,
+		Version: version.Version,
 	})
 
 	l.Info("Establishing two-way communication channel ...")
@@ -79,30 +77,33 @@ func workLoop(ctx context.Context, cfg *config.Config, l *logrus.Entry, client a
 	}()
 
 	// So far nginx can handle all that itself without pmm-managed.
-	// We need to send ping to ensure that pmm-managed is alive.
+	// We need to send ping to ensure that pmm-managed is alive and that Agent ID is valid.
 	start := time.Now()
-	res := channel.SendRequest(&agent.AgentMessage_Ping{
-		Ping: new(agent.Ping),
+	res := channel.SendRequest(&api.AgentMessage_Ping{
+		Ping: new(api.Ping),
 	})
 	if res == nil {
 		// error will be logged by channel code
 		streamCancel()
 		return
 	}
-	latency := time.Since(start) / 2
-	t, err := ptypes.Timestamp(res.(*agent.ServerMessage_Pong).Pong.CurrentTime)
+	roundtrip := time.Since(start)
+	serverTime, err := ptypes.Timestamp(res.(*api.ServerMessage_Pong).Pong.CurrentTime)
 	if err != nil {
 		l.Errorf("Failed to decode Pong.current_time: %s.", err)
 		streamCancel()
 		return
 	}
-	clockDrift := t.Sub(start.Add(latency))
-	l.Infof("Two-way communication channel established. Latency: %s. Clock drift: %s.", latency, clockDrift)
+	l.Infof("Two-way communication channel established. Round-trip time: %s.", roundtrip)
+	clockDrift := serverTime.Sub(start) + roundtrip/2
+	if clockDrift > clockDriftWarning || -clockDrift > clockDriftWarning {
+		l.Warnf("Estimated clock drift: %s.", clockDrift)
+	}
 
 	s := supervisor.NewSupervisor(ctx, &cfg.Paths, &cfg.Ports)
 	go func() {
 		for state := range s.Changes() {
-			res := channel.SendRequest(&agent.AgentMessage_StateChanged{
+			res := channel.SendRequest(&api.AgentMessage_StateChanged{
 				StateChanged: &state,
 			})
 			if res == nil {
@@ -114,25 +115,25 @@ func workLoop(ctx context.Context, cfg *config.Config, l *logrus.Entry, client a
 	}()
 
 	for serverMessage := range channel.Requests() {
-		var agentMessage *agent.AgentMessage
+		var agentMessage *api.AgentMessage
 		switch payload := serverMessage.Payload.(type) {
-		case *agent.ServerMessage_Ping:
-			agentMessage = &agent.AgentMessage{
+		case *api.ServerMessage_Ping:
+			agentMessage = &api.AgentMessage{
 				Id: serverMessage.Id,
-				Payload: &agent.AgentMessage_Pong{
-					Pong: &agent.Pong{
+				Payload: &api.AgentMessage_Pong{
+					Pong: &api.Pong{
 						CurrentTime: ptypes.TimestampNow(),
 					},
 				},
 			}
 
-		case *agent.ServerMessage_SetState:
+		case *api.ServerMessage_SetState:
 			s.SetState(payload.SetState.AgentProcesses)
 
-			agentMessage = &agent.AgentMessage{
+			agentMessage = &api.AgentMessage{
 				Id: serverMessage.Id,
-				Payload: &agent.AgentMessage_SetState{
-					SetState: &agent.SetStateResponse{},
+				Payload: &api.AgentMessage_SetState{
+					SetState: &api.SetStateResponse{},
 				},
 			}
 
@@ -146,7 +147,7 @@ func workLoop(ctx context.Context, cfg *config.Config, l *logrus.Entry, client a
 
 func main() {
 	var cfg config.Config
-	app := config.Application(&cfg, Version)
+	app := config.Application(&cfg)
 	kingpin.MustParse(app.Parse(os.Args[1:]))
 
 	cfg.Paths.Lookup()
@@ -188,7 +189,7 @@ func main() {
 		grpc.WithBlock(),
 		grpc.WithWaitForHandshake(),
 		grpc.WithBackoffMaxDelay(backoffMaxDelay),
-		grpc.WithUserAgent("pmm-agent/" + Version),
+		grpc.WithUserAgent("pmm-agent/" + version.Version),
 		grpc.WithTransportCredentials(credentials.NewTLS(tlsConfig)),
 	}
 
@@ -211,12 +212,12 @@ func main() {
 	}()
 
 	l.Infof("Connected to %s.", cfg.Address)
-	client := agent.NewAgentClient(conn)
+	client := api.NewAgentClient(conn)
 
 	// TODO
 	// if cfg.UUID == "" {
 	// 	logrus.Info("Registering pmm-agent ...")
-	// 	resp, err := client.Register(ctx, &agent.RegisterRequest{})
+	// 	resp, err := client.Register(ctx, &api.RegisterRequest{})
 	// 	if err != nil {
 	// 		logrus.Fatalf("Failed to register pmm-agent: %s.", err)
 	// 	}
