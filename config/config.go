@@ -18,9 +18,11 @@
 package config
 
 import (
+	"fmt"
 	"os"
 	"os/exec"
 
+	"github.com/percona/pmm/version"
 	"gopkg.in/alecthomas/kingpin.v2"
 )
 
@@ -55,10 +57,10 @@ type Config struct {
 	Ports Ports
 }
 
-func Application(cfg *Config, version string) *kingpin.Application {
-	app := kingpin.New("pmm-agent", "Version "+version+".")
+func Application(cfg *Config) *kingpin.Application {
+	app := kingpin.New("pmm-agent", fmt.Sprintf("Version %s.", version.Version))
 	app.HelpFlag.Short('h')
-	app.Version(version)
+	app.Version(version.FullInfo())
 
 	app.Flag("id", "ID of this pmm-agent.").Envar("PMM_AGENT_ID").StringVar(&cfg.ID)
 	app.Flag("address", "PMM Server address (host:port).").Envar("PMM_AGENT_ADDRESS").StringVar(&cfg.Address)
