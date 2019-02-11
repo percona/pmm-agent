@@ -94,8 +94,8 @@ func workLoop(ctx context.Context, cfg *config.Config, l *logrus.Entry, client a
 		streamCancel()
 		return
 	}
-	l.Infof("Two-way communication channel established. Round-trip time: %s.", roundtrip)
-	clockDrift := serverTime.Sub(start) + roundtrip/2
+	l.Infof("Two-way communication channel established in %s.", roundtrip)
+	clockDrift := serverTime.Sub(start) - roundtrip/2
 	if clockDrift > clockDriftWarning || -clockDrift > clockDriftWarning {
 		l.Warnf("Estimated clock drift: %s.", clockDrift)
 	}
