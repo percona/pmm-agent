@@ -44,12 +44,15 @@ func assertStates(t *testing.T, sa *process, expected ...agent.Status) {
 }
 
 // builds helper app.
-func build(t *testing.T, tag string, fileName string, outputFile *os.File) *exec.Cmd {
+func build(t *testing.T, tag string, fileName string, outputFile string) *exec.Cmd {
+	t.Helper()
+
+	t.Logf("building to %s", outputFile)
 	args := []string{"build"}
 	if tag != "" {
 		args = append(args, "-tags", tag)
 	}
-	args = append(args, "-o", outputFile.Name(), fileName)
+	args = append(args, "-o", outputFile, fileName)
 	cmd := exec.Command("go", args...) //nolint:gosec
 	cmd.Stdout = os.Stderr
 	cmd.Stderr = os.Stderr
@@ -132,8 +135,7 @@ func TestProcess(t *testing.T) {
 			require.NoError(t, os.Remove(f.Name()))
 		}()
 
-		t.Logf("building to %s", f.Name())
-		build(t, "child", "process_child.go", f)
+		build(t, "child", "process_child.go", f.Name())
 
 		ctx, cancel, l := setup(t)
 		defer cancel()
@@ -177,8 +179,7 @@ func TestProcess(t *testing.T) {
 			require.NoError(t, os.Remove(f.Name()))
 		}()
 
-		t.Logf("building to %s", f.Name())
-		build(t, "", "process_noterm.go", f)
+		build(t, "", "process_noterm.go", f.Name())
 
 		ctx, cancel, l := setup(t)
 		p := newProcess(ctx, &processParams{path: f.Name()}, l)

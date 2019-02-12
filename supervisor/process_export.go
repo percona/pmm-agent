@@ -31,6 +31,6 @@ func NewProcessParams(path string, args []string) *processParams {
 
 var NewProcess = newProcess
 
-func GetCmd(pcs *process) *exec.Cmd {
-	return pcs.cmd
+func GetCmd(p *process) *exec.Cmd {
+	return p.cmd
 }
