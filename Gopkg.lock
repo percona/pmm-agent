@@ -121,13 +121,25 @@
   revision = "16b0da83255720371d18b2304257e073491ed63c"
 
 [[projects]]
+  branch = "master"
+  digest = "1:6541376ee31b9b4972480f18f1eb26392910eb3d2b867de67cab8e6b61ba4c5a"
+  name = "github.com/percona/go-mysql"
+  packages = [
+    "event",
+    "log",
+  ]
+  pruneopts = "NUT"
+  revision = "f61a5a3aa84fb219753e51d83c3a8f8e9c425028"
+
+[[projects]]
   branch = "PMM-2.0"
-  digest = "1:8aed2da63d2207f383b4848b0d5ab74812fc21ba35a317a28e27793aa797a6a7"
+  digest = "1:03be1e00ab098a52becc1f2702fb443c3490801642503762d61e768edfb7dad8"
   name = "github.com/percona/pmm"
   packages = [
     "api/agent",
     "api/agent_local",
     "api/inventory",
+    "api/qan",
     "version",
   ]
   pruneopts = "NUT"
@@ -336,10 +348,13 @@
     "github.com/AlekSi/pointer",
     "github.com/golang/protobuf/proto",
     "github.com/golang/protobuf/ptypes",
+    "github.com/golang/protobuf/ptypes/any",
     "github.com/percona/exporter_shared/helpers",
+    "github.com/percona/go-mysql/event",
     "github.com/percona/pmm/api/agent",
     "github.com/percona/pmm/api/agent_local",
     "github.com/percona/pmm/api/inventory",
+    "github.com/percona/pmm/api/qan",
     "github.com/percona/pmm/version",
     "github.com/pkg/errors",
     "github.com/prometheus/client_golang/prometheus",
