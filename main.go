@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"github.com/golang/protobuf/ptypes"
+	"github.com/golang/protobuf/ptypes/any"
 	api "github.com/percona/pmm/api/agent"
 	"github.com/percona/pmm/version"
 	"github.com/prometheus/client_golang/prometheus"
@@ -36,9 +37,10 @@ import (
 	"gopkg.in/alecthomas/kingpin.v2"
 
 	"github.com/percona/pmm-agent/agentlocal"
+	"github.com/percona/pmm-agent/agents/process"
+	"github.com/percona/pmm-agent/agents/qan"
 	"github.com/percona/pmm-agent/config"
 	"github.com/percona/pmm-agent/server"
-	"github.com/percona/pmm-agent/supervisor"
 	"github.com/percona/pmm-agent/utils/logger"
 )
 
@@ -100,9 +102,9 @@ func workLoop(ctx context.Context, cfg *config.Config, l *logrus.Entry, client a
 		l.Warnf("Estimated clock drift: %s.", clockDrift)
 	}
 
-	s := supervisor.NewSupervisor(ctx, &cfg.Paths, &cfg.Ports)
+	ps := process.NewSupervisor(ctx, &cfg.Paths, &cfg.Ports)
 	go func() {
-		for state := range s.Changes() {
+		for state := range ps.Changes() {
 			res := channel.SendRequest(&api.AgentMessage_StateChanged{
 				StateChanged: &state,
 			})
@@ -110,8 +112,38 @@ func workLoop(ctx context.Context, cfg *config.Config, l *logrus.Entry, client a
 				l.Warn("Failed to send StateChanged request.")
 			}
 		}
-		l.Info("Supervisor done.")
-		streamCancel()
+		l.Info("Process supervisor done.")
+		streamCancel() // FIXME
+	}()
+
+	qs := qan.NewSupervisor(ctx)
+	go func() {
+		for state := range qs.Changes() {
+			res := channel.SendRequest(&api.AgentMessage_StateChanged{
+				StateChanged: &state,
+			})
+			if res == nil {
+				l.Warn("Failed to send StateChanged request.")
+			}
+		}
+		l.Info("QAN supervisor done.")
+		streamCancel() // FIXME
+	}()
+
+	go func() {
+		for data := range qs.Data() {
+			_ = data // FIXME
+			res := channel.SendRequest(&api.AgentMessage_QanData{
+				QanData: &api.QANDataRequest{
+					Data: &any.Any{},
+				},
+			})
+			if res == nil {
+				l.Warn("Failed to send StateChanged request.")
+			}
+		}
+		l.Info("QAN supervisor done.")
+		streamCancel() // FIXME
 	}()
 
 	for serverMessage := range channel.Requests() {
@@ -128,7 +160,8 @@ func workLoop(ctx context.Context, cfg *config.Config, l *logrus.Entry, client a
 			}
 
 		case *api.ServerMessage_SetState:
-			s.SetState(payload.SetState.AgentProcesses)
+			ps.SetState(payload.SetState.AgentProcesses)
+			qs.SetState(payload.SetState.InternalAgents)
 
 			agentMessage = &api.AgentMessage{
 				Id: serverMessage.Id,
