@@ -14,14 +14,12 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-// +build !linux
+// +build draw
 
-package supervisor
+// Export some identifiers just for backoff_draw.go.
 
-import (
-	"os/exec"
-)
+package process
 
-func setSysProcAttr(cmd *exec.Cmd) {
-	// nothing, see process_sys_linux.go
-}
+type Backoff = backoff
+
+const DelayBaseMax = delayBaseMax

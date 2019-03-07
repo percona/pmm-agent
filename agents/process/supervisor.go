@@ -14,8 +14,8 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-// Package supervisor provides process supervisor for running Agents.
-package supervisor
+// Package process provides process supervisor for running Agents.
+package process
 
 import (
 	"bytes"

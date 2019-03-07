@@ -14,12 +14,23 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-// +build draw
+// +build child
 
-// Export some identifiers just for backoff_draw.go.
+// Export some identifiers just for process_child.go.
 
-package supervisor
+package process
 
-type Backoff = backoff
+import "os/exec"
 
-const DelayBaseMax = delayBaseMax
+func NewProcessParams(path string, args []string) *processParams {
+	return &processParams{
+		path: path,
+		args: args,
+	}
+}
+
+var NewProcess = newProcess
+
+func GetCmd(p *process) *exec.Cmd {
+	return p.cmd
+}
