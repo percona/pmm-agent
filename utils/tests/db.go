@@ -19,6 +19,7 @@ package tests
 import (
 	"database/sql"
 	"testing"
+	"time"
 
 	"github.com/go-sql-driver/mysql"
 	"github.com/stretchr/testify/require"
@@ -45,8 +46,14 @@ func OpenTestMySQL(tb testing.TB) *sql.DB {
 		db.SetMaxOpenConns(10)
 		db.SetConnMaxLifetime(0)
 
-		// to fill performance_schema.events_statements_summary_by_digest
-		_, err = db.Exec("SELECT 'test'")
+		// Wait until MySQL is running up to 15 seconds.
+		// Use Exec instead of Ping to fill performance_schema tables.
+		for i := 0; i < 15; i++ {
+			if _, err = db.Exec("SELECT 'test'"); err == nil {
+				break
+			}
+			time.Sleep(time.Second)
+		}
 	}
 	require.NoError(tb, err)
 	return db
