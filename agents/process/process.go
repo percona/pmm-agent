@@ -25,6 +25,8 @@ import (
 	"github.com/percona/pmm/api/inventory"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
+
+	"github.com/percona/pmm-agent/agents/backoff"
 )
 
 const (
@@ -50,7 +52,7 @@ type Process struct {
 	l       *logrus.Entry
 	pl      *processLogger
 	changes chan inventory.AgentStatus
-	backoff *backoff
+	backoff *backoff.Backoff
 	ctxDone chan struct{}
 
 	// recreated on each restart
@@ -67,16 +69,13 @@ type Params struct {
 
 // New creates new process.
 func New(ctx context.Context, params *Params, l *logrus.Entry) *Process {
-	b := new(backoff)
-	b.Reset()
-
 	p := &Process{
 		ctx:     ctx,
 		params:  params,
 		l:       l,
 		pl:      newProcessLogger(l, keepLogLines),
 		changes: make(chan inventory.AgentStatus, 1),
-		backoff: b,
+		backoff: backoff.New(),
 		ctxDone: make(chan struct{}),
 	}
 

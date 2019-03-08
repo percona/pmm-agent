@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/AlekSi/pointer"
+	"github.com/percona/pmm/api/inventory"
 	"github.com/percona/pmm/api/qan"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sirupsen/logrus"
@@ -49,9 +50,10 @@ const (
 
 // MySQL QAN services connects to MySQL and extracts performance data.
 type MySQL struct {
-	db *reform.DB
-	ch chan<- qan.AgentMessage
-	l  *logrus.Entry
+	db      *reform.DB
+	ch      chan<- qan.AgentMessage
+	l       *logrus.Entry
+	changes chan inventory.AgentStatus
 
 	mSend prometheus.Counter
 }
@@ -59,9 +61,10 @@ type MySQL struct {
 // New creates new MySQL QAN service.
 func New(db *reform.DB, ch chan<- qan.AgentMessage) *MySQL {
 	return &MySQL{
-		db: db,
-		ch: ch,
-		l:  logrus.WithField("component", "mysql"),
+		db:      db,
+		ch:      ch,
+		l:       logrus.WithField("component", "mysql"),
+		changes: make(chan inventory.AgentStatus, 1),
 
 		mSend: prometheus.NewCounter(prometheus.CounterOpts{
 			Namespace: prometheusNamespace,
@@ -120,6 +123,11 @@ func (m *MySQL) get(ctx context.Context) []qan.AgentMessage {
 		res = append(res, m)
 	}
 	return res
+}
+
+// Changes returns channel that should be read until it is closed.
+func (m *MySQL) Changes() <-chan inventory.AgentStatus {
+	return m.changes
 }
 
 // Describe implements prometheus.Collector.
