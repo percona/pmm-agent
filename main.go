@@ -199,7 +199,6 @@ func main() {
 	}
 	opts := []grpc.DialOption{
 		grpc.WithBlock(),
-		grpc.WithWaitForHandshake(),
 		grpc.WithBackoffMaxDelay(backoffMaxDelay),
 		grpc.WithUserAgent("pmm-agent/" + version.Version),
 		grpc.WithTransportCredentials(credentials.NewTLS(tlsConfig)),

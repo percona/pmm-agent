@@ -73,7 +73,6 @@ func setup(t *testing.T, connect func(api.Agent_ConnectServer) error, expected .
 	// make client and channel
 	opts := []grpc.DialOption{
 		grpc.WithBlock(),
-		grpc.WithWaitForHandshake(),
 		grpc.WithInsecure(),
 	}
 	cc, err := grpc.DialContext(ctx, lis.Addr().String(), opts...)
