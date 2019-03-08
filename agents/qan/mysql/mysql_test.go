@@ -14,31 +14,23 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-package qan
+package mysql
 
 import (
 	"context"
+	"testing"
 
-	"github.com/percona/pmm/api/agent"
+	"github.com/stretchr/testify/assert"
+	"gopkg.in/reform.v1"
+	"gopkg.in/reform.v1/dialects/mysql"
+
+	"github.com/percona/pmm-agent/utils/tests"
 )
 
-// Supervisor manages all internal agents.
-type Supervisor struct {
-}
-
-// NewSupervisor creates new Supervisor object.
-func NewSupervisor(ctx context.Context) *Supervisor {
-	return &Supervisor{}
-}
-
-func (s *Supervisor) SetState(internalAgents map[string]*agent.SetStateRequest_InternalAgent) {
-}
-
-// Changes returns channel with agent's state changes.
-func (s *Supervisor) Changes() <-chan agent.StateChangedRequest {
-	return nil
-}
-
-func (s *Supervisor) Data() <-chan *agent.QANData {
-	return nil
+func TestGet(t *testing.T) {
+	sqlDB := tests.OpenTestMySQL(t)
+	db := reform.NewDB(sqlDB, mysql.Dialect, reform.NewPrintfLogger(t.Logf))
+	m := New(db, nil)
+	todos := m.get(context.Background())
+	assert.NotEmpty(t, todos)
 }

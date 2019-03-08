@@ -20,17 +20,6 @@
 
 package process
 
-import "os/exec"
-
-func NewProcessParams(path string, args []string) *processParams {
-	return &processParams{
-		path: path,
-		args: args,
-	}
-}
-
-var NewProcess = newProcess
-
-func GetCmd(p *process) *exec.Cmd {
-	return p.cmd
+func GetPID(p *Process) int {
+	return p.cmd.Process.Pid
 }

@@ -18,12 +18,14 @@ package mysql
 
 import (
 	"context"
-	"database/sql"
 	"time"
 
+	"github.com/AlekSi/pointer"
 	_ "github.com/percona/go-mysql/event" // TODO
 	"github.com/percona/pmm/api/qan"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/sirupsen/logrus"
+	"gopkg.in/reform.v1"
 )
 
 const (
@@ -33,8 +35,9 @@ const (
 
 // MySQL QAN services connects to MySQL and extracts performance data.
 type MySQL struct {
-	db *sql.DB
+	db *reform.DB
 	ch chan<- TODO
+	l  *logrus.Entry
 
 	mSend prometheus.Counter
 }
@@ -45,10 +48,11 @@ type TODO struct {
 }
 
 // New creates new MySQL QAN service.
-func New(db *sql.DB, ch chan<- TODO) *MySQL {
+func New(db *reform.DB, ch chan<- TODO) *MySQL {
 	return &MySQL{
 		db: db,
 		ch: ch,
+		l:  logrus.WithField("component", "qan-mysql"),
 
 		mSend: prometheus.NewCounter(prometheus.CounterOpts{
 			Namespace: prometheusNamespace,
@@ -61,7 +65,18 @@ func New(db *sql.DB, ch chan<- TODO) *MySQL {
 
 // Run extracts performance data and sends it to the channel until ctx is canceled.
 func (m *MySQL) Run(ctx context.Context) {
-	t := time.NewTicker(10 * time.Millisecond)
+	// TODO A ton of open questions:
+	// * check that performance schema is enabled?
+	// * check that statement_digest consumer is enabled?
+	// * TRUNCATE events_statements_summary_by_digest before reading?
+	// * check/report the value of performance_schema_digests_size?
+	// * report rows with NULL digest?
+	// * get query by digest from events_statements_history_long?
+	// * check/report the value of performance_schema_events_statements_history_long_size?
+	// * how often to select data?
+	// * condition for FIRST_SEEN / LAST_SEEN?
+
+	t := time.NewTicker(time.Second)
 	defer t.Stop()
 
 	for {
@@ -69,14 +84,44 @@ func (m *MySQL) Run(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-t.C:
-			select {
-			case m.ch <- TODO{}:
-				m.mSend.Inc()
-			case <-ctx.Done():
-				// nothing, exit on next iteration
+			todos := m.get(ctx)
+			for _, t := range todos {
+				select {
+				case <-ctx.Done():
+					return
+				case m.ch <- t:
+					// nothing
+				}
 			}
 		}
 	}
+}
+
+func (m *MySQL) get(ctx context.Context) []TODO {
+	structs, err := m.db.SelectAllFrom(eventsStatementsSummaryByDigestView, "")
+	if err != nil {
+		m.l.Error(err)
+		return nil
+	}
+
+	todos := make([]TODO, 0, len(structs))
+	for _, str := range structs {
+		ess := str.(*eventsStatementsSummaryByDigest)
+		if ess.Digest == nil || ess.DigestText == nil {
+			m.l.Warnf("Skipping %s.", ess)
+			continue
+		}
+
+		t := TODO{
+			mb: qan.MetricsBucket{
+				Queryid:     *ess.Digest,
+				Fingerprint: *ess.DigestText,
+				DSchema:     pointer.GetString(ess.SchemaName),
+			},
+		}
+		todos = append(todos, t)
+	}
+	return todos
 }
 
 // Describe implements prometheus.Collector.

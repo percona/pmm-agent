@@ -14,8 +14,8 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-// Package process provides process supervisor for running Agents.
-package process
+// Package supervisor provides supervisor for running Agents.
+package supervisor
 
 import (
 	"bytes"
@@ -31,10 +31,12 @@ import (
 	"text/template"
 
 	"github.com/golang/protobuf/proto"
+	"github.com/golang/protobuf/ptypes/any"
 	"github.com/percona/pmm/api/agent"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 
+	"github.com/percona/pmm-agent/agents/process"
 	"github.com/percona/pmm-agent/config"
 )
 
@@ -44,6 +46,7 @@ type Supervisor struct {
 	paths         *config.Paths
 	portsRegistry *portsRegistry
 	changes       chan agent.StateChangedRequest
+	qanData       chan agent.QANDataRequest
 	l             *logrus.Entry
 
 	m      sync.Mutex
@@ -64,6 +67,7 @@ func NewSupervisor(ctx context.Context, paths *config.Paths, ports *config.Ports
 		paths:         paths,
 		portsRegistry: newPortsRegistry(ports.Min, ports.Max, nil),
 		changes:       make(chan agent.StateChangedRequest, 10),
+		qanData:       make(chan agent.QANDataRequest, 10),
 		l:             logrus.WithField("component", "supervisor"),
 
 		agents: make(map[string]*agentInfo),
@@ -78,7 +82,7 @@ func NewSupervisor(ctx context.Context, paths *config.Paths, ports *config.Ports
 }
 
 // SetState starts or updates all agents placed in args and stops all agents not placed in args, but already run.
-func (s *Supervisor) SetState(agentProcesses map[string]*agent.SetStateRequest_AgentProcess) {
+func (s *Supervisor) SetState(state *agent.SetStateRequest) {
 	s.m.Lock()
 	defer s.m.Unlock()
 
@@ -87,6 +91,12 @@ func (s *Supervisor) SetState(agentProcesses map[string]*agent.SetStateRequest_A
 		return
 	}
 
+	s.setAgentProcesses(state.AgentProcesses)
+	s.setInternalAgents(state.InternalAgents)
+}
+
+// setAgentProcesses starts or updates all agents placed in args and stops all agents not placed in args, but already run.
+func (s *Supervisor) setAgentProcesses(agentProcesses map[string]*agent.SetStateRequest_AgentProcess) {
 	toStart, toRestart, toStop := s.filter(agentProcesses)
 
 	// We have to wait for processes to terminate before starting a new ones to reuse ports,
@@ -139,9 +149,18 @@ func (s *Supervisor) SetState(agentProcesses map[string]*agent.SetStateRequest_A
 	}
 }
 
+func (s *Supervisor) setInternalAgents(internalAgents map[string]*agent.SetStateRequest_InternalAgent) {
+	// TODO
+}
+
 // Changes returns channel with agent's state changes.
 func (s *Supervisor) Changes() <-chan agent.StateChangedRequest {
 	return s.changes
+}
+
+func (s *Supervisor) QANData() <-chan agent.QANDataRequest {
+	_ = any.Any{} // FIXME
+	return s.qanData
 }
 
 // filter extracts IDs of the Agents that should be started, restarted with new parameters, or stopped,
@@ -189,7 +208,7 @@ func (s *Supervisor) start(agentID string, agentProcess *agent.SetStateRequest_A
 		"agentID":   agentID,
 		"type":      strings.ToLower(agentProcess.Type.String()),
 	})
-	process := newProcess(ctx, processParams, l)
+	process := process.New(ctx, processParams, l)
 
 	done := make(chan struct{})
 	go func() {
@@ -219,18 +238,18 @@ const (
 	type_TEST_SLEEP agent.Type = 999
 )
 
-// processParams makes processParams from SetStateRequest parameters and other data.
-func (s *Supervisor) processParams(agentID string, agentProcess *agent.SetStateRequest_AgentProcess, port uint16) (*processParams, error) {
-	var processParams processParams
+// processParams makes *process.Params from SetStateRequest parameters and other data.
+func (s *Supervisor) processParams(agentID string, agentProcess *agent.SetStateRequest_AgentProcess, port uint16) (*process.Params, error) {
+	var processParams process.Params
 	switch agentProcess.Type {
 	case agent.Type_NODE_EXPORTER:
-		processParams.path = s.paths.NodeExporter
+		processParams.Path = s.paths.NodeExporter
 	case agent.Type_MYSQLD_EXPORTER:
-		processParams.path = s.paths.MySQLdExporter
+		processParams.Path = s.paths.MySQLdExporter
 	case agent.Type_MONGODB_EXPORTER:
-		processParams.path = s.paths.MongoDBExporter
+		processParams.Path = s.paths.MongoDBExporter
 	case type_TEST_SLEEP:
-		processParams.path = "sleep"
+		processParams.Path = "sleep"
 	default:
 		return nil, errors.Errorf("unhandled agent type %[1]s (%[1]d).", agentProcess.Type)
 	}
@@ -285,22 +304,22 @@ func (s *Supervisor) processParams(agentID string, agentProcess *agent.SetStateR
 		templateParams["TextFiles"] = textFiles
 	}
 
-	processParams.args = make([]string, len(agentProcess.Args))
+	processParams.Args = make([]string, len(agentProcess.Args))
 	for i, e := range agentProcess.Args {
 		b, err := renderTemplate("args", e, templateParams)
 		if err != nil {
 			return nil, err
 		}
-		processParams.args[i] = string(b)
+		processParams.Args[i] = string(b)
 	}
 
-	processParams.env = make([]string, len(agentProcess.Env))
+	processParams.Env = make([]string, len(agentProcess.Env))
 	for i, e := range agentProcess.Env {
 		b, err := renderTemplate("env", e, templateParams)
 		if err != nil {
 			return nil, err
 		}
-		processParams.env[i] = string(b)
+		processParams.Env[i] = string(b)
 	}
 
 	return &processParams, nil

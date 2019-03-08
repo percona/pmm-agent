@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-package process
+package supervisor
 
 import (
 	"context"
@@ -29,6 +29,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/percona/pmm-agent/agents/process"
 	"github.com/percona/pmm-agent/config"
 )
 
@@ -51,7 +52,7 @@ func TestSupervisor(t *testing.T) {
 	s := NewSupervisor(ctx, nil, &config.Ports{Min: 10000, Max: 20000})
 
 	t.Run("Start1", func(t *testing.T) {
-		s.SetState(map[string]*agent.SetStateRequest_AgentProcess{
+		s.setAgentProcesses(map[string]*agent.SetStateRequest_AgentProcess{
 			"sleep1": {Type: type_TEST_SLEEP, Args: []string{"10"}},
 		})
 		assertChanges(t, s, agent.StateChangedRequest{AgentId: "sleep1", Status: inventory.AgentStatus_STARTING, ListenPort: 10000})
@@ -59,7 +60,7 @@ func TestSupervisor(t *testing.T) {
 	})
 
 	t.Run("Restart1Start2", func(t *testing.T) {
-		s.SetState(map[string]*agent.SetStateRequest_AgentProcess{
+		s.setAgentProcesses(map[string]*agent.SetStateRequest_AgentProcess{
 			"sleep1": {Type: type_TEST_SLEEP, Args: []string{"20"}},
 			"sleep2": {Type: type_TEST_SLEEP, Args: []string{"10"}},
 		})
@@ -77,7 +78,7 @@ func TestSupervisor(t *testing.T) {
 	})
 
 	t.Run("Stop1", func(t *testing.T) {
-		s.SetState(map[string]*agent.SetStateRequest_AgentProcess{
+		s.setAgentProcesses(map[string]*agent.SetStateRequest_AgentProcess{
 			"sleep2": {Type: type_TEST_SLEEP, Args: []string{"10"}},
 		})
 		assertChanges(t, s, agent.StateChangedRequest{AgentId: "sleep1", Status: inventory.AgentStatus_STOPPING, ListenPort: 10000})
@@ -155,7 +156,7 @@ func TestSupervisorProcessParams(t *testing.T) {
 		s, teardown := setup()
 		defer teardown()
 
-		process := &agent.SetStateRequest_AgentProcess{
+		p := &agent.SetStateRequest_AgentProcess{
 			Type: agent.Type_MYSQLD_EXPORTER,
 			Args: []string{
 				"-web.listen-address=:{{ .listen_port }}",
@@ -170,16 +171,16 @@ func TestSupervisorProcessParams(t *testing.T) {
 				"Config": "test={{ .listen_port }}",
 			},
 		}
-		actual, err := s.processParams("ID", process, 12345)
+		actual, err := s.processParams("ID", p, 12345)
 		require.NoError(t, err)
 
-		expected := processParams{
-			path: "/path/to/mysql_exporter",
-			args: []string{
+		expected := process.Params{
+			Path: "/path/to/mysql_exporter",
+			Args: []string{
 				"-web.listen-address=:12345",
 				"-web.ssl-cert-file=" + filepath.Join(s.paths.TempDir, "mysqld_exporter-ID", "Cert"),
 			},
-			env: []string{
+			Env: []string{
 				"HTTP_AUTH=pmm:secret",
 				"TEST=:12345",
 			},
@@ -192,28 +193,28 @@ func TestSupervisorProcessParams(t *testing.T) {
 		s, teardown := setup()
 		defer teardown()
 
-		process := &agent.SetStateRequest_AgentProcess{
+		p := &agent.SetStateRequest_AgentProcess{
 			Type: agent.Type_MYSQLD_EXPORTER,
 			Args: []string{"-foo=:{{ .bar }}"},
 		}
-		_, err := s.processParams("ID", process, 0)
+		_, err := s.processParams("ID", p, 0)
 		require.Error(t, err)
 		assert.Regexp(t, `map has no entry for key "bar"`, err.Error())
 
-		process = &agent.SetStateRequest_AgentProcess{
+		p = &agent.SetStateRequest_AgentProcess{
 			Type:      agent.Type_MYSQLD_EXPORTER,
 			TextFiles: map[string]string{"foo": "{{ .bar }}"},
 		}
-		_, err = s.processParams("ID", process, 0)
+		_, err = s.processParams("ID", p, 0)
 		require.Error(t, err)
 		assert.Regexp(t, `map has no entry for key "bar"`, err.Error())
 
-		process = &agent.SetStateRequest_AgentProcess{
+		p = &agent.SetStateRequest_AgentProcess{
 			Type:      agent.Type_MYSQLD_EXPORTER,
 			TextFiles: map[string]string{"bar": "{{ .listen_port }}"},
 			Args:      []string{"-foo=:{{ .TextFiles.baz }}"},
 		}
-		_, err = s.processParams("ID", process, 0)
+		_, err = s.processParams("ID", p, 0)
 		require.Error(t, err)
 		assert.Regexp(t, `map has no entry for key "baz"`, err.Error())
 	})

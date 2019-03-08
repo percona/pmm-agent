@@ -25,7 +25,6 @@ import (
 	"time"
 
 	"github.com/golang/protobuf/ptypes"
-	"github.com/golang/protobuf/ptypes/any"
 	api "github.com/percona/pmm/api/agent"
 	"github.com/percona/pmm/version"
 	"github.com/prometheus/client_golang/prometheus"
@@ -37,8 +36,7 @@ import (
 	"gopkg.in/alecthomas/kingpin.v2"
 
 	"github.com/percona/pmm-agent/agentlocal"
-	"github.com/percona/pmm-agent/agents/process"
-	"github.com/percona/pmm-agent/agents/qan"
+	"github.com/percona/pmm-agent/agents/supervisor"
 	"github.com/percona/pmm-agent/config"
 	"github.com/percona/pmm-agent/server"
 	"github.com/percona/pmm-agent/utils/logger"
@@ -102,9 +100,9 @@ func workLoop(ctx context.Context, cfg *config.Config, l *logrus.Entry, client a
 		l.Warnf("Estimated clock drift: %s.", clockDrift)
 	}
 
-	ps := process.NewSupervisor(ctx, &cfg.Paths, &cfg.Ports)
+	s := supervisor.NewSupervisor(ctx, &cfg.Paths, &cfg.Ports)
 	go func() {
-		for state := range ps.Changes() {
+		for state := range s.Changes() {
 			res := channel.SendRequest(&api.AgentMessage_StateChanged{
 				StateChanged: &state,
 			})
@@ -112,37 +110,19 @@ func workLoop(ctx context.Context, cfg *config.Config, l *logrus.Entry, client a
 				l.Warn("Failed to send StateChanged request.")
 			}
 		}
-		l.Info("Process supervisor done.")
+		l.Info("Supervisor changes done.")
 		streamCancel() // FIXME
 	}()
-
-	qs := qan.NewSupervisor(ctx)
 	go func() {
-		for state := range qs.Changes() {
-			res := channel.SendRequest(&api.AgentMessage_StateChanged{
-				StateChanged: &state,
-			})
-			if res == nil {
-				l.Warn("Failed to send StateChanged request.")
-			}
-		}
-		l.Info("QAN supervisor done.")
-		streamCancel() // FIXME
-	}()
-
-	go func() {
-		for data := range qs.Data() {
-			_ = data // FIXME
+		for data := range s.QANData() {
 			res := channel.SendRequest(&api.AgentMessage_QanData{
-				QanData: &api.QANDataRequest{
-					Data: &any.Any{},
-				},
+				QanData: &data,
 			})
 			if res == nil {
-				l.Warn("Failed to send StateChanged request.")
+				l.Warn("Failed to send QanData request.")
 			}
 		}
-		l.Info("QAN supervisor done.")
+		l.Info("Supervisor data done.")
 		streamCancel() // FIXME
 	}()
 
@@ -160,13 +140,12 @@ func workLoop(ctx context.Context, cfg *config.Config, l *logrus.Entry, client a
 			}
 
 		case *api.ServerMessage_SetState:
-			ps.SetState(payload.SetState.AgentProcesses)
-			qs.SetState(payload.SetState.InternalAgents)
+			s.SetState(payload.SetState)
 
 			agentMessage = &api.AgentMessage{
 				Id: serverMessage.Id,
 				Payload: &api.AgentMessage_SetState{
-					SetState: &api.SetStateResponse{},
+					SetState: new(api.SetStateResponse),
 				},
 			}
 
