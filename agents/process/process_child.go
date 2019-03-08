@@ -40,7 +40,7 @@ func main() {
 	logger.SetOutput(ioutil.Discard)
 	l := logrus.NewEntry(logger)
 
-	process := process.New(context.Background(), process.Params{Path: "sleep", Args: []string{"100500"}}, l)
+	process := process.New(context.Background(), &process.Params{Path: "sleep", Args: []string{"100500"}}, l)
 
 	// Wait until the process is running.
 	state := <-process.Changes()
