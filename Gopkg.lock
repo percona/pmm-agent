@@ -129,19 +129,8 @@
   revision = "16b0da83255720371d18b2304257e073491ed63c"
 
 [[projects]]
-  branch = "master"
-  digest = "1:6541376ee31b9b4972480f18f1eb26392910eb3d2b867de67cab8e6b61ba4c5a"
-  name = "github.com/percona/go-mysql"
-  packages = [
-    "event",
-    "log",
-  ]
-  pruneopts = "NUT"
-  revision = "f61a5a3aa84fb219753e51d83c3a8f8e9c425028"
-
-[[projects]]
   branch = "PMM-3595-qan-mysql-perfschema"
-  digest = "1:7677d798dd0b28dde94bf45b21b507b46d41ce15d040f93099cd0d882f133899"
+  digest = "1:784fd26da2df8506857eef700ee7258d7abd7edd5f678a2a361c56ab0b69a1e7"
   name = "github.com/percona/pmm"
   packages = [
     "api/agent",
@@ -151,7 +140,7 @@
     "version",
   ]
   pruneopts = "NUT"
-  revision = "987c6f5c64d0bcc479a31abba552b4ada87d48db"
+  revision = "a5c3682ffe2d26feacbc8828fdb9bab68e8ff900"
 
 [[projects]]
   digest = "1:14715f705ff5dfe0ffd6571d7d201dd8e921030f8070321a79380d8ca4ec1a24"
@@ -386,7 +375,6 @@
     "github.com/golang/protobuf/ptypes",
     "github.com/golang/protobuf/ptypes/any",
     "github.com/percona/exporter_shared/helpers",
-    "github.com/percona/go-mysql/event",
     "github.com/percona/pmm/api/agent",
     "github.com/percona/pmm/api/agent_local",
     "github.com/percona/pmm/api/inventory",

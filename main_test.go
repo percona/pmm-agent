@@ -42,19 +42,16 @@ func TestImports(t *testing.T) {
 	}
 
 	for path, c := range map[string]constraint{
-		// agents code should not import server
+		// agents code should not be concerned about pmm-agent<->pmm-managed protocol details
 		"github.com/percona/pmm-agent/agents/process": {
 			blacklist: []string{
+				"github.com/percona/pmm/api/agent",
 				"github.com/percona/pmm-agent/server",
 			},
 		},
-		"github.com/percona/pmm-agent/agents/qan": {
+		"github.com/percona/pmm-agent/agents/builtin/mysql": {
 			blacklist: []string{
-				"github.com/percona/pmm-agent/server",
-			},
-		},
-		"github.com/percona/pmm-agent/agents/qan/mysql": {
-			blacklist: []string{
+				"github.com/percona/pmm/api/agent",
 				"github.com/percona/pmm-agent/server",
 			},
 		},

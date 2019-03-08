@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
+// Package process runs Agent processes.
 package process
 
 import (
@@ -33,7 +34,7 @@ const (
 	keepLogLines = 100
 )
 
-// process represents sub-agent process.
+// Process represents Agent process started by pmm-agent.
 //
 // Process object should be created with New. It then handles process starting, restarting with backoff,
 // reading its output. Process is gracefully stopped when context passed to New is canceled.
@@ -57,6 +58,7 @@ type Process struct {
 	cmdDone chan struct{}
 }
 
+// Params represent Agent process parameters: command path, command-line arguments/flags, and process environment.
 type Params struct {
 	Path string
 	Args []string

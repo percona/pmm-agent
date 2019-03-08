@@ -92,7 +92,7 @@ func (s *Supervisor) SetState(state *agent.SetStateRequest) {
 	}
 
 	s.setAgentProcesses(state.AgentProcesses)
-	s.setInternalAgents(state.InternalAgents)
+	s.setBuiltinAgents(state.BuiltinAgents)
 }
 
 // setAgentProcesses starts or updates all agents placed in args and stops all agents not placed in args, but already run.
@@ -149,7 +149,7 @@ func (s *Supervisor) setAgentProcesses(agentProcesses map[string]*agent.SetState
 	}
 }
 
-func (s *Supervisor) setInternalAgents(internalAgents map[string]*agent.SetStateRequest_InternalAgent) {
+func (s *Supervisor) setBuiltinAgents(builtinAgents map[string]*agent.SetStateRequest_BuiltinAgent) {
 	// TODO
 }
 
