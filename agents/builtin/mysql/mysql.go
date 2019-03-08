@@ -22,6 +22,8 @@ import (
 	"time"
 
 	"github.com/AlekSi/pointer"
+	"github.com/golang/protobuf/proto"
+	"github.com/golang/protobuf/ptypes/any"
 	"github.com/percona/pmm/api/inventory"
 	qanpb "github.com/percona/pmm/api/qan"
 	"github.com/prometheus/client_golang/prometheus"
@@ -51,20 +53,22 @@ const (
 // MySQL QAN services connects to MySQL and extracts performance data.
 type MySQL struct {
 	db      *reform.DB
-	ch      chan<- qanpb.AgentMessage
+	ch      chan<- qanpb.AgentMessageTODO
 	l       *logrus.Entry
 	changes chan inventory.AgentStatus
+	ctxDone chan struct{}
 
 	mSend prometheus.Counter
 }
 
 // New creates new MySQL QAN service.
-func New(db *reform.DB, ch chan<- qanpb.AgentMessage) *MySQL {
+func New(db *reform.DB, ch chan<- qanpb.AgentMessageTODO) *MySQL {
 	return &MySQL{
 		db:      db,
 		ch:      ch,
 		l:       logrus.WithField("component", "mysql"),
 		changes: make(chan inventory.AgentStatus, 1),
+		ctxDone: make(chan struct{}),
 
 		mSend: prometheus.NewCounter(prometheus.CounterOpts{
 			Namespace: prometheusNamespace,
@@ -77,20 +81,46 @@ func New(db *reform.DB, ch chan<- qanpb.AgentMessage) *MySQL {
 
 // Run extracts performance data and sends it to the channel until ctx is canceled.
 func (m *MySQL) Run(ctx context.Context) {
+	m.changes <- inventory.AgentStatus_STARTING
+	defer func() {
+		m.changes <- inventory.AgentStatus_DONE
+		close(m.changes)
+	}()
+
 	t := time.NewTicker(time.Second)
 	defer t.Stop()
 
+	var running bool
 	for {
 		select {
 		case <-ctx.Done():
+			m.changes <- inventory.AgentStatus_STOPPING
+			m.l.Infof("Context canceled.")
+			close(m.ctxDone)
 			return
+
 		case <-t.C:
-			todos := m.get(ctx)
-			for _, t := range todos {
+			todos, err := m.get(ctx)
+			if err != nil {
+				m.l.Error(err)
+				running = false
+				m.changes <- inventory.AgentStatus_WAITING
+				time.Sleep(time.Second)
+				m.changes <- inventory.AgentStatus_STARTING
+				continue
+			}
+
+			if !running {
+				m.changes <- inventory.AgentStatus_RUNNING
+				running = true
+			}
+
+			for _, todo := range todos {
 				select {
 				case <-ctx.Done():
-					return
-				case m.ch <- t:
+					t.Stop()
+					break
+				case m.ch <- todo:
 					// nothing
 				}
 			}
@@ -98,14 +128,13 @@ func (m *MySQL) Run(ctx context.Context) {
 	}
 }
 
-func (m *MySQL) get(ctx context.Context) []qanpb.AgentMessage {
+func (m *MySQL) get(ctx context.Context) ([]qanpb.AgentMessageTODO, error) {
 	structs, err := m.db.SelectAllFrom(eventsStatementsSummaryByDigestView, "")
 	if err != nil {
-		m.l.Error(err)
-		return nil
+		return nil, err
 	}
 
-	res := make([]qanpb.AgentMessage, 0, len(structs))
+	res := make([]qanpb.AgentMessageTODO, 0, len(structs))
 	for _, str := range structs {
 		ess := str.(*eventsStatementsSummaryByDigest)
 		if ess.Digest == nil || ess.DigestText == nil {
@@ -113,16 +142,27 @@ func (m *MySQL) get(ctx context.Context) []qanpb.AgentMessage {
 			continue
 		}
 
-		m := qanpb.AgentMessage{
+		msg := &qanpb.AgentMessage{
 			MetricsBucket: []*qanpb.MetricsBucket{{
 				Queryid:     *ess.Digest,
 				Fingerprint: *ess.DigestText,
 				DSchema:     pointer.GetString(ess.SchemaName),
 			}},
 		}
-		res = append(res, m)
+
+		b, err := proto.Marshal(msg)
+		if err != nil {
+			m.l.Error(err)
+			continue
+		}
+		res = append(res, qanpb.AgentMessageTODO{
+			Data: &any.Any{
+				TypeUrl: qanpb.AgentMessageTypeURL,
+				Value:   b,
+			},
+		})
 	}
-	return res
+	return res, nil
 }
 
 // Changes returns channel that should be read until it is closed.

@@ -21,6 +21,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"gopkg.in/reform.v1"
 	"gopkg.in/reform.v1/dialects/mysql"
 
@@ -31,6 +32,7 @@ func TestGet(t *testing.T) {
 	sqlDB := tests.OpenTestMySQL(t)
 	db := reform.NewDB(sqlDB, mysql.Dialect, reform.NewPrintfLogger(t.Logf))
 	m := New(db, nil)
-	todos := m.get(context.Background())
+	todos, err := m.get(context.Background())
+	require.NoError(t, err)
 	assert.NotEmpty(t, todos)
 }

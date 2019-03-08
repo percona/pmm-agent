@@ -47,7 +47,6 @@ const (
 // implements its own logic, and then switches to then next state via "go toXXX()". "go" statement is used
 // only to avoid stack overflow; there are no extra goroutines for states.
 type Process struct {
-	ctx     context.Context
 	params  *Params
 	l       *logrus.Entry
 	pl      *processLogger
@@ -70,7 +69,6 @@ type Params struct {
 // New creates new process.
 func New(ctx context.Context, params *Params, l *logrus.Entry) *Process {
 	p := &Process{
-		ctx:     ctx,
 		params:  params,
 		l:       l,
 		pl:      newProcessLogger(l, keepLogLines),
@@ -79,15 +77,18 @@ func New(ctx context.Context, params *Params, l *logrus.Entry) *Process {
 		ctxDone: make(chan struct{}),
 	}
 
-	go func() {
-		<-ctx.Done()
-		p.l.Infof("Process: context canceled.")
-		close(p.ctxDone)
-	}()
-
-	go p.toStarting()
+	go p.run(ctx)
 
 	return p
+}
+
+// run starts process and runs until ctx is canceled.
+func (p *Process) run(ctx context.Context) {
+	go p.toStarting()
+
+	<-ctx.Done()
+	p.l.Infof("Process: context canceled.")
+	close(p.ctxDone)
 }
 
 // STARTING -> RUNNING
