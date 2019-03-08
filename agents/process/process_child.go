@@ -40,18 +40,18 @@ func main() {
 	logger.SetOutput(ioutil.Discard)
 	l := logrus.NewEntry(logger)
 
-	process := process.New(context.Background(), &process.Params{Path: "sleep", Args: []string{"100500"}}, l)
+	p := process.New(context.Background(), &process.Params{Path: "sleep", Args: []string{"100500"}}, l)
 
 	// Wait until the process is running.
-	state := <-process.Changes()
+	state := <-p.Changes()
 	if state != inventory.AgentStatus_STARTING {
 		panic("process isn't moved to starting state.")
 	}
-	state = <-process.Changes()
+	state = <-p.Changes()
 	if state != inventory.AgentStatus_RUNNING {
 		panic("process isn't moved to running state.")
 	}
 
-	fmt.Println(process.GetPID(process)) // Printing PID of the child process to let test check if the child process is dead or not.
-	time.Sleep(30 * time.Second)         // Waiting until test kills this process.
+	fmt.Println(process.GetPID(p)) // Printing PID of the child process to let test check if the child process is dead or not.
+	time.Sleep(30 * time.Second)   // Waiting until test kills this process.
 }
