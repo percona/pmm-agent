@@ -23,7 +23,7 @@ import (
 
 	"github.com/AlekSi/pointer"
 	"github.com/percona/pmm/api/inventory"
-	"github.com/percona/pmm/api/qan"
+	qanpb "github.com/percona/pmm/api/qan"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sirupsen/logrus"
 	"gopkg.in/reform.v1"
@@ -51,7 +51,7 @@ const (
 // MySQL QAN services connects to MySQL and extracts performance data.
 type MySQL struct {
 	db      *reform.DB
-	ch      chan<- qan.AgentMessage
+	ch      chan<- qanpb.AgentMessage
 	l       *logrus.Entry
 	changes chan inventory.AgentStatus
 
@@ -59,7 +59,7 @@ type MySQL struct {
 }
 
 // New creates new MySQL QAN service.
-func New(db *reform.DB, ch chan<- qan.AgentMessage) *MySQL {
+func New(db *reform.DB, ch chan<- qanpb.AgentMessage) *MySQL {
 	return &MySQL{
 		db:      db,
 		ch:      ch,
@@ -98,14 +98,14 @@ func (m *MySQL) Run(ctx context.Context) {
 	}
 }
 
-func (m *MySQL) get(ctx context.Context) []qan.AgentMessage {
+func (m *MySQL) get(ctx context.Context) []qanpb.AgentMessage {
 	structs, err := m.db.SelectAllFrom(eventsStatementsSummaryByDigestView, "")
 	if err != nil {
 		m.l.Error(err)
 		return nil
 	}
 
-	res := make([]qan.AgentMessage, 0, len(structs))
+	res := make([]qanpb.AgentMessage, 0, len(structs))
 	for _, str := range structs {
 		ess := str.(*eventsStatementsSummaryByDigest)
 		if ess.Digest == nil || ess.DigestText == nil {
@@ -113,8 +113,8 @@ func (m *MySQL) get(ctx context.Context) []qan.AgentMessage {
 			continue
 		}
 
-		m := qan.AgentMessage{
-			MetricsBucket: []*qan.MetricsBucket{{
+		m := qanpb.AgentMessage{
+			MetricsBucket: []*qanpb.MetricsBucket{{
 				Queryid:     *ess.Digest,
 				Fingerprint: *ess.DigestText,
 				DSchema:     pointer.GetString(ess.SchemaName),
