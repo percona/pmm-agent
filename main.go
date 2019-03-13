@@ -25,7 +25,7 @@ import (
 	"time"
 
 	"github.com/golang/protobuf/ptypes"
-	api "github.com/percona/pmm/api/agent"
+	agentpb "github.com/percona/pmm/api/agent"
 	"github.com/percona/pmm/version"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sirupsen/logrus"
@@ -48,10 +48,10 @@ const (
 	clockDriftWarning = 5 * time.Second
 )
 
-func workLoop(ctx context.Context, cfg *config.Config, l *logrus.Entry, client api.AgentClient) {
+func workLoop(ctx context.Context, cfg *config.Config, l *logrus.Entry, client agentpb.AgentClient) {
 	// use separate context for stream to cancel it after supervisor is done sending last changes
 	streamCtx, streamCancel := context.WithCancel(context.Background())
-	streamCtx = api.AddAgentConnectMetadata(streamCtx, &api.AgentConnectMetadata{
+	streamCtx = agentpb.AddAgentConnectMetadata(streamCtx, &agentpb.AgentConnectMetadata{
 		ID:      cfg.ID,
 		Version: version.Version,
 	})
@@ -79,8 +79,8 @@ func workLoop(ctx context.Context, cfg *config.Config, l *logrus.Entry, client a
 	// So far nginx can handle all that itself without pmm-managed.
 	// We need to send ping to ensure that pmm-managed is alive and that Agent ID is valid.
 	start := time.Now()
-	res := channel.SendRequest(&api.AgentMessage_Ping{
-		Ping: new(api.Ping),
+	res := channel.SendRequest(&agentpb.AgentMessage_Ping{
+		Ping: new(agentpb.Ping),
 	})
 	if res == nil {
 		// error will be logged by channel code
@@ -88,7 +88,7 @@ func workLoop(ctx context.Context, cfg *config.Config, l *logrus.Entry, client a
 		return
 	}
 	roundtrip := time.Since(start)
-	serverTime, err := ptypes.Timestamp(res.(*api.ServerMessage_Pong).Pong.CurrentTime)
+	serverTime, err := ptypes.Timestamp(res.(*agentpb.ServerMessage_Pong).Pong.CurrentTime)
 	if err != nil {
 		l.Errorf("Failed to decode Pong.current_time: %s.", err)
 		streamCancel()
@@ -103,7 +103,7 @@ func workLoop(ctx context.Context, cfg *config.Config, l *logrus.Entry, client a
 	s := supervisor.NewSupervisor(ctx, &cfg.Paths, &cfg.Ports)
 	go func() {
 		for state := range s.Changes() {
-			res := channel.SendRequest(&api.AgentMessage_StateChanged{
+			res := channel.SendRequest(&agentpb.AgentMessage_StateChanged{
 				StateChanged: &state,
 			})
 			if res == nil {
@@ -115,8 +115,8 @@ func workLoop(ctx context.Context, cfg *config.Config, l *logrus.Entry, client a
 	}()
 	go func() {
 		for data := range s.QANData() {
-			res := channel.SendRequest(&api.AgentMessage_QanData{
-				QanData: &data,
+			res := channel.SendRequest(&agentpb.AgentMessage_QanCollect{
+				QanCollect: &data,
 			})
 			if res == nil {
 				l.Warn("Failed to send QanData request.")
@@ -127,25 +127,25 @@ func workLoop(ctx context.Context, cfg *config.Config, l *logrus.Entry, client a
 	}()
 
 	for serverMessage := range channel.Requests() {
-		var agentMessage *api.AgentMessage
+		var agentMessage *agentpb.AgentMessage
 		switch payload := serverMessage.Payload.(type) {
-		case *api.ServerMessage_Ping:
-			agentMessage = &api.AgentMessage{
+		case *agentpb.ServerMessage_Ping:
+			agentMessage = &agentpb.AgentMessage{
 				Id: serverMessage.Id,
-				Payload: &api.AgentMessage_Pong{
-					Pong: &api.Pong{
+				Payload: &agentpb.AgentMessage_Pong{
+					Pong: &agentpb.Pong{
 						CurrentTime: ptypes.TimestampNow(),
 					},
 				},
 			}
 
-		case *api.ServerMessage_SetState:
+		case *agentpb.ServerMessage_SetState:
 			s.SetState(payload.SetState)
 
-			agentMessage = &api.AgentMessage{
+			agentMessage = &agentpb.AgentMessage{
 				Id: serverMessage.Id,
-				Payload: &api.AgentMessage_SetState{
-					SetState: new(api.SetStateResponse),
+				Payload: &agentpb.AgentMessage_SetState{
+					SetState: new(agentpb.SetStateResponse),
 				},
 			}
 
@@ -223,7 +223,7 @@ func main() {
 	}()
 
 	l.Infof("Connected to %s.", cfg.Address)
-	client := api.NewAgentClient(conn)
+	client := agentpb.NewAgentClient(conn)
 
 	// TODO
 	// if cfg.UUID == "" {

@@ -1,4 +1,4 @@
-package agent
+package agentpb
 
 import (
 	"context"
@@ -17,12 +17,12 @@ type RequestPayload interface{ request() }
 type ResponsePayload interface{ response() }
 
 func (*Ping) request()                {}
-func (*QANDataRequest) request()      {}
+func (*QANCollectRequest) request()   {}
 func (*StateChangedRequest) request() {}
 func (*SetStateRequest) request()     {}
 
 func (*Pong) response()                 {}
-func (*QANDataResponse) response()      {}
+func (*QANCollectResponse) response()   {}
 func (*StateChangedResponse) response() {}
 func (*SetStateResponse) response()     {}
 

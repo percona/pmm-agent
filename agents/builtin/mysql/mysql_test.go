@@ -17,7 +17,6 @@
 package mysql
 
 import (
-	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -31,8 +30,15 @@ import (
 func TestGet(t *testing.T) {
 	sqlDB := tests.OpenTestMySQL(t)
 	db := reform.NewDB(sqlDB, mysql.Dialect, reform.NewPrintfLogger(t.Logf))
-	m := New(db, nil)
-	todos, err := m.get(context.Background())
+	m := New(nil, nil)
+
+	_, err := db.Exec("TRUNCATE performance_schema.events_statements_summary_by_digest")
 	require.NoError(t, err)
-	assert.NotEmpty(t, todos)
+
+	_, err = db.Exec("SELECT 'TestGet'")
+	require.NoError(t, err)
+
+	actual, err := m.get(db.Querier)
+	require.NoError(t, err)
+	assert.Len(t, actual.MetricsBucket, 2)
 }

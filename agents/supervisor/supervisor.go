@@ -32,7 +32,7 @@ import (
 
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes/any"
-	"github.com/percona/pmm/api/agent"
+	agentpb "github.com/percona/pmm/api/agent"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 
@@ -45,8 +45,8 @@ type Supervisor struct {
 	ctx           context.Context
 	paths         *config.Paths
 	portsRegistry *portsRegistry
-	changes       chan agent.StateChangedRequest
-	qanData       chan agent.QANDataRequest
+	changes       chan agentpb.StateChangedRequest
+	qanRequests   chan agentpb.QANCollectRequest
 	l             *logrus.Entry
 
 	m      sync.Mutex
@@ -56,7 +56,7 @@ type Supervisor struct {
 type agentInfo struct {
 	cancel         func()
 	done           chan struct{}
-	requestedState *agent.SetStateRequest_AgentProcess
+	requestedState *agentpb.SetStateRequest_AgentProcess
 	listenPort     uint16
 }
 
@@ -66,8 +66,8 @@ func NewSupervisor(ctx context.Context, paths *config.Paths, ports *config.Ports
 		ctx:           ctx,
 		paths:         paths,
 		portsRegistry: newPortsRegistry(ports.Min, ports.Max, nil),
-		changes:       make(chan agent.StateChangedRequest, 10),
-		qanData:       make(chan agent.QANDataRequest, 10),
+		changes:       make(chan agentpb.StateChangedRequest, 10),
+		qanRequests:   make(chan agentpb.QANCollectRequest, 10),
 		l:             logrus.WithField("component", "supervisor"),
 
 		agents: make(map[string]*agentInfo),
@@ -82,7 +82,7 @@ func NewSupervisor(ctx context.Context, paths *config.Paths, ports *config.Ports
 }
 
 // SetState starts or updates all agents placed in args and stops all agents not placed in args, but already run.
-func (s *Supervisor) SetState(state *agent.SetStateRequest) {
+func (s *Supervisor) SetState(state *agentpb.SetStateRequest) {
 	s.m.Lock()
 	defer s.m.Unlock()
 
@@ -96,7 +96,7 @@ func (s *Supervisor) SetState(state *agent.SetStateRequest) {
 }
 
 // setAgentProcesses starts or updates all agents placed in args and stops all agents not placed in args, but already run.
-func (s *Supervisor) setAgentProcesses(agentProcesses map[string]*agent.SetStateRequest_AgentProcess) {
+func (s *Supervisor) setAgentProcesses(agentProcesses map[string]*agentpb.SetStateRequest_AgentProcess) {
 	toStart, toRestart, toStop := s.filter(agentProcesses)
 
 	// We have to wait for processes to terminate before starting a new ones to reuse ports,
@@ -149,23 +149,23 @@ func (s *Supervisor) setAgentProcesses(agentProcesses map[string]*agent.SetState
 	}
 }
 
-func (s *Supervisor) setBuiltinAgents(builtinAgents map[string]*agent.SetStateRequest_BuiltinAgent) {
+func (s *Supervisor) setBuiltinAgents(builtinAgents map[string]*agentpb.SetStateRequest_BuiltinAgent) {
 	// TODO
 }
 
 // Changes returns channel with agent's state changes.
-func (s *Supervisor) Changes() <-chan agent.StateChangedRequest {
+func (s *Supervisor) Changes() <-chan agentpb.StateChangedRequest {
 	return s.changes
 }
 
-func (s *Supervisor) QANData() <-chan agent.QANDataRequest {
+func (s *Supervisor) QANData() <-chan agentpb.QANCollectRequest {
 	_ = any.Any{} // FIXME
-	return s.qanData
+	return s.qanRequests
 }
 
 // filter extracts IDs of the Agents that should be started, restarted with new parameters, or stopped,
 // and filters out IDs of the Agents that should not be changed.
-func (s *Supervisor) filter(agentProcesses map[string]*agent.SetStateRequest_AgentProcess) (toStart, toRestart, toStop []string) {
+func (s *Supervisor) filter(agentProcesses map[string]*agentpb.SetStateRequest_AgentProcess) (toStart, toRestart, toStop []string) {
 	// existing agents not present in the new requested state should be stopped
 	for agentID := range s.agents {
 		if agentProcesses[agentID] == nil {
@@ -196,7 +196,7 @@ func (s *Supervisor) filter(agentProcesses map[string]*agent.SetStateRequest_Age
 }
 
 // start starts agent and returns its info.
-func (s *Supervisor) start(agentID string, agentProcess *agent.SetStateRequest_AgentProcess, port uint16) (*agentInfo, error) {
+func (s *Supervisor) start(agentID string, agentProcess *agentpb.SetStateRequest_AgentProcess, port uint16) (*agentInfo, error) {
 	processParams, err := s.processParams(agentID, agentProcess, port)
 	if err != nil {
 		return nil, err
@@ -213,7 +213,7 @@ func (s *Supervisor) start(agentID string, agentProcess *agent.SetStateRequest_A
 	done := make(chan struct{})
 	go func() {
 		for status := range process.Changes() {
-			s.changes <- agent.StateChangedRequest{
+			s.changes <- agentpb.StateChangedRequest{
 				AgentId:    agentID,
 				Status:     status,
 				ListenPort: uint32(port),
@@ -225,7 +225,7 @@ func (s *Supervisor) start(agentID string, agentProcess *agent.SetStateRequest_A
 	return &agentInfo{
 		cancel:         cancel,
 		done:           done,
-		requestedState: proto.Clone(agentProcess).(*agent.SetStateRequest_AgentProcess),
+		requestedState: proto.Clone(agentProcess).(*agentpb.SetStateRequest_AgentProcess),
 		listenPort:     port,
 	}, nil
 }
@@ -235,18 +235,18 @@ var textFileRE = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9_]*$`) //nolint:gocheckn
 
 //nolint:golint
 const (
-	type_TEST_SLEEP agent.Type = 999
+	type_TEST_SLEEP agentpb.Type = 999
 )
 
 // processParams makes *process.Params from SetStateRequest parameters and other data.
-func (s *Supervisor) processParams(agentID string, agentProcess *agent.SetStateRequest_AgentProcess, port uint16) (*process.Params, error) {
+func (s *Supervisor) processParams(agentID string, agentProcess *agentpb.SetStateRequest_AgentProcess, port uint16) (*process.Params, error) {
 	var processParams process.Params
 	switch agentProcess.Type {
-	case agent.Type_NODE_EXPORTER:
+	case agentpb.Type_NODE_EXPORTER:
 		processParams.Path = s.paths.NodeExporter
-	case agent.Type_MYSQLD_EXPORTER:
+	case agentpb.Type_MYSQLD_EXPORTER:
 		processParams.Path = s.paths.MySQLdExporter
-	case agent.Type_MONGODB_EXPORTER:
+	case agentpb.Type_MONGODB_EXPORTER:
 		processParams.Path = s.paths.MongoDBExporter
 	case type_TEST_SLEEP:
 		processParams.Path = "sleep"

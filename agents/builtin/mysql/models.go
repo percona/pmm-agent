@@ -56,9 +56,9 @@ type eventsStatementsSummaryByDigest struct {
 	LastSeen                time.Time `reform:"LAST_SEEN"`
 }
 
-// EventsStatementsHistoryLong represents a row in performance_schema.events_statements_history_long table.
-//reform:performance_schema.events_statements_history_long
-type EventsStatementsHistoryLong struct {
+// EventsStatementsHistory represents a row in performance_schema.events_statements_history table.
+//reform:performance_schema.events_statements_history
+type EventsStatementsHistory struct {
 	ThreadID             int64   `reform:"THREAD_ID"`
 	EventID              int64   `reform:"EVENT_ID"`
 	EndEventID           *int64  `reform:"END_EVENT_ID"`

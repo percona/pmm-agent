@@ -130,7 +130,7 @@
 
 [[projects]]
   branch = "PMM-3595-qan-mysql-perfschema"
-  digest = "1:09d92ecf4a377156918c43dc6e3b28851b4cc10dac364f3b1ab598b0179508c4"
+  digest = "1:868ee1aea1e5ec50cbe9129c659ab135ca240b1ce1b73a50cdd094138d786201"
   name = "github.com/percona/pmm"
   packages = [
     "api/agent",
@@ -140,7 +140,7 @@
     "version",
   ]
   pruneopts = "NUT"
-  revision = "d5a4e7ad9bdbba3345ae5c1452ecff12ab5289ac"
+  revision = "c96ba9d606d9c1abe66e07371886e14fb90ed102"
 
 [[projects]]
   digest = "1:14715f705ff5dfe0ffd6571d7d201dd8e921030f8070321a79380d8ca4ec1a24"

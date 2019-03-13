@@ -24,7 +24,7 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/percona/pmm/api/agent"
+	agentpb "github.com/percona/pmm/api/agent"
 	"github.com/percona/pmm/api/inventory"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -34,10 +34,10 @@ import (
 )
 
 // assertChanges checks expected changes in any order.
-func assertChanges(t *testing.T, s *Supervisor, expected ...agent.StateChangedRequest) {
+func assertChanges(t *testing.T, s *Supervisor, expected ...agentpb.StateChangedRequest) {
 	t.Helper()
 
-	actual := make([]agent.StateChangedRequest, len(expected))
+	actual := make([]agentpb.StateChangedRequest, len(expected))
 	for i := range expected {
 		actual[i] = <-s.Changes()
 	}
@@ -52,44 +52,44 @@ func TestSupervisor(t *testing.T) {
 	s := NewSupervisor(ctx, nil, &config.Ports{Min: 10000, Max: 20000})
 
 	t.Run("Start1", func(t *testing.T) {
-		s.setAgentProcesses(map[string]*agent.SetStateRequest_AgentProcess{
+		s.setAgentProcesses(map[string]*agentpb.SetStateRequest_AgentProcess{
 			"sleep1": {Type: type_TEST_SLEEP, Args: []string{"10"}},
 		})
-		assertChanges(t, s, agent.StateChangedRequest{AgentId: "sleep1", Status: inventory.AgentStatus_STARTING, ListenPort: 10000})
-		assertChanges(t, s, agent.StateChangedRequest{AgentId: "sleep1", Status: inventory.AgentStatus_RUNNING, ListenPort: 10000})
+		assertChanges(t, s, agentpb.StateChangedRequest{AgentId: "sleep1", Status: inventory.AgentStatus_STARTING, ListenPort: 10000})
+		assertChanges(t, s, agentpb.StateChangedRequest{AgentId: "sleep1", Status: inventory.AgentStatus_RUNNING, ListenPort: 10000})
 	})
 
 	t.Run("Restart1Start2", func(t *testing.T) {
-		s.setAgentProcesses(map[string]*agent.SetStateRequest_AgentProcess{
+		s.setAgentProcesses(map[string]*agentpb.SetStateRequest_AgentProcess{
 			"sleep1": {Type: type_TEST_SLEEP, Args: []string{"20"}},
 			"sleep2": {Type: type_TEST_SLEEP, Args: []string{"10"}},
 		})
-		assertChanges(t, s, agent.StateChangedRequest{AgentId: "sleep1", Status: inventory.AgentStatus_STOPPING, ListenPort: 10000})
-		assertChanges(t, s, agent.StateChangedRequest{AgentId: "sleep1", Status: inventory.AgentStatus_DONE, ListenPort: 10000})
+		assertChanges(t, s, agentpb.StateChangedRequest{AgentId: "sleep1", Status: inventory.AgentStatus_STOPPING, ListenPort: 10000})
+		assertChanges(t, s, agentpb.StateChangedRequest{AgentId: "sleep1", Status: inventory.AgentStatus_DONE, ListenPort: 10000})
 
 		// the order of those two is not defined
-		assertChanges(t, s, agent.StateChangedRequest{AgentId: "sleep1", Status: inventory.AgentStatus_STARTING, ListenPort: 10000},
-			agent.StateChangedRequest{AgentId: "sleep2", Status: inventory.AgentStatus_STARTING, ListenPort: 10001})
+		assertChanges(t, s, agentpb.StateChangedRequest{AgentId: "sleep1", Status: inventory.AgentStatus_STARTING, ListenPort: 10000},
+			agentpb.StateChangedRequest{AgentId: "sleep2", Status: inventory.AgentStatus_STARTING, ListenPort: 10001})
 
 		// the order of those two is not defined
-		assertChanges(t, s, agent.StateChangedRequest{AgentId: "sleep1", Status: inventory.AgentStatus_RUNNING, ListenPort: 10000},
-			agent.StateChangedRequest{AgentId: "sleep2", Status: inventory.AgentStatus_RUNNING, ListenPort: 10001},
+		assertChanges(t, s, agentpb.StateChangedRequest{AgentId: "sleep1", Status: inventory.AgentStatus_RUNNING, ListenPort: 10000},
+			agentpb.StateChangedRequest{AgentId: "sleep2", Status: inventory.AgentStatus_RUNNING, ListenPort: 10001},
 		)
 	})
 
 	t.Run("Stop1", func(t *testing.T) {
-		s.setAgentProcesses(map[string]*agent.SetStateRequest_AgentProcess{
+		s.setAgentProcesses(map[string]*agentpb.SetStateRequest_AgentProcess{
 			"sleep2": {Type: type_TEST_SLEEP, Args: []string{"10"}},
 		})
-		assertChanges(t, s, agent.StateChangedRequest{AgentId: "sleep1", Status: inventory.AgentStatus_STOPPING, ListenPort: 10000})
-		assertChanges(t, s, agent.StateChangedRequest{AgentId: "sleep1", Status: inventory.AgentStatus_DONE, ListenPort: 10000})
+		assertChanges(t, s, agentpb.StateChangedRequest{AgentId: "sleep1", Status: inventory.AgentStatus_STOPPING, ListenPort: 10000})
+		assertChanges(t, s, agentpb.StateChangedRequest{AgentId: "sleep1", Status: inventory.AgentStatus_DONE, ListenPort: 10000})
 	})
 
 	t.Run("Exit", func(t *testing.T) {
 		cancel()
-		assertChanges(t, s, agent.StateChangedRequest{AgentId: "sleep2", Status: inventory.AgentStatus_STOPPING, ListenPort: 10001})
-		assertChanges(t, s, agent.StateChangedRequest{AgentId: "sleep2", Status: inventory.AgentStatus_DONE, ListenPort: 10001})
-		assertChanges(t, s, agent.StateChangedRequest{Status: inventory.AgentStatus_AGENT_STATUS_INVALID})
+		assertChanges(t, s, agentpb.StateChangedRequest{AgentId: "sleep2", Status: inventory.AgentStatus_STOPPING, ListenPort: 10001})
+		assertChanges(t, s, agentpb.StateChangedRequest{AgentId: "sleep2", Status: inventory.AgentStatus_DONE, ListenPort: 10001})
+		assertChanges(t, s, agentpb.StateChangedRequest{Status: inventory.AgentStatus_AGENT_STATUS_INVALID})
 	})
 }
 
@@ -102,23 +102,23 @@ func TestSupervisorFilter(t *testing.T) {
 		s.agents = map[string]*agentInfo{
 			"toRestart": {
 				cancel: cancel,
-				requestedState: &agent.SetStateRequest_AgentProcess{
-					Type: agent.Type_NODE_EXPORTER,
+				requestedState: &agentpb.SetStateRequest_AgentProcess{
+					Type: agentpb.Type_NODE_EXPORTER,
 				},
 			},
 			"toStop": {
 				cancel:         cancel,
-				requestedState: &agent.SetStateRequest_AgentProcess{},
+				requestedState: &agentpb.SetStateRequest_AgentProcess{},
 			},
 			"notChanged": {
 				cancel:         cancel,
-				requestedState: &agent.SetStateRequest_AgentProcess{},
+				requestedState: &agentpb.SetStateRequest_AgentProcess{},
 			},
 		}
 
-		agentProcesses := map[string]*agent.SetStateRequest_AgentProcess{
+		agentProcesses := map[string]*agentpb.SetStateRequest_AgentProcess{
 			"toStart":    {},
-			"toRestart":  {Type: agent.Type_MYSQLD_EXPORTER},
+			"toRestart":  {Type: agentpb.Type_MYSQLD_EXPORTER},
 			"notChanged": {},
 		}
 		toStart, toRestart, toStop := s.filter(agentProcesses)
@@ -156,8 +156,8 @@ func TestSupervisorProcessParams(t *testing.T) {
 		s, teardown := setup()
 		defer teardown()
 
-		p := &agent.SetStateRequest_AgentProcess{
-			Type: agent.Type_MYSQLD_EXPORTER,
+		p := &agentpb.SetStateRequest_AgentProcess{
+			Type: agentpb.Type_MYSQLD_EXPORTER,
 			Args: []string{
 				"-web.listen-address=:{{ .listen_port }}",
 				"-web.ssl-cert-file={{ .TextFiles.Cert }}",
@@ -193,24 +193,24 @@ func TestSupervisorProcessParams(t *testing.T) {
 		s, teardown := setup()
 		defer teardown()
 
-		p := &agent.SetStateRequest_AgentProcess{
-			Type: agent.Type_MYSQLD_EXPORTER,
+		p := &agentpb.SetStateRequest_AgentProcess{
+			Type: agentpb.Type_MYSQLD_EXPORTER,
 			Args: []string{"-foo=:{{ .bar }}"},
 		}
 		_, err := s.processParams("ID", p, 0)
 		require.Error(t, err)
 		assert.Regexp(t, `map has no entry for key "bar"`, err.Error())
 
-		p = &agent.SetStateRequest_AgentProcess{
-			Type:      agent.Type_MYSQLD_EXPORTER,
+		p = &agentpb.SetStateRequest_AgentProcess{
+			Type:      agentpb.Type_MYSQLD_EXPORTER,
 			TextFiles: map[string]string{"foo": "{{ .bar }}"},
 		}
 		_, err = s.processParams("ID", p, 0)
 		require.Error(t, err)
 		assert.Regexp(t, `map has no entry for key "bar"`, err.Error())
 
-		p = &agent.SetStateRequest_AgentProcess{
-			Type:      agent.Type_MYSQLD_EXPORTER,
+		p = &agentpb.SetStateRequest_AgentProcess{
+			Type:      agentpb.Type_MYSQLD_EXPORTER,
 			TextFiles: map[string]string{"bar": "{{ .listen_port }}"},
 			Args:      []string{"-foo=:{{ .TextFiles.baz }}"},
 		}
@@ -224,8 +224,8 @@ func TestSupervisorProcessParams(t *testing.T) {
 		s, teardown := setup()
 		defer teardown()
 
-		process := &agent.SetStateRequest_AgentProcess{
-			Type:      agent.Type_MYSQLD_EXPORTER,
+		process := &agentpb.SetStateRequest_AgentProcess{
+			Type:      agentpb.Type_MYSQLD_EXPORTER,
 			TextFiles: map[string]string{"../bar": "hax0r"},
 		}
 		_, err := s.processParams("ID", process, 0)

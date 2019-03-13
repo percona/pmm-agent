@@ -19,29 +19,32 @@ package mysql
 
 import (
 	"context"
+	"database/sql"
+	"strings"
 	"time"
 
-	"github.com/AlekSi/pointer"
-	"github.com/golang/protobuf/proto"
-	"github.com/golang/protobuf/ptypes/any"
+	_ "github.com/go-sql-driver/mysql" // register SQL driver
 	"github.com/percona/pmm/api/inventory"
 	qanpb "github.com/percona/pmm/api/qan"
-	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sirupsen/logrus"
 	"gopkg.in/reform.v1"
+	"gopkg.in/reform.v1/dialects/mysql"
+
+	"github.com/percona/pmm-agent/agents/backoff"
 )
 
 /*
-TODO A ton of open questions:
+TODO A ton of open questions. Should pmm-agent:
 * check that performance schema is enabled?
 * check that statement_digest consumer is enabled?
-* TRUNCATE events_statements_summary_by_digest before reading?
 * check/report the value of performance_schema_digests_size?
+* TRUNCATE events_statements_summary_by_digest before reading?
+* read events_statements_summary_by_digest every second? every 10 seconds? minute? other interval?
 * report rows with NULL digest?
 * get query by digest from events_statements_history_long?
 * check/report the value of performance_schema_events_statements_history_long_size?
-* how often to select data?
-* condition for FIRST_SEEN / LAST_SEEN?
+* set conditions for FIRST_SEEN / LAST_SEEN? what conditions?
+* group/aggregate results? how?
 * should github.com/percona/go-mysql/event be used?
 */
 
@@ -52,41 +55,52 @@ const (
 
 // MySQL QAN services connects to MySQL and extracts performance data.
 type MySQL struct {
-	db      *reform.DB
-	ch      chan<- qanpb.AgentMessageTODO
+	params  *Params
 	l       *logrus.Entry
-	changes chan inventory.AgentStatus
-	ctxDone chan struct{}
+	changes chan Change
+	backoff *backoff.Backoff
+}
 
-	mSend prometheus.Counter
+// Params represent Agent parameters.
+type Params struct {
+	DSN string
+}
+
+// Change represents Agent status change _or_ QAN collect request.
+type Change struct {
+	Status  inventory.AgentStatus
+	Request qanpb.CollectRequest
 }
 
 // New creates new MySQL QAN service.
-func New(db *reform.DB, ch chan<- qanpb.AgentMessageTODO) *MySQL {
+func New(params *Params, l *logrus.Entry) *MySQL {
 	return &MySQL{
-		db:      db,
-		ch:      ch,
-		l:       logrus.WithField("component", "mysql"),
-		changes: make(chan inventory.AgentStatus, 1),
-		ctxDone: make(chan struct{}),
-
-		mSend: prometheus.NewCounter(prometheus.CounterOpts{
-			Namespace: prometheusNamespace,
-			Subsystem: prometheusSubsystem,
-			Name:      "TODOs_sent_total",
-			Help:      "A total number of TODOs sent.",
-		}),
+		params:  params,
+		l:       l,
+		changes: make(chan Change, 10),
+		backoff: backoff.New(),
 	}
 }
 
 // Run extracts performance data and sends it to the channel until ctx is canceled.
 func (m *MySQL) Run(ctx context.Context) {
-	m.changes <- inventory.AgentStatus_STARTING
+	m.changes <- Change{Status: inventory.AgentStatus_STARTING}
 	defer func() {
-		m.changes <- inventory.AgentStatus_DONE
+		m.changes <- Change{Status: inventory.AgentStatus_DONE}
 		close(m.changes)
 	}()
 
+	sqlDB, err := sql.Open("mysql", m.params.DSN)
+	if err != nil {
+		m.l.Error(err)
+		return
+	}
+	defer sqlDB.Close()
+	sqlDB.SetMaxIdleConns(1)
+	sqlDB.SetMaxOpenConns(1)
+	sqlDB.SetConnMaxLifetime(0)
+
+	db := reform.NewDB(sqlDB, mysql.Dialect, reform.NewPrintfLogger(m.l.Tracef))
 	t := time.NewTicker(time.Second)
 	defer t.Stop()
 
@@ -94,93 +108,70 @@ func (m *MySQL) Run(ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():
-			m.changes <- inventory.AgentStatus_STOPPING
+			m.changes <- Change{Status: inventory.AgentStatus_STOPPING}
 			m.l.Infof("Context canceled.")
-			close(m.ctxDone)
 			return
 
 		case <-t.C:
-			todos, err := m.get(ctx)
+			request, err := m.get(db.Querier)
 			if err != nil {
 				m.l.Error(err)
 				running = false
-				m.changes <- inventory.AgentStatus_WAITING
+				m.changes <- Change{Status: inventory.AgentStatus_WAITING}
 				time.Sleep(time.Second)
-				m.changes <- inventory.AgentStatus_STARTING
+				m.changes <- Change{Status: inventory.AgentStatus_STARTING}
 				continue
 			}
 
 			if !running {
-				m.changes <- inventory.AgentStatus_RUNNING
+				m.changes <- Change{Status: inventory.AgentStatus_RUNNING}
 				running = true
 			}
 
-			for _, todo := range todos {
-				select {
-				case <-ctx.Done():
-					t.Stop()
-					break
-				case m.ch <- todo:
-					// nothing
-				}
+			select {
+			case <-ctx.Done():
+				t.Stop()
+				break
+			case m.changes <- Change{Request: request}:
+				// nothing
 			}
 		}
 	}
 }
 
-func (m *MySQL) get(ctx context.Context) ([]qanpb.AgentMessageTODO, error) {
-	structs, err := m.db.SelectAllFrom(eventsStatementsSummaryByDigestView, "")
+func (m *MySQL) get(q *reform.Querier) (qanpb.CollectRequest, error) {
+	var res qanpb.CollectRequest
+	structs, err := q.SelectAllFrom(eventsStatementsSummaryByDigestView, "")
 	if err != nil {
-		return nil, err
+		return res, err
 	}
 
-	res := make([]qanpb.AgentMessageTODO, 0, len(structs))
 	for _, str := range structs {
 		ess := str.(*eventsStatementsSummaryByDigest)
+
+		// skipping catch-all row
 		if ess.Digest == nil || ess.DigestText == nil {
-			m.l.Warnf("Skipping %s.", ess)
+			m.l.Debugf("Skipping %s.", ess)
 			continue
 		}
 
-		msg := &qanpb.AgentMessage{
-			MetricsBucket: []*qanpb.MetricsBucket{{
-				Queryid:     *ess.Digest,
-				Fingerprint: *ess.DigestText,
-				DSchema:     pointer.GetString(ess.SchemaName),
-			}},
-		}
+		// From https://dev.mysql.com/doc/relnotes/mysql/8.0/en/news-8-0-11.html:
+		// > The Performance Schema could produce DIGEST_TEXT values with a trailing space.
+		// > This no longer occurs. (Bug #26908015)
+		*ess.DigestText = strings.TrimSpace(*ess.DigestText)
 
-		b, err := proto.Marshal(msg)
-		if err != nil {
-			m.l.Error(err)
-			continue
-		}
-		res = append(res, qanpb.AgentMessageTODO{
-			Data: &any.Any{
-				TypeUrl: qanpb.AgentMessageTypeURL,
-				Value:   b,
-			},
+		res.MetricsBucket = append(res.MetricsBucket, &qanpb.MetricsBucket{
+			Queryid:     *ess.Digest,
+			Fingerprint: *ess.DigestText,
+			DServer:     "TODO",
+			DDatabase:   "TODO",
+			DSchema:     "TODO",
 		})
 	}
 	return res, nil
 }
 
 // Changes returns channel that should be read until it is closed.
-func (m *MySQL) Changes() <-chan inventory.AgentStatus {
+func (m *MySQL) Changes() <-chan Change {
 	return m.changes
 }
-
-// Describe implements prometheus.Collector.
-func (m *MySQL) Describe(ch chan<- *prometheus.Desc) {
-	m.mSend.Describe(ch)
-}
-
-// Collect implement prometheus.Collector.
-func (m *MySQL) Collect(ch chan<- prometheus.Metric) {
-	m.mSend.Collect(ch)
-}
-
-// check interfaces
-var (
-	_ prometheus.Collector = (*MySQL)(nil)
-)

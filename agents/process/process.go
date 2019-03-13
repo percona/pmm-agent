@@ -72,7 +72,7 @@ func New(ctx context.Context, params *Params, l *logrus.Entry) *Process {
 		params:  params,
 		l:       l,
 		pl:      newProcessLogger(l, keepLogLines),
-		changes: make(chan inventory.AgentStatus, 1),
+		changes: make(chan inventory.AgentStatus, 10),
 		backoff: backoff.New(),
 		ctxDone: make(chan struct{}),
 	}

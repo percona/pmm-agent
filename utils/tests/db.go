@@ -47,9 +47,8 @@ func OpenTestMySQL(tb testing.TB) *sql.DB {
 		db.SetConnMaxLifetime(0)
 
 		// Wait until MySQL is running up to 15 seconds.
-		// Use Exec instead of Ping to fill performance_schema tables.
 		for i := 0; i < 15; i++ {
-			if _, err = db.Exec("SELECT 'test'"); err == nil {
+			if err = db.Ping(); err == nil {
 				break
 			}
 			time.Sleep(time.Second)

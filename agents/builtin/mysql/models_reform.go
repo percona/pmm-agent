@@ -160,39 +160,39 @@ var (
 	_ fmt.Stringer  = (*eventsStatementsSummaryByDigest)(nil)
 )
 
-type eventsStatementsHistoryLongViewType struct {
+type eventsStatementsHistoryViewType struct {
 	s parse.StructInfo
 	z []interface{}
 }
 
 // Schema returns a schema name in SQL database ("performance_schema").
-func (v *eventsStatementsHistoryLongViewType) Schema() string {
+func (v *eventsStatementsHistoryViewType) Schema() string {
 	return v.s.SQLSchema
 }
 
-// Name returns a view or table name in SQL database ("events_statements_history_long").
-func (v *eventsStatementsHistoryLongViewType) Name() string {
+// Name returns a view or table name in SQL database ("events_statements_history").
+func (v *eventsStatementsHistoryViewType) Name() string {
 	return v.s.SQLName
 }
 
 // Columns returns a new slice of column names for that view or table in SQL database.
-func (v *eventsStatementsHistoryLongViewType) Columns() []string {
+func (v *eventsStatementsHistoryViewType) Columns() []string {
 	return []string{"THREAD_ID", "EVENT_ID", "END_EVENT_ID", "EVENT_NAME", "SOURCE", "TIMER_START", "TIMER_END", "TIMER_WAIT", "LOCK_TIME", "SQL_TEXT", "DIGEST", "DIGEST_TEXT", "CURRENT_SCHEMA", "OBJECT_TYPE", "OBJECT_SCHEMA", "OBJECT_NAME", "OBJECT_INSTANCE_BEGIN", "MYSQL_ERRNO", "RETURNED_SQLSTATE", "MESSAGE_TEXT", "ERRORS", "WARNINGS", "ROWS_AFFECTED", "ROWS_SENT", "ROWS_EXAMINED", "CREATED_TMP_DISK_TABLES", "CREATED_TMP_TABLES", "SELECT_FULL_JOIN", "SELECT_FULL_RANGE_JOIN", "SELECT_RANGE", "SELECT_RANGE_CHECK", "SELECT_SCAN", "SORT_MERGE_PASSES", "SORT_RANGE", "SORT_ROWS", "SORT_SCAN", "NO_INDEX_USED", "NO_GOOD_INDEX_USED", "NESTING_EVENT_ID", "NESTING_EVENT_TYPE", "NESTING_EVENT_LEVEL"}
 }
 
 // NewStruct makes a new struct for that view or table.
-func (v *eventsStatementsHistoryLongViewType) NewStruct() reform.Struct {
-	return new(EventsStatementsHistoryLong)
+func (v *eventsStatementsHistoryViewType) NewStruct() reform.Struct {
+	return new(EventsStatementsHistory)
 }
 
-// EventsStatementsHistoryLongView represents events_statements_history_long view or table in SQL database.
-var EventsStatementsHistoryLongView = &eventsStatementsHistoryLongViewType{
-	s: parse.StructInfo{Type: "EventsStatementsHistoryLong", SQLSchema: "performance_schema", SQLName: "events_statements_history_long", Fields: []parse.FieldInfo{{Name: "ThreadID", Type: "int64", Column: "THREAD_ID"}, {Name: "EventID", Type: "int64", Column: "EVENT_ID"}, {Name: "EndEventID", Type: "*int64", Column: "END_EVENT_ID"}, {Name: "EventName", Type: "string", Column: "EVENT_NAME"}, {Name: "Source", Type: "*string", Column: "SOURCE"}, {Name: "TimerStart", Type: "*int64", Column: "TIMER_START"}, {Name: "TimerEnd", Type: "*int64", Column: "TIMER_END"}, {Name: "TimerWait", Type: "*int64", Column: "TIMER_WAIT"}, {Name: "LockTime", Type: "int64", Column: "LOCK_TIME"}, {Name: "SQLText", Type: "*string", Column: "SQL_TEXT"}, {Name: "Digest", Type: "*string", Column: "DIGEST"}, {Name: "DigestText", Type: "*string", Column: "DIGEST_TEXT"}, {Name: "CurrentSchema", Type: "*string", Column: "CURRENT_SCHEMA"}, {Name: "ObjectType", Type: "*string", Column: "OBJECT_TYPE"}, {Name: "ObjectSchema", Type: "*string", Column: "OBJECT_SCHEMA"}, {Name: "ObjectName", Type: "*string", Column: "OBJECT_NAME"}, {Name: "ObjectInstanceBegin", Type: "*int64", Column: "OBJECT_INSTANCE_BEGIN"}, {Name: "MySQLErrno", Type: "*int32", Column: "MYSQL_ERRNO"}, {Name: "ReturnedSqlstate", Type: "*string", Column: "RETURNED_SQLSTATE"}, {Name: "MessageText", Type: "*string", Column: "MESSAGE_TEXT"}, {Name: "Errors", Type: "int64", Column: "ERRORS"}, {Name: "Warnings", Type: "int64", Column: "WARNINGS"}, {Name: "RowsAffected", Type: "int64", Column: "ROWS_AFFECTED"}, {Name: "RowsSent", Type: "int64", Column: "ROWS_SENT"}, {Name: "RowsExamined", Type: "int64", Column: "ROWS_EXAMINED"}, {Name: "CreatedTmpDiskTables", Type: "int64", Column: "CREATED_TMP_DISK_TABLES"}, {Name: "CreatedTmpTables", Type: "int64", Column: "CREATED_TMP_TABLES"}, {Name: "SelectFullJoin", Type: "int64", Column: "SELECT_FULL_JOIN"}, {Name: "SelectFullRangeJoin", Type: "int64", Column: "SELECT_FULL_RANGE_JOIN"}, {Name: "SelectRange", Type: "int64", Column: "SELECT_RANGE"}, {Name: "SelectRangeCheck", Type: "int64", Column: "SELECT_RANGE_CHECK"}, {Name: "SelectScan", Type: "int64", Column: "SELECT_SCAN"}, {Name: "SortMergePasses", Type: "int64", Column: "SORT_MERGE_PASSES"}, {Name: "SortRange", Type: "int64", Column: "SORT_RANGE"}, {Name: "SortRows", Type: "int64", Column: "SORT_ROWS"}, {Name: "SortScan", Type: "int64", Column: "SORT_SCAN"}, {Name: "MoIndexUsed", Type: "int64", Column: "NO_INDEX_USED"}, {Name: "MoGoodIndexUsed", Type: "int64", Column: "NO_GOOD_INDEX_USED"}, {Name: "NestingEventID", Type: "*int64", Column: "NESTING_EVENT_ID"}, {Name: "NestingEventType", Type: "string", Column: "NESTING_EVENT_TYPE"}, {Name: "NestingEventLevel", Type: "*int32", Column: "NESTING_EVENT_LEVEL"}}, PKFieldIndex: -1},
-	z: new(EventsStatementsHistoryLong).Values(),
+// EventsStatementsHistoryView represents events_statements_history view or table in SQL database.
+var EventsStatementsHistoryView = &eventsStatementsHistoryViewType{
+	s: parse.StructInfo{Type: "EventsStatementsHistory", SQLSchema: "performance_schema", SQLName: "events_statements_history", Fields: []parse.FieldInfo{{Name: "ThreadID", Type: "int64", Column: "THREAD_ID"}, {Name: "EventID", Type: "int64", Column: "EVENT_ID"}, {Name: "EndEventID", Type: "*int64", Column: "END_EVENT_ID"}, {Name: "EventName", Type: "string", Column: "EVENT_NAME"}, {Name: "Source", Type: "*string", Column: "SOURCE"}, {Name: "TimerStart", Type: "*int64", Column: "TIMER_START"}, {Name: "TimerEnd", Type: "*int64", Column: "TIMER_END"}, {Name: "TimerWait", Type: "*int64", Column: "TIMER_WAIT"}, {Name: "LockTime", Type: "int64", Column: "LOCK_TIME"}, {Name: "SQLText", Type: "*string", Column: "SQL_TEXT"}, {Name: "Digest", Type: "*string", Column: "DIGEST"}, {Name: "DigestText", Type: "*string", Column: "DIGEST_TEXT"}, {Name: "CurrentSchema", Type: "*string", Column: "CURRENT_SCHEMA"}, {Name: "ObjectType", Type: "*string", Column: "OBJECT_TYPE"}, {Name: "ObjectSchema", Type: "*string", Column: "OBJECT_SCHEMA"}, {Name: "ObjectName", Type: "*string", Column: "OBJECT_NAME"}, {Name: "ObjectInstanceBegin", Type: "*int64", Column: "OBJECT_INSTANCE_BEGIN"}, {Name: "MySQLErrno", Type: "*int32", Column: "MYSQL_ERRNO"}, {Name: "ReturnedSqlstate", Type: "*string", Column: "RETURNED_SQLSTATE"}, {Name: "MessageText", Type: "*string", Column: "MESSAGE_TEXT"}, {Name: "Errors", Type: "int64", Column: "ERRORS"}, {Name: "Warnings", Type: "int64", Column: "WARNINGS"}, {Name: "RowsAffected", Type: "int64", Column: "ROWS_AFFECTED"}, {Name: "RowsSent", Type: "int64", Column: "ROWS_SENT"}, {Name: "RowsExamined", Type: "int64", Column: "ROWS_EXAMINED"}, {Name: "CreatedTmpDiskTables", Type: "int64", Column: "CREATED_TMP_DISK_TABLES"}, {Name: "CreatedTmpTables", Type: "int64", Column: "CREATED_TMP_TABLES"}, {Name: "SelectFullJoin", Type: "int64", Column: "SELECT_FULL_JOIN"}, {Name: "SelectFullRangeJoin", Type: "int64", Column: "SELECT_FULL_RANGE_JOIN"}, {Name: "SelectRange", Type: "int64", Column: "SELECT_RANGE"}, {Name: "SelectRangeCheck", Type: "int64", Column: "SELECT_RANGE_CHECK"}, {Name: "SelectScan", Type: "int64", Column: "SELECT_SCAN"}, {Name: "SortMergePasses", Type: "int64", Column: "SORT_MERGE_PASSES"}, {Name: "SortRange", Type: "int64", Column: "SORT_RANGE"}, {Name: "SortRows", Type: "int64", Column: "SORT_ROWS"}, {Name: "SortScan", Type: "int64", Column: "SORT_SCAN"}, {Name: "MoIndexUsed", Type: "int64", Column: "NO_INDEX_USED"}, {Name: "MoGoodIndexUsed", Type: "int64", Column: "NO_GOOD_INDEX_USED"}, {Name: "NestingEventID", Type: "*int64", Column: "NESTING_EVENT_ID"}, {Name: "NestingEventType", Type: "string", Column: "NESTING_EVENT_TYPE"}, {Name: "NestingEventLevel", Type: "*int32", Column: "NESTING_EVENT_LEVEL"}}, PKFieldIndex: -1},
+	z: new(EventsStatementsHistory).Values(),
 }
 
 // String returns a string representation of this struct or record.
-func (s EventsStatementsHistoryLong) String() string {
+func (s EventsStatementsHistory) String() string {
 	res := make([]string, 41)
 	res[0] = "ThreadID: " + reform.Inspect(s.ThreadID, true)
 	res[1] = "EventID: " + reform.Inspect(s.EventID, true)
@@ -240,7 +240,7 @@ func (s EventsStatementsHistoryLong) String() string {
 
 // Values returns a slice of struct or record field values.
 // Returned interface{} values are never untyped nils.
-func (s *EventsStatementsHistoryLong) Values() []interface{} {
+func (s *EventsStatementsHistory) Values() []interface{} {
 	return []interface{}{
 		s.ThreadID,
 		s.EventID,
@@ -288,7 +288,7 @@ func (s *EventsStatementsHistoryLong) Values() []interface{} {
 
 // Pointers returns a slice of pointers to struct or record fields.
 // Returned interface{} values are never untyped nils.
-func (s *EventsStatementsHistoryLong) Pointers() []interface{} {
+func (s *EventsStatementsHistory) Pointers() []interface{} {
 	return []interface{}{
 		&s.ThreadID,
 		&s.EventID,
@@ -335,18 +335,18 @@ func (s *EventsStatementsHistoryLong) Pointers() []interface{} {
 }
 
 // View returns View object for that struct.
-func (s *EventsStatementsHistoryLong) View() reform.View {
-	return EventsStatementsHistoryLongView
+func (s *EventsStatementsHistory) View() reform.View {
+	return EventsStatementsHistoryView
 }
 
 // check interfaces
 var (
-	_ reform.View   = EventsStatementsHistoryLongView
-	_ reform.Struct = (*EventsStatementsHistoryLong)(nil)
-	_ fmt.Stringer  = (*EventsStatementsHistoryLong)(nil)
+	_ reform.View   = EventsStatementsHistoryView
+	_ reform.Struct = (*EventsStatementsHistory)(nil)
+	_ fmt.Stringer  = (*EventsStatementsHistory)(nil)
 )
 
 func init() {
 	parse.AssertUpToDate(&eventsStatementsSummaryByDigestView.s, new(eventsStatementsSummaryByDigest))
-	parse.AssertUpToDate(&EventsStatementsHistoryLongView.s, new(EventsStatementsHistoryLong))
+	parse.AssertUpToDate(&EventsStatementsHistoryView.s, new(EventsStatementsHistory))
 }
