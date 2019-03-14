@@ -40,7 +40,7 @@ import (
 	"github.com/percona/pmm-agent/config"
 )
 
-// Supervisor manages all agent's processes.
+// Supervisor manages all Agents, both processes and built-in.
 type Supervisor struct {
 	ctx           context.Context
 	paths         *config.Paths
@@ -49,15 +49,25 @@ type Supervisor struct {
 	qanRequests   chan agentpb.QANCollectRequest
 	l             *logrus.Entry
 
-	m      sync.Mutex
-	agents map[string]*agentInfo
+	m              sync.Mutex
+	agentProcesses map[string]*agentProcessInfo
 }
 
-type agentInfo struct {
-	cancel         func()
-	done           chan struct{}
+type agent interface {
+	Run(context.Context)
+}
+
+// agentProcessInfo describes Agent process.
+type agentProcessInfo struct {
+	cancel         func()        // to cancel Run(ctx)
+	done           chan struct{} // closed when Run(ctx) exits
 	requestedState *agentpb.SetStateRequest_AgentProcess
 	listenPort     uint16
+}
+
+type builtinAgentInfo struct {
+	cancel func()        // to cancel Run(ctx)
+	done   chan struct{} // closed when Run(ctx) exits
 }
 
 // NewSupervisor creates new Supervisor object.
@@ -70,7 +80,7 @@ func NewSupervisor(ctx context.Context, paths *config.Paths, ports *config.Ports
 		qanRequests:   make(chan agentpb.QANCollectRequest, 10),
 		l:             logrus.WithField("component", "supervisor"),
 
-		agents: make(map[string]*agentInfo),
+		agentProcesses: make(map[string]*agentProcessInfo),
 	}
 
 	go func() {
@@ -105,19 +115,19 @@ func (s *Supervisor) setAgentProcesses(agentProcesses map[string]*agentpb.SetSta
 
 	// stop first to avoid extra load
 	for _, agentID := range toStop {
-		agent := s.agents[agentID]
+		agent := s.agentProcesses[agentID]
 		agent.cancel()
 		<-agent.done // wait before releasing port
 
 		if err := s.portsRegistry.Release(agent.listenPort); err != nil {
 			s.l.Errorf("Failed to release port: %s.", err)
 		}
-		delete(s.agents, agentID)
+		delete(s.agentProcesses, agentID)
 	}
 
 	// restart while preserving port
 	for _, agentID := range toRestart {
-		agent := s.agents[agentID]
+		agent := s.agentProcesses[agentID]
 		agent.cancel()
 		<-agent.done // wait before reusing port
 
@@ -127,7 +137,7 @@ func (s *Supervisor) setAgentProcesses(agentProcesses map[string]*agentpb.SetSta
 			// TODO report that error to server
 			continue
 		}
-		s.agents[agentID] = agent
+		s.agentProcesses[agentID] = agent
 	}
 
 	// start new agents
@@ -145,7 +155,7 @@ func (s *Supervisor) setAgentProcesses(agentProcesses map[string]*agentpb.SetSta
 			// TODO report that error to server
 			continue
 		}
-		s.agents[agentID] = agent
+		s.agentProcesses[agentID] = agent
 	}
 }
 
@@ -167,7 +177,7 @@ func (s *Supervisor) QANData() <-chan agentpb.QANCollectRequest {
 // and filters out IDs of the Agents that should not be changed.
 func (s *Supervisor) filter(agentProcesses map[string]*agentpb.SetStateRequest_AgentProcess) (toStart, toRestart, toStop []string) {
 	// existing agents not present in the new requested state should be stopped
-	for agentID := range s.agents {
+	for agentID := range s.agentProcesses {
 		if agentProcesses[agentID] == nil {
 			toStop = append(toStop, agentID)
 		}
@@ -175,7 +185,7 @@ func (s *Supervisor) filter(agentProcesses map[string]*agentpb.SetStateRequest_A
 
 	// detect new and changed agents
 	for agentID, agentProcess := range agentProcesses {
-		agent := s.agents[agentID]
+		agent := s.agentProcesses[agentID]
 		if agent == nil {
 			toStart = append(toStart, agentID)
 			continue
@@ -196,7 +206,7 @@ func (s *Supervisor) filter(agentProcesses map[string]*agentpb.SetStateRequest_A
 }
 
 // start starts agent and returns its info.
-func (s *Supervisor) start(agentID string, agentProcess *agentpb.SetStateRequest_AgentProcess, port uint16) (*agentInfo, error) {
+func (s *Supervisor) start(agentID string, agentProcess *agentpb.SetStateRequest_AgentProcess, port uint16) (*agentProcessInfo, error) {
 	processParams, err := s.processParams(agentID, agentProcess, port)
 	if err != nil {
 		return nil, err
@@ -208,7 +218,8 @@ func (s *Supervisor) start(agentID string, agentProcess *agentpb.SetStateRequest
 		"agentID":   agentID,
 		"type":      strings.ToLower(agentProcess.Type.String()),
 	})
-	process := process.New(ctx, processParams, l)
+	process := process.New(processParams, l)
+	go process.Run(ctx)
 
 	done := make(chan struct{})
 	go func() {
@@ -222,7 +233,7 @@ func (s *Supervisor) start(agentID string, agentProcess *agentpb.SetStateRequest
 		close(done)
 	}()
 
-	return &agentInfo{
+	return &agentProcessInfo{
 		cancel:         cancel,
 		done:           done,
 		requestedState: proto.Clone(agentProcess).(*agentpb.SetStateRequest_AgentProcess),
@@ -329,12 +340,12 @@ func (s *Supervisor) stopAll() {
 	s.m.Lock()
 	defer s.m.Unlock()
 
-	wait := make([]chan struct{}, 0, len(s.agents))
-	for _, agent := range s.agents {
+	wait := make([]chan struct{}, 0, len(s.agentProcesses))
+	for _, agent := range s.agentProcesses {
 		agent.cancel()
 		wait = append(wait, agent.done)
 	}
-	s.agents = nil
+	s.agentProcesses = nil
 
 	for _, ch := range wait {
 		<-ch

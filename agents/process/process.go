@@ -38,8 +38,9 @@ const (
 
 // Process represents Agent process started by pmm-agent.
 //
-// Process object should be created with New. It then handles process starting, restarting with backoff,
-// reading its output. Process is gracefully stopped when context passed to New is canceled.
+// Process object should be created with New and started with Run (typically in a separate goroutine).
+// It then handles process starting, restarting with backoff, reading its output.
+// Process is gracefully stopped when context passed to New is canceled.
 // Changes of process status are reported via Changes channel which must be read until it is closed.
 //
 // Process status is changed by finite state machine (see agent_status.dot).
@@ -67,8 +68,8 @@ type Params struct {
 }
 
 // New creates new process.
-func New(ctx context.Context, params *Params, l *logrus.Entry) *Process {
-	p := &Process{
+func New(params *Params, l *logrus.Entry) *Process {
+	return &Process{
 		params:  params,
 		l:       l,
 		pl:      newProcessLogger(l, keepLogLines),
@@ -76,14 +77,10 @@ func New(ctx context.Context, params *Params, l *logrus.Entry) *Process {
 		backoff: backoff.New(),
 		ctxDone: make(chan struct{}),
 	}
-
-	go p.run(ctx)
-
-	return p
 }
 
-// run starts process and runs until ctx is canceled.
-func (p *Process) run(ctx context.Context) {
+// Run starts process and runs until ctx is canceled.
+func (p *Process) Run(ctx context.Context) {
 	go p.toStarting()
 
 	<-ctx.Done()
