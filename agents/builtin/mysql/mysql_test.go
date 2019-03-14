@@ -17,8 +17,10 @@
 package mysql
 
 import (
+	"regexp"
 	"testing"
 
+	qanpb "github.com/percona/pmm/api/qan"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/reform.v1"
@@ -32,13 +34,59 @@ func TestGet(t *testing.T) {
 	db := reform.NewDB(sqlDB, mysql.Dialect, reform.NewPrintfLogger(t.Logf))
 	m := New(nil, nil)
 
-	_, err := db.Exec("TRUNCATE performance_schema.events_statements_summary_by_digest")
+	var version string
+	err := db.QueryRow("SELECT version()").Scan(&version)
+	require.NoError(t, err)
+	t.Logf("version = %q", version)
+	version = regexp.MustCompile(`^\d\.\d`).FindString(version)
+	var digests map[string]string // digest_text/fingerprint to digest/query_id
+	switch version {
+	case "5.6":
+		digests = map[string]string{
+			"TRUNCATE `performance_schema` . `events_statements_summary_by_digest`": "3984f1508fbf01121d4cbe1b738aba23",
+			"SELECT ?": "41782b6b3af16c6426fb64b88a51d8a5",
+		}
+	case "5.7":
+		digests = map[string]string{
+			"TRUNCATE `performance_schema` . `events_statements_summary_by_digest`": "0eaf45fe39b87f0be36d5e47037fc654",
+			"SELECT ?": "3fff4c5a5ca5e1e484663cab257efd1e",
+		}
+	case "8.0":
+		digests = map[string]string{
+			"TRUNCATE `performance_schema` . `events_statements_summary_by_digest`": "bea5ce9985044648518884aad3633801e8446d0006f2efd6a76028555e59719f",
+			"SELECT ?": "d1b44b0c19af710b5a679907e284acd2ddc285201794bc69a2389d77baedddae",
+		}
+	default:
+		t.Fatalf("unexpected version %q", version)
+	}
+
+	_, err = db.Exec("TRUNCATE performance_schema.events_statements_summary_by_digest")
 	require.NoError(t, err)
 
 	_, err = db.Exec("SELECT 'TestGet'")
 	require.NoError(t, err)
 
-	actual, err := m.get(db.Querier)
+	req, err := m.get(db.Querier)
 	require.NoError(t, err)
-	assert.Len(t, actual.MetricsBucket, 2)
+	require.Len(t, req.MetricsBucket, 2)
+
+	actual := req.MetricsBucket[0]
+	expected := &qanpb.MetricsBucket{
+		Queryid:     digests[actual.Fingerprint],
+		Fingerprint: "TRUNCATE `performance_schema` . `events_statements_summary_by_digest`",
+		DServer:     "TODO",
+		DDatabase:   "TODO",
+		DSchema:     "TODO",
+	}
+	assert.Equal(t, expected, actual)
+
+	actual = req.MetricsBucket[1]
+	expected = &qanpb.MetricsBucket{
+		Queryid:     digests[actual.Fingerprint],
+		Fingerprint: "SELECT ?",
+		DServer:     "TODO",
+		DDatabase:   "TODO",
+		DSchema:     "TODO",
+	}
+	assert.Equal(t, expected, actual)
 }

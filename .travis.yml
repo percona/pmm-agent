@@ -21,7 +21,7 @@ cache:
 
 env:
   matrix:
-    # - MYSQL_IMAGE=percona/percona-server:5.6
+    - MYSQL_IMAGE=percona/percona-server:5.6
     - MYSQL_IMAGE=percona/percona-server:5.7
     - MYSQL_IMAGE=percona/percona-server:8.0
 

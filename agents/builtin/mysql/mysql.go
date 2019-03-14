@@ -160,6 +160,8 @@ func (m *MySQL) get(q *reform.Querier) (qanpb.CollectRequest, error) {
 		// > This no longer occurs. (Bug #26908015)
 		*ess.DigestText = strings.TrimSpace(*ess.DigestText)
 
+		// TODO https://jira.percona.com/browse/PMM-3594
+
 		res.MetricsBucket = append(res.MetricsBucket, &qanpb.MetricsBucket{
 			Queryid:     *ess.Digest,
 			Fingerprint: *ess.DigestText,
