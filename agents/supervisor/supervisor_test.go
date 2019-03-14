@@ -99,7 +99,7 @@ func TestSupervisorFilter(t *testing.T) {
 	s := NewSupervisor(ctx, nil, &config.Ports{Min: 10000, Max: 20000})
 
 	t.Run("Normal", func(t *testing.T) {
-		s.agents = map[string]*agentInfo{
+		s.agentProcesses = map[string]*agentProcessInfo{
 			"toRestart": {
 				cancel: cancel,
 				requestedState: &agentpb.SetStateRequest_AgentProcess{
