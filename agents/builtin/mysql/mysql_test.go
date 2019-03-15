@@ -20,7 +20,7 @@ import (
 	"regexp"
 	"testing"
 
-	qanpb "github.com/percona/pmm/api/qan"
+	"github.com/percona/pmm/api/qanpb"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/reform.v1"

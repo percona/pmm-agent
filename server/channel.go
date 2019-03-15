@@ -22,7 +22,7 @@ import (
 	"sync"
 	"sync/atomic"
 
-	agentpb "github.com/percona/pmm/api/agent"
+	"github.com/percona/pmm/api/agentpb"
 	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sirupsen/logrus"

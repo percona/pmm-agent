@@ -25,7 +25,7 @@ import (
 	"time"
 
 	"github.com/golang/protobuf/ptypes"
-	agentpb "github.com/percona/pmm/api/agent"
+	"github.com/percona/pmm/api/agentpb"
 	"github.com/percona/pmm/version"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sirupsen/logrus"

@@ -24,7 +24,7 @@ import (
 	"sort"
 	"testing"
 
-	agentpb "github.com/percona/pmm/api/agent"
+	"github.com/percona/pmm/api/agentpb"
 	"github.com/percona/pmm/api/inventory"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -93,35 +93,20 @@ func TestSupervisor(t *testing.T) {
 	})
 }
 
-func TestSupervisorFilter(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	s := NewSupervisor(ctx, nil, &config.Ports{Min: 10000, Max: 20000})
-
+func TestFilter(t *testing.T) {
 	t.Run("Normal", func(t *testing.T) {
-		s.agentProcesses = map[string]*agentProcessInfo{
-			"toRestart": {
-				cancel: cancel,
-				requestedState: &agentpb.SetStateRequest_AgentProcess{
-					Type: agentpb.Type_NODE_EXPORTER,
-				},
-			},
-			"toStop": {
-				cancel:         cancel,
-				requestedState: &agentpb.SetStateRequest_AgentProcess{},
-			},
-			"notChanged": {
-				cancel:         cancel,
-				requestedState: &agentpb.SetStateRequest_AgentProcess{},
-			},
+		existingParams := map[string]agentpb.AgentParams{
+			"toRestart":  &agentpb.SetStateRequest_AgentProcess{Type: agentpb.Type_NODE_EXPORTER},
+			"toStop":     &agentpb.SetStateRequest_AgentProcess{},
+			"notChanged": &agentpb.SetStateRequest_AgentProcess{},
 		}
 
-		agentProcesses := map[string]*agentpb.SetStateRequest_AgentProcess{
-			"toStart":    {},
-			"toRestart":  {Type: agentpb.Type_MYSQLD_EXPORTER},
-			"notChanged": {},
+		newParams := map[string]agentpb.AgentParams{
+			"toStart":    &agentpb.SetStateRequest_AgentProcess{},
+			"toRestart":  &agentpb.SetStateRequest_AgentProcess{Type: agentpb.Type_MYSQLD_EXPORTER},
+			"notChanged": &agentpb.SetStateRequest_AgentProcess{},
 		}
-		toStart, toRestart, toStop := s.filter(agentProcesses)
+		toStart, toRestart, toStop := filter(existingParams, newParams)
 		assert.Equal(t, []string{"toStart"}, toStart)
 		assert.Equal(t, []string{"toRestart"}, toRestart)
 		assert.Equal(t, []string{"toStop"}, toStop)

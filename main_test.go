@@ -45,13 +45,13 @@ func TestImports(t *testing.T) {
 		// agents code should not be concerned about pmm-agent<->pmm-managed protocol details
 		"github.com/percona/pmm-agent/agents/process": {
 			blacklist: []string{
-				"github.com/percona/pmm/api/agent",
+				"github.com/percona/pmm/api/agentpb",
 				"github.com/percona/pmm-agent/server",
 			},
 		},
 		"github.com/percona/pmm-agent/agents/builtin/mysql": {
 			blacklist: []string{
-				"github.com/percona/pmm/api/agent",
+				"github.com/percona/pmm/api/agentpb",
 				"github.com/percona/pmm-agent/server",
 			},
 		},

@@ -130,17 +130,17 @@
 
 [[projects]]
   branch = "PMM-3595-qan-mysql-perfschema"
-  digest = "1:02e3269b5402e6f5bdbd72af0076a435e0366c3e174848cc97bd2cc2125ab348"
+  digest = "1:25b4786e8af9ed08bd0af137c53da3503b8a8a4d3156b5efe258a0837749574e"
   name = "github.com/percona/pmm"
   packages = [
-    "api/agent",
     "api/agent_local",
+    "api/agentpb",
     "api/inventory",
-    "api/qan",
+    "api/qanpb",
     "version",
   ]
   pruneopts = "NUT"
-  revision = "5d9d3f75c201f45f95449a3fc7bc2c9f490176de"
+  revision = "5800f1c7c28ad4c9dcf598485a50816b2b182b33"
 
 [[projects]]
   digest = "1:14715f705ff5dfe0ffd6571d7d201dd8e921030f8070321a79380d8ca4ec1a24"
@@ -375,10 +375,10 @@
     "github.com/golang/protobuf/ptypes",
     "github.com/golang/protobuf/ptypes/any",
     "github.com/percona/exporter_shared/helpers",
-    "github.com/percona/pmm/api/agent",
     "github.com/percona/pmm/api/agent_local",
+    "github.com/percona/pmm/api/agentpb",
     "github.com/percona/pmm/api/inventory",
-    "github.com/percona/pmm/api/qan",
+    "github.com/percona/pmm/api/qanpb",
     "github.com/percona/pmm/version",
     "github.com/pkg/errors",
     "github.com/prometheus/client_golang/prometheus",

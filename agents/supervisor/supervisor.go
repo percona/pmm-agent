@@ -32,7 +32,7 @@ import (
 
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes/any"
-	agentpb "github.com/percona/pmm/api/agent"
+	"github.com/percona/pmm/api/agentpb"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 
@@ -107,7 +107,15 @@ func (s *Supervisor) SetState(state *agentpb.SetStateRequest) {
 
 // setAgentProcesses starts or updates all agents placed in args and stops all agents not placed in args, but already run.
 func (s *Supervisor) setAgentProcesses(agentProcesses map[string]*agentpb.SetStateRequest_AgentProcess) {
-	toStart, toRestart, toStop := s.filter(agentProcesses)
+	existingParams := make(map[string]agentpb.AgentParams)
+	for id, p := range s.agentProcesses {
+		existingParams[id] = p.requestedState
+	}
+	newParams := make(map[string]agentpb.AgentParams)
+	for id, p := range agentProcesses {
+		newParams[id] = p
+	}
+	toStart, toRestart, toStop := filter(existingParams, newParams)
 
 	// We have to wait for processes to terminate before starting a new ones to reuse ports,
 	// and to send all state updates.
@@ -175,28 +183,28 @@ func (s *Supervisor) QANData() <-chan agentpb.QANCollectRequest {
 
 // filter extracts IDs of the Agents that should be started, restarted with new parameters, or stopped,
 // and filters out IDs of the Agents that should not be changed.
-func (s *Supervisor) filter(agentProcesses map[string]*agentpb.SetStateRequest_AgentProcess) (toStart, toRestart, toStop []string) {
+func filter(existing, new map[string]agentpb.AgentParams) (toStart, toRestart, toStop []string) {
 	// existing agents not present in the new requested state should be stopped
-	for agentID := range s.agentProcesses {
-		if agentProcesses[agentID] == nil {
-			toStop = append(toStop, agentID)
+	for existingID := range existing {
+		if new[existingID] == nil {
+			toStop = append(toStop, existingID)
 		}
 	}
 
 	// detect new and changed agents
-	for agentID, agentProcess := range agentProcesses {
-		agent := s.agentProcesses[agentID]
-		if agent == nil {
-			toStart = append(toStart, agentID)
+	for newID, newParams := range new {
+		existingParams := existing[newID]
+		if existingParams == nil {
+			toStart = append(toStart, newID)
 			continue
 		}
 
 		// compare parameters before templating
-		if proto.Equal(agent.requestedState, agentProcess) {
+		if proto.Equal(existingParams, newParams) {
 			continue
 		}
 
-		toRestart = append(toRestart, agentID)
+		toRestart = append(toRestart, newID)
 	}
 
 	sort.Strings(toStop)

@@ -27,7 +27,7 @@ import (
 
 	"github.com/golang/protobuf/ptypes"
 	"github.com/percona/exporter_shared/helpers"
-	agentpb "github.com/percona/pmm/api/agent"
+	"github.com/percona/pmm/api/agentpb"
 	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/assert"
