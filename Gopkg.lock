@@ -373,7 +373,6 @@
     "github.com/go-sql-driver/mysql",
     "github.com/golang/protobuf/proto",
     "github.com/golang/protobuf/ptypes",
-    "github.com/golang/protobuf/ptypes/any",
     "github.com/percona/exporter_shared/helpers",
     "github.com/percona/pmm/api/agent_local",
     "github.com/percona/pmm/api/agentpb",

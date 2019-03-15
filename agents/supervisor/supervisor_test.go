@@ -51,12 +51,23 @@ func TestSupervisor(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	s := NewSupervisor(ctx, nil, &config.Ports{Min: 10000, Max: 20000})
 
-	t.Run("Start1", func(t *testing.T) {
+	t.Run("Start13", func(t *testing.T) {
 		s.setAgentProcesses(map[string]*agentpb.SetStateRequest_AgentProcess{
 			"sleep1": {Type: type_TEST_SLEEP, Args: []string{"10"}},
 		})
-		assertChanges(t, s, agentpb.StateChangedRequest{AgentId: "sleep1", Status: inventory.AgentStatus_STARTING, ListenPort: 10000})
-		assertChanges(t, s, agentpb.StateChangedRequest{AgentId: "sleep1", Status: inventory.AgentStatus_RUNNING, ListenPort: 10000})
+		s.setBuiltinAgents(map[string]*agentpb.SetStateRequest_BuiltinAgent{
+			"noop3": {Type: type_TEST_NOOP, Dsn: "30"},
+		})
+
+		assertChanges(t, s,
+			agentpb.StateChangedRequest{AgentId: "sleep1", Status: inventory.AgentStatus_STARTING, ListenPort: 10000},
+			agentpb.StateChangedRequest{AgentId: "noop3", Status: inventory.AgentStatus_STARTING},
+		)
+
+		assertChanges(t, s,
+			agentpb.StateChangedRequest{AgentId: "sleep1", Status: inventory.AgentStatus_RUNNING, ListenPort: 10000},
+			agentpb.StateChangedRequest{AgentId: "noop3", Status: inventory.AgentStatus_RUNNING},
+		)
 	})
 
 	t.Run("Restart1Start2", func(t *testing.T) {
@@ -64,16 +75,48 @@ func TestSupervisor(t *testing.T) {
 			"sleep1": {Type: type_TEST_SLEEP, Args: []string{"20"}},
 			"sleep2": {Type: type_TEST_SLEEP, Args: []string{"10"}},
 		})
-		assertChanges(t, s, agentpb.StateChangedRequest{AgentId: "sleep1", Status: inventory.AgentStatus_STOPPING, ListenPort: 10000})
-		assertChanges(t, s, agentpb.StateChangedRequest{AgentId: "sleep1", Status: inventory.AgentStatus_DONE, ListenPort: 10000})
 
-		// the order of those two is not defined
-		assertChanges(t, s, agentpb.StateChangedRequest{AgentId: "sleep1", Status: inventory.AgentStatus_STARTING, ListenPort: 10000},
-			agentpb.StateChangedRequest{AgentId: "sleep2", Status: inventory.AgentStatus_STARTING, ListenPort: 10001})
+		assertChanges(t, s,
+			agentpb.StateChangedRequest{AgentId: "sleep1", Status: inventory.AgentStatus_STOPPING, ListenPort: 10000},
+		)
 
-		// the order of those two is not defined
-		assertChanges(t, s, agentpb.StateChangedRequest{AgentId: "sleep1", Status: inventory.AgentStatus_RUNNING, ListenPort: 10000},
+		assertChanges(t, s,
+			agentpb.StateChangedRequest{AgentId: "sleep1", Status: inventory.AgentStatus_DONE, ListenPort: 10000},
+		)
+
+		assertChanges(t, s,
+			agentpb.StateChangedRequest{AgentId: "sleep1", Status: inventory.AgentStatus_STARTING, ListenPort: 10000},
+			agentpb.StateChangedRequest{AgentId: "sleep2", Status: inventory.AgentStatus_STARTING, ListenPort: 10001},
+		)
+
+		assertChanges(t, s,
+			agentpb.StateChangedRequest{AgentId: "sleep1", Status: inventory.AgentStatus_RUNNING, ListenPort: 10000},
 			agentpb.StateChangedRequest{AgentId: "sleep2", Status: inventory.AgentStatus_RUNNING, ListenPort: 10001},
+		)
+	})
+
+	t.Run("Restart3Start4", func(t *testing.T) {
+		s.setBuiltinAgents(map[string]*agentpb.SetStateRequest_BuiltinAgent{
+			"noop3": {Type: type_TEST_NOOP, Dsn: "20"},
+			"noop4": {Type: type_TEST_NOOP, Dsn: "10"},
+		})
+
+		assertChanges(t, s,
+			agentpb.StateChangedRequest{AgentId: "noop3", Status: inventory.AgentStatus_STOPPING},
+		)
+
+		assertChanges(t, s,
+			agentpb.StateChangedRequest{AgentId: "noop3", Status: inventory.AgentStatus_DONE},
+		)
+
+		assertChanges(t, s,
+			agentpb.StateChangedRequest{AgentId: "noop3", Status: inventory.AgentStatus_STARTING},
+			agentpb.StateChangedRequest{AgentId: "noop4", Status: inventory.AgentStatus_STARTING},
+		)
+
+		assertChanges(t, s,
+			agentpb.StateChangedRequest{AgentId: "noop3", Status: inventory.AgentStatus_RUNNING},
+			agentpb.StateChangedRequest{AgentId: "noop4", Status: inventory.AgentStatus_RUNNING},
 		)
 	})
 
@@ -81,19 +124,37 @@ func TestSupervisor(t *testing.T) {
 		s.setAgentProcesses(map[string]*agentpb.SetStateRequest_AgentProcess{
 			"sleep2": {Type: type_TEST_SLEEP, Args: []string{"10"}},
 		})
-		assertChanges(t, s, agentpb.StateChangedRequest{AgentId: "sleep1", Status: inventory.AgentStatus_STOPPING, ListenPort: 10000})
-		assertChanges(t, s, agentpb.StateChangedRequest{AgentId: "sleep1", Status: inventory.AgentStatus_DONE, ListenPort: 10000})
+
+		assertChanges(t, s,
+			agentpb.StateChangedRequest{AgentId: "sleep1", Status: inventory.AgentStatus_STOPPING, ListenPort: 10000},
+		)
+
+		assertChanges(t, s,
+			agentpb.StateChangedRequest{AgentId: "sleep1", Status: inventory.AgentStatus_DONE, ListenPort: 10000},
+		)
 	})
 
 	t.Run("Exit", func(t *testing.T) {
 		cancel()
-		assertChanges(t, s, agentpb.StateChangedRequest{AgentId: "sleep2", Status: inventory.AgentStatus_STOPPING, ListenPort: 10001})
-		assertChanges(t, s, agentpb.StateChangedRequest{AgentId: "sleep2", Status: inventory.AgentStatus_DONE, ListenPort: 10001})
-		assertChanges(t, s, agentpb.StateChangedRequest{Status: inventory.AgentStatus_AGENT_STATUS_INVALID})
+
+		assertChanges(t, s,
+			agentpb.StateChangedRequest{AgentId: "sleep2", Status: inventory.AgentStatus_STOPPING, ListenPort: 10001},
+			agentpb.StateChangedRequest{AgentId: "sleep2", Status: inventory.AgentStatus_DONE, ListenPort: 10001},
+			agentpb.StateChangedRequest{AgentId: "noop3", Status: inventory.AgentStatus_STOPPING},
+			agentpb.StateChangedRequest{AgentId: "noop3", Status: inventory.AgentStatus_DONE},
+			agentpb.StateChangedRequest{AgentId: "noop4", Status: inventory.AgentStatus_STOPPING},
+			agentpb.StateChangedRequest{AgentId: "noop4", Status: inventory.AgentStatus_DONE},
+		)
+
+		assertChanges(t, s,
+			agentpb.StateChangedRequest{Status: inventory.AgentStatus_AGENT_STATUS_INVALID},
+		)
 	})
 }
 
 func TestFilter(t *testing.T) {
+	t.Parallel()
+
 	t.Run("Normal", func(t *testing.T) {
 		existingParams := map[string]agentpb.AgentParams{
 			"toRestart":  &agentpb.SetStateRequest_AgentProcess{Type: agentpb.Type_NODE_EXPORTER},

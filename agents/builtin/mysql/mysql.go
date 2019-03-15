@@ -24,7 +24,7 @@ import (
 	"time"
 
 	_ "github.com/go-sql-driver/mysql" // register SQL driver
-	"github.com/percona/pmm/api/inventory"
+	inventorypb "github.com/percona/pmm/api/inventory"
 	"github.com/percona/pmm/api/qanpb"
 	"github.com/sirupsen/logrus"
 	"gopkg.in/reform.v1"
@@ -68,7 +68,7 @@ type Params struct {
 
 // Change represents Agent status change _or_ QAN collect request.
 type Change struct {
-	Status  inventory.AgentStatus
+	Status  inventorypb.AgentStatus
 	Request qanpb.CollectRequest
 }
 
@@ -84,9 +84,9 @@ func New(params *Params, l *logrus.Entry) *MySQL {
 
 // Run extracts performance data and sends it to the channel until ctx is canceled.
 func (m *MySQL) Run(ctx context.Context) {
-	m.changes <- Change{Status: inventory.AgentStatus_STARTING}
+	m.changes <- Change{Status: inventorypb.AgentStatus_STARTING}
 	defer func() {
-		m.changes <- Change{Status: inventory.AgentStatus_DONE}
+		m.changes <- Change{Status: inventorypb.AgentStatus_DONE}
 		close(m.changes)
 	}()
 
@@ -108,7 +108,7 @@ func (m *MySQL) Run(ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():
-			m.changes <- Change{Status: inventory.AgentStatus_STOPPING}
+			m.changes <- Change{Status: inventorypb.AgentStatus_STOPPING}
 			m.l.Infof("Context canceled.")
 			return
 
@@ -117,14 +117,14 @@ func (m *MySQL) Run(ctx context.Context) {
 			if err != nil {
 				m.l.Error(err)
 				running = false
-				m.changes <- Change{Status: inventory.AgentStatus_WAITING}
+				m.changes <- Change{Status: inventorypb.AgentStatus_WAITING}
 				time.Sleep(time.Second)
-				m.changes <- Change{Status: inventory.AgentStatus_STARTING}
+				m.changes <- Change{Status: inventorypb.AgentStatus_STARTING}
 				continue
 			}
 
 			if !running {
-				m.changes <- Change{Status: inventory.AgentStatus_RUNNING}
+				m.changes <- Change{Status: inventorypb.AgentStatus_RUNNING}
 				running = true
 			}
 
