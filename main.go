@@ -174,6 +174,10 @@ func workLoop(ctx context.Context, cfg *config.Config, l *logrus.Entry, client a
 }
 
 func main() {
+	if version.Version == "" {
+		panic("pmm-agent version is not set during build.")
+	}
+
 	var cfg config.Config
 	app := config.Application(&cfg)
 	kingpin.MustParse(app.Parse(os.Args[1:]))
