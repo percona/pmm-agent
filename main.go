@@ -22,6 +22,7 @@ import (
 	"net"
 	"os"
 	"os/signal"
+	"sync"
 	"time"
 
 	"github.com/golang/protobuf/ptypes"
@@ -47,6 +48,73 @@ const (
 	backoffMaxDelay   = 10 * time.Second
 	clockDriftWarning = 5 * time.Second
 )
+
+func handleChanges(cancel context.CancelFunc, s *supervisor.Supervisor, channel *server.Channel, l *logrus.Entry) {
+	var wg sync.WaitGroup
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for state := range s.Changes() {
+			res := channel.SendRequest(&agentpb.AgentMessage_StateChanged{
+				StateChanged: &state,
+			})
+			if res == nil {
+				l.Warn("Failed to send StateChanged request.")
+			}
+		}
+		l.Info("Supervisor changes done.")
+	}()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for collect := range s.QANRequests() {
+			res := channel.SendRequest(&agentpb.AgentMessage_QanCollect{
+				QanCollect: &collect,
+			})
+			if res == nil {
+				l.Warn("Failed to send QanCollect request.")
+			}
+		}
+		l.Info("Supervisor QAN requests done.")
+	}()
+
+	wg.Wait()
+	cancel()
+}
+
+func handleRequests(s *supervisor.Supervisor, channel *server.Channel, l *logrus.Entry) {
+	for serverMessage := range channel.Requests() {
+		var agentMessage *agentpb.AgentMessage
+		switch payload := serverMessage.Payload.(type) {
+		case *agentpb.ServerMessage_Ping:
+			agentMessage = &agentpb.AgentMessage{
+				Id: serverMessage.Id,
+				Payload: &agentpb.AgentMessage_Pong{
+					Pong: &agentpb.Pong{
+						CurrentTime: ptypes.TimestampNow(),
+					},
+				},
+			}
+
+		case *agentpb.ServerMessage_SetState:
+			s.SetState(payload.SetState)
+
+			agentMessage = &agentpb.AgentMessage{
+				Id: serverMessage.Id,
+				Payload: &agentpb.AgentMessage_SetState{
+					SetState: new(agentpb.SetStateResponse),
+				},
+			}
+
+		default:
+			l.Panicf("Unhandled server message payload: %s.", payload)
+		}
+
+		channel.SendResponse(agentMessage)
+	}
+}
 
 func workLoop(ctx context.Context, cfg *config.Config, l *logrus.Entry, client agentpb.AgentClient) {
 	// use separate context for stream to cancel it after supervisor is done sending last changes
@@ -101,60 +169,8 @@ func workLoop(ctx context.Context, cfg *config.Config, l *logrus.Entry, client a
 	}
 
 	s := supervisor.NewSupervisor(ctx, &cfg.Paths, &cfg.Ports)
-	go func() {
-		for state := range s.Changes() {
-			res := channel.SendRequest(&agentpb.AgentMessage_StateChanged{
-				StateChanged: &state,
-			})
-			if res == nil {
-				l.Warn("Failed to send StateChanged request.")
-			}
-		}
-		l.Info("Supervisor changes done.")
-		streamCancel() // FIXME
-	}()
-	go func() {
-		for data := range s.QANData() {
-			res := channel.SendRequest(&agentpb.AgentMessage_QanCollect{
-				QanCollect: &data,
-			})
-			if res == nil {
-				l.Warn("Failed to send QanData request.")
-			}
-		}
-		l.Info("Supervisor data done.")
-		streamCancel() // FIXME
-	}()
-
-	for serverMessage := range channel.Requests() {
-		var agentMessage *agentpb.AgentMessage
-		switch payload := serverMessage.Payload.(type) {
-		case *agentpb.ServerMessage_Ping:
-			agentMessage = &agentpb.AgentMessage{
-				Id: serverMessage.Id,
-				Payload: &agentpb.AgentMessage_Pong{
-					Pong: &agentpb.Pong{
-						CurrentTime: ptypes.TimestampNow(),
-					},
-				},
-			}
-
-		case *agentpb.ServerMessage_SetState:
-			s.SetState(payload.SetState)
-
-			agentMessage = &agentpb.AgentMessage{
-				Id: serverMessage.Id,
-				Payload: &agentpb.AgentMessage_SetState{
-					SetState: new(agentpb.SetStateResponse),
-				},
-			}
-
-		default:
-			l.Panicf("Unhandled server message payload: %s.", payload)
-		}
-
-		channel.SendResponse(agentMessage)
-	}
+	go handleChanges(streamCancel, s, channel, l)
+	handleRequests(s, channel, l)
 }
 
 func main() {

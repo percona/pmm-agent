@@ -33,26 +33,6 @@ import (
 	"github.com/percona/pmm-agent/agents/backoff"
 )
 
-/*
-TODO A ton of open questions. Should pmm-agent:
-* check that performance schema is enabled?
-* check that statement_digest consumer is enabled?
-* check/report the value of performance_schema_digests_size?
-* TRUNCATE events_statements_summary_by_digest before reading?
-* read events_statements_summary_by_digest every second? every 10 seconds? minute? other interval?
-* report rows with NULL digest?
-* get query by digest from events_statements_history_long?
-* check/report the value of performance_schema_events_statements_history_long_size?
-* set conditions for FIRST_SEEN / LAST_SEEN? what conditions?
-* group/aggregate results? how?
-* should github.com/percona/go-mysql/event be used?
-*/
-
-const (
-	prometheusNamespace = "pmm_agent"
-	prometheusSubsystem = "qan_mysql"
-)
-
 // MySQL QAN services connects to MySQL and extracts performance data.
 type MySQL struct {
 	params  *Params
@@ -161,6 +141,20 @@ func (m *MySQL) get(q *reform.Querier) (qanpb.CollectRequest, error) {
 		*ess.DigestText = strings.TrimSpace(*ess.DigestText)
 
 		// TODO https://jira.percona.com/browse/PMM-3594
+		/*
+		   A ton of open questions. Should pmm-agent:
+		   * check that performance schema is enabled?
+		   * check that statement_digest consumer is enabled?
+		   * check/report the value of performance_schema_digests_size?
+		   * TRUNCATE events_statements_summary_by_digest before reading?
+		   * read events_statements_summary_by_digest every second? every 10 seconds? minute? other interval?
+		   * report rows with NULL digest?
+		   * get query by digest from events_statements_history_long?
+		   * check/report the value of performance_schema_events_statements_history_long_size?
+		   * set conditions for FIRST_SEEN / LAST_SEEN? what conditions?
+		   * group/aggregate results? how?
+		   * should github.com/percona/go-mysql/event be used?
+		*/
 
 		res.MetricsBucket = append(res.MetricsBucket, &qanpb.MetricsBucket{
 			Queryid:     *ess.Digest,

@@ -224,7 +224,8 @@ func (s *Supervisor) Changes() <-chan agentpb.StateChangedRequest {
 	return s.changes
 }
 
-func (s *Supervisor) QANData() <-chan agentpb.QANCollectRequest {
+// QANRequests returns channel with agent's QAN Collect requests.
+func (s *Supervisor) QANRequests() <-chan agentpb.QANCollectRequest {
 	return s.qanRequests
 }
 
