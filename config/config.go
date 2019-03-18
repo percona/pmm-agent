@@ -101,8 +101,6 @@ func application(cfg *Config) (*kingpin.Application, *string) {
 	app.Flag("ports.max", "Maximal allowed port number for listening sockets. [PMM_AGENT_PORTS_MAX]").
 		Envar("PMM_AGENT_PORTS_MAX").Default("60999").Uint16Var(&cfg.Ports.Max)
 
-	// TODO load configuration from file with kingpin.ExpandArgsFromFile
-
 	return app, configFileF
 }
 
