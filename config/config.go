@@ -25,11 +25,8 @@ import (
 
 	"github.com/percona/pmm/version"
 	"github.com/sirupsen/logrus"
-	"google.golang.org/grpc/grpclog"
 	"gopkg.in/alecthomas/kingpin.v2"
 	"gopkg.in/yaml.v2"
-
-	"github.com/percona/pmm-agent/utils/logger"
 )
 
 // Paths represents binaries paths configuration.
@@ -60,6 +57,7 @@ type Config struct {
 	Address string `yaml:"address"`
 
 	Debug       bool `yaml:"debug"`
+	Trace       bool `yaml:"trace"`
 	InsecureTLS bool `yaml:"insecure-tls"`
 
 	Paths Paths `yaml:"paths"`
@@ -83,6 +81,8 @@ func application(cfg *Config) (*kingpin.Application, *string) {
 
 	app.Flag("debug", "Enable debug output. [PMM_AGENT_DEBUG]").
 		Envar("PMM_AGENT_DEBUG").BoolVar(&cfg.Debug)
+	app.Flag("trace", "Enable trace output (implies debug). [PMM_AGENT_TRACE]").
+		Envar("PMM_AGENT_TRACE").BoolVar(&cfg.Trace)
 	app.Flag("insecure-tls", "Skip PMM Server TLS certificate validation. [PMM_AGENT_INSECURE_TLS]").
 		Envar("PMM_AGENT_INSECURE_TLS").BoolVar(&cfg.InsecureTLS)
 
@@ -115,38 +115,28 @@ func readConfigFile(path string) (*Config, error) {
 	return &cfg, err
 }
 
-// Get parses given command-line arguments and returns configuration and configured logger.
-func Get(args []string) (*Config, *logrus.Logger, error) {
-	l := logrus.New()
-
+// Get parses given command-line arguments and returns configuration.
+func Get(args []string, l *logrus.Entry) (*Config, error) {
 	// parse flags and environment variables
 	cfg := new(Config)
 	app, configFileF := application(cfg)
 	_, err := app.Parse(args)
 	if err != nil {
-		return nil, l, err
+		return nil, err
 	}
 
 	// if config file is given, read and parse it, then re-parse flags into this configuration
 	if *configFileF != "" {
 		l.Infof("Loading configuration file %s.", *configFileF)
 		if cfg, err = readConfigFile(*configFileF); err != nil {
-			return nil, l, err
+			return nil, err
 		}
 		app, _ = application(cfg)
 		if _, err = app.Parse(args); err != nil {
-			return nil, l, err
+			return nil, err
 		}
 	}
 
 	cfg.Paths.Lookup()
-	l.Infof("Loaded configuration: %+v.", cfg)
-
-	if cfg.Debug {
-		l.SetLevel(logrus.DebugLevel)
-		grpclog.SetLoggerV2(&logger.GRPC{Entry: l.WithField("component", "gRPC")})
-		l.Debug("Debug logging enabled.")
-	}
-
-	return cfg, l, nil
+	return cfg, nil
 }

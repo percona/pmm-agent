@@ -33,11 +33,13 @@ import (
 	"golang.org/x/sys/unix"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/grpclog"
 
 	"github.com/percona/pmm-agent/agentlocal"
 	"github.com/percona/pmm-agent/agents/supervisor"
 	"github.com/percona/pmm-agent/config"
 	"github.com/percona/pmm-agent/server"
+	"github.com/percona/pmm-agent/utils/logger"
 )
 
 const (
@@ -176,9 +178,19 @@ func main() {
 		panic("pmm-agent version is not set during build.")
 	}
 
-	cfg, logger, err := config.Get(os.Args[1:])
+	cfg, err := config.Get(os.Args[1:], logrus.WithField("component", "config"))
 	if err != nil {
-		logger.Fatal(err)
+		logrus.Fatal(err)
+	}
+	logrus.Debugf("Loaded configuration: %+v", cfg)
+
+	if cfg.Debug {
+		logrus.SetLevel(logrus.DebugLevel)
+	}
+	if cfg.Trace {
+		logrus.SetLevel(logrus.TraceLevel)
+		logrus.SetReportCaller(true)
+		grpclog.SetLoggerV2(&logger.GRPC{Entry: logrus.WithField("component", "grpclog")})
 	}
 
 	// TODO
@@ -192,12 +204,12 @@ func main() {
 	go func() {
 		s := <-signals
 		signal.Stop(signals)
-		logger.Warnf("Got %s, shutting down...", unix.SignalName(s.(unix.Signal)))
+		logrus.Warnf("Got %s, shutting down...", unix.SignalName(s.(unix.Signal)))
 		cancel()
 	}()
 
 	if cfg.Address == "" {
-		logger.Error("PMM Server address is not provided, halting.")
+		logrus.Error("PMM Server address is not provided, halting.")
 		<-ctx.Done()
 		return
 	}
@@ -214,7 +226,7 @@ func main() {
 		grpc.WithTransportCredentials(credentials.NewTLS(tlsConfig)),
 	}
 
-	l := logger.WithField("component", "connection")
+	l := logrus.WithField("component", "connection")
 	l.Infof("Connecting to %s ...", cfg.Address)
 	dialCtx, dialCancel := context.WithTimeout(ctx, dialTimeout)
 	conn, err := grpc.DialContext(dialCtx, cfg.Address, opts...)
