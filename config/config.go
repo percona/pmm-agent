@@ -74,12 +74,12 @@ func application(cfg *Config) (*kingpin.Application, *string) {
 	app.Version(version.FullInfo())
 
 	configFileF := app.Flag("config-file", "Configuration file path. [PMM_AGENT_CONFIG_FILE]").
-		Envar("PMM_AGENT_CONFIG_FILE").String()
+		Envar("PMM_AGENT_CONFIG_FILE").PlaceHolder("</path/to/pmm-agent.yaml>").String()
 
 	app.Flag("id", "ID of this pmm-agent. [PMM_AGENT_ID]").
-		Envar("PMM_AGENT_ID").StringVar(&cfg.ID)
-	app.Flag("address", "PMM Server address (host:port). [PMM_AGENT_ADDRESS]").
-		Envar("PMM_AGENT_ADDRESS").StringVar(&cfg.Address)
+		Envar("PMM_AGENT_ID").PlaceHolder("</agent_id/...>").StringVar(&cfg.ID)
+	app.Flag("address", "PMM Server address. [PMM_AGENT_ADDRESS]").
+		Envar("PMM_AGENT_ADDRESS").PlaceHolder("<host:port>").StringVar(&cfg.Address)
 
 	app.Flag("debug", "Enable debug output. [PMM_AGENT_DEBUG]").
 		Envar("PMM_AGENT_DEBUG").BoolVar(&cfg.Debug)
