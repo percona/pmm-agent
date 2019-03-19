@@ -21,10 +21,10 @@ import (
 	"os"
 	"testing"
 
-	"gopkg.in/yaml.v2"
-
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gopkg.in/yaml.v2"
 )
 
 func writeConfig(t *testing.T, cfg *Config) string {
@@ -44,10 +44,10 @@ func removeConfig(t *testing.T, name string) {
 
 func TestConfig(t *testing.T) {
 	t.Run("OnlyFlags", func(t *testing.T) {
-		actual, _, err := Get([]string{
+		actual, err := Get([]string{
 			"--id=agent-id",
 			"--address=127.0.0.1:11111",
-		})
+		}, logrus.WithField("test", t.Name))
 		require.NoError(t, err)
 
 		expected := &Config{
@@ -71,9 +71,9 @@ func TestConfig(t *testing.T) {
 		})
 		defer removeConfig(t, name)
 
-		actual, _, err := Get([]string{
+		actual, err := Get([]string{
 			"--config-file=" + name,
-		})
+		}, logrus.WithField("test", t.Name))
 		require.NoError(t, err)
 
 		expected := &Config{
@@ -97,11 +97,11 @@ func TestConfig(t *testing.T) {
 		})
 		defer removeConfig(t, name)
 
-		actual, _, err := Get([]string{
+		actual, err := Get([]string{
 			"--config-file=" + name,
 			"--id=flag-id",
 			"--debug",
-		})
+		}, logrus.WithField("test", t.Name))
 		require.NoError(t, err)
 
 		expected := &Config{
