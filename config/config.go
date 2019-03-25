@@ -53,8 +53,10 @@ type Ports struct {
 // Config represents pmm-agent's static configuration.
 //nolint:maligned
 type Config struct {
-	ID      string `yaml:"id"`
-	Address string `yaml:"address"`
+	ID       string `yaml:"id"`
+	Address  string `yaml:"address"`
+	Username string `yaml:"username"`
+	Password string `yaml:"password"`
 
 	Debug       bool `yaml:"debug"`
 	Trace       bool `yaml:"trace"`
@@ -85,6 +87,10 @@ func application(cfg *Config) (*kingpin.Application, *string) {
 		Envar("PMM_AGENT_TRACE").BoolVar(&cfg.Trace)
 	app.Flag("insecure-tls", "Skip PMM Server TLS certificate validation. [PMM_AGENT_INSECURE_TLS]").
 		Envar("PMM_AGENT_INSECURE_TLS").BoolVar(&cfg.InsecureTLS)
+	app.Flag("username", "HTTP BasicAuth username to connect to PMM Server. [PMM_AGENT_USERNAME]").
+		Envar("PMM_AGENT_USERNAME").StringVar(&cfg.Username)
+	app.Flag("password", "HTTP BasicAuth password to connect to PMM Server. [PMM_AGENT_PASSWORD]").
+		Envar("PMM_AGENT_PASSWORD").StringVar(&cfg.Password)
 
 	app.Flag("paths.node_exporter", "Path to node_exporter to use. [PMM_AGENT_PATHS_NODE_EXPORTER]").
 		Envar("PMM_AGENT_PATHS_NODE_EXPORTER").Default("node_exporter").StringVar(&cfg.Paths.NodeExporter)
