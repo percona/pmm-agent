@@ -53,6 +53,7 @@ func TestConfig(t *testing.T) {
 		expected := &Config{
 			ID:      "agent-id",
 			Address: "127.0.0.1:11111",
+			Port:    7777,
 			Paths: Paths{
 				TempDir: os.TempDir(),
 			},
@@ -79,6 +80,7 @@ func TestConfig(t *testing.T) {
 		expected := &Config{
 			ID:      "agent-id",
 			Address: "127.0.0.1:11111",
+			Port:    7777,
 			Paths: Paths{
 				TempDir: os.TempDir(),
 			},
@@ -107,6 +109,7 @@ func TestConfig(t *testing.T) {
 		expected := &Config{
 			ID:      "flag-id",
 			Address: "127.0.0.1:11111",
+			Port:    7777,
 			Debug:   true,
 			Paths: Paths{
 				TempDir: os.TempDir(),
