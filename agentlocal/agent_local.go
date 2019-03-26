@@ -23,10 +23,15 @@ import (
 )
 
 type AgentLocalServer struct {
+	AgentID      string
+	RunsOnNodeID string
 }
 
 func (als *AgentLocalServer) Status(ctx context.Context, req *agentlocalpb.StatusRequest) (*agentlocalpb.StatusResponse, error) {
-	panic("not implemented")
+	return &agentlocalpb.StatusResponse{
+		AgentId:      als.AgentID,
+		RunsOnNodeId: als.RunsOnNodeID,
+	}, nil
 }
 
 // check interfaces
