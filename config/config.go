@@ -57,6 +57,7 @@ type Config struct {
 	Address  string `yaml:"address"`
 	Username string `yaml:"username"`
 	Password string `yaml:"password"`
+	Port     uint16 `yaml:"port"`
 
 	Debug       bool `yaml:"debug"`
 	Trace       bool `yaml:"trace"`
@@ -66,7 +67,7 @@ type Config struct {
 	Ports Ports `yaml:"ports"`
 }
 
-// application returns kingpin application that parses all flags and environemtn variables into cfg
+// application returns kingpin application that parses all flags and environment variables into cfg
 // except --config-file that is returned separately.
 func application(cfg *Config) (*kingpin.Application, *string) {
 	app := kingpin.New("pmm-agent", fmt.Sprintf("Version %s.", version.Version))
@@ -78,6 +79,8 @@ func application(cfg *Config) (*kingpin.Application, *string) {
 
 	app.Flag("id", "ID of this pmm-agent. [PMM_AGENT_ID]").
 		Envar("PMM_AGENT_ID").PlaceHolder("</agent_id/...>").StringVar(&cfg.ID)
+	app.Flag("port", "Agent local API port. [PMM_AGENT_PORT]").
+		Envar("PMM_AGENT_PORT").Default("7777").Uint16Var(&cfg.Port)
 	app.Flag("address", "PMM Server address. [PMM_AGENT_ADDRESS]").
 		Envar("PMM_AGENT_ADDRESS").PlaceHolder("<host:port>").StringVar(&cfg.Address)
 
