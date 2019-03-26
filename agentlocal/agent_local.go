@@ -22,13 +22,13 @@ import (
 	"github.com/percona/pmm/api/agentlocalpb"
 )
 
-// AgentLocalServer represents local agent api server
+// AgentLocalServer represents local agent api server.
 type AgentLocalServer struct {
 	AgentID      string
 	RunsOnNodeID string
 }
 
-// NewAgentLocalServer creates new local agent api server instance
+// NewAgentLocalServer creates new local agent api server instance.
 func NewAgentLocalServer(agentID, runsOnNodeID string) *AgentLocalServer {
 	return &AgentLocalServer{AgentID: agentID, RunsOnNodeID: runsOnNodeID}
 }
