@@ -27,6 +27,10 @@ type AgentLocalServer struct {
 	RunsOnNodeID string
 }
 
+func NewAgentLocalServer(agentID, runsOnNodeID string) *AgentLocalServer {
+	return &AgentLocalServer{AgentID: agentID, RunsOnNodeID: runsOnNodeID}
+}
+
 func (als *AgentLocalServer) Status(ctx context.Context, req *agentlocalpb.StatusRequest) (*agentlocalpb.StatusResponse, error) {
 	return &agentlocalpb.StatusResponse{
 		AgentId:      als.AgentID,
