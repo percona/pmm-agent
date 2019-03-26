@@ -270,7 +270,9 @@ func runJSONServer(ctx context.Context, cfg *config.Config, gRPCAddr string) {
 
 	http.Handle("/", proxyMux)
 	http.HandleFunc("/debug", func(rw http.ResponseWriter, req *http.Request) {
-		rw.Write(buf.Bytes())
+		if _, err := rw.Write(buf.Bytes()); err != nil {
+			l.Warn(err)
+		}
 	})
 
 	l.Infof("Starting server on http://%s/debug\nRegistered handlers:\n\t%s", jsonAddr, strings.Join(handlers, "\n\t"))
