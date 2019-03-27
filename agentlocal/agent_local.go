@@ -23,7 +23,6 @@ import (
 	"github.com/percona/pmm-agent/config"
 	"github.com/percona/pmm/api/agentlocalpb"
 	"github.com/percona/pmm/api/agentpb"
-	"github.com/percona/pmm/api/inventory"
 )
 
 // AgentLocalServer represents local agent api server.
@@ -31,12 +30,7 @@ type AgentLocalServer struct {
 	cfg *config.Config
 
 	mx             sync.RWMutex
-	serverMetadata *ServerMetadata
-}
-
-type ServerMetadata struct {
-	RunsOnNodeID      string
-	PmmManagedVersion string
+	serverMetadata *agentpb.AgentServerMetadata
 }
 
 // NewAgentLocalServer creates new local agent api server instance.
@@ -44,13 +38,13 @@ func NewAgentLocalServer(cfg *config.Config) *AgentLocalServer {
 	return &AgentLocalServer{cfg: cfg}
 }
 
-func (als *AgentLocalServer) SetMetadata(md *ServerMetadata) {
+func (als *AgentLocalServer) SetMetadata(md *agentpb.AgentServerMetadata) {
 	als.mx.RLock()
 	defer als.mx.RUnlock()
 	als.serverMetadata = md
 }
 
-func (als *AgentLocalServer) getMetadata() ServerMetadata {
+func (als *AgentLocalServer) getMetadata() agentpb.AgentServerMetadata {
 	als.mx.Lock()
 	defer als.mx.Unlock()
 	return *als.serverMetadata
@@ -59,27 +53,27 @@ func (als *AgentLocalServer) getMetadata() ServerMetadata {
 func (als *AgentLocalServer) Status(ctx context.Context, req *agentlocalpb.StatusRequest) (*agentlocalpb.StatusResponse, error) {
 	md := als.getMetadata()
 
-	// TODO: Add real agent_info
-	agentsInfo := &agentlocalpb.AgentInfo{
-		AgentId:   "001",
-		AgentType: agentpb.Type_MYSQLD_EXPORTER,
-		Status:    inventory.AgentStatus_RUNNING,
-		Logs:      []string{},
-	}
-
 	srvInfo := &agentlocalpb.ServerInfo{
 		Url:          als.cfg.Address,
 		InsecureTls:  als.cfg.InsecureTLS,
-		Version:      md.PmmManagedVersion,
-		LastPingTime: nil,
-		Latency:      nil,
+		Version:      md.ServerVersion,
+		LastPingTime: nil, // TODO: Add LastPingTime
+		Latency:      nil, // TODO: Calculate and Add Latency
 	}
+
+	// TODO: Add real AgentsInfo
+	//agentsInfo := &agentlocalpb.AgentInfo{
+	//	AgentId:   "001",
+	//	AgentType: agentpb.Type_MYSQLD_EXPORTER,
+	//	Status:    inventory.AgentStatus_RUNNING,
+	//	Logs:      []string{},
+	//}
 
 	return &agentlocalpb.StatusResponse{
 		AgentId:      als.cfg.ID,
-		RunsOnNodeId: md.RunsOnNodeID,
+		RunsOnNodeId: md.AgentRunsOnNodeID,
 		ServerInfo:   srvInfo,
-		AgentsInfo:   []*agentlocalpb.AgentInfo{agentsInfo},
+		AgentsInfo:   []*agentlocalpb.AgentInfo{}, // TODO: Add real AgentsInfo
 	}, nil
 }
 

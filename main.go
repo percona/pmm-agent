@@ -181,15 +181,11 @@ func workLoop(ctx context.Context, cfg *config.Config, l *logrus.Entry, client a
 		l.Warnf("Estimated clock drift: %s.", clockDrift)
 	}
 
-	md, err := stream.Header()
-	pmv := md.Get("pmm-managed-version")
-	aid := md.Get("pmm-agent-node-id")
-	l.Infof("Received runs-on-node-id: %s, %s", pmv, aid)
-
-	localSrv.SetMetadata(&agentlocal.ServerMetadata{
-		PmmManagedVersion: pmv[0],
-		RunsOnNodeID:      aid[0],
-	})
+	md, err := agentpb.GetAgentServerMetadata(stream)
+	if err != nil {
+		l.Warnf("Can't get metadata from server: %v", err)
+	}
+	localSrv.SetMetadata(&md)
 
 	s := supervisor.NewSupervisor(ctx, &cfg.Paths, &cfg.Ports)
 	go handleChanges(streamCancel, s, channel, l)
