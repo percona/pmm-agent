@@ -129,7 +129,7 @@ func handleRequests(s *supervisor.Supervisor, channel *server.Channel, l *logrus
 	}
 }
 
-func workLoop(ctx context.Context, cfg *config.Config, l *logrus.Entry, client agentpb.AgentClient) {
+func workLoop(ctx context.Context, cfg *config.Config, l *logrus.Entry, client agentpb.AgentClient, localSrv *agentlocal.AgentLocalServer) {
 	// use separate context for stream to cancel it after supervisor is done sending last changes
 	streamCtx, streamCancel := context.WithCancel(context.Background())
 	streamCtx = agentpb.AddAgentConnectMetadata(streamCtx, &agentpb.AgentConnectMetadata{
@@ -181,18 +181,28 @@ func workLoop(ctx context.Context, cfg *config.Config, l *logrus.Entry, client a
 		l.Warnf("Estimated clock drift: %s.", clockDrift)
 	}
 
+	md, err := stream.Header()
+	pmv := md.Get("pmm-managed-version")
+	aid := md.Get("pmm-agent-node-id")
+	l.Infof("Received runs-on-node-id: %s, %s", pmv, aid)
+
+	localSrv.SetMetadata(&agentlocal.ServerMetadata{
+		PmmManagedVersion: pmv[0],
+		RunsOnNodeID:      aid[0],
+	})
+
 	s := supervisor.NewSupervisor(ctx, &cfg.Paths, &cfg.Ports)
 	go handleChanges(streamCancel, s, channel, l)
 	handleRequests(s, channel, l)
 }
 
 // runGRPCServer runs gRPC server until context is canceled, then gracefully stops it.
-func runGRPCServer(ctx context.Context, cfg *config.Config, gRPCAddr string) {
+func runGRPCServer(ctx context.Context, cfg *config.Config, localSrv agentlocalpb.AgentLocalServer, gRPCAddr string) {
 	l := logrus.WithField("component", "gRPC")
 	l.Infof("Starting server on http://%s/ ...", gRPCAddr)
 
 	gRPCServer := grpc.NewServer()
-	agentlocalpb.RegisterAgentLocalServer(gRPCServer, agentlocal.NewAgentLocalServer(cfg.ID, ""))
+	agentlocalpb.RegisterAgentLocalServer(gRPCServer, localSrv)
 
 	if cfg.Debug {
 		l.Debug("Reflection and channelz are enabled.")
@@ -383,10 +393,12 @@ func main() {
 
 	var wg sync.WaitGroup
 
+	localServer := agentlocal.NewAgentLocalServer(cfg)
+
 	wg.Add(1)
 	go func() {
 		wg.Done()
-		runGRPCServer(ctx, cfg, grpcAddr)
+		runGRPCServer(ctx, cfg, localServer, grpcAddr)
 	}()
 
 	wg.Add(1)
@@ -397,5 +409,5 @@ func main() {
 
 	wg.Wait()
 
-	workLoop(ctx, cfg, l, client)
+	workLoop(ctx, cfg, l, client, localServer)
 }
