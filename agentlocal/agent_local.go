@@ -20,9 +20,10 @@ import (
 	"context"
 	"sync"
 
-	"github.com/percona/pmm-agent/config"
 	"github.com/percona/pmm/api/agentlocalpb"
 	"github.com/percona/pmm/api/agentpb"
+
+	"github.com/percona/pmm-agent/config"
 )
 
 // AgentLocalServer represents local agent api server.
@@ -38,6 +39,7 @@ func NewAgentLocalServer(cfg *config.Config) *AgentLocalServer {
 	return &AgentLocalServer{cfg: cfg}
 }
 
+// SetMetadata sets new values of ServerMetadata.
 func (als *AgentLocalServer) SetMetadata(md *agentpb.AgentServerMetadata) {
 	als.mx.RLock()
 	defer als.mx.RUnlock()
@@ -50,6 +52,7 @@ func (als *AgentLocalServer) getMetadata() agentpb.AgentServerMetadata {
 	return *als.serverMetadata
 }
 
+// Status returns local agent status.
 func (als *AgentLocalServer) Status(ctx context.Context, req *agentlocalpb.StatusRequest) (*agentlocalpb.StatusResponse, error) {
 	md := als.getMetadata()
 
