@@ -89,12 +89,24 @@ func newMySQL(db *reform.DB, l *logrus.Entry) *MySQL {
 
 // Run extracts performance data and sends it to the channel until ctx is canceled.
 func (m *MySQL) Run(ctx context.Context) {
-	m.changes <- Change{Status: inventorypb.AgentStatus_STARTING}
 	defer func() {
 		m.db.DBInterface().(*sql.DB).Close() //nolint:errcheck
 		m.changes <- Change{Status: inventorypb.AgentStatus_DONE}
 		close(m.changes)
 	}()
+
+	// add current summaries to cache so they are not send as new on first iteration with incorrect timestamps
+	var running bool
+	m.changes <- Change{Status: inventorypb.AgentStatus_STARTING}
+	if s, err := getSummaries(m.db.Querier); err == nil {
+		m.summaryCache.refresh(s)
+		m.l.Debugf("Got %d initial summaries.", len(s))
+		running = true
+		m.changes <- Change{Status: inventorypb.AgentStatus_RUNNING}
+	} else {
+		m.l.Error(err)
+		m.changes <- Change{Status: inventorypb.AgentStatus_WAITING}
+	}
 
 	go m.runHistoryCacheRefresher(ctx)
 
@@ -105,7 +117,6 @@ func (m *MySQL) Run(ctx context.Context) {
 	t := time.NewTimer(wait)
 	defer t.Stop()
 
-	var running bool
 	for {
 		select {
 		case <-ctx.Done():
@@ -118,7 +129,7 @@ func (m *MySQL) Run(ctx context.Context) {
 				m.changes <- Change{Status: inventorypb.AgentStatus_STARTING}
 			}
 
-			buckets, err := m.getBuckets(start, wait)
+			buckets, err := m.getNewBuckets(start, wait)
 
 			start = time.Now().Truncate(0) // strip monotoning clock reading
 			wait = start.Truncate(querySummaries).Add(querySummaries).Sub(start)
@@ -169,14 +180,17 @@ func (m *MySQL) refreshHistoryCache() error {
 	return nil
 }
 
-func (m *MySQL) getBuckets(periodStart time.Time, periodLength time.Duration) ([]*qanpb.MetricsBucket, error) {
+func (m *MySQL) getNewBuckets(periodStart time.Time, periodLength time.Duration) ([]*qanpb.MetricsBucket, error) {
 	current, err := getSummaries(m.db.Querier)
 	if err != nil {
 		return nil, err
 	}
+	prev := m.summaryCache.get()
 
-	buckets := makeBuckets(current, m.summaryCache.get(), m.l)
+	buckets := makeBuckets(current, prev, m.l)
+	m.l.Debugf("Made %d buckets out of %d summaries.", len(buckets), len(current))
 
+	// merge prev and current in cache
 	m.summaryCache.refresh(current)
 
 	// add timestamps and examples from history cache
@@ -221,6 +235,11 @@ func makeBuckets(current, prev map[string]*eventsStatementsSummaryByDigest, l *l
 		count := float32(currentESS.CountStar - prevESS.CountStar)
 		switch {
 		case count == 0:
+			// TODO
+			// Another way how this is possible is if events_statements_summary_by_digest was truncated,
+			// and then the same number of queries were made.
+			// Currently, we can't differentiate between those situations.
+			// We probably could by using first_seen/last_seen columns.
 			l.Debugf("Skipped due to the same number of queries: %s.", currentESS)
 			continue
 		case count < 0:

@@ -279,7 +279,7 @@ func TestMySQL(t *testing.T) {
 
 		require.NoError(t, m.refreshHistoryCache())
 
-		buckets, err := m.getBuckets(time.Date(2019, 4, 1, 10, 59, 0, 0, time.UTC), 60*time.Second)
+		buckets, err := m.getNewBuckets(time.Date(2019, 4, 1, 10, 59, 0, 0, time.UTC), 60*time.Second)
 		require.NoError(t, err)
 		buckets = filter(buckets)
 		require.Len(t, buckets, 1)
@@ -314,7 +314,7 @@ func TestMySQL(t *testing.T) {
 
 		require.NoError(t, m.refreshHistoryCache())
 
-		buckets, err := m.getBuckets(time.Date(2019, 4, 1, 10, 59, 0, 0, time.UTC), 60*time.Second)
+		buckets, err := m.getNewBuckets(time.Date(2019, 4, 1, 10, 59, 0, 0, time.UTC), 60*time.Second)
 		require.NoError(t, err)
 		buckets = filter(buckets)
 		require.Len(t, buckets, 1)
