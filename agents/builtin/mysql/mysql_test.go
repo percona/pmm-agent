@@ -205,15 +205,19 @@ func setup(t *testing.T, db *reform.DB) *MySQL {
 	return newMySQL(db, logrus.WithField("test", t.Name()))
 }
 
-// filter removes buckets for queries to performance_schema itself.
+// filter removes buckets for queries that are not expected by tests.
 func filter(mb []*qanpb.MetricsBucket) []*qanpb.MetricsBucket {
 	res := make([]*qanpb.MetricsBucket, 0, len(mb))
 	for _, b := range mb {
 		switch {
+		case strings.HasPrefix(b.Fingerprint, "SELECT @@`skip_networking`"):
+			continue
+
 		case strings.HasPrefix(b.Fingerprint, "TRUNCATE `performance_schema`"):
 			continue
 		case strings.HasPrefix(b.Fingerprint, "SELECT `performance_schema`"):
 			continue
+
 		default:
 			res = append(res, b)
 		}
