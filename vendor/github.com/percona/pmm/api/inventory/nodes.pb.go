@@ -6,6 +6,7 @@ package inventory
 import proto "github.com/golang/protobuf/proto"
 import fmt "fmt"
 import math "math"
+import _ "github.com/grpc-ecosystem/grpc-gateway/protoc-gen-swagger/options"
 import _ "github.com/mwitkow/go-proto-validators"
 import _ "google.golang.org/genproto/googleapis/api/annotations"
 
@@ -24,6 +25,39 @@ var _ = math.Inf
 // A compilation error at this line likely means your copy of the
 // proto package needs to be updated.
 const _ = proto.ProtoPackageIsVersion2 // please upgrade the proto package
+
+// NodeType describes supported node types.
+type NodeType int32
+
+const (
+	NodeType_NODE_TYPE_INVALID      NodeType = 0
+	NodeType_GENERIC_NODE           NodeType = 1
+	NodeType_CONTAINER_NODE         NodeType = 2
+	NodeType_REMOTE_NODE            NodeType = 3
+	NodeType_REMOTE_AMAZON_RDS_NODE NodeType = 4
+)
+
+var NodeType_name = map[int32]string{
+	0: "NODE_TYPE_INVALID",
+	1: "GENERIC_NODE",
+	2: "CONTAINER_NODE",
+	3: "REMOTE_NODE",
+	4: "REMOTE_AMAZON_RDS_NODE",
+}
+var NodeType_value = map[string]int32{
+	"NODE_TYPE_INVALID":      0,
+	"GENERIC_NODE":           1,
+	"CONTAINER_NODE":         2,
+	"REMOTE_NODE":            3,
+	"REMOTE_AMAZON_RDS_NODE": 4,
+}
+
+func (x NodeType) String() string {
+	return proto.EnumName(NodeType_name, int32(x))
+}
+func (NodeType) EnumDescriptor() ([]byte, []int) {
+	return fileDescriptor_nodes_a1423548cde150e2, []int{0}
+}
 
 // GenericNode represents a bare metal server or virtual machine.
 type GenericNode struct {
@@ -50,7 +84,7 @@ func (m *GenericNode) Reset()         { *m = GenericNode{} }
 func (m *GenericNode) String() string { return proto.CompactTextString(m) }
 func (*GenericNode) ProtoMessage()    {}
 func (*GenericNode) Descriptor() ([]byte, []int) {
-	return fileDescriptor_nodes_d73aca960d5f020b, []int{0}
+	return fileDescriptor_nodes_a1423548cde150e2, []int{0}
 }
 func (m *GenericNode) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_GenericNode.Unmarshal(m, b)
@@ -142,7 +176,7 @@ func (m *ContainerNode) Reset()         { *m = ContainerNode{} }
 func (m *ContainerNode) String() string { return proto.CompactTextString(m) }
 func (*ContainerNode) ProtoMessage()    {}
 func (*ContainerNode) Descriptor() ([]byte, []int) {
-	return fileDescriptor_nodes_d73aca960d5f020b, []int{1}
+	return fileDescriptor_nodes_a1423548cde150e2, []int{1}
 }
 func (m *ContainerNode) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ContainerNode.Unmarshal(m, b)
@@ -221,7 +255,7 @@ func (m *RemoteNode) Reset()         { *m = RemoteNode{} }
 func (m *RemoteNode) String() string { return proto.CompactTextString(m) }
 func (*RemoteNode) ProtoMessage()    {}
 func (*RemoteNode) Descriptor() ([]byte, []int) {
-	return fileDescriptor_nodes_d73aca960d5f020b, []int{2}
+	return fileDescriptor_nodes_a1423548cde150e2, []int{2}
 }
 func (m *RemoteNode) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_RemoteNode.Unmarshal(m, b)
@@ -283,7 +317,7 @@ func (m *RemoteAmazonRDSNode) Reset()         { *m = RemoteAmazonRDSNode{} }
 func (m *RemoteAmazonRDSNode) String() string { return proto.CompactTextString(m) }
 func (*RemoteAmazonRDSNode) ProtoMessage()    {}
 func (*RemoteAmazonRDSNode) Descriptor() ([]byte, []int) {
-	return fileDescriptor_nodes_d73aca960d5f020b, []int{3}
+	return fileDescriptor_nodes_a1423548cde150e2, []int{3}
 }
 func (m *RemoteAmazonRDSNode) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_RemoteAmazonRDSNode.Unmarshal(m, b)
@@ -348,7 +382,7 @@ func (m *ListNodesRequest) Reset()         { *m = ListNodesRequest{} }
 func (m *ListNodesRequest) String() string { return proto.CompactTextString(m) }
 func (*ListNodesRequest) ProtoMessage()    {}
 func (*ListNodesRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_nodes_d73aca960d5f020b, []int{4}
+	return fileDescriptor_nodes_a1423548cde150e2, []int{4}
 }
 func (m *ListNodesRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ListNodesRequest.Unmarshal(m, b)
@@ -382,7 +416,7 @@ func (m *ListNodesResponse) Reset()         { *m = ListNodesResponse{} }
 func (m *ListNodesResponse) String() string { return proto.CompactTextString(m) }
 func (*ListNodesResponse) ProtoMessage()    {}
 func (*ListNodesResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_nodes_d73aca960d5f020b, []int{5}
+	return fileDescriptor_nodes_a1423548cde150e2, []int{5}
 }
 func (m *ListNodesResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ListNodesResponse.Unmarshal(m, b)
@@ -442,7 +476,7 @@ func (m *GetNodeRequest) Reset()         { *m = GetNodeRequest{} }
 func (m *GetNodeRequest) String() string { return proto.CompactTextString(m) }
 func (*GetNodeRequest) ProtoMessage()    {}
 func (*GetNodeRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_nodes_d73aca960d5f020b, []int{6}
+	return fileDescriptor_nodes_a1423548cde150e2, []int{6}
 }
 func (m *GetNodeRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_GetNodeRequest.Unmarshal(m, b)
@@ -485,7 +519,7 @@ func (m *GetNodeResponse) Reset()         { *m = GetNodeResponse{} }
 func (m *GetNodeResponse) String() string { return proto.CompactTextString(m) }
 func (*GetNodeResponse) ProtoMessage()    {}
 func (*GetNodeResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_nodes_d73aca960d5f020b, []int{7}
+	return fileDescriptor_nodes_a1423548cde150e2, []int{7}
 }
 func (m *GetNodeResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_GetNodeResponse.Unmarshal(m, b)
@@ -702,7 +736,7 @@ func (m *AddGenericNodeRequest) Reset()         { *m = AddGenericNodeRequest{} }
 func (m *AddGenericNodeRequest) String() string { return proto.CompactTextString(m) }
 func (*AddGenericNodeRequest) ProtoMessage()    {}
 func (*AddGenericNodeRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_nodes_d73aca960d5f020b, []int{8}
+	return fileDescriptor_nodes_a1423548cde150e2, []int{8}
 }
 func (m *AddGenericNodeRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_AddGenericNodeRequest.Unmarshal(m, b)
@@ -775,7 +809,7 @@ func (m *AddGenericNodeResponse) Reset()         { *m = AddGenericNodeResponse{}
 func (m *AddGenericNodeResponse) String() string { return proto.CompactTextString(m) }
 func (*AddGenericNodeResponse) ProtoMessage()    {}
 func (*AddGenericNodeResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_nodes_d73aca960d5f020b, []int{9}
+	return fileDescriptor_nodes_a1423548cde150e2, []int{9}
 }
 func (m *AddGenericNodeResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_AddGenericNodeResponse.Unmarshal(m, b)
@@ -802,128 +836,6 @@ func (m *AddGenericNodeResponse) GetGeneric() *GenericNode {
 	return nil
 }
 
-type ChangeGenericNodeRequest struct {
-	// Unique randomly generated instance identifier.
-	NodeId string `protobuf:"bytes,1,opt,name=node_id,json=nodeId,proto3" json:"node_id,omitempty"`
-	// Unique across all Nodes user-defined name.
-	NodeName string `protobuf:"bytes,2,opt,name=node_name,json=nodeName,proto3" json:"node_name,omitempty"`
-	// Linux distribution (if any).
-	Distro string `protobuf:"bytes,4,opt,name=distro,proto3" json:"distro,omitempty"`
-	// Linux distribution version (if any).
-	DistroVersion string `protobuf:"bytes,5,opt,name=distro_version,json=distroVersion,proto3" json:"distro_version,omitempty"`
-	// Custom user-assigned labels.
-	CustomLabels map[string]string `protobuf:"bytes,10,rep,name=custom_labels,json=customLabels,proto3" json:"custom_labels,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
-	// Address FIXME.
-	Address              string   `protobuf:"bytes,42,opt,name=address,proto3" json:"address,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
-}
-
-func (m *ChangeGenericNodeRequest) Reset()         { *m = ChangeGenericNodeRequest{} }
-func (m *ChangeGenericNodeRequest) String() string { return proto.CompactTextString(m) }
-func (*ChangeGenericNodeRequest) ProtoMessage()    {}
-func (*ChangeGenericNodeRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_nodes_d73aca960d5f020b, []int{10}
-}
-func (m *ChangeGenericNodeRequest) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_ChangeGenericNodeRequest.Unmarshal(m, b)
-}
-func (m *ChangeGenericNodeRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_ChangeGenericNodeRequest.Marshal(b, m, deterministic)
-}
-func (dst *ChangeGenericNodeRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ChangeGenericNodeRequest.Merge(dst, src)
-}
-func (m *ChangeGenericNodeRequest) XXX_Size() int {
-	return xxx_messageInfo_ChangeGenericNodeRequest.Size(m)
-}
-func (m *ChangeGenericNodeRequest) XXX_DiscardUnknown() {
-	xxx_messageInfo_ChangeGenericNodeRequest.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_ChangeGenericNodeRequest proto.InternalMessageInfo
-
-func (m *ChangeGenericNodeRequest) GetNodeId() string {
-	if m != nil {
-		return m.NodeId
-	}
-	return ""
-}
-
-func (m *ChangeGenericNodeRequest) GetNodeName() string {
-	if m != nil {
-		return m.NodeName
-	}
-	return ""
-}
-
-func (m *ChangeGenericNodeRequest) GetDistro() string {
-	if m != nil {
-		return m.Distro
-	}
-	return ""
-}
-
-func (m *ChangeGenericNodeRequest) GetDistroVersion() string {
-	if m != nil {
-		return m.DistroVersion
-	}
-	return ""
-}
-
-func (m *ChangeGenericNodeRequest) GetCustomLabels() map[string]string {
-	if m != nil {
-		return m.CustomLabels
-	}
-	return nil
-}
-
-func (m *ChangeGenericNodeRequest) GetAddress() string {
-	if m != nil {
-		return m.Address
-	}
-	return ""
-}
-
-type ChangeGenericNodeResponse struct {
-	Generic              *GenericNode `protobuf:"bytes,1,opt,name=generic,proto3" json:"generic,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}     `json:"-"`
-	XXX_unrecognized     []byte       `json:"-"`
-	XXX_sizecache        int32        `json:"-"`
-}
-
-func (m *ChangeGenericNodeResponse) Reset()         { *m = ChangeGenericNodeResponse{} }
-func (m *ChangeGenericNodeResponse) String() string { return proto.CompactTextString(m) }
-func (*ChangeGenericNodeResponse) ProtoMessage()    {}
-func (*ChangeGenericNodeResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_nodes_d73aca960d5f020b, []int{11}
-}
-func (m *ChangeGenericNodeResponse) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_ChangeGenericNodeResponse.Unmarshal(m, b)
-}
-func (m *ChangeGenericNodeResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_ChangeGenericNodeResponse.Marshal(b, m, deterministic)
-}
-func (dst *ChangeGenericNodeResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ChangeGenericNodeResponse.Merge(dst, src)
-}
-func (m *ChangeGenericNodeResponse) XXX_Size() int {
-	return xxx_messageInfo_ChangeGenericNodeResponse.Size(m)
-}
-func (m *ChangeGenericNodeResponse) XXX_DiscardUnknown() {
-	xxx_messageInfo_ChangeGenericNodeResponse.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_ChangeGenericNodeResponse proto.InternalMessageInfo
-
-func (m *ChangeGenericNodeResponse) GetGeneric() *GenericNode {
-	if m != nil {
-		return m.Generic
-	}
-	return nil
-}
-
 type AddContainerNodeRequest struct {
 	// Unique across all Nodes user-defined name.
 	NodeName string `protobuf:"bytes,2,opt,name=node_name,json=nodeName,proto3" json:"node_name,omitempty"`
@@ -944,7 +856,7 @@ func (m *AddContainerNodeRequest) Reset()         { *m = AddContainerNodeRequest
 func (m *AddContainerNodeRequest) String() string { return proto.CompactTextString(m) }
 func (*AddContainerNodeRequest) ProtoMessage()    {}
 func (*AddContainerNodeRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_nodes_d73aca960d5f020b, []int{12}
+	return fileDescriptor_nodes_a1423548cde150e2, []int{10}
 }
 func (m *AddContainerNodeRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_AddContainerNodeRequest.Unmarshal(m, b)
@@ -1010,7 +922,7 @@ func (m *AddContainerNodeResponse) Reset()         { *m = AddContainerNodeRespon
 func (m *AddContainerNodeResponse) String() string { return proto.CompactTextString(m) }
 func (*AddContainerNodeResponse) ProtoMessage()    {}
 func (*AddContainerNodeResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_nodes_d73aca960d5f020b, []int{13}
+	return fileDescriptor_nodes_a1423548cde150e2, []int{11}
 }
 func (m *AddContainerNodeResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_AddContainerNodeResponse.Unmarshal(m, b)
@@ -1037,110 +949,6 @@ func (m *AddContainerNodeResponse) GetContainer() *ContainerNode {
 	return nil
 }
 
-type ChangeContainerNodeRequest struct {
-	// Unique randomly generated instance identifier.
-	NodeId string `protobuf:"bytes,1,opt,name=node_id,json=nodeId,proto3" json:"node_id,omitempty"`
-	// Unique across all Nodes user-defined name.
-	NodeName string `protobuf:"bytes,2,opt,name=node_name,json=nodeName,proto3" json:"node_name,omitempty"`
-	// Container name.
-	DockerContainerName string `protobuf:"bytes,5,opt,name=docker_container_name,json=dockerContainerName,proto3" json:"docker_container_name,omitempty"`
-	// Custom user-assigned labels.
-	CustomLabels         map[string]string `protobuf:"bytes,10,rep,name=custom_labels,json=customLabels,proto3" json:"custom_labels,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
-	XXX_NoUnkeyedLiteral struct{}          `json:"-"`
-	XXX_unrecognized     []byte            `json:"-"`
-	XXX_sizecache        int32             `json:"-"`
-}
-
-func (m *ChangeContainerNodeRequest) Reset()         { *m = ChangeContainerNodeRequest{} }
-func (m *ChangeContainerNodeRequest) String() string { return proto.CompactTextString(m) }
-func (*ChangeContainerNodeRequest) ProtoMessage()    {}
-func (*ChangeContainerNodeRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_nodes_d73aca960d5f020b, []int{14}
-}
-func (m *ChangeContainerNodeRequest) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_ChangeContainerNodeRequest.Unmarshal(m, b)
-}
-func (m *ChangeContainerNodeRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_ChangeContainerNodeRequest.Marshal(b, m, deterministic)
-}
-func (dst *ChangeContainerNodeRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ChangeContainerNodeRequest.Merge(dst, src)
-}
-func (m *ChangeContainerNodeRequest) XXX_Size() int {
-	return xxx_messageInfo_ChangeContainerNodeRequest.Size(m)
-}
-func (m *ChangeContainerNodeRequest) XXX_DiscardUnknown() {
-	xxx_messageInfo_ChangeContainerNodeRequest.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_ChangeContainerNodeRequest proto.InternalMessageInfo
-
-func (m *ChangeContainerNodeRequest) GetNodeId() string {
-	if m != nil {
-		return m.NodeId
-	}
-	return ""
-}
-
-func (m *ChangeContainerNodeRequest) GetNodeName() string {
-	if m != nil {
-		return m.NodeName
-	}
-	return ""
-}
-
-func (m *ChangeContainerNodeRequest) GetDockerContainerName() string {
-	if m != nil {
-		return m.DockerContainerName
-	}
-	return ""
-}
-
-func (m *ChangeContainerNodeRequest) GetCustomLabels() map[string]string {
-	if m != nil {
-		return m.CustomLabels
-	}
-	return nil
-}
-
-type ChangeContainerNodeResponse struct {
-	Container            *ContainerNode `protobuf:"bytes,1,opt,name=container,proto3" json:"container,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}       `json:"-"`
-	XXX_unrecognized     []byte         `json:"-"`
-	XXX_sizecache        int32          `json:"-"`
-}
-
-func (m *ChangeContainerNodeResponse) Reset()         { *m = ChangeContainerNodeResponse{} }
-func (m *ChangeContainerNodeResponse) String() string { return proto.CompactTextString(m) }
-func (*ChangeContainerNodeResponse) ProtoMessage()    {}
-func (*ChangeContainerNodeResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_nodes_d73aca960d5f020b, []int{15}
-}
-func (m *ChangeContainerNodeResponse) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_ChangeContainerNodeResponse.Unmarshal(m, b)
-}
-func (m *ChangeContainerNodeResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_ChangeContainerNodeResponse.Marshal(b, m, deterministic)
-}
-func (dst *ChangeContainerNodeResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ChangeContainerNodeResponse.Merge(dst, src)
-}
-func (m *ChangeContainerNodeResponse) XXX_Size() int {
-	return xxx_messageInfo_ChangeContainerNodeResponse.Size(m)
-}
-func (m *ChangeContainerNodeResponse) XXX_DiscardUnknown() {
-	xxx_messageInfo_ChangeContainerNodeResponse.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_ChangeContainerNodeResponse proto.InternalMessageInfo
-
-func (m *ChangeContainerNodeResponse) GetContainer() *ContainerNode {
-	if m != nil {
-		return m.Container
-	}
-	return nil
-}
-
 type AddRemoteNodeRequest struct {
 	// Unique across all Nodes user-defined name.
 	NodeName string `protobuf:"bytes,2,opt,name=node_name,json=nodeName,proto3" json:"node_name,omitempty"`
@@ -1155,7 +963,7 @@ func (m *AddRemoteNodeRequest) Reset()         { *m = AddRemoteNodeRequest{} }
 func (m *AddRemoteNodeRequest) String() string { return proto.CompactTextString(m) }
 func (*AddRemoteNodeRequest) ProtoMessage()    {}
 func (*AddRemoteNodeRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_nodes_d73aca960d5f020b, []int{16}
+	return fileDescriptor_nodes_a1423548cde150e2, []int{12}
 }
 func (m *AddRemoteNodeRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_AddRemoteNodeRequest.Unmarshal(m, b)
@@ -1200,7 +1008,7 @@ func (m *AddRemoteNodeResponse) Reset()         { *m = AddRemoteNodeResponse{} }
 func (m *AddRemoteNodeResponse) String() string { return proto.CompactTextString(m) }
 func (*AddRemoteNodeResponse) ProtoMessage()    {}
 func (*AddRemoteNodeResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_nodes_d73aca960d5f020b, []int{17}
+	return fileDescriptor_nodes_a1423548cde150e2, []int{13}
 }
 func (m *AddRemoteNodeResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_AddRemoteNodeResponse.Unmarshal(m, b)
@@ -1227,101 +1035,6 @@ func (m *AddRemoteNodeResponse) GetRemote() *RemoteNode {
 	return nil
 }
 
-type ChangeRemoteNodeRequest struct {
-	// Unique randomly generated instance identifier.
-	NodeId string `protobuf:"bytes,1,opt,name=node_id,json=nodeId,proto3" json:"node_id,omitempty"`
-	// Unique across all Nodes user-defined name.
-	NodeName string `protobuf:"bytes,2,opt,name=node_name,json=nodeName,proto3" json:"node_name,omitempty"`
-	// Custom user-assigned labels.
-	CustomLabels         map[string]string `protobuf:"bytes,10,rep,name=custom_labels,json=customLabels,proto3" json:"custom_labels,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
-	XXX_NoUnkeyedLiteral struct{}          `json:"-"`
-	XXX_unrecognized     []byte            `json:"-"`
-	XXX_sizecache        int32             `json:"-"`
-}
-
-func (m *ChangeRemoteNodeRequest) Reset()         { *m = ChangeRemoteNodeRequest{} }
-func (m *ChangeRemoteNodeRequest) String() string { return proto.CompactTextString(m) }
-func (*ChangeRemoteNodeRequest) ProtoMessage()    {}
-func (*ChangeRemoteNodeRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_nodes_d73aca960d5f020b, []int{18}
-}
-func (m *ChangeRemoteNodeRequest) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_ChangeRemoteNodeRequest.Unmarshal(m, b)
-}
-func (m *ChangeRemoteNodeRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_ChangeRemoteNodeRequest.Marshal(b, m, deterministic)
-}
-func (dst *ChangeRemoteNodeRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ChangeRemoteNodeRequest.Merge(dst, src)
-}
-func (m *ChangeRemoteNodeRequest) XXX_Size() int {
-	return xxx_messageInfo_ChangeRemoteNodeRequest.Size(m)
-}
-func (m *ChangeRemoteNodeRequest) XXX_DiscardUnknown() {
-	xxx_messageInfo_ChangeRemoteNodeRequest.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_ChangeRemoteNodeRequest proto.InternalMessageInfo
-
-func (m *ChangeRemoteNodeRequest) GetNodeId() string {
-	if m != nil {
-		return m.NodeId
-	}
-	return ""
-}
-
-func (m *ChangeRemoteNodeRequest) GetNodeName() string {
-	if m != nil {
-		return m.NodeName
-	}
-	return ""
-}
-
-func (m *ChangeRemoteNodeRequest) GetCustomLabels() map[string]string {
-	if m != nil {
-		return m.CustomLabels
-	}
-	return nil
-}
-
-type ChangeRemoteNodeResponse struct {
-	Remote               *RemoteNode `protobuf:"bytes,1,opt,name=remote,proto3" json:"remote,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
-	XXX_unrecognized     []byte      `json:"-"`
-	XXX_sizecache        int32       `json:"-"`
-}
-
-func (m *ChangeRemoteNodeResponse) Reset()         { *m = ChangeRemoteNodeResponse{} }
-func (m *ChangeRemoteNodeResponse) String() string { return proto.CompactTextString(m) }
-func (*ChangeRemoteNodeResponse) ProtoMessage()    {}
-func (*ChangeRemoteNodeResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_nodes_d73aca960d5f020b, []int{19}
-}
-func (m *ChangeRemoteNodeResponse) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_ChangeRemoteNodeResponse.Unmarshal(m, b)
-}
-func (m *ChangeRemoteNodeResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_ChangeRemoteNodeResponse.Marshal(b, m, deterministic)
-}
-func (dst *ChangeRemoteNodeResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ChangeRemoteNodeResponse.Merge(dst, src)
-}
-func (m *ChangeRemoteNodeResponse) XXX_Size() int {
-	return xxx_messageInfo_ChangeRemoteNodeResponse.Size(m)
-}
-func (m *ChangeRemoteNodeResponse) XXX_DiscardUnknown() {
-	xxx_messageInfo_ChangeRemoteNodeResponse.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_ChangeRemoteNodeResponse proto.InternalMessageInfo
-
-func (m *ChangeRemoteNodeResponse) GetRemote() *RemoteNode {
-	if m != nil {
-		return m.Remote
-	}
-	return nil
-}
-
 type AddRemoteAmazonRDSNodeRequest struct {
 	// Unique across all Nodes user-defined name.
 	NodeName string `protobuf:"bytes,2,opt,name=node_name,json=nodeName,proto3" json:"node_name,omitempty"`
@@ -1340,7 +1053,7 @@ func (m *AddRemoteAmazonRDSNodeRequest) Reset()         { *m = AddRemoteAmazonRD
 func (m *AddRemoteAmazonRDSNodeRequest) String() string { return proto.CompactTextString(m) }
 func (*AddRemoteAmazonRDSNodeRequest) ProtoMessage()    {}
 func (*AddRemoteAmazonRDSNodeRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_nodes_d73aca960d5f020b, []int{20}
+	return fileDescriptor_nodes_a1423548cde150e2, []int{14}
 }
 func (m *AddRemoteAmazonRDSNodeRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_AddRemoteAmazonRDSNodeRequest.Unmarshal(m, b)
@@ -1399,7 +1112,7 @@ func (m *AddRemoteAmazonRDSNodeResponse) Reset()         { *m = AddRemoteAmazonR
 func (m *AddRemoteAmazonRDSNodeResponse) String() string { return proto.CompactTextString(m) }
 func (*AddRemoteAmazonRDSNodeResponse) ProtoMessage()    {}
 func (*AddRemoteAmazonRDSNodeResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_nodes_d73aca960d5f020b, []int{21}
+	return fileDescriptor_nodes_a1423548cde150e2, []int{15}
 }
 func (m *AddRemoteAmazonRDSNodeResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_AddRemoteAmazonRDSNodeResponse.Unmarshal(m, b)
@@ -1426,110 +1139,6 @@ func (m *AddRemoteAmazonRDSNodeResponse) GetRemoteAmazonRds() *RemoteAmazonRDSNo
 	return nil
 }
 
-type ChangeRemoteAmazonRDSNodeRequest struct {
-	// Unique randomly generated instance identifier.
-	NodeId string `protobuf:"bytes,1,opt,name=node_id,json=nodeId,proto3" json:"node_id,omitempty"`
-	// Unique across all Nodes user-defined name.
-	NodeName string `protobuf:"bytes,2,opt,name=node_name,json=nodeName,proto3" json:"node_name,omitempty"`
-	// DB instance identifier. Unique across all RemoteAmazonRDS Nodes in combination with region.
-	Instance string `protobuf:"bytes,3,opt,name=instance,proto3" json:"instance,omitempty"`
-	// Custom user-assigned labels.
-	CustomLabels         map[string]string `protobuf:"bytes,10,rep,name=custom_labels,json=customLabels,proto3" json:"custom_labels,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
-	XXX_NoUnkeyedLiteral struct{}          `json:"-"`
-	XXX_unrecognized     []byte            `json:"-"`
-	XXX_sizecache        int32             `json:"-"`
-}
-
-func (m *ChangeRemoteAmazonRDSNodeRequest) Reset()         { *m = ChangeRemoteAmazonRDSNodeRequest{} }
-func (m *ChangeRemoteAmazonRDSNodeRequest) String() string { return proto.CompactTextString(m) }
-func (*ChangeRemoteAmazonRDSNodeRequest) ProtoMessage()    {}
-func (*ChangeRemoteAmazonRDSNodeRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_nodes_d73aca960d5f020b, []int{22}
-}
-func (m *ChangeRemoteAmazonRDSNodeRequest) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_ChangeRemoteAmazonRDSNodeRequest.Unmarshal(m, b)
-}
-func (m *ChangeRemoteAmazonRDSNodeRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_ChangeRemoteAmazonRDSNodeRequest.Marshal(b, m, deterministic)
-}
-func (dst *ChangeRemoteAmazonRDSNodeRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ChangeRemoteAmazonRDSNodeRequest.Merge(dst, src)
-}
-func (m *ChangeRemoteAmazonRDSNodeRequest) XXX_Size() int {
-	return xxx_messageInfo_ChangeRemoteAmazonRDSNodeRequest.Size(m)
-}
-func (m *ChangeRemoteAmazonRDSNodeRequest) XXX_DiscardUnknown() {
-	xxx_messageInfo_ChangeRemoteAmazonRDSNodeRequest.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_ChangeRemoteAmazonRDSNodeRequest proto.InternalMessageInfo
-
-func (m *ChangeRemoteAmazonRDSNodeRequest) GetNodeId() string {
-	if m != nil {
-		return m.NodeId
-	}
-	return ""
-}
-
-func (m *ChangeRemoteAmazonRDSNodeRequest) GetNodeName() string {
-	if m != nil {
-		return m.NodeName
-	}
-	return ""
-}
-
-func (m *ChangeRemoteAmazonRDSNodeRequest) GetInstance() string {
-	if m != nil {
-		return m.Instance
-	}
-	return ""
-}
-
-func (m *ChangeRemoteAmazonRDSNodeRequest) GetCustomLabels() map[string]string {
-	if m != nil {
-		return m.CustomLabels
-	}
-	return nil
-}
-
-type ChangeRemoteAmazonRDSNodeResponse struct {
-	RemoteAmazonRds      *RemoteAmazonRDSNode `protobuf:"bytes,1,opt,name=remote_amazon_rds,json=remoteAmazonRds,proto3" json:"remote_amazon_rds,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}             `json:"-"`
-	XXX_unrecognized     []byte               `json:"-"`
-	XXX_sizecache        int32                `json:"-"`
-}
-
-func (m *ChangeRemoteAmazonRDSNodeResponse) Reset()         { *m = ChangeRemoteAmazonRDSNodeResponse{} }
-func (m *ChangeRemoteAmazonRDSNodeResponse) String() string { return proto.CompactTextString(m) }
-func (*ChangeRemoteAmazonRDSNodeResponse) ProtoMessage()    {}
-func (*ChangeRemoteAmazonRDSNodeResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_nodes_d73aca960d5f020b, []int{23}
-}
-func (m *ChangeRemoteAmazonRDSNodeResponse) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_ChangeRemoteAmazonRDSNodeResponse.Unmarshal(m, b)
-}
-func (m *ChangeRemoteAmazonRDSNodeResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_ChangeRemoteAmazonRDSNodeResponse.Marshal(b, m, deterministic)
-}
-func (dst *ChangeRemoteAmazonRDSNodeResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ChangeRemoteAmazonRDSNodeResponse.Merge(dst, src)
-}
-func (m *ChangeRemoteAmazonRDSNodeResponse) XXX_Size() int {
-	return xxx_messageInfo_ChangeRemoteAmazonRDSNodeResponse.Size(m)
-}
-func (m *ChangeRemoteAmazonRDSNodeResponse) XXX_DiscardUnknown() {
-	xxx_messageInfo_ChangeRemoteAmazonRDSNodeResponse.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_ChangeRemoteAmazonRDSNodeResponse proto.InternalMessageInfo
-
-func (m *ChangeRemoteAmazonRDSNodeResponse) GetRemoteAmazonRds() *RemoteAmazonRDSNode {
-	if m != nil {
-		return m.RemoteAmazonRds
-	}
-	return nil
-}
-
 type RemoveNodeRequest struct {
 	// Unique randomly generated instance identifier.
 	NodeId               string   `protobuf:"bytes,1,opt,name=node_id,json=nodeId,proto3" json:"node_id,omitempty"`
@@ -1542,7 +1151,7 @@ func (m *RemoveNodeRequest) Reset()         { *m = RemoveNodeRequest{} }
 func (m *RemoveNodeRequest) String() string { return proto.CompactTextString(m) }
 func (*RemoveNodeRequest) ProtoMessage()    {}
 func (*RemoveNodeRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_nodes_d73aca960d5f020b, []int{24}
+	return fileDescriptor_nodes_a1423548cde150e2, []int{16}
 }
 func (m *RemoveNodeRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_RemoveNodeRequest.Unmarshal(m, b)
@@ -1579,7 +1188,7 @@ func (m *RemoveNodeResponse) Reset()         { *m = RemoveNodeResponse{} }
 func (m *RemoveNodeResponse) String() string { return proto.CompactTextString(m) }
 func (*RemoveNodeResponse) ProtoMessage()    {}
 func (*RemoveNodeResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_nodes_d73aca960d5f020b, []int{25}
+	return fileDescriptor_nodes_a1423548cde150e2, []int{17}
 }
 func (m *RemoveNodeResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_RemoveNodeResponse.Unmarshal(m, b)
@@ -1615,29 +1224,18 @@ func init() {
 	proto.RegisterType((*AddGenericNodeRequest)(nil), "inventory.AddGenericNodeRequest")
 	proto.RegisterMapType((map[string]string)(nil), "inventory.AddGenericNodeRequest.CustomLabelsEntry")
 	proto.RegisterType((*AddGenericNodeResponse)(nil), "inventory.AddGenericNodeResponse")
-	proto.RegisterType((*ChangeGenericNodeRequest)(nil), "inventory.ChangeGenericNodeRequest")
-	proto.RegisterMapType((map[string]string)(nil), "inventory.ChangeGenericNodeRequest.CustomLabelsEntry")
-	proto.RegisterType((*ChangeGenericNodeResponse)(nil), "inventory.ChangeGenericNodeResponse")
 	proto.RegisterType((*AddContainerNodeRequest)(nil), "inventory.AddContainerNodeRequest")
 	proto.RegisterMapType((map[string]string)(nil), "inventory.AddContainerNodeRequest.CustomLabelsEntry")
 	proto.RegisterType((*AddContainerNodeResponse)(nil), "inventory.AddContainerNodeResponse")
-	proto.RegisterType((*ChangeContainerNodeRequest)(nil), "inventory.ChangeContainerNodeRequest")
-	proto.RegisterMapType((map[string]string)(nil), "inventory.ChangeContainerNodeRequest.CustomLabelsEntry")
-	proto.RegisterType((*ChangeContainerNodeResponse)(nil), "inventory.ChangeContainerNodeResponse")
 	proto.RegisterType((*AddRemoteNodeRequest)(nil), "inventory.AddRemoteNodeRequest")
 	proto.RegisterMapType((map[string]string)(nil), "inventory.AddRemoteNodeRequest.CustomLabelsEntry")
 	proto.RegisterType((*AddRemoteNodeResponse)(nil), "inventory.AddRemoteNodeResponse")
-	proto.RegisterType((*ChangeRemoteNodeRequest)(nil), "inventory.ChangeRemoteNodeRequest")
-	proto.RegisterMapType((map[string]string)(nil), "inventory.ChangeRemoteNodeRequest.CustomLabelsEntry")
-	proto.RegisterType((*ChangeRemoteNodeResponse)(nil), "inventory.ChangeRemoteNodeResponse")
 	proto.RegisterType((*AddRemoteAmazonRDSNodeRequest)(nil), "inventory.AddRemoteAmazonRDSNodeRequest")
 	proto.RegisterMapType((map[string]string)(nil), "inventory.AddRemoteAmazonRDSNodeRequest.CustomLabelsEntry")
 	proto.RegisterType((*AddRemoteAmazonRDSNodeResponse)(nil), "inventory.AddRemoteAmazonRDSNodeResponse")
-	proto.RegisterType((*ChangeRemoteAmazonRDSNodeRequest)(nil), "inventory.ChangeRemoteAmazonRDSNodeRequest")
-	proto.RegisterMapType((map[string]string)(nil), "inventory.ChangeRemoteAmazonRDSNodeRequest.CustomLabelsEntry")
-	proto.RegisterType((*ChangeRemoteAmazonRDSNodeResponse)(nil), "inventory.ChangeRemoteAmazonRDSNodeResponse")
 	proto.RegisterType((*RemoveNodeRequest)(nil), "inventory.RemoveNodeRequest")
 	proto.RegisterType((*RemoveNodeResponse)(nil), "inventory.RemoveNodeResponse")
+	proto.RegisterEnum("inventory.NodeType", NodeType_name, NodeType_value)
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -1658,20 +1256,12 @@ type NodesClient interface {
 	GetNode(ctx context.Context, in *GetNodeRequest, opts ...grpc.CallOption) (*GetNodeResponse, error)
 	// AddGenericNode adds generic Node.
 	AddGenericNode(ctx context.Context, in *AddGenericNodeRequest, opts ...grpc.CallOption) (*AddGenericNodeResponse, error)
-	// ChangeGenericNode changes generic Node.
-	ChangeGenericNode(ctx context.Context, in *ChangeGenericNodeRequest, opts ...grpc.CallOption) (*ChangeGenericNodeResponse, error)
 	// AddContainerNode adds Container Node.
 	AddContainerNode(ctx context.Context, in *AddContainerNodeRequest, opts ...grpc.CallOption) (*AddContainerNodeResponse, error)
-	// ChangeContainerNode changes Container Node.
-	ChangeContainerNode(ctx context.Context, in *ChangeContainerNodeRequest, opts ...grpc.CallOption) (*ChangeContainerNodeResponse, error)
 	// AddRemoteNode adds remote Node.
 	AddRemoteNode(ctx context.Context, in *AddRemoteNodeRequest, opts ...grpc.CallOption) (*AddRemoteNodeResponse, error)
-	// ChangeRemoteNode changes remote Node.
-	ChangeRemoteNode(ctx context.Context, in *ChangeRemoteNodeRequest, opts ...grpc.CallOption) (*ChangeRemoteNodeResponse, error)
 	// AddRemoteAmazonRDSNode adds Amazon (AWS) RDS remote Node.
 	AddRemoteAmazonRDSNode(ctx context.Context, in *AddRemoteAmazonRDSNodeRequest, opts ...grpc.CallOption) (*AddRemoteAmazonRDSNodeResponse, error)
-	// ChangeRemoteAmazonRDSNode changes Amazon (AWS) RDS remote Node.
-	ChangeRemoteAmazonRDSNode(ctx context.Context, in *ChangeRemoteAmazonRDSNodeRequest, opts ...grpc.CallOption) (*ChangeRemoteAmazonRDSNodeResponse, error)
 	// RemoveNode removes Node without any Agents and Services.
 	RemoveNode(ctx context.Context, in *RemoveNodeRequest, opts ...grpc.CallOption) (*RemoveNodeResponse, error)
 }
@@ -1711,27 +1301,9 @@ func (c *nodesClient) AddGenericNode(ctx context.Context, in *AddGenericNodeRequ
 	return out, nil
 }
 
-func (c *nodesClient) ChangeGenericNode(ctx context.Context, in *ChangeGenericNodeRequest, opts ...grpc.CallOption) (*ChangeGenericNodeResponse, error) {
-	out := new(ChangeGenericNodeResponse)
-	err := c.cc.Invoke(ctx, "/inventory.Nodes/ChangeGenericNode", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 func (c *nodesClient) AddContainerNode(ctx context.Context, in *AddContainerNodeRequest, opts ...grpc.CallOption) (*AddContainerNodeResponse, error) {
 	out := new(AddContainerNodeResponse)
 	err := c.cc.Invoke(ctx, "/inventory.Nodes/AddContainerNode", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *nodesClient) ChangeContainerNode(ctx context.Context, in *ChangeContainerNodeRequest, opts ...grpc.CallOption) (*ChangeContainerNodeResponse, error) {
-	out := new(ChangeContainerNodeResponse)
-	err := c.cc.Invoke(ctx, "/inventory.Nodes/ChangeContainerNode", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1747,27 +1319,9 @@ func (c *nodesClient) AddRemoteNode(ctx context.Context, in *AddRemoteNodeReques
 	return out, nil
 }
 
-func (c *nodesClient) ChangeRemoteNode(ctx context.Context, in *ChangeRemoteNodeRequest, opts ...grpc.CallOption) (*ChangeRemoteNodeResponse, error) {
-	out := new(ChangeRemoteNodeResponse)
-	err := c.cc.Invoke(ctx, "/inventory.Nodes/ChangeRemoteNode", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 func (c *nodesClient) AddRemoteAmazonRDSNode(ctx context.Context, in *AddRemoteAmazonRDSNodeRequest, opts ...grpc.CallOption) (*AddRemoteAmazonRDSNodeResponse, error) {
 	out := new(AddRemoteAmazonRDSNodeResponse)
 	err := c.cc.Invoke(ctx, "/inventory.Nodes/AddRemoteAmazonRDSNode", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *nodesClient) ChangeRemoteAmazonRDSNode(ctx context.Context, in *ChangeRemoteAmazonRDSNodeRequest, opts ...grpc.CallOption) (*ChangeRemoteAmazonRDSNodeResponse, error) {
-	out := new(ChangeRemoteAmazonRDSNodeResponse)
-	err := c.cc.Invoke(ctx, "/inventory.Nodes/ChangeRemoteAmazonRDSNode", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1791,20 +1345,12 @@ type NodesServer interface {
 	GetNode(context.Context, *GetNodeRequest) (*GetNodeResponse, error)
 	// AddGenericNode adds generic Node.
 	AddGenericNode(context.Context, *AddGenericNodeRequest) (*AddGenericNodeResponse, error)
-	// ChangeGenericNode changes generic Node.
-	ChangeGenericNode(context.Context, *ChangeGenericNodeRequest) (*ChangeGenericNodeResponse, error)
 	// AddContainerNode adds Container Node.
 	AddContainerNode(context.Context, *AddContainerNodeRequest) (*AddContainerNodeResponse, error)
-	// ChangeContainerNode changes Container Node.
-	ChangeContainerNode(context.Context, *ChangeContainerNodeRequest) (*ChangeContainerNodeResponse, error)
 	// AddRemoteNode adds remote Node.
 	AddRemoteNode(context.Context, *AddRemoteNodeRequest) (*AddRemoteNodeResponse, error)
-	// ChangeRemoteNode changes remote Node.
-	ChangeRemoteNode(context.Context, *ChangeRemoteNodeRequest) (*ChangeRemoteNodeResponse, error)
 	// AddRemoteAmazonRDSNode adds Amazon (AWS) RDS remote Node.
 	AddRemoteAmazonRDSNode(context.Context, *AddRemoteAmazonRDSNodeRequest) (*AddRemoteAmazonRDSNodeResponse, error)
-	// ChangeRemoteAmazonRDSNode changes Amazon (AWS) RDS remote Node.
-	ChangeRemoteAmazonRDSNode(context.Context, *ChangeRemoteAmazonRDSNodeRequest) (*ChangeRemoteAmazonRDSNodeResponse, error)
 	// RemoveNode removes Node without any Agents and Services.
 	RemoveNode(context.Context, *RemoveNodeRequest) (*RemoveNodeResponse, error)
 }
@@ -1867,24 +1413,6 @@ func _Nodes_AddGenericNode_Handler(srv interface{}, ctx context.Context, dec fun
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Nodes_ChangeGenericNode_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ChangeGenericNodeRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(NodesServer).ChangeGenericNode(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/inventory.Nodes/ChangeGenericNode",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(NodesServer).ChangeGenericNode(ctx, req.(*ChangeGenericNodeRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 func _Nodes_AddContainerNode_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(AddContainerNodeRequest)
 	if err := dec(in); err != nil {
@@ -1899,24 +1427,6 @@ func _Nodes_AddContainerNode_Handler(srv interface{}, ctx context.Context, dec f
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(NodesServer).AddContainerNode(ctx, req.(*AddContainerNodeRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _Nodes_ChangeContainerNode_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ChangeContainerNodeRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(NodesServer).ChangeContainerNode(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/inventory.Nodes/ChangeContainerNode",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(NodesServer).ChangeContainerNode(ctx, req.(*ChangeContainerNodeRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -1939,24 +1449,6 @@ func _Nodes_AddRemoteNode_Handler(srv interface{}, ctx context.Context, dec func
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Nodes_ChangeRemoteNode_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ChangeRemoteNodeRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(NodesServer).ChangeRemoteNode(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/inventory.Nodes/ChangeRemoteNode",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(NodesServer).ChangeRemoteNode(ctx, req.(*ChangeRemoteNodeRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 func _Nodes_AddRemoteAmazonRDSNode_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(AddRemoteAmazonRDSNodeRequest)
 	if err := dec(in); err != nil {
@@ -1971,24 +1463,6 @@ func _Nodes_AddRemoteAmazonRDSNode_Handler(srv interface{}, ctx context.Context,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(NodesServer).AddRemoteAmazonRDSNode(ctx, req.(*AddRemoteAmazonRDSNodeRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _Nodes_ChangeRemoteAmazonRDSNode_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ChangeRemoteAmazonRDSNodeRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(NodesServer).ChangeRemoteAmazonRDSNode(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/inventory.Nodes/ChangeRemoteAmazonRDSNode",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(NodesServer).ChangeRemoteAmazonRDSNode(ctx, req.(*ChangeRemoteAmazonRDSNodeRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -2028,32 +1502,16 @@ var _Nodes_serviceDesc = grpc.ServiceDesc{
 			Handler:    _Nodes_AddGenericNode_Handler,
 		},
 		{
-			MethodName: "ChangeGenericNode",
-			Handler:    _Nodes_ChangeGenericNode_Handler,
-		},
-		{
 			MethodName: "AddContainerNode",
 			Handler:    _Nodes_AddContainerNode_Handler,
-		},
-		{
-			MethodName: "ChangeContainerNode",
-			Handler:    _Nodes_ChangeContainerNode_Handler,
 		},
 		{
 			MethodName: "AddRemoteNode",
 			Handler:    _Nodes_AddRemoteNode_Handler,
 		},
 		{
-			MethodName: "ChangeRemoteNode",
-			Handler:    _Nodes_ChangeRemoteNode_Handler,
-		},
-		{
 			MethodName: "AddRemoteAmazonRDSNode",
 			Handler:    _Nodes_AddRemoteAmazonRDSNode_Handler,
-		},
-		{
-			MethodName: "ChangeRemoteAmazonRDSNode",
-			Handler:    _Nodes_ChangeRemoteAmazonRDSNode_Handler,
 		},
 		{
 			MethodName: "RemoveNode",
@@ -2064,93 +1522,87 @@ var _Nodes_serviceDesc = grpc.ServiceDesc{
 	Metadata: "inventory/nodes.proto",
 }
 
-func init() { proto.RegisterFile("inventory/nodes.proto", fileDescriptor_nodes_d73aca960d5f020b) }
+func init() { proto.RegisterFile("inventory/nodes.proto", fileDescriptor_nodes_a1423548cde150e2) }
 
-var fileDescriptor_nodes_d73aca960d5f020b = []byte{
-	// 1353 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xc4, 0x59, 0xcd, 0x6f, 0xe3, 0x44,
-	0x14, 0xef, 0x38, 0xe9, 0x47, 0x5e, 0xe9, 0x6e, 0x32, 0xdd, 0x6e, 0xbd, 0xee, 0x57, 0x3a, 0xa1,
-	0x25, 0x6d, 0xb7, 0xc9, 0xb6, 0x94, 0x65, 0x55, 0x09, 0xa1, 0xb6, 0x40, 0x3f, 0xd4, 0x5d, 0xa4,
-	0xa0, 0x5d, 0x60, 0x85, 0x14, 0xb9, 0xf1, 0x28, 0xb5, 0x9a, 0xd8, 0xc5, 0x76, 0xb3, 0x2a, 0xe2,
-	0x80, 0x38, 0x20, 0x0e, 0xdc, 0x40, 0xe2, 0xca, 0x1f, 0xc0, 0x81, 0x1b, 0x67, 0xce, 0x9c, 0x10,
-	0x9c, 0x16, 0x24, 0x24, 0xe0, 0x8f, 0x40, 0xe2, 0x82, 0x3c, 0x9e, 0x38, 0x76, 0x32, 0x4e, 0xd2,
-	0x4d, 0xd3, 0xde, 0xec, 0x99, 0xf7, 0xfc, 0x7e, 0xf3, 0xfb, 0xbd, 0x37, 0xf3, 0x26, 0x81, 0x09,
-	0xdd, 0xa8, 0x51, 0xc3, 0x31, 0xad, 0xf3, 0xbc, 0x61, 0x6a, 0xd4, 0xce, 0x9d, 0x5a, 0xa6, 0x63,
-	0xe2, 0x84, 0x3f, 0xac, 0xdc, 0x2f, 0xeb, 0xce, 0xf1, 0xd9, 0x51, 0xae, 0x64, 0x56, 0xf3, 0xd5,
-	0x67, 0xba, 0x73, 0x62, 0x3e, 0xcb, 0x97, 0xcd, 0x55, 0x66, 0xb7, 0x5a, 0x53, 0x2b, 0xba, 0xa6,
-	0x3a, 0xa6, 0x65, 0xe7, 0xfd, 0x47, 0xef, 0x13, 0xca, 0x74, 0xd9, 0x34, 0xcb, 0x15, 0x9a, 0x57,
-	0x4f, 0xf5, 0xbc, 0x6a, 0x18, 0xa6, 0xa3, 0x3a, 0xba, 0x69, 0xf0, 0x00, 0xe4, 0x67, 0x09, 0x46,
-	0x77, 0xa9, 0x41, 0x2d, 0xbd, 0xf4, 0xc8, 0xd4, 0x28, 0x9e, 0x84, 0x61, 0x37, 0x7e, 0x51, 0xd7,
-	0x64, 0x94, 0x46, 0xd9, 0x44, 0x61, 0xc8, 0x7d, 0xdd, 0xd7, 0xf0, 0x14, 0x24, 0xd8, 0x84, 0xa1,
-	0x56, 0xa9, 0x2c, 0xb1, 0xa9, 0x11, 0x77, 0xe0, 0x91, 0x5a, 0xa5, 0x78, 0x06, 0xa0, 0xaa, 0x96,
-	0x8e, 0x75, 0x83, 0x39, 0xc6, 0xd8, 0x6c, 0x82, 0x8f, 0xec, 0x6b, 0xf8, 0x36, 0x0c, 0x69, 0xba,
-	0xed, 0x58, 0xa6, 0x1c, 0xf7, 0xbe, 0xe9, 0xbd, 0xe1, 0x05, 0xb8, 0xe1, 0x3d, 0x15, 0x6b, 0xd4,
-	0xb2, 0x75, 0xd3, 0x90, 0x07, 0xd9, 0xfc, 0x98, 0x37, 0xfa, 0xc4, 0x1b, 0xc4, 0x0f, 0x61, 0xac,
-	0x74, 0x66, 0x3b, 0x66, 0xb5, 0x58, 0x51, 0x8f, 0x68, 0xc5, 0x96, 0x21, 0x1d, 0xcb, 0x8e, 0xae,
-	0x67, 0x73, 0x3e, 0x39, 0xb9, 0xc0, 0x12, 0x72, 0x3b, 0xcc, 0xf6, 0x90, 0x99, 0xbe, 0x6d, 0x38,
-	0xd6, 0x79, 0xe1, 0xa5, 0x52, 0x60, 0x08, 0xcb, 0x30, 0xac, 0x6a, 0x9a, 0x45, 0x6d, 0x5b, 0x5e,
-	0x66, 0xe1, 0xea, 0xaf, 0xca, 0x9b, 0x90, 0x6a, 0x71, 0xc6, 0x49, 0x88, 0x9d, 0xd0, 0x73, 0xce,
-	0x86, 0xfb, 0x88, 0x6f, 0xc1, 0x60, 0x4d, 0xad, 0x9c, 0xd5, 0x69, 0xf0, 0x5e, 0x36, 0xa5, 0x07,
-	0x88, 0x3c, 0x97, 0x60, 0x6c, 0xc7, 0x34, 0x1c, 0x55, 0x37, 0xa8, 0xd5, 0x3f, 0x3e, 0x73, 0x30,
-	0xae, 0x99, 0xa5, 0x13, 0x6a, 0x15, 0x4b, 0xf5, 0x60, 0xae, 0x9d, 0x47, 0x6e, 0xca, 0x9b, 0xf2,
-	0x61, 0xec, 0x6b, 0x78, 0x1d, 0x26, 0x5a, 0xec, 0x59, 0x5c, 0x8f, 0xee, 0xf1, 0x26, 0x0f, 0x06,
-	0xe1, 0x5d, 0x31, 0xe9, 0xcb, 0x01, 0xd2, 0x43, 0x2b, 0xed, 0x44, 0x7b, 0xef, 0xe4, 0xfe, 0x82,
-	0x00, 0x0a, 0xb4, 0x6a, 0x3a, 0xb4, 0x07, 0x66, 0x0f, 0xc5, 0xcb, 0x7a, 0x25, 0xb0, 0xac, 0x46,
-	0x8c, 0xfe, 0xaf, 0xe9, 0x5b, 0x09, 0xc6, 0xbd, 0x78, 0x5b, 0x55, 0xf5, 0x13, 0xd3, 0x28, 0xbc,
-	0xf5, 0x5e, 0x0f, 0x8b, 0x53, 0x60, 0x44, 0x37, 0x6c, 0x47, 0x35, 0x4a, 0x94, 0x27, 0x8d, 0xff,
-	0xee, 0xd6, 0xa0, 0x45, 0xcb, 0x6e, 0x8d, 0xf1, 0x1a, 0xf4, 0xde, 0xf0, 0x63, 0x31, 0x21, 0xf7,
-	0x5a, 0x08, 0x09, 0x01, 0xec, 0x3f, 0x33, 0x18, 0x92, 0x87, 0xba, 0xed, 0xb8, 0xc1, 0xec, 0x02,
-	0xfd, 0xf8, 0x8c, 0xda, 0x0e, 0xf9, 0x17, 0x41, 0x2a, 0x30, 0x68, 0x9f, 0x9a, 0x86, 0x4d, 0xf1,
-	0x3d, 0x18, 0x2e, 0x7b, 0xe5, 0x2f, 0x23, 0x86, 0xfd, 0xb6, 0x78, 0x63, 0x28, 0xd4, 0xcd, 0xf0,
-	0x7d, 0x48, 0xf8, 0x85, 0x20, 0x4b, 0xcc, 0x47, 0x8e, 0xca, 0xeb, 0x42, 0xc3, 0x14, 0xaf, 0xba,
-	0x1c, 0xba, 0x5c, 0xc8, 0x31, 0xe6, 0x34, 0x21, 0xcc, 0x9a, 0x02, 0x37, 0xc2, 0x07, 0x90, 0xf2,
-	0x9e, 0x8a, 0x2a, 0xe3, 0xae, 0x68, 0x69, 0xb6, 0x1c, 0x67, 0x9e, 0xb3, 0xed, 0xe9, 0x2d, 0xdc,
-	0xb4, 0x82, 0x83, 0x9a, 0x4d, 0xd6, 0xe0, 0xc6, 0x2e, 0x65, 0x0b, 0xe7, 0x64, 0xe0, 0xb9, 0xa6,
-	0x14, 0xd9, 0x1e, 0xfa, 0xeb, 0xcf, 0x39, 0xe9, 0x03, 0x54, 0x4f, 0x15, 0xf2, 0x85, 0x04, 0x37,
-	0x7d, 0x1f, 0xce, 0xd5, 0x7a, 0x90, 0x2b, 0x14, 0xcd, 0xd5, 0xde, 0x40, 0x83, 0xad, 0x07, 0x61,
-	0xb6, 0x50, 0x3b, 0xb6, 0xf6, 0x06, 0x82, 0x7c, 0xe5, 0x03, 0x7c, 0xa1, 0x48, 0xbe, 0xf6, 0x06,
-	0x7c, 0xc6, 0x0e, 0xc5, 0x8c, 0xa1, 0xce, 0x8c, 0xed, 0x0d, 0xb4, 0x70, 0xb6, 0x3d, 0x04, 0x71,
-	0x97, 0x0a, 0xf2, 0x9b, 0x04, 0x13, 0x5b, 0x9a, 0x16, 0x4c, 0x05, 0xce, 0x61, 0xa6, 0xa5, 0x9a,
-	0x7c, 0x16, 0xaf, 0xea, 0x70, 0x7b, 0x5f, 0x5c, 0x7f, 0xeb, 0x81, 0xe5, 0x0a, 0xb1, 0x5f, 0xe3,
-	0x31, 0x77, 0x10, 0x1f, 0x41, 0x49, 0x89, 0x1c, 0xc0, 0xed, 0x66, 0x64, 0xa2, 0x8a, 0x44, 0x5d,
-	0x54, 0x24, 0xf9, 0x43, 0x02, 0x79, 0xe7, 0x58, 0x35, 0xca, 0x54, 0xa0, 0x52, 0xa7, 0x4c, 0xef,
-	0x4e, 0xc6, 0x1e, 0x75, 0x7a, 0x2a, 0xd6, 0xe9, 0xb5, 0x60, 0x25, 0x44, 0x2c, 0xe0, 0x7a, 0xa5,
-	0x8a, 0x25, 0xe3, 0xe4, 0x21, 0xdc, 0x11, 0x80, 0x7b, 0x61, 0xb5, 0xfe, 0x96, 0x60, 0x72, 0x4b,
-	0xd3, 0xc2, 0xfb, 0xe4, 0x25, 0x96, 0xd4, 0x55, 0xf4, 0x37, 0x1f, 0x8a, 0xf5, 0xdc, 0x08, 0xd7,
-	0x9d, 0x68, 0x89, 0x7d, 0x3f, 0xfb, 0x78, 0x7d, 0x15, 0x40, 0x6e, 0x45, 0xc0, 0x35, 0x0b, 0x9d,
-	0x60, 0xa8, 0xfd, 0x9e, 0x1c, 0xd8, 0x91, 0xc9, 0x4f, 0x12, 0x28, 0x5e, 0x26, 0x08, 0xc5, 0xbb,
-	0x9c, 0x4a, 0x7b, 0x11, 0x39, 0x3e, 0x12, 0xcb, 0xf1, 0x7a, 0x4b, 0x79, 0x5d, 0x97, 0x22, 0xb1,
-	0x64, 0xfc, 0x20, 0x3e, 0x12, 0x4f, 0x0e, 0x92, 0xc7, 0x30, 0x25, 0x84, 0xd2, 0xa3, 0x34, 0xcf,
-	0x11, 0xdc, 0xda, 0xd2, 0xb4, 0x40, 0x1f, 0x71, 0x91, 0x8a, 0x7a, 0x22, 0xe6, 0x6f, 0x2d, 0x9c,
-	0xce, 0x2d, 0x1f, 0xbf, 0xaa, 0x5c, 0x7e, 0x87, 0x9d, 0xc0, 0xc1, 0xf0, 0x9c, 0xad, 0x46, 0x4b,
-	0x85, 0xda, 0xb4, 0x08, 0xf5, 0x06, 0x81, 0xfc, 0x87, 0x60, 0xd2, 0x23, 0xbf, 0x95, 0xa7, 0xcb,
-	0x49, 0xde, 0x2e, 0xf6, 0x85, 0x08, 0x00, 0xfd, 0xef, 0x89, 0xf7, 0xeb, 0x87, 0x64, 0xef, 0x44,
-	0xfe, 0x20, 0xc1, 0x8c, 0xaf, 0x48, 0xb8, 0xf7, 0xbc, 0x48, 0xda, 0x91, 0xe6, 0x1b, 0x47, 0xc3,
-	0xc6, 0xbf, 0x79, 0xcc, 0x86, 0x6f, 0x1e, 0x0d, 0x59, 0xf8, 0x0d, 0xa4, 0x28, 0x66, 0x7c, 0x53,
-	0x94, 0xba, 0x22, 0xa4, 0x57, 0x95, 0xc3, 0x15, 0x98, 0x8d, 0xc2, 0xc1, 0x35, 0x10, 0x36, 0xfc,
-	0xa8, 0x9b, 0xf6, 0xb5, 0xb5, 0xe1, 0xff, 0x51, 0x82, 0x74, 0x50, 0x6c, 0xa1, 0x46, 0x97, 0x93,
-	0xf2, 0xdd, 0x88, 0x78, 0x24, 0x16, 0xe9, 0x8d, 0x88, 0xb2, 0xb8, 0x2e, 0x9d, 0xdc, 0xfd, 0xd9,
-	0x84, 0xf9, 0x36, 0x50, 0xfa, 0x20, 0xd5, 0x06, 0xa4, 0x5c, 0xbb, 0xda, 0x85, 0x76, 0x23, 0x72,
-	0x0b, 0x70, 0xd0, 0xcb, 0xc3, 0xb5, 0xfe, 0xfb, 0x28, 0x0c, 0xb2, 0xeb, 0x2d, 0x3e, 0x81, 0x84,
-	0x7f, 0xd7, 0xc5, 0x53, 0x01, 0x4c, 0xcd, 0xd7, 0x62, 0x65, 0x5a, 0x3c, 0xe9, 0x7d, 0x91, 0x64,
-	0x3e, 0xff, 0xf5, 0x9f, 0xaf, 0xa5, 0x19, 0x22, 0xe7, 0x6b, 0x6b, 0xf9, 0xc6, 0xaf, 0x8c, 0xcc,
-	0x28, 0xef, 0x9a, 0x6f, 0xa2, 0x65, 0xac, 0xc1, 0x30, 0xbf, 0x2a, 0xe2, 0x3b, 0xa1, 0xee, 0x2f,
-	0x78, 0xe5, 0x54, 0x14, 0xd1, 0x14, 0x0f, 0x43, 0x58, 0x98, 0x69, 0x32, 0x29, 0x0a, 0xb3, 0x4b,
-	0x59, 0x94, 0xcf, 0x10, 0xdc, 0x08, 0x5f, 0x19, 0x70, 0xba, 0xd3, 0x3d, 0x47, 0x99, 0x6f, 0x63,
-	0xc1, 0x63, 0x2f, 0xb1, 0xd8, 0x19, 0x32, 0x2b, 0x8a, 0xdd, 0xf0, 0x71, 0x21, 0x7c, 0x85, 0x20,
-	0xd5, 0xd2, 0x0a, 0xe3, 0x4c, 0x17, 0x5d, 0xbc, 0xf2, 0x72, 0x7b, 0x23, 0x8e, 0xe5, 0x2e, 0xc3,
-	0xb2, 0x48, 0xe6, 0x45, 0x58, 0x42, 0x6e, 0x2e, 0x9c, 0x2f, 0x11, 0x24, 0x9b, 0x9b, 0x3c, 0x4c,
-	0x3a, 0xf7, 0xa0, 0x4a, 0xa6, 0xad, 0x0d, 0xc7, 0xb2, 0xc2, 0xb0, 0x2c, 0x90, 0x74, 0x04, 0x2f,
-	0xbe, 0x97, 0x0b, 0xe5, 0x1b, 0x04, 0xe3, 0x82, 0xbe, 0x06, 0x2f, 0x74, 0xd5, 0x82, 0x29, 0x8b,
-	0x9d, 0xcc, 0x38, 0xa6, 0x1c, 0xc3, 0x94, 0x25, 0x99, 0x68, 0x7e, 0x42, 0xb0, 0x3e, 0x85, 0xb1,
-	0x50, 0xe7, 0x80, 0xe7, 0x3a, 0xb4, 0x34, 0x4a, 0x3a, 0xda, 0x80, 0x63, 0xc8, 0x32, 0x0c, 0x84,
-	0xcc, 0x44, 0xf0, 0xe2, 0xb9, 0xd4, 0xf5, 0x69, 0x3e, 0x72, 0x43, 0xfa, 0x44, 0xf4, 0x02, 0x4a,
-	0xa6, 0xad, 0x4d, 0x37, 0xfa, 0x04, 0xbd, 0x5c, 0x28, 0xdf, 0x21, 0x76, 0xdf, 0x16, 0xfd, 0x5a,
-	0x98, 0xed, 0xf6, 0xa8, 0x54, 0x96, 0xba, 0xb0, 0xe4, 0xe0, 0xd6, 0x18, 0xb8, 0x15, 0xb2, 0xd8,
-	0x96, 0x24, 0xdf, 0xd7, 0x85, 0xf8, 0x3d, 0xaa, 0xdf, 0x33, 0x45, 0x28, 0x57, 0x2e, 0x70, 0x56,
-	0x28, 0x77, 0xbb, 0x33, 0xe6, 0x58, 0x37, 0x18, 0xd6, 0x1c, 0x59, 0xea, 0x44, 0x64, 0x08, 0xee,
-	0xa9, 0xf7, 0x7b, 0xb2, 0xb7, 0x03, 0xe3, 0xe9, 0xa6, 0x6d, 0x3f, 0xb4, 0x9d, 0x2b, 0x33, 0x11,
-	0xb3, 0x1c, 0xc0, 0x02, 0x03, 0x30, 0x47, 0x14, 0x11, 0x00, 0xcf, 0x7e, 0x13, 0x2d, 0x6f, 0x8f,
-	0x3e, 0x6d, 0xfc, 0xa1, 0x73, 0x34, 0xc4, 0xfe, 0x81, 0x79, 0xf5, 0xff, 0x00, 0x00, 0x00, 0xff,
-	0xff, 0x9c, 0x80, 0xeb, 0xbd, 0xfb, 0x19, 0x00, 0x00,
+var fileDescriptor_nodes_a1423548cde150e2 = []byte{
+	// 1259 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xc4, 0x98, 0x4f, 0x73, 0xdb, 0xc4,
+	0x1b, 0xc7, 0xb3, 0x4a, 0xea, 0xc4, 0x4f, 0x9b, 0xd4, 0xde, 0xe6, 0x8f, 0x7e, 0x6a, 0xfe, 0xf8,
+	0xa7, 0x4c, 0x8a, 0xeb, 0x12, 0xab, 0x09, 0x9d, 0x4e, 0x27, 0x17, 0x70, 0x12, 0x93, 0x38, 0x24,
+	0x0e, 0xa3, 0x86, 0x40, 0xcb, 0xc1, 0xa3, 0x58, 0x5b, 0x57, 0x13, 0x5b, 0x6b, 0x24, 0xc5, 0x99,
+	0x30, 0x1c, 0x18, 0x0e, 0x0c, 0x67, 0x38, 0x70, 0xe5, 0x25, 0xf0, 0x3e, 0x38, 0x31, 0x70, 0xea,
+	0x85, 0x19, 0xe0, 0x45, 0x30, 0xc3, 0x85, 0xd1, 0xee, 0x5a, 0x96, 0x6c, 0xd9, 0x49, 0x26, 0x24,
+	0x9c, 0xac, 0xdd, 0x7d, 0x1e, 0x3d, 0xdf, 0xfd, 0xac, 0x9e, 0xe7, 0x91, 0x05, 0x53, 0x96, 0xdd,
+	0x22, 0xb6, 0x47, 0x9d, 0x33, 0xcd, 0xa6, 0x26, 0x71, 0xf3, 0x4d, 0x87, 0x7a, 0x14, 0x27, 0x83,
+	0x69, 0xe5, 0x69, 0xcd, 0xf2, 0x5e, 0x9f, 0x1c, 0xe5, 0xab, 0xb4, 0xa1, 0x35, 0x4e, 0x2d, 0xef,
+	0x98, 0x9e, 0x6a, 0x35, 0xba, 0xcc, 0xec, 0x96, 0x5b, 0x46, 0xdd, 0x32, 0x0d, 0x8f, 0x3a, 0xae,
+	0x16, 0x5c, 0xf2, 0x5b, 0x28, 0xb3, 0x35, 0x4a, 0x6b, 0x75, 0xa2, 0x19, 0x4d, 0x4b, 0x33, 0x6c,
+	0x9b, 0x7a, 0x86, 0x67, 0x51, 0x5b, 0x04, 0x50, 0xde, 0x66, 0x3f, 0xd5, 0xe5, 0x1a, 0xb1, 0x97,
+	0xdd, 0x53, 0xa3, 0x56, 0x23, 0x8e, 0x46, 0x9b, 0xcc, 0xa2, 0xd7, 0x5a, 0xfd, 0x49, 0x82, 0xdb,
+	0x5b, 0xc4, 0x26, 0x8e, 0x55, 0x2d, 0x53, 0x93, 0xe0, 0x19, 0x18, 0xf5, 0xd5, 0x56, 0x2c, 0x53,
+	0x46, 0x19, 0x94, 0x4d, 0xea, 0x09, 0x7f, 0x58, 0x32, 0xf1, 0x7d, 0x48, 0xb2, 0x05, 0xdb, 0x68,
+	0x10, 0x59, 0x62, 0x4b, 0x63, 0xfe, 0x44, 0xd9, 0x68, 0x10, 0x3c, 0x07, 0xd0, 0x30, 0xaa, 0xaf,
+	0x2d, 0x9b, 0x39, 0x0e, 0xb3, 0xd5, 0xa4, 0x98, 0x29, 0x99, 0x78, 0x1a, 0x12, 0xa6, 0xe5, 0x7a,
+	0x0e, 0x95, 0x47, 0xf8, 0x3d, 0xf9, 0x08, 0x2f, 0xc1, 0x04, 0xbf, 0xaa, 0xb4, 0x88, 0xe3, 0x5a,
+	0xd4, 0x96, 0x6f, 0xb1, 0xf5, 0x71, 0x3e, 0x7b, 0xc8, 0x27, 0xf1, 0x1e, 0x8c, 0x57, 0x4f, 0x5c,
+	0x8f, 0x36, 0x2a, 0x75, 0xe3, 0x88, 0xd4, 0x5d, 0x19, 0x32, 0xc3, 0xd9, 0xdb, 0xab, 0xd9, 0x7c,
+	0x80, 0x32, 0x1f, 0xda, 0x42, 0x7e, 0x83, 0xd9, 0xee, 0x32, 0xd3, 0xa2, 0xed, 0x39, 0x67, 0xfa,
+	0x9d, 0x6a, 0x68, 0x0a, 0xcb, 0x30, 0x6a, 0x98, 0xa6, 0x43, 0x5c, 0x57, 0xce, 0xb1, 0x70, 0xed,
+	0xa1, 0xf2, 0x2e, 0xa4, 0x7b, 0x9c, 0x71, 0x0a, 0x86, 0x8f, 0xc9, 0x99, 0xa0, 0xe1, 0x5f, 0xe2,
+	0x49, 0xb8, 0xd5, 0x32, 0xea, 0x27, 0x6d, 0x0c, 0x7c, 0xb0, 0x26, 0x3d, 0x43, 0xea, 0x1b, 0x09,
+	0xc6, 0x37, 0xa8, 0xed, 0x19, 0x96, 0x4d, 0x9c, 0xeb, 0xe3, 0x99, 0x87, 0x7b, 0x26, 0xad, 0x1e,
+	0x13, 0xa7, 0x52, 0x6d, 0x07, 0xf3, 0xed, 0x38, 0xdc, 0x34, 0x5f, 0x0a, 0x64, 0x94, 0x4c, 0xbc,
+	0x0a, 0x53, 0x3d, 0xf6, 0x2c, 0x2e, 0xc7, 0x7d, 0xaf, 0xcb, 0x83, 0x49, 0xd8, 0x8f, 0x87, 0x9e,
+	0x0b, 0x41, 0x8f, 0xec, 0xf4, 0x3c, 0xec, 0x57, 0x87, 0xfb, 0x33, 0x02, 0xd0, 0x49, 0x83, 0x7a,
+	0xe4, 0x0a, 0x64, 0x77, 0xe3, 0xb7, 0xf5, 0x56, 0x68, 0x5b, 0x9d, 0x18, 0xd7, 0xbf, 0xa7, 0xef,
+	0x25, 0xb8, 0xc7, 0xe3, 0x15, 0x1a, 0xc6, 0xe7, 0xd4, 0xd6, 0x37, 0x9f, 0x5f, 0x61, 0x73, 0x0a,
+	0x8c, 0x59, 0xb6, 0xeb, 0x19, 0x76, 0x95, 0x88, 0x87, 0x26, 0x18, 0xfb, 0x39, 0xe8, 0x90, 0x9a,
+	0x9f, 0x63, 0x22, 0x07, 0xf9, 0x08, 0x7f, 0x14, 0x0f, 0xe4, 0x71, 0x0f, 0x90, 0x88, 0xc0, 0xeb,
+	0x27, 0x83, 0x21, 0xb5, 0x6b, 0xb9, 0x9e, 0x1f, 0xcc, 0xd5, 0xc9, 0x67, 0x27, 0xc4, 0xf5, 0xd4,
+	0xbf, 0x10, 0xa4, 0x43, 0x93, 0x6e, 0x93, 0xda, 0x2e, 0xc1, 0x8f, 0x61, 0xb4, 0xc6, 0xd3, 0x5f,
+	0x46, 0x4c, 0xfb, 0x74, 0x7c, 0x61, 0xd0, 0xdb, 0x66, 0xf8, 0x29, 0x24, 0x83, 0x44, 0x90, 0x25,
+	0xe6, 0x23, 0xf7, 0x7b, 0xae, 0xf5, 0x8e, 0x29, 0x5e, 0xf6, 0x19, 0xfa, 0x2c, 0xe4, 0x61, 0xe6,
+	0x34, 0x15, 0xfb, 0xd4, 0xe8, 0xc2, 0x08, 0xef, 0x40, 0x9a, 0x5f, 0x55, 0x0c, 0xc6, 0xae, 0xe2,
+	0x98, 0xae, 0x3c, 0xc2, 0x3c, 0xe7, 0x07, 0xe3, 0xd5, 0xef, 0x3a, 0xe1, 0x49, 0xd3, 0x55, 0x57,
+	0x60, 0x62, 0x8b, 0xb0, 0x8d, 0x0b, 0x18, 0x78, 0xa1, 0xeb, 0x11, 0x59, 0x4f, 0xfc, 0xfe, 0xdb,
+	0x82, 0xf4, 0x09, 0x6a, 0x3f, 0x2a, 0xea, 0xd7, 0x12, 0xdc, 0x0d, 0x7c, 0x04, 0xab, 0xd5, 0x30,
+	0x2b, 0xd4, 0x9f, 0xd5, 0xf6, 0x50, 0x87, 0xd6, 0xb3, 0x28, 0x2d, 0x34, 0x88, 0xd6, 0xf6, 0x50,
+	0x98, 0x97, 0x16, 0xe2, 0x85, 0xfa, 0xf2, 0xda, 0x1e, 0x0a, 0x88, 0xed, 0xc6, 0x13, 0x43, 0xe7,
+	0x13, 0xdb, 0x1e, 0xea, 0x61, 0xb6, 0x9e, 0x80, 0x11, 0x1f, 0x85, 0xfa, 0xab, 0x04, 0x53, 0x05,
+	0xd3, 0x0c, 0x3f, 0x0a, 0x82, 0xe1, 0x62, 0x4f, 0x36, 0x05, 0x14, 0x6f, 0xaa, 0xb9, 0x7d, 0x1c,
+	0x9f, 0x7f, 0xab, 0xa1, 0xed, 0xc6, 0x6a, 0xff, 0x0f, 0xdb, 0xdc, 0xce, 0xc8, 0x18, 0x4a, 0x49,
+	0xea, 0x0e, 0x4c, 0x77, 0x2b, 0x8b, 0xcb, 0x48, 0x74, 0x81, 0x8c, 0x54, 0xff, 0x90, 0x60, 0xa6,
+	0x60, 0x9a, 0xd1, 0xcc, 0xfb, 0x17, 0x0f, 0xe9, 0x26, 0x3a, 0xe6, 0x8b, 0xf8, 0x93, 0x7c, 0x12,
+	0x3d, 0xc9, 0xb8, 0x2d, 0x5e, 0x7b, 0x35, 0x15, 0x27, 0xa6, 0x83, 0xdc, 0xab, 0x40, 0x9c, 0x59,
+	0xa4, 0x26, 0xa2, 0xc1, 0x59, 0x1e, 0xca, 0x71, 0xf5, 0x0d, 0x82, 0xc9, 0x82, 0x69, 0x86, 0xca,
+	0xdf, 0x65, 0x8e, 0xed, 0x30, 0x9e, 0xd9, 0x4a, 0x94, 0x59, 0xcf, 0xcd, 0x6f, 0x0a, 0xd8, 0xfb,
+	0xac, 0x70, 0x84, 0xc3, 0x0b, 0x5a, 0x9d, 0x4e, 0x80, 0x06, 0x54, 0xb6, 0x76, 0x5d, 0x53, 0x7f,
+	0x94, 0x60, 0x2e, 0xb8, 0x51, 0xb4, 0xd2, 0x5f, 0x86, 0x96, 0xda, 0xdd, 0xdf, 0x3b, 0x36, 0x41,
+	0x9f, 0x9f, 0x8f, 0xf6, 0xf9, 0x4e, 0x57, 0x10, 0xfd, 0xbe, 0x12, 0x4f, 0x7c, 0x2d, 0x8e, 0x78,
+	0x9c, 0xd2, 0x9b, 0x42, 0x5f, 0x87, 0xf9, 0x7e, 0x3a, 0xc4, 0x19, 0xc4, 0xb6, 0x57, 0x74, 0x91,
+	0x66, 0xd1, 0xdb, 0x5e, 0x9f, 0x40, 0xda, 0xb7, 0x6b, 0x91, 0x4b, 0x75, 0xd8, 0x49, 0xc0, 0x61,
+	0x2f, 0xae, 0x2b, 0xe7, 0xc1, 0x98, 0x3f, 0x3e, 0x38, 0x6b, 0x12, 0x3c, 0x05, 0xe9, 0xf2, 0xfe,
+	0x66, 0xb1, 0x72, 0xf0, 0xe2, 0xc3, 0x62, 0xa5, 0x54, 0x3e, 0x2c, 0xec, 0x96, 0x36, 0x53, 0x43,
+	0x38, 0x05, 0x77, 0xb6, 0x8a, 0xe5, 0xa2, 0x5e, 0xda, 0xa8, 0xf8, 0xcb, 0x29, 0x84, 0x31, 0x4c,
+	0x6c, 0xec, 0x97, 0x0f, 0x0a, 0xa5, 0x72, 0x51, 0xe7, 0x73, 0x12, 0xbe, 0x0b, 0xb7, 0xf5, 0xe2,
+	0xde, 0xfe, 0x41, 0x91, 0x4f, 0x0c, 0x63, 0x05, 0xa6, 0xc5, 0x44, 0x61, 0xaf, 0xf0, 0x72, 0xbf,
+	0x5c, 0xd1, 0x37, 0x9f, 0xf3, 0xb5, 0x91, 0xd5, 0xbf, 0x13, 0x70, 0x8b, 0xbd, 0x17, 0xe1, 0x63,
+	0x48, 0x06, 0x2f, 0x49, 0xf8, 0x7e, 0x88, 0x44, 0xf7, 0xfb, 0x94, 0x32, 0x1b, 0xbf, 0xc8, 0xf7,
+	0xa1, 0x2e, 0x7e, 0xf5, 0xcb, 0x9f, 0xdf, 0x49, 0x73, 0xaa, 0xac, 0xb5, 0x56, 0xb4, 0xce, 0x9f,
+	0x59, 0x66, 0xa4, 0xf9, 0xe6, 0x6b, 0x28, 0x87, 0x4d, 0x18, 0x15, 0xef, 0x18, 0xf8, 0x7f, 0x91,
+	0x22, 0x1f, 0x7e, 0x57, 0x51, 0x94, 0xb8, 0x25, 0x11, 0x46, 0x65, 0x61, 0x66, 0xd5, 0x99, 0xb8,
+	0x30, 0x5b, 0x84, 0x45, 0xf9, 0x12, 0xc1, 0x44, 0xb4, 0xd7, 0xe0, 0xcc, 0x79, 0x0d, 0x52, 0xf9,
+	0xff, 0x00, 0x0b, 0x11, 0xfb, 0x21, 0x8b, 0xbd, 0xa8, 0xce, 0xc7, 0xc5, 0xee, 0xf8, 0xf8, 0x12,
+	0xbe, 0x41, 0x90, 0xea, 0x2e, 0x9e, 0x58, 0x3d, 0xbf, 0xb6, 0x2b, 0x8b, 0x03, 0x6d, 0x84, 0x90,
+	0x47, 0x4c, 0xc8, 0x92, 0x9a, 0xe9, 0x23, 0x24, 0xf0, 0xf2, 0xa5, 0x7c, 0x01, 0xe3, 0x91, 0xaa,
+	0x84, 0x17, 0xce, 0x29, 0x97, 0x4a, 0xa6, 0xbf, 0x81, 0x10, 0x90, 0x65, 0x02, 0x54, 0x75, 0xae,
+	0x8f, 0x00, 0xee, 0xe2, 0x47, 0xff, 0x01, 0xb1, 0xbe, 0x1f, 0xf7, 0xaf, 0x25, 0x7b, 0xd1, 0x22,
+	0xa2, 0x3c, 0xbc, 0x80, 0xa5, 0x50, 0xb6, 0xc2, 0x94, 0x3d, 0x52, 0x1f, 0x0c, 0x54, 0x16, 0xf8,
+	0xfa, 0x12, 0x9b, 0xfc, 0x8f, 0x22, 0xcf, 0x4b, 0x3c, 0xdb, 0x55, 0x0c, 0x22, 0x49, 0xae, 0xcc,
+	0xf5, 0x59, 0x15, 0xd1, 0x97, 0x58, 0xf4, 0x05, 0x55, 0x89, 0x8b, 0xce, 0xed, 0xd7, 0x50, 0x6e,
+	0xfd, 0xd3, 0x6f, 0x0b, 0x7b, 0xfa, 0x07, 0x30, 0x6a, 0x92, 0x57, 0xc6, 0x49, 0xdd, 0xc3, 0xef,
+	0x01, 0x2e, 0xd8, 0x19, 0xe2, 0x38, 0xd4, 0xc9, 0x38, 0xe2, 0x5e, 0x79, 0x9c, 0x83, 0xac, 0xf2,
+	0x60, 0x51, 0x33, 0xc9, 0x2b, 0xcb, 0xb6, 0xf8, 0x17, 0x99, 0xe0, 0x96, 0xcd, 0xa3, 0xa2, 0x6f,
+	0xdd, 0x0e, 0xfc, 0xb2, 0xf3, 0x9d, 0xe8, 0x28, 0xc1, 0x3e, 0xd5, 0xbc, 0xf3, 0x4f, 0x00, 0x00,
+	0x00, 0xff, 0xff, 0xac, 0x32, 0x73, 0x82, 0x52, 0x12, 0x00, 0x00,
 }
