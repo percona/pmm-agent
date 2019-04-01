@@ -80,7 +80,7 @@ func application(cfg *Config) (*kingpin.Application, *string) {
 	app.Flag("id", "ID of this pmm-agent. [PMM_AGENT_ID]").
 		Envar("PMM_AGENT_ID").PlaceHolder("</agent_id/...>").StringVar(&cfg.ID)
 	app.Flag("listen-port", "Agent local API port. [PMM_AGENT_LISTEN_PORT]").
-		Envar("PMM_AGENT_PORT").Default("7777").Uint16Var(&cfg.ListenPort)
+		Envar("PMM_AGENT_LISTEN_PORT").Default("7777").Uint16Var(&cfg.ListenPort)
 	app.Flag("address", "PMM Server address. [PMM_AGENT_ADDRESS]").
 		Envar("PMM_AGENT_ADDRESS").PlaceHolder("<host:port>").StringVar(&cfg.Address)
 
