@@ -179,9 +179,14 @@ func (m *MySQL) getBuckets(periodStart time.Time, periodLength time.Duration) ([
 
 	m.summaryCache.refresh(current)
 
-	// add examples from history cache
+	// add timestamps and examples from history cache
+	startS := uint32(periodStart.Unix())
+	lengthS := uint32(periodLength.Seconds())
 	history := m.historyCache.get()
 	for i, b := range buckets {
+		b.PeriodStartUnixSecs = startS
+		b.PeriodLengthSecs = lengthS
+
 		if esh := history[b.Queryid]; esh != nil {
 			// TODO test if we really need that
 			if b.DSchema == "" {
@@ -195,14 +200,6 @@ func (m *MySQL) getBuckets(periodStart time.Time, periodLength time.Duration) ([
 			}
 		}
 
-		buckets[i] = b
-	}
-
-	startS := uint32(periodStart.Unix())
-	lengthS := uint32(periodLength.Seconds())
-	for i, b := range buckets {
-		b.PeriodStartUnixSecs = startS
-		b.PeriodLengthSecs = lengthS
 		buckets[i] = b
 	}
 
