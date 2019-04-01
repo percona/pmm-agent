@@ -278,7 +278,7 @@ func makeBuckets(current, prev map[string]*eventsStatementsSummaryByDigest, l *l
 			{float32(currentESS.SumRowsExamined - prevESS.SumRowsExamined), &mb.MRowsExaminedSum, &mb.MRowsExaminedCnt},
 
 			{float32(currentESS.SumCreatedTmpDiskTables - prevESS.SumCreatedTmpDiskTables), &mb.MTmpDiskTablesSum, &mb.MTmpDiskTablesCnt},
-			{float32(currentESS.SumCreatedTmpTables - prevESS.SumCreatedTmpTables), &mb.MQueryTimeSum, &mb.MTmpTableCnt},
+			{float32(currentESS.SumCreatedTmpTables - prevESS.SumCreatedTmpTables), &mb.MTmpTablesSum, &mb.MTmpTablesCnt},
 			{float32(currentESS.SumSelectFullJoin - prevESS.SumSelectFullJoin), &mb.MFullJoinSum, &mb.MFullJoinCnt},
 			{float32(currentESS.SumSelectFullRangeJoin - prevESS.SumSelectFullRangeJoin), &mb.MSelectFullRangeJoinSum, &mb.MSelectFullRangeJoinCnt},
 			{float32(currentESS.SumSelectRange - prevESS.SumSelectRange), &mb.MSelectRangeSum, &mb.MSelectRangeCnt},
