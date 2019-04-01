@@ -30,7 +30,7 @@ import (
 type AgentLocalServer struct {
 	cfg *config.Config
 
-	mx             sync.RWMutex
+	rw             sync.RWMutex
 	serverMetadata *agentpb.AgentServerMetadata
 }
 
@@ -41,14 +41,14 @@ func NewAgentLocalServer(cfg *config.Config) *AgentLocalServer {
 
 // SetMetadata sets new values of ServerMetadata.
 func (als *AgentLocalServer) SetMetadata(md *agentpb.AgentServerMetadata) {
-	als.mx.RLock()
-	defer als.mx.RUnlock()
+	als.rw.Lock()
+	defer als.rw.Unlock()
 	als.serverMetadata = md
 }
 
 func (als *AgentLocalServer) getMetadata() agentpb.AgentServerMetadata {
-	als.mx.Lock()
-	defer als.mx.Unlock()
+	als.rw.RLock()
+	defer als.rw.RUnlock()
 	return *als.serverMetadata
 }
 

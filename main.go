@@ -236,7 +236,7 @@ func runGRPCServer(ctx context.Context, cfg *config.Config, localSrv agentlocalp
 
 // runJSONServer runs JSON proxy server (grpc-gateway) until context is canceled, then gracefully stops it.
 func runJSONServer(ctx context.Context, cfg *config.Config, gRPCAddr string) {
-	jsonAddr := fmt.Sprintf("127.0.0.1:%d", cfg.Port)
+	jsonAddr := fmt.Sprintf("127.0.0.1:%d", cfg.ListenPort)
 
 	l := logrus.WithField("component", "JSON")
 	l.Infof("Starting server on http://%s/ ...", jsonAddr)
