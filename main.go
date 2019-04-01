@@ -387,23 +387,10 @@ func main() {
 	// 	logrus.Infof("pmm-agent registered: %s.", cfg.UUID)
 	// }
 
-	var wg sync.WaitGroup
-
 	localServer := agentlocal.NewAgentLocalServer(cfg)
 
-	wg.Add(1)
-	go func() {
-		wg.Done()
-		runGRPCServer(ctx, cfg, localServer, grpcAddr)
-	}()
-
-	wg.Add(1)
-	go func() {
-		wg.Done()
-		runJSONServer(ctx, cfg, grpcAddr)
-	}()
-
-	wg.Wait()
+	go runGRPCServer(ctx, cfg, localServer, grpcAddr)
+	go runJSONServer(ctx, cfg, grpcAddr)
 
 	workLoop(ctx, cfg, l, client, localServer)
 }
