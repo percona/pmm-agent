@@ -33,7 +33,7 @@ import (
 
 	"github.com/golang/protobuf/proto"
 	"github.com/percona/pmm/api/agentpb"
-	inventorypb "github.com/percona/pmm/api/inventory"
+	"github.com/percona/pmm/api/inventory"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 
@@ -383,6 +383,8 @@ func (s *Supervisor) processParams(agentID string, agentProcess *agentpb.SetStat
 		processParams.Path = s.paths.MySQLdExporter
 	case agentpb.Type_MONGODB_EXPORTER:
 		processParams.Path = s.paths.MongoDBExporter
+	case agentpb.Type_POSTGRES_EXPORTER:
+		processParams.Path = s.paths.PostgresExporter
 	case type_TEST_SLEEP:
 		processParams.Path = "sleep"
 	default:
