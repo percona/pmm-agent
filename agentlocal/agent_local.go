@@ -18,6 +18,7 @@ package agentlocal
 
 import (
 	"context"
+	"net/url"
 	"sync"
 
 	"github.com/percona/pmm/api/agentlocalpb"
@@ -56,8 +57,13 @@ func (als *AgentLocalServer) getMetadata() agentpb.AgentServerMetadata {
 func (als *AgentLocalServer) Status(ctx context.Context, req *agentlocalpb.StatusRequest) (*agentlocalpb.StatusResponse, error) {
 	md := als.getMetadata()
 
+	u := url.URL{
+		Scheme: "https",
+		Host:   als.cfg.Address,
+		Path:   "/",
+	}
 	srvInfo := &agentlocalpb.ServerInfo{
-		Url:          als.cfg.Address,
+		Url:          u.String(),
 		InsecureTls:  als.cfg.InsecureTLS,
 		Version:      md.ServerVersion,
 		LastPingTime: nil, // TODO: Add LastPingTime
