@@ -57,8 +57,16 @@ func (als *AgentLocalServer) getMetadata() agentpb.AgentServerMetadata {
 func (als *AgentLocalServer) Status(ctx context.Context, req *agentlocalpb.StatusRequest) (*agentlocalpb.StatusResponse, error) {
 	md := als.getMetadata()
 
+	var user *url.Userinfo
+	switch {
+	case als.cfg.Password != "":
+		user = url.UserPassword(als.cfg.Username, als.cfg.Password)
+	case als.cfg.Username != "":
+		user = url.User(als.cfg.Username)
+	}
 	u := url.URL{
 		Scheme: "https",
+		User:   user,
 		Host:   als.cfg.Address,
 		Path:   "/",
 	}
