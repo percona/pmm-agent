@@ -41,15 +41,11 @@ type AgentLocalServer struct {
 }
 
 // NewAgentLocalServer creates new local agent api server instance.
-func NewAgentLocalServer(cfg *config.Config) *AgentLocalServer {
-	return &AgentLocalServer{cfg: cfg}
-}
-
-// SetAgentsGetter sets new dependency which represents agentsGetter.
-func (als *AgentLocalServer) SetAgentsGetter(ag agentsGetter) {
-	als.rw.Lock()
-	defer als.rw.Unlock()
-	als.ag = ag
+func NewAgentLocalServer(cfg *config.Config, ag agentsGetter) *AgentLocalServer {
+	if ag == nil {
+		panic("agentsGetter is nil.")
+	}
+	return &AgentLocalServer{cfg: cfg, ag: ag}
 }
 
 // SetMetadata sets new values of ServerMetadata.
@@ -68,11 +64,6 @@ func (als *AgentLocalServer) getMetadata() agentpb.AgentServerMetadata {
 func (als *AgentLocalServer) getAgentsList() ([]*agentlocalpb.AgentInfo, error) {
 	als.rw.RLock()
 	defer als.rw.RUnlock()
-
-	if als.ag == nil {
-		panic("agentsGetter is nil. Use SetAgentsGetter(ag agentsGetter) to set it.")
-	}
-
 	return als.ag.AgentsList()
 }
 
