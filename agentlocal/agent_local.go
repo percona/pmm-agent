@@ -66,12 +66,13 @@ func (als *AgentLocalServer) getMetadata() agentpb.AgentServerMetadata {
 }
 
 func (als *AgentLocalServer) getAgentsList() (res []*agentlocalpb.AgentInfo, err error) {
+	als.rw.RLock()
+	defer als.rw.RUnlock()
+
 	if als.ag == nil {
 		panic("agentsGetter is nil. Use SetAgentsGetter(ag agentsGetter) to set it.")
 	}
 
-	als.rw.RLock()
-	defer als.rw.RUnlock()
 	return als.ag.AgentsList()
 }
 
