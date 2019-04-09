@@ -129,7 +129,10 @@ func (s *Supervisor) setAgentProcesses(agentProcesses map[string]*agentpb.SetSta
 
 	// stop first to avoid extra load
 	for _, agentID := range toStop {
+		s.rw.RLock()
 		agent := s.agentProcesses[agentID]
+		s.rw.RUnlock()
+
 		agent.cancel()
 		<-agent.done // wait before releasing port
 
@@ -141,7 +144,10 @@ func (s *Supervisor) setAgentProcesses(agentProcesses map[string]*agentpb.SetSta
 
 	// restart while preserving port
 	for _, agentID := range toRestart {
+		s.rw.RLock()
 		agent := s.agentProcesses[agentID]
+		s.rw.RUnlock()
+
 		agent.cancel()
 		<-agent.done // wait before reusing port
 
@@ -151,7 +157,9 @@ func (s *Supervisor) setAgentProcesses(agentProcesses map[string]*agentpb.SetSta
 			// TODO report that error to server
 			continue
 		}
+		s.rw.Lock()
 		s.agentProcesses[agentID] = agent
+		s.rw.Unlock()
 	}
 
 	// start new agents
@@ -169,7 +177,9 @@ func (s *Supervisor) setAgentProcesses(agentProcesses map[string]*agentpb.SetSta
 			// TODO report that error to server
 			continue
 		}
+		s.rw.Lock()
 		s.agentProcesses[agentID] = agent
+		s.rw.Unlock()
 	}
 }
 
