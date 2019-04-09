@@ -18,6 +18,7 @@
 package config
 
 import (
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -76,6 +77,11 @@ func application(cfg *Config) (*kingpin.Application, *string) {
 	app.HelpFlag.Short('h')
 	app.Version(version.FullInfo())
 
+	// need to generate help command.
+	app.Command("setup", "not implemented yet.").Action(func(context *kingpin.ParseContext) error {
+		return errors.New("not implemented yet")
+	})
+
 	configFileF := app.Flag("config-file", "Configuration file path. [PMM_AGENT_CONFIG_FILE]").
 		Envar("PMM_AGENT_CONFIG_FILE").PlaceHolder("</path/to/pmm-agent.yaml>").String()
 
@@ -114,26 +120,7 @@ func application(cfg *Config) (*kingpin.Application, *string) {
 	app.Flag("ports.max", "Maximal allowed port number for listening sockets. [PMM_AGENT_PORTS_MAX]").
 		Envar("PMM_AGENT_PORTS_MAX").Default("60999").Uint16Var(&cfg.Ports.Max)
 
-	customizeHelpCommand(app)
-
 	return app, configFileF
-}
-
-func customizeHelpCommand(app *kingpin.Application) {
-	_, _ = app.Parse([]string{})
-	var command []string
-	var helpCommand *kingpin.CmdClause
-	if app.HelpCommand != nil {
-		helpCommand = app.HelpCommand
-	} else {
-		helpCommand = app.Command("help", "Show help.")
-	}
-	app.HelpCommand = helpCommand.PreAction(func(context *kingpin.ParseContext) error {
-		app.Usage(command)
-		os.Exit(2)
-		return nil
-	})
-	app.HelpCommand.Arg("command", "Show help on command.").StringsVar(&command)
 }
 
 func readConfigFile(path string) (*Config, error) {
