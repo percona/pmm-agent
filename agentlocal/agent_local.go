@@ -45,7 +45,7 @@ func NewAgentLocalServer(cfg *config.Config) *AgentLocalServer {
 	return &AgentLocalServer{cfg: cfg}
 }
 
-// SetMetadata sets new values of ServerMetadata.
+// SetAgentsGetter sets new dependency which represents agentsGetter.
 func (als *AgentLocalServer) SetAgentsGetter(ag agentsGetter) {
 	als.rw.Lock()
 	defer als.rw.Unlock()
