@@ -28,7 +28,7 @@ import (
 )
 
 type agentsGetter interface {
-	AgentsList() (res []*agentlocalpb.AgentInfo, err error)
+	AgentsList() ([]*agentlocalpb.AgentInfo, error)
 }
 
 // AgentLocalServer represents local agent api server.
@@ -65,7 +65,7 @@ func (als *AgentLocalServer) getMetadata() agentpb.AgentServerMetadata {
 	return *als.serverMetadata
 }
 
-func (als *AgentLocalServer) getAgentsList() (res []*agentlocalpb.AgentInfo, err error) {
+func (als *AgentLocalServer) getAgentsList() ([]*agentlocalpb.AgentInfo, error) {
 	als.rw.RLock()
 	defer als.rw.RUnlock()
 

@@ -53,7 +53,7 @@ type Supervisor struct {
 	qanRequests   chan agentpb.QANCollectRequest
 	l             *logrus.Entry
 
-	m              sync.RWMutex
+	rw             sync.RWMutex
 	agentProcesses map[string]*agentProcessInfo
 	builtinAgents  map[string]*builtinAgentInfo
 }
@@ -99,8 +99,8 @@ func NewSupervisor(ctx context.Context, paths *config.Paths, ports *config.Ports
 
 // SetState starts or updates all agents placed in args and stops all agents not placed in args, but already run.
 func (s *Supervisor) SetState(state *agentpb.SetStateRequest) {
-	s.m.Lock()
-	defer s.m.Unlock()
+	s.rw.Lock()
+	defer s.rw.Unlock()
 
 	if err := s.ctx.Err(); err != nil {
 		s.l.Errorf("Ignoring SetState: %s.", err)
@@ -234,12 +234,11 @@ func (s *Supervisor) QANRequests() <-chan agentpb.QANCollectRequest {
 }
 
 // AgentsList returns info for all agents was runned by supervisor.
-func (s *Supervisor) AgentsList() (res []*agentlocalpb.AgentInfo, err error) {
-	s.m.RLock()
-	defer s.m.RUnlock()
+func (s *Supervisor) AgentsList() ([]*agentlocalpb.AgentInfo, error) {
+	s.rw.RLock()
+	defer s.rw.RUnlock()
 
-	res = make([]*agentlocalpb.AgentInfo, 0)
-	err = nil
+	res := make([]*agentlocalpb.AgentInfo, 0)
 
 	for id, ap := range s.agentProcesses {
 		info := &agentlocalpb.AgentInfo{
@@ -304,8 +303,8 @@ const (
 )
 
 func (s *Supervisor) changeLastState(agType agentpb.Type, newState agentpb.StateChangedRequest) {
-	s.m.Lock()
-	defer s.m.Unlock()
+	s.rw.Lock()
+	defer s.rw.Unlock()
 	switch agType {
 	case typeProcess:
 		if _, ok := s.agentProcesses[newState.AgentId]; ok {
@@ -518,8 +517,8 @@ func (s *Supervisor) processParams(agentID string, agentProcess *agentpb.SetStat
 }
 
 func (s *Supervisor) stopAll() {
-	s.m.Lock()
-	defer s.m.Unlock()
+	s.rw.Lock()
+	defer s.rw.Unlock()
 
 	wait := make([]chan struct{}, 0, len(s.agentProcesses)+len(s.builtinAgents))
 
