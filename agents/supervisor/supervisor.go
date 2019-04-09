@@ -233,6 +233,7 @@ func (s *Supervisor) QANRequests() <-chan agentpb.QANCollectRequest {
 	return s.qanRequests
 }
 
+// AgentsList returns info for all agents was runned by supervisor.
 func (s *Supervisor) AgentsList() (res []*agentlocalpb.AgentInfo, err error) {
 	s.m.RLock()
 	defer s.m.RUnlock()
