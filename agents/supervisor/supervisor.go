@@ -304,8 +304,8 @@ func filter(existing, new map[string]agentpb.AgentParams) (toStart, toRestart, t
 
 //nolint:golint
 const (
-	type_TEST_SLEEP agentpb.Type = 998
-	type_TEST_NOOP  agentpb.Type = 999
+	type_TEST_SLEEP agentpb.Type = 998 // process
+	type_TEST_NOOP  agentpb.Type = 999 // built-in
 )
 
 func (s *Supervisor) changeLastState(agentID string, newState inventorypb.AgentStatus) {
