@@ -234,7 +234,7 @@ func (s *Supervisor) QANRequests() <-chan agentpb.QANCollectRequest {
 }
 
 // AgentsList returns info for all agents was runned by supervisor.
-func (s *Supervisor) AgentsList() ([]*agentlocalpb.AgentInfo, error) {
+func (s *Supervisor) AgentsList() []*agentlocalpb.AgentInfo {
 	s.rw.RLock()
 	defer s.rw.RUnlock()
 
@@ -258,7 +258,7 @@ func (s *Supervisor) AgentsList() ([]*agentlocalpb.AgentInfo, error) {
 		res = append(res, info)
 	}
 
-	return res, nil
+	return res
 }
 
 // filter extracts IDs of the Agents that should be started, restarted with new parameters, or stopped,

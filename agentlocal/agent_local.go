@@ -28,7 +28,7 @@ import (
 )
 
 type agentsGetter interface {
-	AgentsList() ([]*agentlocalpb.AgentInfo, error)
+	AgentsList() []*agentlocalpb.AgentInfo
 }
 
 // AgentLocalServer represents local agent api server.
@@ -61,7 +61,7 @@ func (als *AgentLocalServer) getMetadata() agentpb.AgentServerMetadata {
 	return *als.serverMetadata
 }
 
-func (als *AgentLocalServer) getAgentsList() ([]*agentlocalpb.AgentInfo, error) {
+func (als *AgentLocalServer) getAgentsList() []*agentlocalpb.AgentInfo {
 	als.rw.RLock()
 	defer als.rw.RUnlock()
 	return als.ag.AgentsList()
@@ -92,8 +92,8 @@ func (als *AgentLocalServer) Status(ctx context.Context, req *agentlocalpb.Statu
 		Latency:      nil, // TODO: Calculate and Add Latency
 	}
 
-	agentsInfo, err := als.getAgentsList()
-	if err != nil {
+	agentsInfo := als.getAgentsList()
+	if agentsInfo == nil {
 		agentsInfo = []*agentlocalpb.AgentInfo{}
 	}
 
