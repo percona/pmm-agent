@@ -318,14 +318,6 @@ func (s *Supervisor) changeLastState(agType agentpb.Type, newState agentpb.State
 	}
 }
 
-func (s *Supervisor) changeBuildInLastState(newState agentpb.StateChangedRequest) {
-	s.m.Lock()
-	defer s.m.Unlock()
-	if _, ok := s.agentProcesses[newState.AgentId]; ok {
-		s.agentProcesses[newState.AgentId].lastChangedState = newState
-	}
-}
-
 // startProcess starts Agent's process and returns its info.
 func (s *Supervisor) startProcess(agentID string, agentProcess *agentpb.SetStateRequest_AgentProcess, port uint16) (*agentProcessInfo, error) {
 	processParams, err := s.processParams(agentID, agentProcess, port)
