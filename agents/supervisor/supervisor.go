@@ -99,9 +99,6 @@ func NewSupervisor(ctx context.Context, paths *config.Paths, ports *config.Ports
 
 // SetState starts or updates all agents placed in args and stops all agents not placed in args, but already run.
 func (s *Supervisor) SetState(state *agentpb.SetStateRequest) {
-	s.rw.Lock()
-	defer s.rw.Unlock()
-
 	if err := s.ctx.Err(); err != nil {
 		s.l.Errorf("Ignoring SetState: %s.", err)
 		return
@@ -129,9 +126,7 @@ func (s *Supervisor) setAgentProcesses(agentProcesses map[string]*agentpb.SetSta
 
 	// stop first to avoid extra load
 	for _, agentID := range toStop {
-		s.rw.RLock()
-		agent := s.agentProcesses[agentID]
-		s.rw.RUnlock()
+		agent := s.getProcessAgentByID(agentID)
 
 		agent.cancel()
 		<-agent.done // wait before releasing port
@@ -144,9 +139,7 @@ func (s *Supervisor) setAgentProcesses(agentProcesses map[string]*agentpb.SetSta
 
 	// restart while preserving port
 	for _, agentID := range toRestart {
-		s.rw.RLock()
-		agent := s.agentProcesses[agentID]
-		s.rw.RUnlock()
+		agent := s.getProcessAgentByID(agentID)
 
 		agent.cancel()
 		<-agent.done // wait before reusing port
@@ -157,9 +150,7 @@ func (s *Supervisor) setAgentProcesses(agentProcesses map[string]*agentpb.SetSta
 			// TODO report that error to server
 			continue
 		}
-		s.rw.Lock()
-		s.agentProcesses[agentID] = agent
-		s.rw.Unlock()
+		s.setProcessAgentByID(agentID, agent)
 	}
 
 	// start new agents
@@ -177,9 +168,7 @@ func (s *Supervisor) setAgentProcesses(agentProcesses map[string]*agentpb.SetSta
 			// TODO report that error to server
 			continue
 		}
-		s.rw.Lock()
-		s.agentProcesses[agentID] = agent
-		s.rw.Unlock()
+		s.setProcessAgentByID(agentID, agent)
 	}
 }
 
@@ -200,7 +189,7 @@ func (s *Supervisor) setBuiltinAgents(builtinAgents map[string]*agentpb.SetState
 
 	// stop first to avoid extra load
 	for _, agentID := range toStop {
-		agent := s.builtinAgents[agentID]
+		agent := s.getBuiltInAgentByID(agentID)
 		agent.cancel()
 		<-agent.done
 		delete(s.builtinAgents, agentID)
@@ -208,7 +197,7 @@ func (s *Supervisor) setBuiltinAgents(builtinAgents map[string]*agentpb.SetState
 
 	// restart
 	for _, agentID := range toRestart {
-		agent := s.builtinAgents[agentID]
+		agent := s.getBuiltInAgentByID(agentID)
 		agent.cancel()
 		<-agent.done
 
@@ -218,7 +207,7 @@ func (s *Supervisor) setBuiltinAgents(builtinAgents map[string]*agentpb.SetState
 			// TODO report that error to server
 			continue
 		}
-		s.builtinAgents[agentID] = agent
+		s.setBuiltInAgentByID(agentID, agent)
 	}
 
 	// start new agents
@@ -229,7 +218,7 @@ func (s *Supervisor) setBuiltinAgents(builtinAgents map[string]*agentpb.SetState
 			// TODO report that error to server
 			continue
 		}
-		s.builtinAgents[agentID] = agent
+		s.setBuiltInAgentByID(agentID, agent)
 	}
 }
 
@@ -352,8 +341,8 @@ func (s *Supervisor) startProcess(agentID string, agentProcess *agentpb.SetState
 				Status:     status,
 				ListenPort: uint32(port),
 			}
-			s.changes <- newState
 			s.changeLastState(typeProcess, newState)
+			s.changes <- newState
 		}
 		close(done)
 	}()
@@ -397,8 +386,8 @@ func (s *Supervisor) startBuiltin(agentID string, builtinAgent *agentpb.SetState
 						Status:  change.Status,
 					}
 
-					s.changes <- newState
 					s.changeLastState(typeBuiltIn, newState)
+					s.changes <- newState
 				} else {
 					s.qanRequests <- agentpb.QANCollectRequest{
 						Message: change.Request,
@@ -527,26 +516,58 @@ func (s *Supervisor) processParams(agentID string, agentProcess *agentpb.SetStat
 }
 
 func (s *Supervisor) stopAll() {
-	s.rw.Lock()
-	defer s.rw.Unlock()
-
 	wait := make([]chan struct{}, 0, len(s.agentProcesses)+len(s.builtinAgents))
 
 	for _, agent := range s.agentProcesses {
 		agent.cancel()
 		wait = append(wait, agent.done)
 	}
-	s.agentProcesses = nil
+	s.resetAgents(typeProcess)
 
 	for _, agent := range s.builtinAgents {
 		agent.cancel()
 		wait = append(wait, agent.done)
 	}
-	s.builtinAgents = nil
+	s.resetAgents(typeBuiltIn)
 
 	for _, ch := range wait {
 		<-ch
 	}
 	close(s.qanRequests)
 	close(s.changes)
+}
+
+func (s *Supervisor) getProcessAgentByID(agentID string) *agentProcessInfo {
+	s.rw.RLock()
+	defer s.rw.RUnlock()
+	return s.agentProcesses[agentID]
+}
+
+func (s *Supervisor) setProcessAgentByID(agentID string, agent *agentProcessInfo) {
+	s.rw.Lock()
+	defer s.rw.Unlock()
+	s.agentProcesses[agentID] = agent
+}
+
+func (s *Supervisor) getBuiltInAgentByID(agentID string) *builtinAgentInfo {
+	s.rw.RLock()
+	defer s.rw.RUnlock()
+	return s.builtinAgents[agentID]
+}
+
+func (s *Supervisor) setBuiltInAgentByID(agentID string, agent *builtinAgentInfo) {
+	s.rw.Lock()
+	defer s.rw.Unlock()
+	s.builtinAgents[agentID] = agent
+}
+
+func (s *Supervisor) resetAgents(agType agentpb.Type) {
+	s.rw.Lock()
+	defer s.rw.Unlock()
+	switch agType {
+	case typeProcess:
+		s.agentProcesses = nil
+	case typeBuiltIn:
+		s.builtinAgents = nil
+	}
 }
