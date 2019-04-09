@@ -60,17 +60,19 @@ type Supervisor struct {
 
 // agentProcessInfo describes Agent process.
 type agentProcessInfo struct {
-	cancel         func()        // to cancel Run(ctx)
-	done           chan struct{} // closed when Run(ctx) exits
-	requestedState *agentpb.SetStateRequest_AgentProcess
-	listenPort     uint16
+	cancel           func()        // to cancel Run(ctx)
+	done             chan struct{} // closed when Run(ctx) exits
+	requestedState   *agentpb.SetStateRequest_AgentProcess
+	lastChangedState agentpb.StateChangedRequest
+	listenPort       uint16
 }
 
 // builtinAgentInfo describes built-in Agent.
 type builtinAgentInfo struct {
-	cancel         func()        // to cancel Run(ctx)
-	done           chan struct{} // closed when Run(ctx) exits
-	requestedState *agentpb.SetStateRequest_BuiltinAgent
+	cancel           func()        // to cancel Run(ctx)
+	done             chan struct{} // closed when Run(ctx) exits
+	requestedState   *agentpb.SetStateRequest_BuiltinAgent
+	lastChangedState agentpb.StateChangedRequest
 }
 
 // NewSupervisor creates new Supervisor object.
@@ -242,6 +244,7 @@ func (s *Supervisor) AgentsList() (res []*agentlocalpb.AgentInfo, err error) {
 		info := &agentlocalpb.AgentInfo{
 			AgentId:   id,
 			AgentType: ap.requestedState.Type,
+			Status:    ap.lastChangedState.Status,
 		}
 		res = append(res, info)
 	}
@@ -250,6 +253,7 @@ func (s *Supervisor) AgentsList() (res []*agentlocalpb.AgentInfo, err error) {
 		info := &agentlocalpb.AgentInfo{
 			AgentId:   id,
 			AgentType: ba.requestedState.Type,
+			Status:    ba.lastChangedState.Status,
 		}
 		res = append(res, info)
 	}
@@ -291,9 +295,35 @@ func filter(existing, new map[string]agentpb.AgentParams) (toStart, toRestart, t
 
 //nolint:golint
 const (
-	type_TEST_SLEEP agentpb.Type = 998 // process
-	type_TEST_NOOP  agentpb.Type = 999 // built-in
+	typeProcess agentpb.Type = 998
+	typeBuiltIn agentpb.Type = 999
+
+	type_TEST_SLEEP = typeProcess
+	type_TEST_NOOP  = typeBuiltIn
 )
+
+func (s *Supervisor) changeLastState(agType agentpb.Type, newState agentpb.StateChangedRequest) {
+	s.m.Lock()
+	defer s.m.Unlock()
+	switch agType {
+	case typeProcess:
+		if _, ok := s.agentProcesses[newState.AgentId]; ok {
+			s.agentProcesses[newState.AgentId].lastChangedState = newState
+		}
+	case typeBuiltIn:
+		if _, ok := s.builtinAgents[newState.AgentId]; ok {
+			s.builtinAgents[newState.AgentId].lastChangedState = newState
+		}
+	}
+}
+
+func (s *Supervisor) changeBuildInLastState(newState agentpb.StateChangedRequest) {
+	s.m.Lock()
+	defer s.m.Unlock()
+	if _, ok := s.agentProcesses[newState.AgentId]; ok {
+		s.agentProcesses[newState.AgentId].lastChangedState = newState
+	}
+}
 
 // startProcess starts Agent's process and returns its info.
 func (s *Supervisor) startProcess(agentID string, agentProcess *agentpb.SetStateRequest_AgentProcess, port uint16) (*agentProcessInfo, error) {
@@ -315,11 +345,13 @@ func (s *Supervisor) startProcess(agentID string, agentProcess *agentpb.SetState
 	done := make(chan struct{})
 	go func() {
 		for status := range process.Changes() {
-			s.changes <- agentpb.StateChangedRequest{
+			newState := agentpb.StateChangedRequest{
 				AgentId:    agentID,
 				Status:     status,
 				ListenPort: uint32(port),
 			}
+			s.changes <- newState
+			s.changeLastState(typeProcess, newState)
 		}
 		close(done)
 	}()
@@ -358,10 +390,13 @@ func (s *Supervisor) startBuiltin(agentID string, builtinAgent *agentpb.SetState
 		go func() {
 			for change := range m.Changes() {
 				if change.Status != inventorypb.AgentStatus_AGENT_STATUS_INVALID {
-					s.changes <- agentpb.StateChangedRequest{
+					newState := agentpb.StateChangedRequest{
 						AgentId: agentID,
 						Status:  change.Status,
 					}
+
+					s.changes <- newState
+					s.changeLastState(typeBuiltIn, newState)
 				} else {
 					s.qanRequests <- agentpb.QANCollectRequest{
 						Message: change.Request,
