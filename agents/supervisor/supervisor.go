@@ -32,6 +32,7 @@ import (
 	"text/template"
 
 	"github.com/golang/protobuf/proto"
+	"github.com/percona/pmm/api/agentlocalpb"
 	"github.com/percona/pmm/api/agentpb"
 	inventorypb "github.com/percona/pmm/api/inventory"
 	"github.com/pkg/errors"
@@ -52,7 +53,7 @@ type Supervisor struct {
 	qanRequests   chan agentpb.QANCollectRequest
 	l             *logrus.Entry
 
-	m              sync.Mutex
+	m              sync.RWMutex
 	agentProcesses map[string]*agentProcessInfo
 	builtinAgents  map[string]*builtinAgentInfo
 }
@@ -228,6 +229,32 @@ func (s *Supervisor) Changes() <-chan agentpb.StateChangedRequest {
 // QANRequests returns channel with agent's QAN Collect requests.
 func (s *Supervisor) QANRequests() <-chan agentpb.QANCollectRequest {
 	return s.qanRequests
+}
+
+func (s *Supervisor) AgentsList() (res []*agentlocalpb.AgentInfo, err error) {
+	s.m.RLock()
+	defer s.m.RUnlock()
+
+	res = make([]*agentlocalpb.AgentInfo, 0)
+	err = nil
+
+	for id, ap := range s.agentProcesses {
+		info := &agentlocalpb.AgentInfo{
+			AgentId:   id,
+			AgentType: ap.requestedState.Type,
+		}
+		res = append(res, info)
+	}
+
+	for id, ba := range s.builtinAgents {
+		info := &agentlocalpb.AgentInfo{
+			AgentId:   id,
+			AgentType: ba.requestedState.Type,
+		}
+		res = append(res, info)
+	}
+
+	return res, nil
 }
 
 // filter extracts IDs of the Agents that should be started, restarted with new parameters, or stopped,

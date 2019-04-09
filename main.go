@@ -188,6 +188,7 @@ func workLoop(ctx context.Context, cfg *config.Config, l *logrus.Entry, client a
 	localSrv.SetMetadata(&md)
 
 	s := supervisor.NewSupervisor(ctx, &cfg.Paths, &cfg.Ports)
+	localSrv.SetAgentsGetter(s)
 	go handleChanges(streamCancel, s, channel, l)
 	handleRequests(s, channel, l)
 }

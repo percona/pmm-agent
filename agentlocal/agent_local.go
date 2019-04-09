@@ -27,17 +27,29 @@ import (
 	"github.com/percona/pmm-agent/config"
 )
 
+type agentsGetter interface {
+	AgentsList() (res []*agentlocalpb.AgentInfo, err error)
+}
+
 // AgentLocalServer represents local agent api server.
 type AgentLocalServer struct {
 	cfg *config.Config
 
 	rw             sync.RWMutex
+	ag             agentsGetter
 	serverMetadata *agentpb.AgentServerMetadata
 }
 
 // NewAgentLocalServer creates new local agent api server instance.
 func NewAgentLocalServer(cfg *config.Config) *AgentLocalServer {
 	return &AgentLocalServer{cfg: cfg}
+}
+
+// SetMetadata sets new values of ServerMetadata.
+func (als *AgentLocalServer) SetAgentsGetter(ag agentsGetter) {
+	als.rw.Lock()
+	defer als.rw.Unlock()
+	als.ag = ag
 }
 
 // SetMetadata sets new values of ServerMetadata.
@@ -51,6 +63,16 @@ func (als *AgentLocalServer) getMetadata() agentpb.AgentServerMetadata {
 	als.rw.RLock()
 	defer als.rw.RUnlock()
 	return *als.serverMetadata
+}
+
+func (als *AgentLocalServer) getAgentsList() (res []*agentlocalpb.AgentInfo, err error) {
+	if als.ag == nil {
+		panic("agentsGetter is nil. Use SetAgentsGetter(ag agentsGetter) to set it.")
+	}
+
+	als.rw.RLock()
+	defer als.rw.RUnlock()
+	return als.ag.AgentsList()
 }
 
 // Status returns local agent status.
@@ -78,19 +100,16 @@ func (als *AgentLocalServer) Status(ctx context.Context, req *agentlocalpb.Statu
 		Latency:      nil, // TODO: Calculate and Add Latency
 	}
 
-	// TODO: Add real AgentsInfo
-	//agentsInfo := &agentlocalpb.AgentInfo{
-	//	AgentId:   "001",
-	//	AgentType: agentpb.Type_MYSQLD_EXPORTER,
-	//	Status:    inventory.AgentStatus_RUNNING,
-	//	Logs:      []string{},
-	//}
+	agentsInfo, err := als.getAgentsList()
+	if err != nil {
+		agentsInfo = []*agentlocalpb.AgentInfo{}
+	}
 
 	return &agentlocalpb.StatusResponse{
 		AgentId:      als.cfg.ID,
 		RunsOnNodeId: md.AgentRunsOnNodeID,
 		ServerInfo:   srvInfo,
-		AgentsInfo:   []*agentlocalpb.AgentInfo{}, // TODO: Add real AgentsInfo
+		AgentsInfo:   agentsInfo, // TODO: Add real AgentsInfo
 	}, nil
 }
 
