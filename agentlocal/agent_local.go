@@ -61,12 +61,6 @@ func (als *AgentLocalServer) getMetadata() agentpb.AgentServerMetadata {
 	return *als.serverMetadata
 }
 
-func (als *AgentLocalServer) getAgentsList() []*agentlocalpb.AgentInfo {
-	als.rw.RLock()
-	defer als.rw.RUnlock()
-	return als.ag.AgentsList()
-}
-
 // Status returns local agent status.
 func (als *AgentLocalServer) Status(ctx context.Context, req *agentlocalpb.StatusRequest) (*agentlocalpb.StatusResponse, error) {
 	md := als.getMetadata()
@@ -92,16 +86,13 @@ func (als *AgentLocalServer) Status(ctx context.Context, req *agentlocalpb.Statu
 		Latency:      nil, // TODO: Calculate and Add Latency
 	}
 
-	agentsInfo := als.getAgentsList()
-	if agentsInfo == nil {
-		agentsInfo = []*agentlocalpb.AgentInfo{}
-	}
+	agentsInfo := als.ag.AgentsList()
 
 	return &agentlocalpb.StatusResponse{
 		AgentId:      als.cfg.ID,
 		RunsOnNodeId: md.AgentRunsOnNodeID,
 		ServerInfo:   srvInfo,
-		AgentsInfo:   agentsInfo, // TODO: Add real AgentsInfo
+		AgentsInfo:   agentsInfo,
 	}, nil
 }
 

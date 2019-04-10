@@ -57,7 +57,7 @@ type Supervisor struct {
 	agentProcesses map[string]*agentProcessInfo
 	builtinAgents  map[string]*builtinAgentInfo
 
-	amx           sync.Mutex
+	arw           sync.RWMutex
 	agentStatuses map[string]inventorypb.AgentStatus
 }
 
@@ -115,7 +115,7 @@ func (s *Supervisor) SetState(state *agentpb.SetStateRequest) {
 }
 
 // setAgentProcesses starts/restarts/stops Agent processes.
-// SHOULD be guarded by Mutex (s.rw).
+// SHOULD be called with s.rw held for writing.
 func (s *Supervisor) setAgentProcesses(agentProcesses map[string]*agentpb.SetStateRequest_AgentProcess) {
 	existingParams := make(map[string]agentpb.AgentParams)
 	for id, p := range s.agentProcesses {
@@ -142,6 +142,7 @@ func (s *Supervisor) setAgentProcesses(agentProcesses map[string]*agentpb.SetSta
 			s.l.Errorf("Failed to release port: %s.", err)
 		}
 		delete(s.agentProcesses, agentID)
+		delete(s.agentStatuses, agentID)
 	}
 
 	// restart while preserving port
@@ -180,7 +181,7 @@ func (s *Supervisor) setAgentProcesses(agentProcesses map[string]*agentpb.SetSta
 }
 
 // setBuiltinAgents starts/restarts/stops built-in Agents.
-// SHOULD be guarded by Mutex (s.rw).
+// SHOULD be called with s.rw held for writing.
 func (s *Supervisor) setBuiltinAgents(builtinAgents map[string]*agentpb.SetStateRequest_BuiltinAgent) {
 	existingParams := make(map[string]agentpb.AgentParams)
 	for id, p := range s.builtinAgents {
@@ -201,6 +202,7 @@ func (s *Supervisor) setBuiltinAgents(builtinAgents map[string]*agentpb.SetState
 		agent.cancel()
 		<-agent.done
 		delete(s.builtinAgents, agentID)
+		delete(s.agentStatuses, agentID)
 	}
 
 	// restart
@@ -243,9 +245,9 @@ func (s *Supervisor) QANRequests() <-chan agentpb.QANCollectRequest {
 // AgentsList returns info for all agents was runned by supervisor.
 func (s *Supervisor) AgentsList() []*agentlocalpb.AgentInfo {
 	s.rw.RLock()
-	s.amx.Lock()
+	s.arw.RLock()
 	defer s.rw.RUnlock()
-	defer s.amx.Unlock()
+	defer s.arw.RUnlock()
 
 	res := make([]*agentlocalpb.AgentInfo, 0)
 
@@ -309,8 +311,8 @@ const (
 )
 
 func (s *Supervisor) changeLastState(agentID string, newState inventorypb.AgentStatus) {
-	s.amx.Lock()
-	defer s.amx.Unlock()
+	s.arw.Lock()
+	defer s.arw.Unlock()
 	s.agentStatuses[agentID] = newState
 }
 
@@ -514,7 +516,7 @@ func (s *Supervisor) processParams(agentID string, agentProcess *agentpb.SetStat
 }
 
 // stopAll stops all agents.
-// SHOULD be guarded by Mutex (s.rw).
+// SHOULD be called with s.rw held for writing.
 func (s *Supervisor) stopAll() {
 	wait := make([]chan struct{}, 0, len(s.agentProcesses)+len(s.builtinAgents))
 
@@ -529,6 +531,8 @@ func (s *Supervisor) stopAll() {
 		wait = append(wait, agent.done)
 	}
 	s.builtinAgents = nil
+
+	s.agentStatuses = nil
 
 	for _, ch := range wait {
 		<-ch
