@@ -18,7 +18,6 @@
 package config
 
 import (
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -77,9 +76,9 @@ func application(cfg *Config) (*kingpin.Application, *string) {
 	app.HelpFlag.Short('h')
 	app.Version(version.FullInfo())
 
-	// need to generate help command.
-	app.Command("setup", "not implemented yet.").Action(func(context *kingpin.ParseContext) error {
-		return errors.New("not implemented yet")
+	// TODO
+	app.Command("setup", "Not implemented yet.").Action(func(context *kingpin.ParseContext) error {
+		return fmt.Errorf("not implemented yet")
 	})
 
 	configFileF := app.Flag("config-file", "Configuration file path. [PMM_AGENT_CONFIG_FILE]").
