@@ -142,7 +142,10 @@ func (s *Supervisor) setAgentProcesses(agentProcesses map[string]*agentpb.SetSta
 			s.l.Errorf("Failed to release port: %s.", err)
 		}
 		delete(s.agentProcesses, agentID)
+
+		s.arw.Lock()
 		delete(s.agentStatuses, agentID)
+		s.arw.Unlock()
 	}
 
 	// restart while preserving port
@@ -202,7 +205,10 @@ func (s *Supervisor) setBuiltinAgents(builtinAgents map[string]*agentpb.SetState
 		agent.cancel()
 		<-agent.done
 		delete(s.builtinAgents, agentID)
+
+		s.arw.Lock()
 		delete(s.agentStatuses, agentID)
+		s.arw.Unlock()
 	}
 
 	// restart
