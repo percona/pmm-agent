@@ -530,8 +530,6 @@ func (s *Supervisor) processParams(agentID string, agentProcess *agentpb.SetStat
 func (s *Supervisor) stopAll() {
 	s.rw.Lock()
 	defer s.rw.Unlock()
-	s.arw.Lock()
-	defer s.arw.Unlock()
 
 	wait := make([]chan struct{}, 0, len(s.agentProcesses)+len(s.builtinAgents))
 
@@ -547,7 +545,9 @@ func (s *Supervisor) stopAll() {
 	}
 	s.builtinAgents = nil
 
+	s.arw.Lock()
 	s.agentStatuses = nil
+	s.arw.Unlock()
 
 	for _, ch := range wait {
 		<-ch
