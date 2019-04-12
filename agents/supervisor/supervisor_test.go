@@ -49,7 +49,7 @@ func assertChanges(t *testing.T, s *Supervisor, expected ...agentpb.StateChanged
 
 func TestSupervisor(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
-	s := NewSupervisor(ctx, nil, &config.Ports{Min: 10000, Max: 20000})
+	s := NewSupervisor(ctx, nil, &config.Ports{Min: 10002, Max: 20000})
 
 	t.Run("Start13", func(t *testing.T) {
 		s.setAgentProcesses(map[string]*agentpb.SetStateRequest_AgentProcess{
@@ -60,12 +60,12 @@ func TestSupervisor(t *testing.T) {
 		})
 
 		assertChanges(t, s,
-			agentpb.StateChangedRequest{AgentId: "sleep1", Status: inventorypb.AgentStatus_STARTING, ListenPort: 10000},
+			agentpb.StateChangedRequest{AgentId: "sleep1", Status: inventorypb.AgentStatus_STARTING, ListenPort: 10002},
 			agentpb.StateChangedRequest{AgentId: "noop3", Status: inventorypb.AgentStatus_STARTING},
 		)
 
 		assertChanges(t, s,
-			agentpb.StateChangedRequest{AgentId: "sleep1", Status: inventorypb.AgentStatus_RUNNING, ListenPort: 10000},
+			agentpb.StateChangedRequest{AgentId: "sleep1", Status: inventorypb.AgentStatus_RUNNING, ListenPort: 10002},
 			agentpb.StateChangedRequest{AgentId: "noop3", Status: inventorypb.AgentStatus_RUNNING},
 		)
 	})
@@ -77,21 +77,21 @@ func TestSupervisor(t *testing.T) {
 		})
 
 		assertChanges(t, s,
-			agentpb.StateChangedRequest{AgentId: "sleep1", Status: inventorypb.AgentStatus_STOPPING, ListenPort: 10000},
+			agentpb.StateChangedRequest{AgentId: "sleep1", Status: inventorypb.AgentStatus_STOPPING, ListenPort: 10002},
 		)
 
 		assertChanges(t, s,
-			agentpb.StateChangedRequest{AgentId: "sleep1", Status: inventorypb.AgentStatus_DONE, ListenPort: 10000},
+			agentpb.StateChangedRequest{AgentId: "sleep1", Status: inventorypb.AgentStatus_DONE, ListenPort: 10002},
 		)
 
 		assertChanges(t, s,
-			agentpb.StateChangedRequest{AgentId: "sleep1", Status: inventorypb.AgentStatus_STARTING, ListenPort: 10000},
-			agentpb.StateChangedRequest{AgentId: "sleep2", Status: inventorypb.AgentStatus_STARTING, ListenPort: 10001},
+			agentpb.StateChangedRequest{AgentId: "sleep1", Status: inventorypb.AgentStatus_STARTING, ListenPort: 10002},
+			agentpb.StateChangedRequest{AgentId: "sleep2", Status: inventorypb.AgentStatus_STARTING, ListenPort: 10003},
 		)
 
 		assertChanges(t, s,
-			agentpb.StateChangedRequest{AgentId: "sleep1", Status: inventorypb.AgentStatus_RUNNING, ListenPort: 10000},
-			agentpb.StateChangedRequest{AgentId: "sleep2", Status: inventorypb.AgentStatus_RUNNING, ListenPort: 10001},
+			agentpb.StateChangedRequest{AgentId: "sleep1", Status: inventorypb.AgentStatus_RUNNING, ListenPort: 10002},
+			agentpb.StateChangedRequest{AgentId: "sleep2", Status: inventorypb.AgentStatus_RUNNING, ListenPort: 10003},
 		)
 	})
 
@@ -126,11 +126,11 @@ func TestSupervisor(t *testing.T) {
 		})
 
 		assertChanges(t, s,
-			agentpb.StateChangedRequest{AgentId: "sleep1", Status: inventorypb.AgentStatus_STOPPING, ListenPort: 10000},
+			agentpb.StateChangedRequest{AgentId: "sleep1", Status: inventorypb.AgentStatus_STOPPING, ListenPort: 10002},
 		)
 
 		assertChanges(t, s,
-			agentpb.StateChangedRequest{AgentId: "sleep1", Status: inventorypb.AgentStatus_DONE, ListenPort: 10000},
+			agentpb.StateChangedRequest{AgentId: "sleep1", Status: inventorypb.AgentStatus_DONE, ListenPort: 10002},
 		)
 	})
 
@@ -138,8 +138,8 @@ func TestSupervisor(t *testing.T) {
 		cancel()
 
 		assertChanges(t, s,
-			agentpb.StateChangedRequest{AgentId: "sleep2", Status: inventorypb.AgentStatus_STOPPING, ListenPort: 10001},
-			agentpb.StateChangedRequest{AgentId: "sleep2", Status: inventorypb.AgentStatus_DONE, ListenPort: 10001},
+			agentpb.StateChangedRequest{AgentId: "sleep2", Status: inventorypb.AgentStatus_STOPPING, ListenPort: 10003},
+			agentpb.StateChangedRequest{AgentId: "sleep2", Status: inventorypb.AgentStatus_DONE, ListenPort: 10003},
 			agentpb.StateChangedRequest{AgentId: "noop3", Status: inventorypb.AgentStatus_STOPPING},
 			agentpb.StateChangedRequest{AgentId: "noop3", Status: inventorypb.AgentStatus_DONE},
 			agentpb.StateChangedRequest{AgentId: "noop4", Status: inventorypb.AgentStatus_STOPPING},
