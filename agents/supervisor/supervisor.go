@@ -350,6 +350,7 @@ func (s *Supervisor) startProcess(agentID string, agentProcess *agentpb.SetState
 				Status:     status,
 				ListenPort: uint32(port),
 			}
+
 			s.changes <- newState
 			s.changeLastState(newState.AgentId, newState.Status)
 		}
@@ -527,6 +528,11 @@ func (s *Supervisor) processParams(agentID string, agentProcess *agentpb.SetStat
 // stopAll stops all agents.
 // SHOULD be called with s.rw held for writing.
 func (s *Supervisor) stopAll() {
+	s.rw.Lock()
+	defer s.rw.Unlock()
+	s.arw.Lock()
+	defer s.arw.Unlock()
+
 	wait := make([]chan struct{}, 0, len(s.agentProcesses)+len(s.builtinAgents))
 
 	for _, agent := range s.agentProcesses {
@@ -541,9 +547,7 @@ func (s *Supervisor) stopAll() {
 	}
 	s.builtinAgents = nil
 
-	s.arw.Lock()
 	s.agentStatuses = nil
-	s.arw.Unlock()
 
 	for _, ch := range wait {
 		<-ch
