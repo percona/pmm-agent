@@ -96,6 +96,10 @@ func (als *AgentLocalServer) Status(ctx context.Context, req *agentlocalpb.Statu
 	}, nil
 }
 
+func (als *AgentLocalServer) Reload(ctx context.Context, req *agentlocalpb.ReloadRequest) (*agentlocalpb.ReloadResponse, error) {
+	panic("not implemented")
+}
+
 // check interfaces
 var (
 	_ agentlocalpb.AgentLocalServer = (*AgentLocalServer)(nil)

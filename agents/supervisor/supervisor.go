@@ -34,7 +34,7 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/percona/pmm/api/agentlocalpb"
 	"github.com/percona/pmm/api/agentpb"
-	inventorypb "github.com/percona/pmm/api/inventory"
+	"github.com/percona/pmm/api/inventorypb"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 
