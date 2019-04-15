@@ -32,27 +32,29 @@ func TestPackages(t *testing.T) {
 	require.NoError(t, err)
 
 	out := string(b)
-	assert.False(t, strings.Contains(out, "-httptest.serve"), `pmm-agent should not import package "net/http/httptest"`)
-	assert.False(t, strings.Contains(out, "-test.run"), `pmm-agent should not import package "testing"`)
+	assert.False(t, strings.Contains(out, "httptest.serve"), `pmm-agent should not import package "net/http/httptest"`)
+	assert.False(t, strings.Contains(out, "test.run"), `pmm-agent should not import package "testing"`)
 }
 
 func TestImports(t *testing.T) {
 	type constraint struct {
-		blacklist []string
+		blacklistPrefixes []string
 	}
 
 	for path, c := range map[string]constraint{
 		// agents code should not be concerned about pmm-agent<->pmm-managed protocol details
 		"github.com/percona/pmm-agent/agents/process": {
-			blacklist: []string{
+			blacklistPrefixes: []string{
 				"github.com/percona/pmm/api/agentpb",
-				"github.com/percona/pmm-agent/server",
+				"github.com/percona/pmm-agent/agentlocal",
+				"github.com/percona/pmm-agent/client",
 			},
 		},
 		"github.com/percona/pmm-agent/agents/builtin/mysql": {
-			blacklist: []string{
+			blacklistPrefixes: []string{
 				"github.com/percona/pmm/api/agentpb",
-				"github.com/percona/pmm-agent/server",
+				"github.com/percona/pmm-agent/agentlocal",
+				"github.com/percona/pmm-agent/client",
 			},
 		},
 	} {
@@ -70,9 +72,17 @@ func TestImports(t *testing.T) {
 			allImports[i] = struct{}{}
 		}
 
-		for _, i := range c.blacklist {
-			if _, ok := allImports[i]; ok {
-				t.Errorf("Package %q should not import %q.", path, i)
+		for _, b := range c.blacklistPrefixes {
+			for i := range allImports {
+				// whitelist own subpackages
+				if strings.HasPrefix(i, path) {
+					continue
+				}
+
+				// check blacklist
+				if strings.HasPrefix(i, b) {
+					t.Errorf("Package %q should not import package %q (blacklisted by %q).", path, i, b)
+				}
 			}
 		}
 	}
