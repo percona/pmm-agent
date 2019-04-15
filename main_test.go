@@ -42,12 +42,13 @@ func TestImports(t *testing.T) {
 	}
 
 	for path, c := range map[string]constraint{
-		// agents code should not be concerned about pmm-agent<->pmm-managed protocol details
+		// agents code should be independent
 		"github.com/percona/pmm-agent/agents/process": {
 			blacklistPrefixes: []string{
 				"github.com/percona/pmm/api/agentpb",
 				"github.com/percona/pmm-agent/agentlocal",
 				"github.com/percona/pmm-agent/client",
+				"github.com/percona/pmm-agent/config",
 			},
 		},
 		"github.com/percona/pmm-agent/agents/builtin/mysql": {
@@ -55,6 +56,35 @@ func TestImports(t *testing.T) {
 				"github.com/percona/pmm/api/agentpb",
 				"github.com/percona/pmm-agent/agentlocal",
 				"github.com/percona/pmm-agent/client",
+				"github.com/percona/pmm-agent/config",
+			},
+		},
+		"github.com/percona/pmm-agent/agents/builtin/noop": {
+			blacklistPrefixes: []string{
+				"github.com/percona/pmm/api/agentpb",
+				"github.com/percona/pmm-agent/agentlocal",
+				"github.com/percona/pmm-agent/client",
+				"github.com/percona/pmm-agent/config",
+			},
+		},
+
+		// agentlocal server, supervisor, and client should be independent
+		"github.com/percona/pmm-agent/agentlocal": {
+			blacklistPrefixes: []string{
+				"github.com/percona/pmm-agent/agents/supervisor",
+				"github.com/percona/pmm-agent/client",
+			},
+		},
+		"github.com/percona/pmm-agent/agents/supervisor": {
+			blacklistPrefixes: []string{
+				"github.com/percona/pmm-agent/agentlocal",
+				"github.com/percona/pmm-agent/client",
+			},
+		},
+		"github.com/percona/pmm-agent/client": {
+			blacklistPrefixes: []string{
+				"github.com/percona/pmm-agent/agentlocal",
+				"github.com/percona/pmm-agent/agents/supervisor",
 			},
 		},
 	} {
