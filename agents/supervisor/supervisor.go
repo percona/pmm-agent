@@ -163,7 +163,7 @@ func (s *Supervisor) storeLastStatus(agentID string, status inventorypb.AgentSta
 	defer s.arw.Unlock()
 
 	switch status {
-	case inventorypb.AgentStatus_AGENT_STATUS_INVALID, inventorypb.AgentStatus_DONE:
+	case inventorypb.AgentStatus_DONE:
 		delete(s.lastStatuses, agentID)
 	default:
 		s.lastStatuses[agentID] = status
@@ -198,7 +198,6 @@ func (s *Supervisor) setAgentProcesses(agentProcesses map[string]*agentpb.SetSta
 		}
 
 		delete(s.agentProcesses, agentID)
-		s.storeLastStatus(agentID, inventorypb.AgentStatus_AGENT_STATUS_INVALID)
 	}
 
 	// restart while preserving port
@@ -252,7 +251,6 @@ func (s *Supervisor) setBuiltinAgents(builtinAgents map[string]*agentpb.SetState
 		<-agent.done
 
 		delete(s.builtinAgents, agentID)
-		s.storeLastStatus(agentID, inventorypb.AgentStatus_AGENT_STATUS_INVALID)
 	}
 
 	// restart
@@ -323,7 +321,6 @@ func (s *Supervisor) startProcess(agentID string, agentProcess *agentpb.SetState
 	}
 
 	ctx, cancel := context.WithCancel(s.ctx)
-	done := make(chan struct{})
 	agentType := strings.ToLower(agentProcess.Type.String())
 	l := logrus.WithFields(logrus.Fields{
 		"component": "agent-process",
@@ -331,30 +328,27 @@ func (s *Supervisor) startProcess(agentID string, agentProcess *agentpb.SetState
 		"type":      agentType,
 	})
 	process := process.New(processParams, l)
+	go pprof.Do(ctx, pprof.Labels("agentID", agentID, "type", agentType), process.Run)
 
-	// register Agent before starting it to avoid a race on storing last status
+	done := make(chan struct{})
+	go func() {
+		for status := range process.Changes() {
+			s.changes <- agentpb.StateChangedRequest{
+				AgentId:    agentID,
+				Status:     status,
+				ListenPort: uint32(port),
+			}
+			s.storeLastStatus(agentID, status)
+		}
+		close(done)
+	}()
+
 	s.agentProcesses[agentID] = &agentProcessInfo{
 		cancel:         cancel,
 		done:           done,
 		requestedState: proto.Clone(agentProcess).(*agentpb.SetStateRequest_AgentProcess),
 		listenPort:     port,
 	}
-	s.storeLastStatus(agentID, inventorypb.AgentStatus_STARTING)
-
-	go pprof.Do(ctx, pprof.Labels("agentID", agentID, "type", agentType), process.Run)
-
-	go func() {
-		for status := range process.Changes() {
-			s.storeLastStatus(agentID, status)
-			s.changes <- agentpb.StateChangedRequest{
-				AgentId:    agentID,
-				Status:     status,
-				ListenPort: uint32(port),
-			}
-		}
-		close(done)
-	}()
-
 	return nil
 }
 
@@ -362,7 +356,6 @@ func (s *Supervisor) startProcess(agentID string, agentProcess *agentpb.SetState
 // Must be called with s.rw held for writing.
 func (s *Supervisor) startBuiltin(agentID string, builtinAgent *agentpb.SetStateRequest_BuiltinAgent) error {
 	ctx, cancel := context.WithCancel(s.ctx)
-	done := make(chan struct{})
 	agentType := strings.ToLower(builtinAgent.Type.String())
 	l := logrus.WithFields(logrus.Fields{
 		"component": "agent-builtin",
@@ -370,14 +363,7 @@ func (s *Supervisor) startBuiltin(agentID string, builtinAgent *agentpb.SetState
 		"type":      agentType,
 	})
 
-	// register Agent before starting it to avoid a race on storing last status
-	s.builtinAgents[agentID] = &builtinAgentInfo{
-		cancel:         cancel,
-		done:           done,
-		requestedState: proto.Clone(builtinAgent).(*agentpb.SetStateRequest_BuiltinAgent),
-	}
-	s.storeLastStatus(agentID, inventorypb.AgentStatus_STARTING)
-
+	done := make(chan struct{})
 	switch builtinAgent.Type {
 	case agentpb.Type_QAN_MYSQL_PERFSCHEMA_AGENT:
 		params := &mysql.Params{
@@ -386,7 +372,6 @@ func (s *Supervisor) startBuiltin(agentID string, builtinAgent *agentpb.SetState
 		m, err := mysql.New(params, l)
 		if err != nil {
 			cancel()
-			s.storeLastStatus(agentID, inventorypb.AgentStatus_AGENT_STATUS_INVALID)
 			return err
 		}
 
@@ -395,11 +380,11 @@ func (s *Supervisor) startBuiltin(agentID string, builtinAgent *agentpb.SetState
 		go func() {
 			for change := range m.Changes() {
 				if change.Status != inventorypb.AgentStatus_AGENT_STATUS_INVALID {
-					s.storeLastStatus(agentID, change.Status)
 					s.changes <- agentpb.StateChangedRequest{
 						AgentId: agentID,
 						Status:  change.Status,
 					}
+					s.storeLastStatus(agentID, change.Status)
 				} else {
 					s.qanRequests <- agentpb.QANCollectRequest{
 						Message: change.Request,
@@ -416,21 +401,25 @@ func (s *Supervisor) startBuiltin(agentID string, builtinAgent *agentpb.SetState
 
 		go func() {
 			for status := range n.Changes() {
-				s.storeLastStatus(agentID, status)
 				s.changes <- agentpb.StateChangedRequest{
 					AgentId: agentID,
 					Status:  status,
 				}
+				s.storeLastStatus(agentID, status)
 			}
 			close(done)
 		}()
 
 	default:
 		cancel()
-		s.storeLastStatus(agentID, inventorypb.AgentStatus_AGENT_STATUS_INVALID)
 		return errors.Errorf("unhandled agent type %[1]s (%[1]d).", builtinAgent.Type)
 	}
 
+	s.builtinAgents[agentID] = &builtinAgentInfo{
+		cancel:         cancel,
+		done:           done,
+		requestedState: proto.Clone(builtinAgent).(*agentpb.SetStateRequest_BuiltinAgent),
+	}
 	return nil
 }
 
