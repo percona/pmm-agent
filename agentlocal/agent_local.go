@@ -19,7 +19,6 @@ package agentlocal
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"html/template"
 	"log"
 	"net"
@@ -48,6 +47,7 @@ type agentsGetter interface {
 const (
 	shutdownTimeout = 3 * time.Second
 	defaultGrpcAddr = "127.0.0.1:7776"
+	defaultJSONAddr = "127.0.0.1:7777"
 )
 
 // Server represents local agent api server.
@@ -222,9 +222,7 @@ func (s *Server) Stop() {
 func (s *Server) runJSONServer() {
 	defer s.wg.Done()
 
-	jsonAddr := fmt.Sprintf("127.0.0.1:%d", s.cfg.ListenPort)
-
-	s.jsonLogger.Infof("Starting server on http://%s/ ...", jsonAddr)
+	s.jsonLogger.Infof("Starting server on http://%s/ ...", defaultJSONAddr)
 
 	proxyMux := runtime.NewServeMux()
 	opts := []grpc.DialOption{grpc.WithInsecure()}
@@ -240,7 +238,7 @@ func (s *Server) runJSONServer() {
 		"/debug/pprof",    // by net/http/pprof
 	}
 	for i, h := range handlers {
-		handlers[i] = "http://" + jsonAddr + h
+		handlers[i] = "http://" + defaultJSONAddr + h
 	}
 
 	var buf bytes.Buffer
@@ -266,10 +264,10 @@ func (s *Server) runJSONServer() {
 		}
 	})
 
-	s.jsonLogger.Infof("Starting server on http://%s/debug\nRegistered handlers:\n\t%s", jsonAddr, strings.Join(handlers, "\n\t"))
+	s.jsonLogger.Infof("Starting server on http://%s/debug\nRegistered handlers:\n\t%s", defaultJSONAddr, strings.Join(handlers, "\n\t"))
 
 	s.jsonServer = &http.Server{
-		Addr:     jsonAddr,
+		Addr:     defaultJSONAddr,
 		ErrorLog: log.New(os.Stderr, "runJSONServer: ", 0),
 		Handler:  http.DefaultServeMux,
 	}

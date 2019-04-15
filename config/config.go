@@ -55,11 +55,10 @@ type Ports struct {
 // Config represents pmm-agent's static configuration.
 //nolint:maligned
 type Config struct {
-	ID         string `yaml:"id"`
-	Address    string `yaml:"address"`
-	Username   string `yaml:"username"`
-	Password   string `yaml:"password"`
-	ListenPort uint16 `yaml:"listen-port"`
+	ID       string `yaml:"id"`
+	Address  string `yaml:"address"`
+	Username string `yaml:"username"`
+	Password string `yaml:"password"`
 
 	Debug       bool `yaml:"debug"`
 	Trace       bool `yaml:"trace"`
@@ -87,8 +86,6 @@ func application(cfg *Config) (*kingpin.Application, *string) {
 
 	app.Flag("id", "ID of this pmm-agent. [PMM_AGENT_ID]").
 		Envar("PMM_AGENT_ID").PlaceHolder("</agent_id/...>").StringVar(&cfg.ID)
-	app.Flag("listen-port", "Agent local API port. [PMM_AGENT_LISTEN_PORT]").
-		Envar("PMM_AGENT_LISTEN_PORT").Default("7777").Uint16Var(&cfg.ListenPort)
 	app.Flag("address", "PMM Server address. [PMM_AGENT_ADDRESS]").
 		Envar("PMM_AGENT_ADDRESS").PlaceHolder("<host:port>").StringVar(&cfg.Address)
 
