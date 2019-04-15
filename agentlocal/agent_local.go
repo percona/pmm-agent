@@ -41,6 +41,10 @@ import (
 	"github.com/percona/pmm-agent/config"
 )
 
+type agentsGetter interface {
+	AgentsList() []*agentlocalpb.AgentInfo
+}
+
 const (
 	shutdownTimeout = 3 * time.Second
 	defaultGrpcAddr = "127.0.0.1:7776"
@@ -58,6 +62,7 @@ type Server struct {
 	appCtx      context.Context
 
 	rw                 sync.RWMutex
+	ag                 agentsGetter
 	currentSrvMetadata *agentpb.AgentServerMetadata
 
 	reload chan<- bool
@@ -67,7 +72,7 @@ type Server struct {
 }
 
 // NewServer creates new local agent api server instance.
-func NewServer(appCtx context.Context, cfg *config.Config, reload chan<- bool) *Server {
+func NewServer(appCtx context.Context, ag agentsGetter, cfg *config.Config, reload chan<- bool) *Server {
 	instance := &Server{
 		appCtx:      appCtx,
 		gRPCAddress: defaultGrpcAddr,
@@ -75,6 +80,7 @@ func NewServer(appCtx context.Context, cfg *config.Config, reload chan<- bool) *
 		cfg:         cfg,
 		jsonLogger:  logrus.WithField("component", "JSON"),
 		grpcLogger:  logrus.WithField("component", "gRPC"),
+		ag:          ag,
 		reload:      reload,
 		done:        make(chan bool),
 	}
@@ -115,23 +121,17 @@ func (s *Server) Status(ctx context.Context, req *agentlocalpb.StatusRequest) (*
 		Url:          u.String(),
 		InsecureTls:  s.cfg.InsecureTLS,
 		Version:      md.ServerVersion,
-		LastPingTime: nil, // TODO: Add LastPingTime
-		Latency:      nil, // TODO: Calculate and Add Latency
+		LastPingTime: nil, // TODO https://jira.percona.com/browse/PMM-3758
+		Latency:      nil, // TODO https://jira.percona.com/browse/PMM-3758
 	}
 
-	// TODO: Add real AgentsInfo
-	//agentsInfo := &agentlocalpb.AgentInfo{
-	//	AgentId:   "001",
-	//	AgentType: agentpb.Type_MYSQLD_EXPORTER,
-	//	Status:    inventory.AgentStatus_RUNNING,
-	//	Logs:      []string{},
-	//}
+	agentsInfo := s.ag.AgentsList()
 
 	return &agentlocalpb.StatusResponse{
 		AgentId:      s.cfg.ID,
 		RunsOnNodeId: md.AgentRunsOnNodeID,
 		ServerInfo:   srvInfo,
-		AgentsInfo:   []*agentlocalpb.AgentInfo{}, // TODO: Add real AgentsInfo
+		AgentsInfo:   agentsInfo,
 	}, nil
 }
 

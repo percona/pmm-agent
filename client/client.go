@@ -34,32 +34,27 @@ import (
 	"github.com/percona/pmm-agent/config"
 )
 
-//nolint: unused
 const (
 	dialTimeout       = 10 * time.Second
 	backoffMaxDelay   = 10 * time.Second
 	clockDriftWarning = 5 * time.Second
 )
 
-//nolint: unused
 type stateReceiver interface {
 	Changes() <-chan agentpb.StateChangedRequest
 	QANRequests() <-chan agentpb.QANCollectRequest
 }
 
-//nolint: unused
 type stateChanger interface {
 	stateReceiver
 	SetState(*agentpb.SetStateRequest)
 }
 
-//nolint: unused
 type metadataReader interface {
 	ReadMetadata(md agentpb.AgentServerMetadata)
 }
 
 // Client pmm-agent gRPC client implementation.
-//nolint: unused
 type Client struct {
 	logger            logrus.FieldLogger
 	appCtx            context.Context

@@ -67,7 +67,7 @@ func main() {
 	}
 
 	svr := supervisor.NewSupervisor(appContext, &cfg.Paths, &cfg.Ports)
-	srv := agentlocal.NewServer(appContext, cfg, reloadSignal)
+	srv := agentlocal.NewServer(appContext, svr, cfg, reloadSignal)
 	clt := client.New(appContext, cfg, svr, srv)
 
 	r := &reloader{
