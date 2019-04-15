@@ -82,8 +82,8 @@ func (als *AgentLocalServer) Status(ctx context.Context, req *agentlocalpb.Statu
 		Url:          u.String(),
 		InsecureTls:  als.cfg.InsecureTLS,
 		Version:      md.ServerVersion,
-		LastPingTime: nil, // TODO: Add LastPingTime
-		Latency:      nil, // TODO: Calculate and Add Latency
+		LastPingTime: nil, // TODO https://jira.percona.com/browse/PMM-3758
+		Latency:      nil, // TODO https://jira.percona.com/browse/PMM-3758
 	}
 
 	agentsInfo := als.ag.AgentsList()
