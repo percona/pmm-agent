@@ -319,9 +319,6 @@ const (
 func (s *Supervisor) changeLastState(agentID string, newState inventorypb.AgentStatus) {
 	s.arw.Lock()
 	defer s.arw.Unlock()
-	if s.agentStatuses == nil {
-		s.agentStatuses = make(map[string]inventorypb.AgentStatus)
-	}
 	s.agentStatuses[agentID] = newState
 }
 
@@ -545,13 +542,14 @@ func (s *Supervisor) stopAll() {
 	}
 	s.builtinAgents = nil
 
+	for _, ch := range wait {
+		<-ch
+	}
+
 	s.arw.Lock()
 	s.agentStatuses = nil
 	s.arw.Unlock()
 
-	for _, ch := range wait {
-		<-ch
-	}
 	close(s.qanRequests)
 	close(s.changes)
 }
