@@ -14,56 +14,15 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-// Package backoff implement the backoff strategy for restarting Agents.
+// TODO remove this package, use utils/backoff directly
 package backoff
 
 import (
-	"math/rand"
 	"time"
+
+	"github.com/percona/pmm-agent/utils/backoff"
 )
 
-const (
-	delayBaseMin  = 1 * time.Second
-	delayBaseMax  = 30 * time.Second
-	delayIncrease = 0.5  // +50%
-	delayJitter   = 0.25 // ±25%
-)
-
-// Backoff encapsulates delay manipulation.
-type Backoff struct {
-	delayBaseNext time.Duration
-}
-
-// New returns new reset backoff.
-func New() *Backoff {
-	b := new(Backoff)
-	b.Reset()
-	return b
-}
-
-// Reset sets next delay to the default minimum.
-func (b *Backoff) Reset() {
-	b.delayBaseNext = delayBaseMin
-}
-
-// Delay returns next delay.
-func (b *Backoff) Delay() time.Duration {
-	delay := b.delayBaseNext
-
-	b.delayBaseNext += time.Duration(float64(b.delayBaseNext) * delayIncrease)
-	if b.delayBaseNext > delayBaseMax {
-		b.delayBaseNext = delayBaseMax
-	}
-
-	// We could use normal distribution for jitter:
-	// f64 = rand.NormFloat64() / 3.0 (three sigma rule)
-	// but pure random seems to be better overall.
-	f64 := rand.Float64()*2.0 - 1.0 // [-1.0,1.0]
-
-	delay += time.Duration(float64(delay) * f64 * delayJitter)
-	if delay < 0 {
-		delay = 0
-	}
-
-	return delay
+func New() *backoff.Backoff {
+	return backoff.New(1*time.Second, 30*time.Second)
 }
