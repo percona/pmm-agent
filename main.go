@@ -18,10 +18,9 @@ package main
 
 import (
 	"context"
-	_ "expvar"         // register /debug/vars
-	_ "net/http/pprof" // register /debug/pprof
 	"os"
 	"os/signal"
+	"sync"
 
 	"github.com/percona/pmm/version"
 	"github.com/sirupsen/logrus"
@@ -41,96 +40,10 @@ func main() {
 		panic("pmm-agent version is not set during build.")
 	}
 
-	cfg, err := config.Get(os.Args[1:], logrus.WithField("component", "config"))
-	if err != nil {
-		logrus.Fatal(err)
-	}
-	logrus.Debugf("Loaded configuration: %+v", cfg)
+	l := logrus.WithField("component", "main")
+	ctx, cancel := context.WithCancel(context.Background())
+	defer l.Info("Done.")
 
-	if cfg.Debug {
-		logrus.SetLevel(logrus.DebugLevel)
-	}
-	if cfg.Trace {
-		logrus.SetLevel(logrus.TraceLevel)
-		logrus.SetReportCaller(true)
-		grpclog.SetLoggerV2(&logger.GRPC{Entry: logrus.WithField("component", "grpclog")})
-	}
-
-	appContext, shutdown := context.WithCancel(context.Background())
-	reloadSignal := make(chan bool)
-
-	handleTerminationSignals(shutdown)
-
-	if cfg.Address == "" {
-		logrus.Error("PMM Server address is not provided, halting.")
-		<-appContext.Done()
-	}
-
-	svr := supervisor.NewSupervisor(appContext, &cfg.Paths, &cfg.Ports)
-	srv := agentlocal.NewServer(appContext, svr, cfg, reloadSignal)
-	clt := client.New(appContext, cfg, svr, srv)
-
-	r := &reloader{
-		appCtx:       appContext,
-		reloadSignal: reloadSignal,
-		server:       srv,
-		client:       clt,
-		supervisor:   svr,
-	}
-	r.Watch()
-
-	srv.Run()
-	clt.Run()
-
-	// FIXME svr.Wait()
-	srv.Wait()
-	clt.Wait()
-}
-
-type reloader struct {
-	appCtx       context.Context
-	reloadSignal chan bool
-	server       *agentlocal.Server
-	client       *client.Client
-	supervisor   *supervisor.Supervisor
-}
-
-// Watch runs goroutine for which watches reloadSignal and performs components reload.
-func (r *reloader) Watch() {
-	go func() {
-		for {
-			select {
-			case <-r.appCtx.Done():
-				return
-			case <-r.reloadSignal:
-				r.reload()
-			}
-		}
-	}()
-}
-
-func (r *reloader) reload() {
-	logrus.Warnf("Got restart signal, restarting...")
-
-	cfg, err := config.Get(os.Args[1:], logrus.WithField("component", "config"))
-	if err != nil {
-		logrus.Fatal(err)
-	}
-
-	// FIXME
-	// r.supervisor.Stop()
-	// r.supervisor.Wait()
-
-	r.client.Stop()
-	r.client.Wait()
-
-	r.supervisor = supervisor.NewSupervisor(r.appCtx, &cfg.Paths, &cfg.Ports)
-	r.client = client.New(r.appCtx, cfg, r.supervisor, r.server)
-
-	r.client.Run()
-}
-
-func handleTerminationSignals(shutdown context.CancelFunc) {
 	// handle termination signals
 	signals := make(chan os.Signal, 1)
 	signal.Notify(signals, unix.SIGTERM, unix.SIGINT)
@@ -138,6 +51,55 @@ func handleTerminationSignals(shutdown context.CancelFunc) {
 		s := <-signals
 		signal.Stop(signals)
 		logrus.Warnf("Got %s, shutting down...", unix.SignalName(s.(unix.Signal)))
-		shutdown()
+		cancel()
 	}()
+
+	var grpclogOnce sync.Once
+	for ctx.Err() == nil {
+		cfg, err := config.Parse(logrus.WithField("component", "config"))
+		if err != nil {
+			logrus.Fatal(err)
+		}
+		logrus.Debugf("Loaded configuration: %+v", cfg)
+
+		logrus.SetLevel(logrus.InfoLevel)
+		logrus.SetReportCaller(false)
+		if cfg.Debug {
+			logrus.SetLevel(logrus.DebugLevel)
+		}
+		if cfg.Trace {
+			logrus.SetLevel(logrus.TraceLevel)
+			logrus.SetReportCaller(true)
+		}
+		grpclogOnce.Do(func() {
+			if cfg.Trace {
+				grpclog.SetLoggerV2(&logger.GRPC{Entry: logrus.WithField("component", "grpclog")})
+			}
+		})
+
+		for ctx.Err() == nil {
+			appCtx, appCancel := context.WithCancel(ctx)
+
+			supervisor := supervisor.NewSupervisor(appCtx, &cfg.Paths, &cfg.Ports)
+			localServer := agentlocal.NewServer(cfg, supervisor)
+			client := client.New(cfg, supervisor, localServer)
+
+			server := make(chan error)
+			go func() {
+				server <- localServer.Run(appCtx, client)
+			}()
+
+			// FIXME
+			// Deadlock when pmm-agent is started without ID and /local/Reload is called.
+
+			_ = client.Run(appCtx)
+			appCancel()
+			<-client.Done()
+
+			err = <-server
+			if err == agentlocal.ErrReload {
+				break
+			}
+		}
+	}
 }

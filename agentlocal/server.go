@@ -19,10 +19,13 @@ package agentlocal
 import (
 	"bytes"
 	"context"
+	_ "expvar" // register /debug/vars
+	"fmt"
 	"html/template"
 	"log"
 	"net"
 	"net/http"
+	_ "net/http/pprof" // register /debug/pprof
 	"net/url"
 	"os"
 	"strings"
@@ -32,77 +35,108 @@ import (
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"github.com/percona/pmm/api/agentlocalpb"
 	"github.com/percona/pmm/api/agentpb"
+	"github.com/pkg/errors"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	channelz "google.golang.org/grpc/channelz/service"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/reflection"
+	"google.golang.org/grpc/status"
 
 	"github.com/percona/pmm-agent/config"
 )
 
-type agentsGetter interface {
+// supervisor is a subset of methods of supervisor.Supervisor used by this package.
+// We use it instead of real type for testing and to avoid dependency cycle.
+type supervisor interface {
 	AgentsList() []*agentlocalpb.AgentInfo
 }
 
+// client is a subset of methods of client.Client used by this package.
+// We use it instead of real type for testing and to avoid dependency cycle.
+type client interface {
+	Describe(chan<- *prometheus.Desc)
+	Collect(chan<- prometheus.Metric)
+}
+
 const (
-	shutdownTimeout = 3 * time.Second
-	defaultGrpcAddr = "127.0.0.1:7776"
-	defaultJSONAddr = "127.0.0.1:7777"
+	shutdownTimeout = 1 * time.Second
 )
 
-// Server represents local agent api server.
+var ErrReload = errors.New("reload")
+
+// Server represents local agent API server.
 type Server struct {
-	gRPCAddress string
-	gRPCTimeout time.Duration
-	cfg         *config.Config
-	gRPCServer  *grpc.Server
-	jsonServer  *http.Server
-	jsonLogger  logrus.FieldLogger
-	grpcLogger  logrus.FieldLogger
-	appCtx      context.Context
+	cfg        *config.Config
+	supervisor supervisor
 
-	rw                 sync.RWMutex
-	ag                 agentsGetter
-	currentSrvMetadata *agentpb.AgentServerMetadata
+	l             *logrus.Entry
+	done          chan struct{}
+	doneCloseOnce sync.Once
 
-	reload chan<- bool
-	done   chan bool
-
-	wg sync.WaitGroup
+	rw                  sync.RWMutex
+	agentServerMetadata agentpb.AgentServerMetadata
 }
 
-// NewServer creates new local agent api server instance.
-func NewServer(appCtx context.Context, ag agentsGetter, cfg *config.Config, reload chan<- bool) *Server {
-	instance := &Server{
-		appCtx:      appCtx,
-		gRPCAddress: defaultGrpcAddr,
-		gRPCTimeout: shutdownTimeout,
-		cfg:         cfg,
-		jsonLogger:  logrus.WithField("component", "JSON"),
-		grpcLogger:  logrus.WithField("component", "gRPC"),
-		ag:          ag,
-		reload:      reload,
-		done:        make(chan bool),
+func NewServer(cfg *config.Config, supervisor supervisor) *Server {
+	return &Server{
+		cfg:        cfg,
+		supervisor: supervisor,
+		l:          logrus.WithField("component", "local-server"),
+		done:       make(chan struct{}),
+	}
+}
+
+func (s *Server) Run(ctx context.Context, client client) error {
+	defer s.l.Info("Done.")
+
+	serverCtx, serverCancel := context.WithCancel(ctx)
+
+	l, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		s.l.Panic(err)
+	}
+	address := l.Addr().String()
+	if err = l.Close(); err != nil {
+		s.l.Panic(err)
 	}
 
-	return instance
+	var wg sync.WaitGroup
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		s.runGRPCServer(serverCtx, address)
+	}()
+	go func() {
+		defer wg.Done()
+		s.runJSONServer(serverCtx, address, client)
+	}()
+
+	var res error
+	select {
+	case <-ctx.Done():
+		res = ctx.Err()
+	case <-s.done:
+		res = ErrReload
+	}
+	serverCancel()
+	wg.Wait()
+	return res
 }
 
-// Wait blocks until server end its work.
-func (s *Server) Wait() {
-	<-s.done
-}
-
-// ReadMetadata reads new metadata from provided metadata structure to local state.
-func (s *Server) ReadMetadata(md agentpb.AgentServerMetadata) {
+func (s *Server) SetAgentServerMetadata(md agentpb.AgentServerMetadata) {
 	s.rw.Lock()
-	s.currentSrvMetadata = &md
+	s.agentServerMetadata = md
 	s.rw.Unlock()
 }
 
 // Status returns local agent status.
 func (s *Server) Status(ctx context.Context, req *agentlocalpb.StatusRequest) (*agentlocalpb.StatusResponse, error) {
-	md := s.getMetadata()
+	s.rw.RLock()
+	md := s.agentServerMetadata
+	s.rw.RUnlock()
 
 	var user *url.Userinfo
 	switch {
@@ -125,7 +159,7 @@ func (s *Server) Status(ctx context.Context, req *agentlocalpb.StatusRequest) (*
 		Latency:      nil, // TODO https://jira.percona.com/browse/PMM-3758
 	}
 
-	agentsInfo := s.ag.AgentsList()
+	agentsInfo := s.supervisor.AgentsList()
 
 	return &agentlocalpb.StatusResponse{
 		AgentId:      s.cfg.ID,
@@ -135,114 +169,81 @@ func (s *Server) Status(ctx context.Context, req *agentlocalpb.StatusRequest) (*
 	}, nil
 }
 
-// Reload reloads pmm-agent and it configuration.
 func (s *Server) Reload(ctx context.Context, req *agentlocalpb.ReloadRequest) (*agentlocalpb.ReloadResponse, error) {
-	defer func() {
-		s.reload <- true
-	}()
-	return &agentlocalpb.ReloadResponse{}, nil
-}
+	_, err := config.Parse(s.l)
+	if err != nil {
+		return nil, status.Error(codes.FailedPrecondition, "Failed to reload configuration: "+err.Error())
+	}
 
-// Run runs gRPC server with JSON proxy until context is canceled, then gracefully stops it..
-func (s *Server) Run() {
-	go s.handleAppInterrupt()
-	s.wg.Add(1)
-	go s.runGRPCServer()
-	s.wg.Add(1)
-	go s.runJSONServer()
+	s.doneCloseOnce.Do(func() {
+		close(s.done)
+	})
+	return new(agentlocalpb.ReloadResponse), nil
 }
 
 // runGRPCServer runs gRPC server until context is canceled, then gracefully stops it.
-func (s *Server) runGRPCServer() {
-	defer s.wg.Done()
+func (s *Server) runGRPCServer(ctx context.Context, address string) {
+	l := s.l.WithField("component", "local-server/gRPC")
+	l.Debugf("Starting gRPC server on http://%s/ ...", address)
 
-	s.grpcLogger.Infof("Starting server on http://%s/ ...", s.gRPCAddress)
-
-	s.gRPCServer = grpc.NewServer()
-	agentlocalpb.RegisterAgentLocalServer(s.gRPCServer, s)
+	gRPCServer := grpc.NewServer()
+	agentlocalpb.RegisterAgentLocalServer(gRPCServer, s)
 
 	if s.cfg.Debug {
-		s.grpcLogger.Debug("Reflection and channelz are enabled.")
-		reflection.Register(s.gRPCServer)
-		channelz.RegisterChannelzServiceToServer(s.gRPCServer)
+		l.Debug("Reflection and channelz are enabled.")
+		reflection.Register(gRPCServer)
+		channelz.RegisterChannelzServiceToServer(gRPCServer)
 	}
 
 	// run server until it is stopped gracefully or not
-	listener, err := net.Listen("tcp", s.gRPCAddress)
+	listener, err := net.Listen("tcp", address)
 	if err != nil {
-		s.grpcLogger.Panic(err)
+		l.Panic(err)
+		return
 	}
-	s.wg.Add(1)
 	go func() {
-		defer s.wg.Done()
 		for {
-			err = s.gRPCServer.Serve(listener)
+			err = gRPCServer.Serve(listener)
 			if err == nil || err == grpc.ErrServerStopped {
 				break
 			}
-			s.grpcLogger.Errorf("Failed to serve: %s", err)
+			l.Errorf("Failed to serve: %s", err)
 		}
-		s.grpcLogger.Info("gRPC server stopped.")
+		l.Debug("Server stopped.")
 	}()
-}
 
-func (s *Server) handleAppInterrupt() {
-	select {
-	case <-s.appCtx.Done():
-		s.Stop()
-	case <-s.done:
-		return
-	}
-}
-
-// Stop stops server.
-func (s *Server) Stop() {
-	// try to stop json server gracefully, then not
-	jCtx, jCancel := context.WithTimeout(context.Background(), s.gRPCTimeout)
-	if err := s.jsonServer.Shutdown(jCtx); err != nil {
-		s.jsonLogger.Errorf("Failed to shutdown gracefully: %s", err)
-	}
-	jCancel()
+	<-ctx.Done()
 
 	// try to stop server gracefully, then not
-	ctx, cancel := context.WithTimeout(context.Background(), s.gRPCTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
 	go func() {
 		<-ctx.Done()
-		s.gRPCServer.Stop()
-
-		<-jCtx.Done()
-		s.wg.Wait()
-		close(s.done)
+		gRPCServer.Stop()
 	}()
-	s.gRPCServer.GracefulStop()
+	gRPCServer.GracefulStop()
 	cancel()
 }
 
 // runJSONServer runs JSON proxy server (grpc-gateway) until context is canceled, then gracefully stops it.
-func (s *Server) runJSONServer() {
-	defer s.wg.Done()
-
-	s.jsonLogger.Infof("Starting server on http://%s/ ...", defaultJSONAddr)
-
-	proxyMux := runtime.NewServeMux()
-	opts := []grpc.DialOption{grpc.WithInsecure()}
-
-	if err := agentlocalpb.RegisterAgentLocalHandlerFromEndpoint(s.appCtx, proxyMux, s.gRPCAddress, opts); err != nil {
-		s.jsonLogger.Panic(err)
-	}
+func (s *Server) runJSONServer(ctx context.Context, grpcAddress string, client client) {
+	address := fmt.Sprintf("127.0.0.1:%d", s.cfg.ListenPort)
+	l := s.l.WithField("component", "local-server/JSON")
+	l.Infof("Starting local API server on http://%s/ ...", address)
 
 	handlers := []string{
+		"/debug/metrics",  // by metricsHandler below
 		"/debug/vars",     // by expvar
 		"/debug/requests", // by golang.org/x/net/trace imported by google.golang.org/grpc
 		"/debug/events",   // by golang.org/x/net/trace imported by google.golang.org/grpc
 		"/debug/pprof",    // by net/http/pprof
 	}
 	for i, h := range handlers {
-		handlers[i] = "http://" + defaultJSONAddr + h
+		handlers[i] = "http://" + address + h
 	}
+	l.Debugf("Debug handlers:\n\t%s", strings.Join(handlers, "\n\t"))
 
-	var buf bytes.Buffer
-	err := template.Must(template.New("debug").Parse(`
+	var debugPage bytes.Buffer
+	err := template.Must(template.New("").Parse(`
 	<html>
 	<body>
 	<ul>
@@ -252,40 +253,61 @@ func (s *Server) runJSONServer() {
 	</ul>
 	</body>
 	</html>
-	`)).Execute(&buf, handlers)
+	`)).Execute(&debugPage, handlers)
 	if err != nil {
-		s.jsonLogger.Panic(err)
+		l.Panic(err)
 	}
 
-	http.Handle("/", proxyMux)
-	http.HandleFunc("/debug", func(rw http.ResponseWriter, req *http.Request) {
-		if _, err := rw.Write(buf.Bytes()); err != nil {
-			s.jsonLogger.Warn(err)
+	registry := prometheus.NewRegistry()
+	registry.MustRegister(prometheus.NewProcessCollector(prometheus.ProcessCollectorOpts{}))
+	registry.MustRegister(prometheus.NewGoCollector())
+	registry.MustRegister(client)
+	metricsHandler := promhttp.InstrumentMetricHandler(registry, promhttp.HandlerFor(registry, promhttp.HandlerOpts{
+		ErrorLog:      l,
+		ErrorHandling: promhttp.ContinueOnError,
+	}))
+
+	debugPageHandler := http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+		if _, err := rw.Write(debugPage.Bytes()); err != nil {
+			l.Warn(err)
 		}
 	})
 
-	s.jsonLogger.Infof("Starting server on http://%s/debug\nRegistered handlers:\n\t%s", defaultJSONAddr, strings.Join(handlers, "\n\t"))
-
-	s.jsonServer = &http.Server{
-		Addr:     defaultJSONAddr,
-		ErrorLog: log.New(os.Stderr, "runJSONServer: ", 0),
-		Handler:  http.DefaultServeMux,
+	proxyMux := runtime.NewServeMux()
+	opts := []grpc.DialOption{
+		grpc.WithInsecure(),
+		grpc.WithBlock(),
+	}
+	if err := agentlocalpb.RegisterAgentLocalHandlerFromEndpoint(ctx, proxyMux, grpcAddress, opts); err != nil {
+		l.Panic(err)
 	}
 
-	s.wg.Add(1)
-	go func() {
-		defer s.wg.Done()
-		if err := s.jsonServer.ListenAndServe(); err != http.ErrServerClosed {
-			s.jsonLogger.Panic(err)
-		}
-		s.jsonLogger.Info("JSON server stopped.")
-	}()
-}
+	mux := http.NewServeMux()
+	mux.Handle("/debug/metrics", metricsHandler)
+	mux.Handle("/debug/", http.DefaultServeMux)
+	mux.Handle("/debug", debugPageHandler)
+	mux.Handle("/", proxyMux)
 
-func (s *Server) getMetadata() agentpb.AgentServerMetadata {
-	s.rw.RLock()
-	defer s.rw.RUnlock()
-	return *s.currentSrvMetadata
+	server := &http.Server{
+		Addr:     address,
+		Handler:  mux,
+		ErrorLog: log.New(os.Stderr, "local-server/JSON: ", 0),
+	}
+	go func() {
+		l.Info("Started.")
+		if err := server.ListenAndServe(); err != http.ErrServerClosed {
+			l.Errorf("Stopped: %s.", err)
+			return
+		}
+		l.Info("Stopped.")
+	}()
+
+	<-ctx.Done()
+	ctx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
+	if err := server.Shutdown(ctx); err != nil {
+		l.Errorf("Failed to shutdown gracefully: %s", err)
+	}
+	cancel()
 }
 
 // check interfaces

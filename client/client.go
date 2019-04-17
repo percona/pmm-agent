@@ -59,7 +59,7 @@ type supervisor interface {
 // localServer is a subset of methods of agentlocal.Server used by this package.
 // We use it instead of real type for testing and to avoid dependency cycle.
 type localServer interface {
-	SetAgentServerMetadata(*agentpb.AgentServerMetadata)
+	SetAgentServerMetadata(agentpb.AgentServerMetadata)
 }
 
 // Client represents pmm-agent's connection to nginx/pmm-managed.
@@ -100,12 +100,19 @@ func New(cfg *config.Config, supervisor supervisor, localServer localServer) *Cl
 func (c *Client) Run(ctx context.Context) error {
 	c.l.Info("Starting...")
 
-	// do nothing until ctx is canceled if address is not given
+	// do nothing until ctx is canceled if config misses critical info
+	var missing string
+	if c.cfg.ID == "" {
+		missing = "Agent ID"
+	}
 	if c.cfg.Address == "" {
-		c.l.Error("PMM Server address is not provided, halting.")
+		missing = "PMM Server address"
+	}
+	if missing != "" {
+		c.l.Errorf("%s is not provided, halting.", missing)
 		<-ctx.Done()
 		close(c.done)
-		return errors.Wrap(ctx.Err(), "no address")
+		return errors.Wrap(ctx.Err(), "missing "+missing)
 	}
 
 	// try to connect until success, or until ctx is canceled
@@ -254,7 +261,7 @@ func (c *Client) processChannelRequests() {
 type dialResult struct {
 	conn         *grpc.ClientConn
 	streamCancel context.CancelFunc
-	md           *agentpb.AgentServerMetadata
+	md           agentpb.AgentServerMetadata
 	channel      *channel.Channel
 }
 
@@ -351,7 +358,14 @@ func dial(dialCtx context.Context, cfg *config.Config, l *logrus.Entry) *dialRes
 		l.Warnf("Estimated clock drift: %s.", clockDrift)
 	}
 
-	return &dialResult{conn, streamCancel, &md, channel}
+	return &dialResult{conn, streamCancel, md, channel}
+}
+
+// Describe implements "unchecked" prometheus.Collector.
+func (c *Client) Describe(chan<- *prometheus.Desc) {
+	// Sending no descriptor at all marks the Collector as “unchecked”,
+	// i.e. no checks will be performed at registration time, and the
+	// Collector may yield any Metric it sees fit in its Collect method.
 }
 
 // Collect implements "unchecked" prometheus.Collector.
@@ -368,3 +382,8 @@ func (c *Client) Collect(ch chan<- prometheus.Metric) {
 		ch <- prometheus.MustNewConstMetric(desc, prometheus.GaugeValue, 0)
 	}
 }
+
+// check interface
+var (
+	_ prometheus.Collector = (*Client)(nil)
+)
