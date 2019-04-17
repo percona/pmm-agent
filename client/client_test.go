@@ -32,9 +32,9 @@ func TestClient(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 
 		cfg := &config.Config{}
-		client := New(cfg, nil, nil)
+		client := New(cfg, nil)
 		cancel()
-		err := client.Run(ctx)
+		err := client.Run(ctx, nil)
 		assert.Equal(t, "missing PMM Server address: context canceled", err.Error())
 	})
 
@@ -45,9 +45,9 @@ func TestClient(t *testing.T) {
 		cfg := &config.Config{
 			Address: "127.0.0.1:65000",
 		}
-		client := New(cfg, nil, nil)
+		client := New(cfg, nil)
 		cancel()
-		err := client.Run(ctx)
+		err := client.Run(ctx, nil)
 		assert.Equal(t, "missing Agent ID: context canceled", err.Error())
 	})
 
@@ -60,8 +60,8 @@ func TestClient(t *testing.T) {
 			ID:      "agent_id",
 			Address: "127.0.0.1:65000",
 		}
-		client := New(cfg, nil, nil)
-		err := client.Run(ctx)
+		client := New(cfg, nil)
+		err := client.Run(ctx, nil)
 		assert.Equal(t, "failed to connect: context deadline exceeded", err.Error())
 	})
 }

@@ -64,9 +64,8 @@ type localServer interface {
 
 // Client represents pmm-agent's connection to nginx/pmm-managed.
 type Client struct {
-	cfg         *config.Config
-	supervisor  supervisor
-	localServer localServer
+	cfg        *config.Config
+	supervisor supervisor
 
 	l       *logrus.Entry
 	backoff *backoff.Backoff
@@ -79,14 +78,13 @@ type Client struct {
 // New creates new client.
 //
 // Caller should call Run.
-func New(cfg *config.Config, supervisor supervisor, localServer localServer) *Client {
+func New(cfg *config.Config, supervisor supervisor) *Client {
 	return &Client{
-		cfg:         cfg,
-		supervisor:  supervisor,
-		localServer: localServer,
-		l:           logrus.WithField("component", "client"),
-		backoff:     backoff.New(backoffMinDelay, backoffMaxDelay),
-		done:        make(chan struct{}),
+		cfg:        cfg,
+		supervisor: supervisor,
+		l:          logrus.WithField("component", "client"),
+		backoff:    backoff.New(backoffMinDelay, backoffMaxDelay),
+		done:       make(chan struct{}),
 	}
 }
 
@@ -97,7 +95,7 @@ func New(cfg *config.Config, supervisor supervisor, localServer localServer) *Cl
 // That Client instance can't be reused after that.
 //
 // Returned error is already logged and should be ignored. It is returned only for unit tests.
-func (c *Client) Run(ctx context.Context) error {
+func (c *Client) Run(ctx context.Context, localServer localServer) error {
 	c.l.Info("Starting...")
 
 	// do nothing until ctx is canceled if config misses critical info
@@ -150,7 +148,7 @@ func (c *Client) Run(ctx context.Context) error {
 	c.channel = dialResult.channel
 	c.rw.Unlock()
 
-	c.localServer.SetAgentServerMetadata(dialResult.md)
+	localServer.SetAgentServerMetadata(dialResult.md)
 
 	// Once the client is connected, ctx cancellation is ignored.
 	// We start two goroutines, and terminate the gRPC connection and exit Run when any of them exits:

@@ -78,25 +78,20 @@ func main() {
 		})
 
 		for ctx.Err() == nil {
-			appCtx, appCancel := context.WithCancel(ctx)
-
-			supervisor := supervisor.NewSupervisor(appCtx, &cfg.Paths, &cfg.Ports)
+			runCtx, runCancel := context.WithCancel(ctx)
+			supervisor := supervisor.NewSupervisor(runCtx, &cfg.Paths, &cfg.Ports)
 			localServer := agentlocal.NewServer(cfg, supervisor)
-			client := client.New(cfg, supervisor, localServer)
+			client := client.New(cfg, supervisor)
 
-			server := make(chan error)
 			go func() {
-				server <- localServer.Run(appCtx, client)
+				_ = client.Run(runCtx, localServer)
+				runCancel()
 			}()
 
-			// FIXME
-			// Deadlock when pmm-agent is started without ID and /local/Reload is called.
+			err = localServer.Run(runCtx, client)
+			runCancel()
 
-			_ = client.Run(appCtx)
-			appCancel()
 			<-client.Done()
-
-			err = <-server
 			if err == agentlocal.ErrReload {
 				break
 			}
