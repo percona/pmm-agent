@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-// TODO remove this package, use utils/backoff directly
+// FIXME remove this package, use utils/backoff directly
 package backoff
 
 import (
@@ -22,6 +22,8 @@ import (
 
 	"github.com/percona/pmm-agent/utils/backoff"
 )
+
+type Backoff = backoff.Backoff
 
 func New() *backoff.Backoff {
 	return backoff.New(1*time.Second, 30*time.Second)
