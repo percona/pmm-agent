@@ -63,6 +63,7 @@ type Client struct {
 
 	l       *logrus.Entry
 	backoff *backoff.Backoff
+	done    chan struct{}
 
 	rw      sync.RWMutex
 	channel *channel.Channel
@@ -77,21 +78,25 @@ func New(cfg *config.Config, supervisor supervisor) *Client {
 		supervisor: supervisor,
 		l:          logrus.WithField("component", "client"),
 		backoff:    backoff.New(backoffMinDelay, backoffMaxDelay),
+		done:       make(chan struct{}),
 	}
 }
 
 // Run connects to the server, processes requests and sends responses.
 //
-// Once Run exits, connection is closed, and caller should stop supervisor.
-// That Client instance can't be reused ofter that.
+// Once Run exits, connection is closed, and caller should cancel supervisor's context.
+// Then caller should wait until Done() channel is closed.
+// That Client instance can't be reused after that.
+//
+// Returned error is already logged and should be ignored. It is returned only for unit tests.
 func (c *Client) Run(ctx context.Context) error {
 	c.l.Info("Starting...")
-	defer c.l.Info("Done.")
 
 	// do nothing until ctx is canceled if address is not given
 	if c.cfg.Address == "" {
 		c.l.Error("PMM Server address is not provided, halting.")
 		<-ctx.Done()
+		close(c.done)
 		return errors.Wrap(ctx.Err(), "no address")
 	}
 
@@ -113,6 +118,7 @@ func (c *Client) Run(ctx context.Context) error {
 		}
 	}
 	if ctx.Err() != nil {
+		close(c.done)
 		return errors.Wrap(ctx.Err(), "failed to connect")
 	}
 
@@ -132,26 +138,38 @@ func (c *Client) Run(ctx context.Context) error {
 	// TODO set metadata
 
 	// Once the client is connected, ctx cancellation is ignored.
-	// We start two goroutines, and terminate the gRPC connection and leave Run when any of them finished:
+	// We start two goroutines, and terminate the gRPC connection and exit Run when any of them exits:
 	// 1. processSupervisorRequests reads requests (status changes and QAN data) from the supervisor and sends them to the channel.
-	//    It finishes when the supervisor is stopped.
-	//    When the gRPC connection is terminated on leaving Run, processChannelRequests exits too.
+	//    It exits when the supervisor is stopped.
+	//    When the gRPC connection is terminated on exiting Run, processChannelRequests exits too.
 	// 2. processChannelRequests reads requests from the channel and processes them.
-	//    It finishes when an unexpected message is received from the channel, or when can't be received at all.
+	//    It exits when an unexpected message is received from the channel, or when can't be received at all.
 	//    When Run is left, caller stops supervisor, and that allows processSupervisorRequests to exit.
-	done := make(chan error, 2)
+	// Done() channel is closed when both goroutines exited.
+	oneDone := make(chan struct{}, 2)
 	go func() {
-		done <- c.processSupervisorRequests()
+		c.processSupervisorRequests()
+		oneDone <- struct{}{}
 	}()
 	go func() {
-		done <- c.processChannelRequests()
+		c.processChannelRequests()
+		oneDone <- struct{}{}
 	}()
-	err := <-done
-	c.l.Error(err)
-	return err
+	<-oneDone
+	go func() {
+		<-oneDone
+		c.l.Info("Done.")
+		close(c.done)
+	}()
+	return nil
 }
 
-func (c *Client) processSupervisorRequests() error {
+// Done is closed when all supervisors's requests are sent (if possible) and connection is closed.
+func (c *Client) Done() <-chan struct{} {
+	return c.done
+}
+
+func (c *Client) processSupervisorRequests() {
 	var wg sync.WaitGroup
 
 	wg.Add(1)
@@ -166,7 +184,7 @@ func (c *Client) processSupervisorRequests() error {
 				c.l.Warn("Failed to send StateChanged request.")
 			}
 		}
-		c.l.Info("Supervisor changes done.")
+		c.l.Debugf("Supervisor Changes() channel drained.")
 	}()
 
 	wg.Add(1)
@@ -181,14 +199,13 @@ func (c *Client) processSupervisorRequests() error {
 				c.l.Warn("Failed to send QanCollect request.")
 			}
 		}
-		c.l.Info("Supervisor QAN requests done.")
+		c.l.Debugf("Supervisor QANRequests() channel drained.")
 	}()
 
 	wg.Wait()
-	return errors.New("supervisor done")
 }
 
-func (c *Client) processChannelRequests() error {
+func (c *Client) processChannelRequests() {
 	for serverMessage := range c.channel.Requests() {
 		var agentMessage *agentpb.AgentMessage
 		switch payload := serverMessage.Payload.(type) {
@@ -215,14 +232,15 @@ func (c *Client) processChannelRequests() error {
 		default:
 			// Requests() is not closed, so exit early to break channel
 			c.l.Errorf("Unhandled server message payload: %s.", payload)
-			return errors.New("unhandled payload")
+			return
 		}
 
 		c.channel.SendResponse(agentMessage)
 	}
 
-	// once Requests() is closed, caller can learn why
-	return c.channel.Wait()
+	err := c.channel.Wait()
+	c.l.Error(err)
+	return
 }
 
 type dialResult struct {
