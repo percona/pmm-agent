@@ -56,10 +56,17 @@ type supervisor interface {
 	SetState(*agentpb.SetStateRequest)
 }
 
+// localServer is a subset of methods of agentlocal.Server used by this package.
+// We use it instead of real type for testing and to avoid dependency cycle.
+type localServer interface {
+	SetAgentServerMetadata(*agentpb.AgentServerMetadata)
+}
+
 // Client represents pmm-agent's connection to nginx/pmm-managed.
 type Client struct {
-	cfg        *config.Config
-	supervisor supervisor
+	cfg         *config.Config
+	supervisor  supervisor
+	localServer localServer
 
 	l       *logrus.Entry
 	backoff *backoff.Backoff
@@ -72,13 +79,14 @@ type Client struct {
 // New creates new client.
 //
 // Caller should call Run.
-func New(cfg *config.Config, supervisor supervisor) *Client {
+func New(cfg *config.Config, supervisor supervisor, localServer localServer) *Client {
 	return &Client{
-		cfg:        cfg,
-		supervisor: supervisor,
-		l:          logrus.WithField("component", "client"),
-		backoff:    backoff.New(backoffMinDelay, backoffMaxDelay),
-		done:       make(chan struct{}),
+		cfg:         cfg,
+		supervisor:  supervisor,
+		localServer: localServer,
+		l:           logrus.WithField("component", "client"),
+		backoff:     backoff.New(backoffMinDelay, backoffMaxDelay),
+		done:        make(chan struct{}),
 	}
 }
 
@@ -135,7 +143,7 @@ func (c *Client) Run(ctx context.Context) error {
 	c.channel = dialResult.channel
 	c.rw.Unlock()
 
-	// TODO set metadata
+	c.localServer.SetAgentServerMetadata(dialResult.md)
 
 	// Once the client is connected, ctx cancellation is ignored.
 	// We start two goroutines, and terminate the gRPC connection and exit Run when any of them exits:
@@ -246,7 +254,7 @@ func (c *Client) processChannelRequests() {
 type dialResult struct {
 	conn         *grpc.ClientConn
 	streamCancel context.CancelFunc
-	md           agentpb.AgentServerMetadata
+	md           *agentpb.AgentServerMetadata
 	channel      *channel.Channel
 }
 
@@ -343,29 +351,20 @@ func dial(dialCtx context.Context, cfg *config.Config, l *logrus.Entry) *dialRes
 		l.Warnf("Estimated clock drift: %s.", clockDrift)
 	}
 
-	return &dialResult{conn, streamCancel, md, channel}
+	return &dialResult{conn, streamCancel, &md, channel}
 }
 
-// Describe implements prometheus.Collector.
-func (c *Client) Describe(chan<- *prometheus.Desc) {
-	// Sending no descriptor at all marks the Collector as “unchecked”,
-	// i.e. no checks will be performed at registration time, and the
-	// Collector may yield any Metric it sees fit in its Collect method.
-	return
-}
-
-// Collect implements prometheus.Collector.
+// Collect implements "unchecked" prometheus.Collector.
 func (c *Client) Collect(ch chan<- prometheus.Metric) {
 	c.rw.RLock()
 	channel := c.channel
 	c.rw.RUnlock()
 
+	desc := prometheus.NewDesc("pmm_agent_connected", "Has value 1 if two-way communication channel is established.", nil, nil)
 	if channel != nil {
+		ch <- prometheus.MustNewConstMetric(desc, prometheus.GaugeValue, 1)
 		channel.Collect(ch)
+	} else {
+		ch <- prometheus.MustNewConstMetric(desc, prometheus.GaugeValue, 0)
 	}
 }
-
-// check interface
-var (
-	_ prometheus.Collector = (*Client)(nil)
-)
