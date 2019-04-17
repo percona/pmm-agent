@@ -130,6 +130,19 @@
   version = "v0.2.1"
 
 [[projects]]
+  branch = "PMM-3514-group-by-digest-user-host-db-server"
+  digest = "1:9a66d2b98a7649b0905b570480a66b06645315ed91f1f0a96711b042ede66ec4"
+  name = "github.com/percona/go-mysql"
+  packages = [
+    "event",
+    "log",
+    "log/slow",
+    "query",
+  ]
+  pruneopts = "NUT"
+  revision = "b9f78430ec7937d23152e7e8717193e36188e8a9"
+
+[[projects]]
   branch = "PMM-2.0"
   digest = "1:f5ad58a26d56e2ba85d0af0d43857165b7357092a9c42d861d4ef207d406d60a"
   name = "github.com/percona/pmm"
@@ -386,6 +399,10 @@
     "github.com/golang/protobuf/ptypes",
     "github.com/grpc-ecosystem/grpc-gateway/runtime",
     "github.com/percona/exporter_shared/helpers",
+    "github.com/percona/go-mysql/event",
+    "github.com/percona/go-mysql/log",
+    "github.com/percona/go-mysql/log/slow",
+    "github.com/percona/go-mysql/query",
     "github.com/percona/pmm/api/agentlocalpb",
     "github.com/percona/pmm/api/agentpb",
     "github.com/percona/pmm/api/inventorypb",
