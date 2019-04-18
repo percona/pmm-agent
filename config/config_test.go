@@ -44,16 +44,15 @@ func removeConfig(t *testing.T, name string) {
 
 func TestConfig(t *testing.T) {
 	t.Run("OnlyFlags", func(t *testing.T) {
-		actual, err := Get([]string{
+		actual, err := get([]string{
 			"--id=agent-id",
 			"--address=127.0.0.1:11111",
 		}, logrus.WithField("test", t.Name))
 		require.NoError(t, err)
 
 		expected := &Config{
-			ID:         "agent-id",
-			Address:    "127.0.0.1:11111",
-			ListenPort: 7777,
+			ID:      "agent-id",
+			Address: "127.0.0.1:11111",
 			Paths: Paths{
 				TempDir: os.TempDir(),
 			},
@@ -72,15 +71,14 @@ func TestConfig(t *testing.T) {
 		})
 		defer removeConfig(t, name)
 
-		actual, err := Get([]string{
+		actual, err := get([]string{
 			"--config-file=" + name,
 		}, logrus.WithField("test", t.Name))
 		require.NoError(t, err)
 
 		expected := &Config{
-			ID:         "agent-id",
-			Address:    "127.0.0.1:11111",
-			ListenPort: 7777,
+			ID:      "agent-id",
+			Address: "127.0.0.1:11111",
 			Paths: Paths{
 				TempDir: os.TempDir(),
 			},
@@ -99,7 +97,7 @@ func TestConfig(t *testing.T) {
 		})
 		defer removeConfig(t, name)
 
-		actual, err := Get([]string{
+		actual, err := get([]string{
 			"--config-file=" + name,
 			"--id=flag-id",
 			"--debug",
@@ -107,10 +105,9 @@ func TestConfig(t *testing.T) {
 		require.NoError(t, err)
 
 		expected := &Config{
-			ID:         "flag-id",
-			Address:    "127.0.0.1:11111",
-			ListenPort: 7777,
-			Debug:      true,
+			ID:      "flag-id",
+			Address: "127.0.0.1:11111",
+			Debug:   true,
 			Paths: Paths{
 				TempDir: os.TempDir(),
 			},
