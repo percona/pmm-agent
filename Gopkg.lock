@@ -131,7 +131,7 @@
 
 [[projects]]
   branch = "PMM-2.0"
-  digest = "1:38f7da1c67d8f06670e2b62c663dee56ca2bb7efb8ea593da1fe3c595dfa2ba9"
+  digest = "1:7c6de3e3b02ab73841c4a088c1c9fb4144f569818afa2565407ac098a9935742"
   name = "github.com/percona/pmm"
   packages = [
     "api/agentlocalpb",
@@ -141,7 +141,7 @@
     "version",
   ]
   pruneopts = "NUT"
-  revision = "9f16c94f00df0b76fff9e480c36aebb70a2fb284"
+  revision = "37d4537bb08aa9e17f7f91e482efef83acb3cb5f"
 
 [[projects]]
   digest = "1:14715f705ff5dfe0ffd6571d7d201dd8e921030f8070321a79380d8ca4ec1a24"
@@ -236,11 +236,11 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:db2abfb807d41ac7b1553856a77a437cba77f6464eda952016d865412dcd2595"
+  digest = "1:666e0bcac878ff6090f3a7c4e6e1c3bc6e0c9db34054eb06d25c1b4f7246c554"
   name = "golang.org/x/sys"
   packages = ["unix"]
   pruneopts = "NUT"
-  revision = "12500544f89f9420afe9529ba8940bf72d294972"
+  revision = "d20716ef9d2f212c59fc1a9a976175a8e32691ed"
 
 [[projects]]
   digest = "1:e7071ed636b5422cc51c0e3a6cebc229d6c9fffc528814b519a980641422d619"
@@ -284,7 +284,7 @@
     "protobuf/field_mask",
   ]
   pruneopts = "NUT"
-  revision = "d1146b9035b912113a38af3b138eb2af567b2c67"
+  revision = "e7d98fc518a78c9f8b5ee77be7b0b317475d89e1"
 
 [[projects]]
   digest = "1:e9e1fac2a1cc58c85943af7b0ee67dffc51cf3895e44066df85b747e3cd7988e"
