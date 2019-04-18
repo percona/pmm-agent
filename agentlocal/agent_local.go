@@ -151,20 +151,20 @@ func (s *Server) Status(ctx context.Context, req *agentlocalpb.StatusRequest) (*
 
 	var user *url.Userinfo
 	switch {
-	case s.cfg.Password != "":
-		user = url.UserPassword(s.cfg.Username, s.cfg.Password)
-	case s.cfg.Username != "":
-		user = url.User(s.cfg.Username)
+	case s.cfg.Server.Password != "":
+		user = url.UserPassword(s.cfg.Server.Username, s.cfg.Server.Password)
+	case s.cfg.Server.Username != "":
+		user = url.User(s.cfg.Server.Username)
 	}
 	u := url.URL{
 		Scheme: "https",
 		User:   user,
-		Host:   s.cfg.Address,
+		Host:   s.cfg.Server.Address,
 		Path:   "/",
 	}
 	srvInfo := &agentlocalpb.ServerInfo{
 		Url:          u.String(),
-		InsecureTls:  s.cfg.InsecureTLS,
+		InsecureTls:  s.cfg.Server.InsecureTLS,
 		Version:      md.ServerVersion,
 		LastPingTime: nil, // TODO https://jira.percona.com/browse/PMM-3758
 		Latency:      nil, // TODO https://jira.percona.com/browse/PMM-3758

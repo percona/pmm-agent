@@ -103,7 +103,7 @@ func (c *Client) Run(ctx context.Context, localServer localServer) error {
 	if c.cfg.ID == "" {
 		missing = "Agent ID"
 	}
-	if c.cfg.Address == "" {
+	if c.cfg.Server.Address == "" {
 		missing = "PMM Server address"
 	}
 	if missing != "" {
@@ -266,10 +266,10 @@ type dialResult struct {
 
 // dial tries to connect to the server once.
 func dial(dialCtx context.Context, cfg *config.Config, l *logrus.Entry) *dialResult {
-	host, _, _ := net.SplitHostPort(cfg.Address)
+	host, _, _ := net.SplitHostPort(cfg.Server.Address)
 	tlsConfig := &tls.Config{
 		ServerName:         host,
-		InsecureSkipVerify: cfg.InsecureTLS, //nolint:gosec
+		InsecureSkipVerify: cfg.Server.InsecureTLS, //nolint:gosec
 	}
 	opts := []grpc.DialOption{
 		grpc.WithBlock(),
@@ -277,8 +277,15 @@ func dial(dialCtx context.Context, cfg *config.Config, l *logrus.Entry) *dialRes
 		grpc.WithTransportCredentials(credentials.NewTLS(tlsConfig)),
 	}
 
-	l.Infof("Connecting to %s ...", cfg.Address)
-	conn, err := grpc.DialContext(dialCtx, cfg.Address, opts...)
+	// FIXME https://jira.percona.com/browse/PMM-3867
+	// https://github.com/grpc/grpc-go/issues/106#issuecomment-246978683
+	// https://jbrandhorst.com/post/grpc-auth/
+	if cfg.Server.Username != "" {
+		l.Warn("FIXME: PMM Server username is currently ignored.")
+	}
+
+	l.Infof("Connecting to %s ...", cfg.Server.Address)
+	conn, err := grpc.DialContext(dialCtx, cfg.Server.Address, opts...)
 	if err != nil {
 		msg := err.Error()
 
@@ -287,10 +294,10 @@ func dial(dialCtx context.Context, cfg *config.Config, l *logrus.Entry) *dialRes
 			msg = "connection timeout"
 		}
 
-		l.Errorf("Failed to connect to %s: %s.", cfg.Address, msg)
+		l.Errorf("Failed to connect to %s: %s.", cfg.Server.Address, msg)
 		return nil
 	}
-	l.Infof("Connected to %s.", cfg.Address)
+	l.Infof("Connected to %s.", cfg.Server.Address)
 
 	streamCtx, streamCancel := context.WithCancel(context.Background())
 	teardown := func() {

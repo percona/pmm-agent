@@ -43,7 +43,9 @@ func TestClient(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 
 		cfg := &config.Config{
-			Address: "127.0.0.1:65000",
+			Server: config.Server{
+				Address: "127.0.0.1:65000",
+			},
 		}
 		client := New(cfg, nil)
 		cancel()
@@ -57,8 +59,10 @@ func TestClient(t *testing.T) {
 		defer cancel()
 
 		cfg := &config.Config{
-			ID:      "agent_id",
-			Address: "127.0.0.1:65000",
+			ID: "agent_id",
+			Server: config.Server{
+				Address: "127.0.0.1:65000",
+			},
 		}
 		client := New(cfg, nil)
 		err := client.Run(ctx, nil)

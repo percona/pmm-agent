@@ -46,14 +46,16 @@ func TestConfig(t *testing.T) {
 	t.Run("OnlyFlags", func(t *testing.T) {
 		actual, err := get([]string{
 			"--id=agent-id",
-			"--address=127.0.0.1:11111",
+			"--server-address=127.0.0.1:11111",
 		}, logrus.WithField("test", t.Name))
 		require.NoError(t, err)
 
 		expected := &Config{
 			ID:         "agent-id",
-			Address:    "127.0.0.1:11111",
 			ListenPort: 7777,
+			Server: Server{
+				Address: "127.0.0.1:11111",
+			},
 			Paths: Paths{
 				TempDir: os.TempDir(),
 			},
@@ -67,8 +69,10 @@ func TestConfig(t *testing.T) {
 
 	t.Run("OnlyConfig", func(t *testing.T) {
 		name := writeConfig(t, &Config{
-			ID:      "agent-id",
-			Address: "127.0.0.1:11111",
+			ID: "agent-id",
+			Server: Server{
+				Address: "127.0.0.1:11111",
+			},
 		})
 		defer removeConfig(t, name)
 
@@ -79,8 +83,10 @@ func TestConfig(t *testing.T) {
 
 		expected := &Config{
 			ID:         "agent-id",
-			Address:    "127.0.0.1:11111",
 			ListenPort: 7777,
+			Server: Server{
+				Address: "127.0.0.1:11111",
+			},
 			Paths: Paths{
 				TempDir: os.TempDir(),
 			},
@@ -94,8 +100,10 @@ func TestConfig(t *testing.T) {
 
 	t.Run("Mix", func(t *testing.T) {
 		name := writeConfig(t, &Config{
-			ID:      "config-id",
-			Address: "127.0.0.1:11111",
+			ID: "config-id",
+			Server: Server{
+				Address: "127.0.0.1:11111",
+			},
 		})
 		defer removeConfig(t, name)
 
@@ -108,9 +116,11 @@ func TestConfig(t *testing.T) {
 
 		expected := &Config{
 			ID:         "flag-id",
-			Address:    "127.0.0.1:11111",
 			ListenPort: 7777,
-			Debug:      true,
+			Server: Server{
+				Address: "127.0.0.1:11111",
+			},
+			Debug: true,
 			Paths: Paths{
 				TempDir: os.TempDir(),
 			},
