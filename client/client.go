@@ -136,12 +136,11 @@ func (c *Client) Run(ctx context.Context, localServer localServer) error {
 	}
 
 	defer func() {
-		switch err := dialResult.conn.Close(); err {
-		case nil:
-			c.l.Info("Connection closed.")
-		default:
+		if err := dialResult.conn.Close(); err != nil {
 			c.l.Errorf("Connection closed: %s.", err)
+			return
 		}
+		c.l.Info("Connection closed.")
 	}()
 
 	c.rw.Lock()
@@ -251,9 +250,11 @@ func (c *Client) processChannelRequests() {
 		c.channel.SendResponse(agentMessage)
 	}
 
-	err := c.channel.Wait()
-	c.l.Error(err)
-	return
+	if err := c.channel.Wait(); err != nil {
+		c.l.Debugf("Channel closed: %s.", err)
+		return
+	}
+	c.l.Debug("Channel closed.")
 }
 
 type dialResult struct {
@@ -294,12 +295,11 @@ func dial(dialCtx context.Context, cfg *config.Config, l *logrus.Entry) *dialRes
 	streamCtx, streamCancel := context.WithCancel(context.Background())
 	teardown := func() {
 		streamCancel()
-		err = conn.Close()
-		if err == nil {
-			l.Debugf("Connection closed.")
-		} else {
-			l.Debugf("Connection closed with %s.", err)
+		if err = conn.Close(); err != nil {
+			l.Debugf("Connection closed: %s.", err)
+			return
 		}
+		l.Debugf("Connection closed.")
 	}
 
 	l.Info("Establishing two-way communication channel ...")

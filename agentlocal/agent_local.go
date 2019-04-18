@@ -65,35 +65,45 @@ const (
 	shutdownTimeout = 1 * time.Second
 )
 
+// ErrReload is returned from Service.Run after request to reload configuration.
 var ErrReload = errors.New("reload")
 
-// Server represents local agent API server.
+// Server represents local pmm-agent API server.
 type Server struct {
 	cfg        *config.Config
 	supervisor supervisor
 
-	l             *logrus.Entry
-	done          chan struct{}
-	doneCloseOnce sync.Once
+	l               *logrus.Entry
+	reload          chan struct{}
+	reloadCloseOnce sync.Once
 
 	rw                  sync.RWMutex
 	agentServerMetadata agentpb.AgentServerMetadata
 }
 
+// NewServer creates new server.
+//
+// Caller should call Run.
 func NewServer(cfg *config.Config, supervisor supervisor) *Server {
 	return &Server{
 		cfg:        cfg,
 		supervisor: supervisor,
 		l:          logrus.WithField("component", "local-server"),
-		done:       make(chan struct{}),
+		reload:     make(chan struct{}),
 	}
 }
 
+// Run runs gRPC and JSON servers with API and debug endpoints until ctx is canceled.
+//
+// Run exits when ctx is canceled, or when a request to reload configuration is received.
+// In the latter case, the returned error is ErrReload.
 func (s *Server) Run(ctx context.Context, client client) error {
 	defer s.l.Info("Done.")
 
 	serverCtx, serverCancel := context.WithCancel(ctx)
 
+	// Get random free port for gRPC server.
+	// If we can't get once, panic since everything is seriously broken.
 	l, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		s.l.Panic(err)
@@ -118,7 +128,7 @@ func (s *Server) Run(ctx context.Context, client client) error {
 	select {
 	case <-ctx.Done():
 		res = ctx.Err()
-	case <-s.done:
+	case <-s.reload:
 		res = ErrReload
 	}
 	serverCancel()
@@ -126,13 +136,14 @@ func (s *Server) Run(ctx context.Context, client client) error {
 	return res
 }
 
+// SetAgentServerMetadata is called by client.Client to set server's metadata.
 func (s *Server) SetAgentServerMetadata(md agentpb.AgentServerMetadata) {
 	s.rw.Lock()
 	s.agentServerMetadata = md
 	s.rw.Unlock()
 }
 
-// Status returns local agent status.
+// Status returns current pmm-agent status.
 func (s *Server) Status(ctx context.Context, req *agentlocalpb.StatusRequest) (*agentlocalpb.StatusResponse, error) {
 	s.rw.RLock()
 	md := s.agentServerMetadata
@@ -169,15 +180,18 @@ func (s *Server) Status(ctx context.Context, req *agentlocalpb.StatusRequest) (*
 	}, nil
 }
 
+// Reload reloads pmm-agent and it configuration.
 func (s *Server) Reload(ctx context.Context, req *agentlocalpb.ReloadRequest) (*agentlocalpb.ReloadResponse, error) {
 	_, err := config.Parse(s.l)
 	if err != nil {
 		return nil, status.Error(codes.FailedPrecondition, "Failed to reload configuration: "+err.Error())
 	}
 
-	s.doneCloseOnce.Do(func() {
-		close(s.done)
+	s.reloadCloseOnce.Do(func() {
+		close(s.reload)
 	})
+
+	// client may or may not receive this response due to server shutdown
 	return new(agentlocalpb.ReloadResponse), nil
 }
 
@@ -198,8 +212,7 @@ func (s *Server) runGRPCServer(ctx context.Context, address string) {
 	// run server until it is stopped gracefully or not
 	listener, err := net.Listen("tcp", address)
 	if err != nil {
-		l.Panic(err)
-		return
+		l.Panic(err) // we can't recover from that
 	}
 	go func() {
 		for {
@@ -207,7 +220,10 @@ func (s *Server) runGRPCServer(ctx context.Context, address string) {
 			if err == nil || err == grpc.ErrServerStopped {
 				break
 			}
+		}
+		if err != nil {
 			l.Errorf("Failed to serve: %s", err)
+			return
 		}
 		l.Debug("Server stopped.")
 	}()

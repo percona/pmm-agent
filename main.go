@@ -41,7 +41,7 @@ func main() {
 	}
 
 	l := logrus.WithField("component", "main")
-	ctx, cancel := context.WithCancel(context.Background())
+	appCtx, appCancel := context.WithCancel(context.Background())
 	defer l.Info("Done.")
 
 	// handle termination signals
@@ -51,11 +51,11 @@ func main() {
 		s := <-signals
 		signal.Stop(signals)
 		logrus.Warnf("Got %s, shutting down...", unix.SignalName(s.(unix.Signal)))
-		cancel()
+		appCancel()
 	}()
 
 	var grpclogOnce sync.Once
-	for ctx.Err() == nil {
+	for appCtx.Err() == nil {
 		cfg, err := config.Parse(logrus.WithField("component", "config"))
 		if err != nil {
 			logrus.Fatal(err)
@@ -71,25 +71,27 @@ func main() {
 			logrus.SetLevel(logrus.TraceLevel)
 			logrus.SetReportCaller(true)
 		}
+
+		// SetLoggerV2 is not threads safe, can be changed only once before any gRPC activity
 		grpclogOnce.Do(func() {
 			if cfg.Trace {
 				grpclog.SetLoggerV2(&logger.GRPC{Entry: logrus.WithField("component", "grpclog")})
 			}
 		})
 
-		for ctx.Err() == nil {
-			runCtx, runCancel := context.WithCancel(ctx)
-			supervisor := supervisor.NewSupervisor(runCtx, &cfg.Paths, &cfg.Ports)
+		for appCtx.Err() == nil {
+			ctx, cancel := context.WithCancel(appCtx)
+			supervisor := supervisor.NewSupervisor(ctx, &cfg.Paths, &cfg.Ports)
 			localServer := agentlocal.NewServer(cfg, supervisor)
 			client := client.New(cfg, supervisor)
 
 			go func() {
-				_ = client.Run(runCtx, localServer)
-				runCancel()
+				_ = client.Run(ctx, localServer)
+				cancel()
 			}()
 
-			err = localServer.Run(runCtx, client)
-			runCancel()
+			err = localServer.Run(ctx, client)
+			cancel()
 
 			<-client.Done()
 			if err == agentlocal.ErrReload {
