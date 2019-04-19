@@ -74,19 +74,46 @@ type Config struct {
 	Trace bool `yaml:"trace"`
 }
 
-// application returns kingpin application that parses all flags and environment variables into cfg
+func Get(l *logrus.Entry) (*Config, string, error) {
+	return get(os.Args[1:], l)
+}
+
+func get(args []string, l *logrus.Entry) (*Config, string, error) {
+	// parse flags and environment variables
+	cfg := new(Config)
+	app, configFileF := Application(cfg)
+	_, err := app.Parse(args)
+	if err != nil {
+		return nil, "", err
+	}
+
+	// if config file is given (it must exist), read and parse it, then re-parse flags into this configuration
+	if *configFileF != "" {
+		l.Debugf("Loading configuration file %s.", *configFileF)
+		if cfg, err = LoadFromFile(*configFileF); err != nil {
+			return nil, "", err
+		}
+		if cfg == nil {
+			return nil, "", fmt.Errorf("configuration file %q does not exist", *configFileF)
+		}
+		app, _ = Application(cfg)
+		if _, err = app.Parse(args); err != nil {
+			return nil, "", err
+		}
+	}
+
+	cfg.Paths.Lookup()
+	return cfg, *configFileF, nil
+}
+
+// Application returns kingpin application that parses all flags and environment variables into cfg
 // except --config-file that is returned separately.
-func application(cfg *Config) (*kingpin.Application, *string) {
+func Application(cfg *Config) (*kingpin.Application, *string) {
 	app := kingpin.New("pmm-agent", fmt.Sprintf("Version %s.", version.Version))
 	app.HelpFlag.Short('h')
 	app.Version(version.FullInfo())
 
-	// TODO move this away
-	app.Command("setup", "Not implemented yet.").Action(func(context *kingpin.ParseContext) error {
-		return fmt.Errorf("not implemented yet")
-	})
-	app.Command("run", "Run agent. Default command.").Default()
-
+	// this flags has to be optional and has empty default value for `pmm-agent setup`
 	configFileF := app.Flag("config-file", "Configuration file path. [PMM_AGENT_CONFIG_FILE]").
 		Envar("PMM_AGENT_CONFIG_FILE").PlaceHolder("</path/to/pmm-agent.yaml>").String()
 
@@ -129,43 +156,32 @@ func application(cfg *Config) (*kingpin.Application, *string) {
 	return app, configFileF
 }
 
-func readConfigFile(path string) (*Config, error) {
+// LoadFromFile loads configuration from file.
+// As a special case, if file does not exist, it returns (nil, nil).
+// Error is returned if file exists, but configuration can't be loaded due to permission problems,
+// YAML parsing problems, etc.
+func LoadFromFile(path string) (*Config, error) {
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		return nil, nil
+	}
 	b, err := ioutil.ReadFile(path) //nolint:gosec
 	if err != nil {
 		return nil, err
 	}
 
-	var cfg Config
-	err = yaml.Unmarshal(b, &cfg)
-	return &cfg, err
-}
-
-// Parse parses given command-line arguments and returns configuration.
-func Parse(l *logrus.Entry) (*Config, error) {
-	return get(os.Args[1:], l)
-}
-
-func get(args []string, l *logrus.Entry) (*Config, error) {
-	// parse flags and environment variables
 	cfg := new(Config)
-	app, configFileF := application(cfg)
-	_, err := app.Parse(args)
-	if err != nil {
+	if err = yaml.Unmarshal(b, cfg); err != nil {
 		return nil, err
 	}
-
-	// if config file is given, read and parse it, then re-parse flags into this configuration
-	if *configFileF != "" {
-		l.Infof("Loading configuration file %s.", *configFileF)
-		if cfg, err = readConfigFile(*configFileF); err != nil {
-			return nil, err
-		}
-		app, _ = application(cfg)
-		if _, err = app.Parse(args); err != nil {
-			return nil, err
-		}
-	}
-
-	cfg.Paths.Lookup()
 	return cfg, nil
+}
+
+// SaveToFile saves configuration to file.
+// No special cases.
+func SaveToFile(path string, cfg *Config) error {
+	b, err := yaml.Marshal(cfg)
+	if err != nil {
+		return err
+	}
+	return ioutil.WriteFile(path, b, 0640)
 }

@@ -17,21 +17,11 @@
 package main
 
 import (
-	"context"
-	"os"
-	"os/signal"
-	"sync"
-
 	"github.com/percona/pmm/version"
-	"github.com/sirupsen/logrus"
-	"golang.org/x/sys/unix"
-	"google.golang.org/grpc/grpclog"
+	"gopkg.in/alecthomas/kingpin.v2"
 
-	"github.com/percona/pmm-agent/agentlocal"
-	"github.com/percona/pmm-agent/agents/supervisor"
-	"github.com/percona/pmm-agent/client"
+	"github.com/percona/pmm-agent/commands"
 	"github.com/percona/pmm-agent/config"
-	"github.com/percona/pmm-agent/utils/logger"
 )
 
 func main() {
@@ -40,63 +30,23 @@ func main() {
 		panic("pmm-agent version is not set during build.")
 	}
 
-	l := logrus.WithField("component", "main")
-	appCtx, appCancel := context.WithCancel(context.Background())
-	defer l.Info("Done.")
+	// check that flags and environment variables are correct, parse command,
+	// ignore config file and actual configuration
+	app, _ := config.Application(new(config.Config))
+	setupCmd := app.Command("setup", "")
+	runCmd := app.Command("run", "Run agent. Default command.").Default()
+	kingpin.CommandLine = app
+	kingpin.HelpFlag = app.HelpFlag
+	kingpin.HelpCommand = app.HelpCommand
+	kingpin.VersionFlag = app.VersionFlag
 
-	// handle termination signals
-	signals := make(chan os.Signal, 1)
-	signal.Notify(signals, unix.SIGTERM, unix.SIGINT)
-	go func() {
-		s := <-signals
-		signal.Stop(signals)
-		logrus.Warnf("Got %s, shutting down...", unix.SignalName(s.(unix.Signal)))
-		appCancel()
-	}()
-
-	var grpclogOnce sync.Once
-	for appCtx.Err() == nil {
-		cfg, err := config.Parse(logrus.WithField("component", "config"))
-		if err != nil {
-			logrus.Fatal(err)
-		}
-		logrus.Debugf("Loaded configuration: %+v", cfg)
-
-		logrus.SetLevel(logrus.InfoLevel)
-		logrus.SetReportCaller(false)
-		if cfg.Debug {
-			logrus.SetLevel(logrus.DebugLevel)
-		}
-		if cfg.Trace {
-			logrus.SetLevel(logrus.TraceLevel)
-			logrus.SetReportCaller(true)
-		}
-
-		// SetLoggerV2 is not threads safe, can be changed only once before any gRPC activity
-		grpclogOnce.Do(func() {
-			if cfg.Trace {
-				grpclog.SetLoggerV2(&logger.GRPC{Entry: logrus.WithField("component", "grpclog")})
-			}
-		})
-
-		for appCtx.Err() == nil {
-			ctx, cancel := context.WithCancel(appCtx)
-			supervisor := supervisor.NewSupervisor(ctx, &cfg.Paths, &cfg.Ports)
-			localServer := agentlocal.NewServer(cfg, supervisor)
-			client := client.New(cfg, supervisor)
-
-			go func() {
-				_ = client.Run(ctx, localServer)
-				cancel()
-			}()
-
-			err = localServer.Run(ctx, client)
-			cancel()
-
-			<-client.Done()
-			if err == agentlocal.ErrReload {
-				break
-			}
-		}
+	switch cmd := kingpin.Parse(); cmd {
+	case setupCmd.FullCommand():
+		commands.Setup()
+	case runCmd.FullCommand():
+		commands.Run()
+	default:
+		// not reachable due to default kingpin's termination handler; keep it just in case
+		kingpin.Fatalf("Unexpected command %q.", cmd)
 	}
 }

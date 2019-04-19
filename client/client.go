@@ -56,12 +56,6 @@ type supervisor interface {
 	SetState(*agentpb.SetStateRequest)
 }
 
-// localServer is a subset of methods of agentlocal.Server used by this package.
-// We use it instead of real type for testing and to avoid dependency cycle.
-type localServer interface {
-	SetAgentServerMetadata(agentpb.AgentServerMetadata)
-}
-
 // Client represents pmm-agent's connection to nginx/pmm-managed.
 type Client struct {
 	cfg        *config.Config
@@ -72,6 +66,7 @@ type Client struct {
 	done    chan struct{}
 
 	rw      sync.RWMutex
+	md      *agentpb.AgentServerMetadata
 	channel *channel.Channel
 }
 
@@ -95,7 +90,7 @@ func New(cfg *config.Config, supervisor supervisor) *Client {
 // That Client instance can't be reused after that.
 //
 // Returned error is already logged and should be ignored. It is returned only for unit tests.
-func (c *Client) Run(ctx context.Context, localServer localServer) error {
+func (c *Client) Run(ctx context.Context) error {
 	c.l.Info("Starting...")
 
 	// do nothing until ctx is canceled if config misses critical info
@@ -144,10 +139,9 @@ func (c *Client) Run(ctx context.Context, localServer localServer) error {
 	}()
 
 	c.rw.Lock()
+	c.md = &dialResult.md
 	c.channel = dialResult.channel
 	c.rw.Unlock()
-
-	localServer.SetAgentServerMetadata(dialResult.md)
 
 	// Once the client is connected, ctx cancellation is ignored.
 	// We start two goroutines, and terminate the gRPC connection and exit Run when any of them exits:
@@ -260,8 +254,8 @@ func (c *Client) processChannelRequests() {
 type dialResult struct {
 	conn         *grpc.ClientConn
 	streamCancel context.CancelFunc
-	md           agentpb.AgentServerMetadata
 	channel      *channel.Channel
+	md           agentpb.AgentServerMetadata
 }
 
 // dial tries to connect to the server once.
@@ -363,7 +357,14 @@ func dial(dialCtx context.Context, cfg *config.Config, l *logrus.Entry) *dialRes
 		l.Warnf("Estimated clock drift: %s.", clockDrift)
 	}
 
-	return &dialResult{conn, streamCancel, md, channel}
+	return &dialResult{conn, streamCancel, channel, md}
+}
+
+func (c *Client) GetAgentServerMetadata() *agentpb.AgentServerMetadata {
+	c.rw.RLock()
+	md := c.md
+	c.rw.RUnlock()
+	return md
 }
 
 // Describe implements "unchecked" prometheus.Collector.
