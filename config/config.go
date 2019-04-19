@@ -84,6 +84,8 @@ type Ports struct {
 	Max uint16 `yaml:"max"`
 }
 
+// Setup contains `pmm-agent setup` flag values.
+// It is never stored in configuration file.
 type Setup struct {
 	Address       string
 	NodeType      string
@@ -112,6 +114,8 @@ type Config struct {
 	Setup Setup `yaml:"-"`
 }
 
+// ErrConfigFileDoesNotExist error is returned from Get method if configuration file is expected,
+// but does not exist.
 type ErrConfigFileDoesNotExist string
 
 func (e ErrConfigFileDoesNotExist) Error() string {

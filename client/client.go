@@ -360,6 +360,7 @@ func dial(dialCtx context.Context, cfg *config.Config, l *logrus.Entry) *dialRes
 	return &dialResult{conn, streamCancel, channel, md}
 }
 
+// GetAgentServerMetadata returns current server's metadata, or nil.
 func (c *Client) GetAgentServerMetadata() *agentpb.AgentServerMetadata {
 	c.rw.RLock()
 	md := c.md

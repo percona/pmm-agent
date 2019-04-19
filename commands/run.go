@@ -33,6 +33,7 @@ import (
 	"github.com/percona/pmm-agent/utils/logger"
 )
 
+// Run implements `pmm-agent run` default command.
 func Run() {
 	l := logrus.WithField("component", "main")
 	appCtx, appCancel := context.WithCancel(context.Background())

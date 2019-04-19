@@ -27,6 +27,7 @@ import (
 	"github.com/percona/pmm-agent/config"
 )
 
+// Setup implements `pmm-agent setup` command.
 func Setup() {
 	/*
 		Cases when this code breaks:

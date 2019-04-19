@@ -51,7 +51,7 @@ func TestLoadFromFile(t *testing.T) {
 
 	t.Run("NotExist", func(t *testing.T) {
 		cfg, err := loadFromFile("not-exist.yaml")
-		assert.Equal(t, ErrConfigFileDoesNotExist, err)
+		assert.Equal(t, ErrConfigFileDoesNotExist("not-exist.yaml"), err)
 		assert.Nil(t, cfg)
 	})
 
@@ -209,6 +209,6 @@ func TestGet(t *testing.T) {
 		}
 		assert.Equal(t, expected, actual)
 		assert.Equal(t, name, configFilePath)
-		assert.Equal(t, ErrConfigFileDoesNotExist, err)
+		assert.Equal(t, ErrConfigFileDoesNotExist(name), err)
 	})
 }

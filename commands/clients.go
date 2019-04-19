@@ -103,12 +103,12 @@ func setServerTransport(u *url.URL, insecureTLS bool, l *logrus.Entry) {
 	managementpb.Default.SetTransport(transport)
 }
 
-var nodeTypes = map[string]string{
-	"generic":   node.RegisterBodyNodeTypeGENERICNODE,
-	"container": node.RegisterBodyNodeTypeCONTAINERNODE,
-}
-
 func serverRegister(cfgSetup *config.Setup) (string, error) {
+	nodeTypes := map[string]string{
+		"generic":   node.RegisterBodyNodeTypeGENERICNODE,
+		"container": node.RegisterBodyNodeTypeCONTAINERNODE,
+	}
+
 	res, err := managementpb.Default.Node.Register(&node.RegisterParams{
 		Body: node.RegisterBody{
 			Address:       cfgSetup.Address,
