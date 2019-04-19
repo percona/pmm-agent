@@ -278,7 +278,7 @@
 
 [[projects]]
   branch = "PMM-2.0"
-  digest = "1:62f32c4745f6522da28a3a572fba214e1a097f75eb9562f2b73c094480ca704b"
+  digest = "1:454025161003d4dd4344339a60c962a14034c77a83e8a5bc93715eed857f6c01"
   name = "github.com/percona/pmm"
   packages = [
     "api/agentlocalpb",
@@ -286,11 +286,16 @@
     "api/agentlocalpb/json/client/agent_local",
     "api/agentpb",
     "api/inventorypb",
+    "api/managementpb/json/client",
+    "api/managementpb/json/client/my_sql",
+    "api/managementpb/json/client/node",
+    "api/managementpb/json/client/service",
     "api/qanpb",
+    "nodeinfo",
     "version",
   ]
   pruneopts = "NUT"
-  revision = "37d4537bb08aa9e17f7f91e482efef83acb3cb5f"
+  revision = "ad1c250d796a0b768120919693bbced2cb1447e9"
 
 [[projects]]
   digest = "1:14715f705ff5dfe0ffd6571d7d201dd8e921030f8070321a79380d8ca4ec1a24"
@@ -530,9 +535,13 @@
     "github.com/percona/exporter_shared/helpers",
     "github.com/percona/pmm/api/agentlocalpb",
     "github.com/percona/pmm/api/agentlocalpb/json/client",
+    "github.com/percona/pmm/api/agentlocalpb/json/client/agent_local",
     "github.com/percona/pmm/api/agentpb",
     "github.com/percona/pmm/api/inventorypb",
+    "github.com/percona/pmm/api/managementpb/json/client",
+    "github.com/percona/pmm/api/managementpb/json/client/node",
     "github.com/percona/pmm/api/qanpb",
+    "github.com/percona/pmm/nodeinfo",
     "github.com/percona/pmm/version",
     "github.com/pkg/errors",
     "github.com/prometheus/client_golang/prometheus",

@@ -50,20 +50,20 @@ func Run() {
 
 	var grpclogOnce sync.Once
 	for appCtx.Err() == nil {
-		cfg, configFilePath, err := config.Get(logrus.WithField("component", "config"))
+		cfg, configFilePath, err := config.Get(l)
 		if err != nil {
-			logrus.Fatal(err)
+			logrus.Fatalf("Failed to load configuration: %s.", err)
 		}
 		logrus.Debugf("Loaded configuration: %+v", cfg)
 
 		logrus.SetLevel(logrus.InfoLevel)
-		logrus.SetReportCaller(false)
+		logrus.SetReportCaller(false) // https://github.com/sirupsen/logrus/issues/954
 		if cfg.Debug {
 			logrus.SetLevel(logrus.DebugLevel)
 		}
 		if cfg.Trace {
 			logrus.SetLevel(logrus.TraceLevel)
-			logrus.SetReportCaller(true)
+			logrus.SetReportCaller(true) // https://github.com/sirupsen/logrus/issues/954
 		}
 
 		// SetLoggerV2 is not threads safe, can be changed only once before any gRPC activity

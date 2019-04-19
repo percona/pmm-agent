@@ -18,6 +18,7 @@ package main
 
 import (
 	"github.com/percona/pmm/version"
+	"github.com/sirupsen/logrus"
 	"gopkg.in/alecthomas/kingpin.v2"
 
 	"github.com/percona/pmm-agent/commands"
@@ -30,21 +31,31 @@ func main() {
 		panic("pmm-agent version is not set during build.")
 	}
 
-	// check that flags and environment variables are correct, parse command,
-	// ignore config file and actual configuration
-	app, _ := config.Application(new(config.Config))
-	setupCmd := app.Command("setup", "")
-	runCmd := app.Command("run", "Run agent. Default command.").Default()
+	// check that command-line flags and environment variables are correct,
+	// parse command, but do try not load config file
+	cfg := new(config.Config)
+	app, _ := config.Application(cfg)
 	kingpin.CommandLine = app
 	kingpin.HelpFlag = app.HelpFlag
 	kingpin.HelpCommand = app.HelpCommand
 	kingpin.VersionFlag = app.VersionFlag
+	cmd := kingpin.Parse()
 
-	switch cmd := kingpin.Parse(); cmd {
-	case setupCmd.FullCommand():
-		commands.Setup()
-	case runCmd.FullCommand():
+	// common logger settings for all commands
+	logrus.SetReportCaller(false) // https://github.com/sirupsen/logrus/issues/954
+	if cfg.Debug {
+		logrus.SetLevel(logrus.DebugLevel)
+	}
+	if cfg.Trace {
+		logrus.SetLevel(logrus.TraceLevel)
+		logrus.SetReportCaller(true) // https://github.com/sirupsen/logrus/issues/954
+	}
+
+	switch cmd {
+	case "run":
 		commands.Run()
+	case "setup":
+		commands.Setup()
 	default:
 		// not reachable due to default kingpin's termination handler; keep it just in case
 		kingpin.Fatalf("Unexpected command %q.", cmd)

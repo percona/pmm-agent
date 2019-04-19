@@ -44,14 +44,14 @@ func TestLoadFromFile(t *testing.T) {
 		name := writeConfig(t, &Config{ID: "agent-id"})
 		defer removeConfig(t, name)
 
-		cfg, err := LoadFromFile(name)
+		cfg, err := loadFromFile(name)
 		require.NoError(t, err)
 		assert.Equal(t, &Config{ID: "agent-id"}, cfg)
 	})
 
 	t.Run("NotExist", func(t *testing.T) {
-		cfg, err := LoadFromFile("not-exist.yaml")
-		assert.NoError(t, err)
+		cfg, err := loadFromFile("not-exist.yaml")
+		assert.Equal(t, ErrConfigFileDoesNotExist, err)
 		assert.Nil(t, cfg)
 	})
 
@@ -60,7 +60,7 @@ func TestLoadFromFile(t *testing.T) {
 		require.NoError(t, os.Chmod(name, 0000))
 		defer removeConfig(t, name)
 
-		cfg, err := LoadFromFile(name)
+		cfg, err := loadFromFile(name)
 		require.IsType(t, (*os.PathError)(nil), err)
 		assert.Equal(t, "open", err.(*os.PathError).Op)
 		assert.EqualError(t, err.(*os.PathError).Err, `permission denied`)
@@ -72,7 +72,7 @@ func TestLoadFromFile(t *testing.T) {
 		require.NoError(t, ioutil.WriteFile(name, []byte(`not YAML`), 0666))
 		defer removeConfig(t, name)
 
-		cfg, err := LoadFromFile(name)
+		cfg, err := loadFromFile(name)
 		require.IsType(t, (*yaml.TypeError)(nil), err)
 		assert.EqualError(t, err, "yaml: unmarshal errors:\n  line 1: cannot unmarshal !!str `not YAML` into config.Config")
 		assert.Nil(t, cfg)
@@ -94,7 +94,11 @@ func TestGet(t *testing.T) {
 				Address: "127.0.0.1:11111",
 			},
 			Paths: Paths{
-				TempDir: os.TempDir(),
+				NodeExporter:     "node_exporter",
+				MySQLdExporter:   "mysqld_exporter",
+				MongoDBExporter:  "mongodb_exporter",
+				PostgresExporter: "postgres_exporter",
+				TempDir:          os.TempDir(),
 			},
 			Ports: Ports{
 				Min: 32768,
@@ -126,7 +130,11 @@ func TestGet(t *testing.T) {
 				Address: "127.0.0.1:11111",
 			},
 			Paths: Paths{
-				TempDir: os.TempDir(),
+				NodeExporter:     "node_exporter",
+				MySQLdExporter:   "mysqld_exporter",
+				MongoDBExporter:  "mongodb_exporter",
+				PostgresExporter: "postgres_exporter",
+				TempDir:          os.TempDir(),
 			},
 			Ports: Ports{
 				Min: 32768,
@@ -159,25 +167,48 @@ func TestGet(t *testing.T) {
 			Server: Server{
 				Address: "127.0.0.1:11111",
 			},
-			Debug: true,
 			Paths: Paths{
-				TempDir: os.TempDir(),
+				NodeExporter:     "node_exporter",
+				MySQLdExporter:   "mysqld_exporter",
+				MongoDBExporter:  "mongodb_exporter",
+				PostgresExporter: "postgres_exporter",
+				TempDir:          os.TempDir(),
 			},
 			Ports: Ports{
 				Min: 32768,
 				Max: 60999,
 			},
+			Debug: true,
 		}
 		assert.Equal(t, expected, actual)
 		assert.Equal(t, name, configFilePath)
 	})
 
 	t.Run("NoFile", func(t *testing.T) {
-		_, _, err := get([]string{
-			"--config-file=not-exist.yaml",
+		name := t.Name()
+		actual, configFilePath, err := get([]string{
+			"--config-file=" + name,
 			"--id=flag-id",
 			"--debug",
 		}, logrus.WithField("test", t.Name))
-		assert.EqualError(t, err, `configuration file "not-exist.yaml" does not exist`)
+		expected := &Config{
+			ID:         "flag-id",
+			ListenPort: 7777,
+			Paths: Paths{
+				NodeExporter:     "node_exporter",
+				MySQLdExporter:   "mysqld_exporter",
+				MongoDBExporter:  "mongodb_exporter",
+				PostgresExporter: "postgres_exporter",
+				TempDir:          os.TempDir(),
+			},
+			Ports: Ports{
+				Min: 32768,
+				Max: 60999,
+			},
+			Debug: true,
+		}
+		assert.Equal(t, expected, actual)
+		assert.Equal(t, name, configFilePath)
+		assert.Equal(t, ErrConfigFileDoesNotExist, err)
 	})
 }

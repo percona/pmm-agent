@@ -20,21 +20,45 @@ package config
 import (
 	"fmt"
 	"io/ioutil"
+	"net/url"
 	"os"
 	"os/exec"
+	"strings"
 
+	"github.com/percona/pmm/nodeinfo"
 	"github.com/percona/pmm/version"
 	"github.com/sirupsen/logrus"
 	"gopkg.in/alecthomas/kingpin.v2"
 	"gopkg.in/yaml.v2"
 )
 
-// Server represents PMM Server configration.
+// Server represents PMM Server configuration.
 type Server struct {
 	Address     string `yaml:"address"`
 	Username    string `yaml:"username"`
 	Password    string `yaml:"password"`
 	InsecureTLS bool   `yaml:"insecure-tls"`
+}
+
+// URL returns base PMM Server URL for JSON APIs.
+func (s *Server) URL() *url.URL {
+	if s.Address == "" {
+		return nil
+	}
+
+	var user *url.Userinfo
+	switch {
+	case s.Password != "":
+		user = url.UserPassword(s.Username, s.Password)
+	case s.Username != "":
+		user = url.User(s.Username)
+	}
+	return &url.URL{
+		Scheme: "https",
+		User:   user,
+		Host:   s.Address,
+		Path:   "/",
+	}
 }
 
 // Paths represents binaries paths configuration.
@@ -46,8 +70,8 @@ type Paths struct {
 	TempDir          string `yaml:"tempdir"`
 }
 
-// Lookup replaces paths with absolute paths.
-func (p *Paths) Lookup() {
+// lookup replaces paths with absolute paths.
+func (p *Paths) lookup() {
 	p.NodeExporter, _ = exec.LookPath(p.NodeExporter)
 	p.MySQLdExporter, _ = exec.LookPath(p.MySQLdExporter)
 	p.MongoDBExporter, _ = exec.LookPath(p.MongoDBExporter)
@@ -60,9 +84,21 @@ type Ports struct {
 	Max uint16 `yaml:"max"`
 }
 
-// Config represents pmm-agent's static configuration.
+type Setup struct {
+	Address       string
+	NodeType      string
+	NodeName      string
+	Distro        string
+	MachineID     string
+	ContainerID   string
+	ContainerName string
+}
+
+// Config represents pmm-agent's configuration.
 //nolint:maligned
 type Config struct {
+	// no config file there
+
 	ID         string `yaml:"id"`
 	ListenPort uint16 `yaml:"listen-port"`
 
@@ -72,46 +108,67 @@ type Config struct {
 
 	Debug bool `yaml:"debug"`
 	Trace bool `yaml:"trace"`
+
+	Setup Setup `yaml:"-"`
 }
 
+type ErrConfigFileDoesNotExist string
+
+func (e ErrConfigFileDoesNotExist) Error() string {
+	return fmt.Sprintf("configuration file %s does not exist", string(e))
+}
+
+// Get parses command-line flags, environment variables and configuration file
+// (if --config-file/PMM_AGENT_CONFIG_FILE is defined).
+// It returns configuration, configuration file path (value of -config-file/PMM_AGENT_CONFIG_FILE, may be empty),
+// and any encountered error. That error may be ErrConfigFileDoesNotExist if configuration file path is not empty,
+// but file itself does not exist. Configuration from command-line flags and environment variables
+// is still returned in this case.
 func Get(l *logrus.Entry) (*Config, string, error) {
-	return get(os.Args[1:], l)
+	cfg, configFileF, err := get(os.Args[1:], l)
+	if cfg != nil {
+		cfg.Paths.lookup()
+	}
+	return cfg, configFileF, err
 }
 
+// get is Get for unit tests: parses args instead of command-line, and does not lookups paths.
 func get(args []string, l *logrus.Entry) (*Config, string, error) {
-	// parse flags and environment variables
+	// parse command-line flags and environment variables
 	cfg := new(Config)
 	app, configFileF := Application(cfg)
-	_, err := app.Parse(args)
+	if _, err := app.Parse(args); err != nil {
+		return nil, "", err
+	}
+	if *configFileF == "" {
+		return cfg, *configFileF, nil
+	}
+
+	l.Debugf("Loading configuration file %s.", *configFileF)
+	fileCfg, err := loadFromFile(*configFileF)
+	if _, ok := err.(ErrConfigFileDoesNotExist); ok {
+		return cfg, *configFileF, err
+	}
 	if err != nil {
 		return nil, "", err
 	}
 
-	// if config file is given (it must exist), read and parse it, then re-parse flags into this configuration
-	if *configFileF != "" {
-		l.Debugf("Loading configuration file %s.", *configFileF)
-		if cfg, err = LoadFromFile(*configFileF); err != nil {
-			return nil, "", err
-		}
-		if cfg == nil {
-			return nil, "", fmt.Errorf("configuration file %q does not exist", *configFileF)
-		}
-		app, _ = Application(cfg)
-		if _, err = app.Parse(args); err != nil {
-			return nil, "", err
-		}
+	// re-parse flags into configuration from file
+	app, _ = Application(fileCfg)
+	if _, err = app.Parse(args); err != nil {
+		return nil, "", err
 	}
-
-	cfg.Paths.Lookup()
-	return cfg, *configFileF, nil
+	return fileCfg, *configFileF, nil
 }
 
-// Application returns kingpin application that parses all flags and environment variables into cfg
-// except --config-file that is returned separately.
+// Application returns kingpin application that will parse command-line flags and environment variables
+// into cfg except --config-file/PMM_AGENT_CONFIG_FILE that is returned separately.
 func Application(cfg *Config) (*kingpin.Application, *string) {
 	app := kingpin.New("pmm-agent", fmt.Sprintf("Version %s.", version.Version))
 	app.HelpFlag.Short('h')
 	app.Version(version.FullInfo())
+
+	app.Command("run", "Run pmm-agent. Default command.").Default()
 
 	// this flags has to be optional and has empty default value for `pmm-agent setup`
 	configFileF := app.Flag("config-file", "Configuration file path. [PMM_AGENT_CONFIG_FILE]").
@@ -153,22 +210,49 @@ func Application(cfg *Config) (*kingpin.Application, *string) {
 	app.Flag("trace", "Enable trace output (implies debug). [PMM_AGENT_TRACE]").
 		Envar("PMM_AGENT_TRACE").BoolVar(&cfg.Trace)
 
+	setupCmd := app.Command("setup", "Configure local pmm-agent.")
+	nodeinfo := nodeinfo.Get()
+	hostname, _ := os.Hostname()
+
+	// setup args
+	if nodeinfo.PublicAddress == "" {
+		setupCmd.Arg("node-address", "Node address.").
+			Required().StringVar(&cfg.Setup.Address)
+	} else {
+		setupCmd.Arg("node-address", fmt.Sprintf("Node address. Default: %s (autodetected).", nodeinfo.PublicAddress)).
+			Default(nodeinfo.PublicAddress).StringVar(&cfg.Setup.Address)
+	}
+	nodeTypeKeys := []string{"generic", "container"}
+	nodeTypeDefault := nodeTypeKeys[0]
+	nodeTypeHelp := fmt.Sprintf("Node type, one of: %s. Default: %s.", strings.Join(nodeTypeKeys, ", "), nodeTypeDefault)
+	setupCmd.Arg("node-type", nodeTypeHelp).Default(nodeTypeDefault).EnumVar(&cfg.Setup.NodeType, nodeTypeKeys...)
+	setupCmd.Arg("node-name", fmt.Sprintf("Node name. Default: %s (autodetected).", hostname)).
+		Default(hostname).StringVar(&cfg.Setup.NodeName)
+
+	// setup flags
+	setupCmd.Flag("distro", fmt.Sprintf("Node OS distribution. Default: %s (autodetected).", nodeinfo.Distro)).
+		Default(nodeinfo.Distro).StringVar(&cfg.Setup.Distro)
+	setupCmd.Flag("machine-id", fmt.Sprintf("Node machine-id. Default: %s (autodetected).", nodeinfo.MachineID)).
+		Default(nodeinfo.MachineID).StringVar(&cfg.Setup.MachineID)
+	setupCmd.Flag("container-id", "Container ID.").StringVar(&cfg.Setup.ContainerID)
+	setupCmd.Flag("container-name", "Container name.").StringVar(&cfg.Setup.ContainerName)
+
 	return app, configFileF
 }
 
-// LoadFromFile loads configuration from file.
-// As a special case, if file does not exist, it returns (nil, nil).
-// Error is returned if file exists, but configuration can't be loaded due to permission problems,
+// loadFromFile loads configuration from file.
+// As a special case, if file does not exist, it returns ErrConfigFileDoesNotExist.
+// Other errors are returned if file exists, but configuration can't be loaded due to permission problems,
 // YAML parsing problems, etc.
-func LoadFromFile(path string) (*Config, error) {
+func loadFromFile(path string) (*Config, error) {
 	if _, err := os.Stat(path); os.IsNotExist(err) {
-		return nil, nil
+		return nil, ErrConfigFileDoesNotExist(path)
 	}
+
 	b, err := ioutil.ReadFile(path) //nolint:gosec
 	if err != nil {
 		return nil, err
 	}
-
 	cfg := new(Config)
 	if err = yaml.Unmarshal(b, cfg); err != nil {
 		return nil, err

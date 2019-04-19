@@ -26,7 +26,6 @@ import (
 	"net"
 	"net/http"
 	_ "net/http/pprof" // register /debug/pprof
-	"net/url"
 	"os"
 	"strings"
 	"sync"
@@ -147,26 +146,16 @@ func (s *Server) Status(ctx context.Context, req *agentlocalpb.StatusRequest) (*
 		md = new(agentpb.AgentServerMetadata)
 	}
 
-	var user *url.Userinfo
-	switch {
-	case s.cfg.Server.Password != "":
-		user = url.UserPassword(s.cfg.Server.Username, s.cfg.Server.Password)
-	case s.cfg.Server.Username != "":
-		user = url.User(s.cfg.Server.Username)
-	}
-	u := url.URL{
-		Scheme: "https",
-		User:   user,
-		Host:   s.cfg.Server.Address,
-		Path:   "/",
-	}
-	srvInfo := &agentlocalpb.ServerInfo{
-		Url:          u.String(),
-		InsecureTls:  s.cfg.Server.InsecureTLS,
-		Version:      md.ServerVersion,
-		LastPingTime: nil, // TODO https://jira.percona.com/browse/PMM-3758
-		Latency:      nil, // TODO https://jira.percona.com/browse/PMM-3758
-		Connected:    connected,
+	var serverInfo *agentlocalpb.ServerInfo
+	if u := s.cfg.Server.URL(); u != nil {
+		serverInfo = &agentlocalpb.ServerInfo{
+			Url:          u.String(),
+			InsecureTls:  s.cfg.Server.InsecureTLS,
+			Version:      md.ServerVersion,
+			LastPingTime: nil, // TODO https://jira.percona.com/browse/PMM-3758
+			Latency:      nil, // TODO https://jira.percona.com/browse/PMM-3758
+			Connected:    connected,
+		}
 	}
 
 	agentsInfo := s.supervisor.AgentsList()
@@ -174,7 +163,7 @@ func (s *Server) Status(ctx context.Context, req *agentlocalpb.StatusRequest) (*
 	return &agentlocalpb.StatusResponse{
 		AgentId:        s.cfg.ID,
 		RunsOnNodeId:   md.AgentRunsOnNodeID,
-		ServerInfo:     srvInfo,
+		ServerInfo:     serverInfo,
 		AgentsInfo:     agentsInfo,
 		ConfigFilePath: s.configFilePath,
 	}, nil
@@ -182,6 +171,8 @@ func (s *Server) Status(ctx context.Context, req *agentlocalpb.StatusRequest) (*
 
 // Reload reloads pmm-agent and it configuration.
 func (s *Server) Reload(ctx context.Context, req *agentlocalpb.ReloadRequest) (*agentlocalpb.ReloadResponse, error) {
+	// sync errors with setup command
+
 	_, _, err := config.Get(s.l)
 	if err != nil {
 		return nil, status.Error(codes.FailedPrecondition, "Failed to reload configuration: "+err.Error())

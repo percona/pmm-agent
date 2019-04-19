@@ -275,7 +275,7 @@ func dial(dialCtx context.Context, cfg *config.Config, l *logrus.Entry) *dialRes
 	// https://github.com/grpc/grpc-go/issues/106#issuecomment-246978683
 	// https://jbrandhorst.com/post/grpc-auth/
 	if cfg.Server.Username != "" {
-		l.Warn("FIXME: PMM Server username is currently ignored.")
+		logrus.Panic("PMM Server authentication is not implemented yet.")
 	}
 
 	l.Infof("Connecting to %s ...", cfg.Server.Address)
