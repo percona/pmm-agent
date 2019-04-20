@@ -273,8 +273,8 @@
   name = "github.com/percona/exporter_shared"
   packages = ["helpers"]
   pruneopts = "NUT"
-  revision = "9fef860598cb595f0f27ff3b5d515bbd7ed7d233"
-  version = "v0.2.1"
+  revision = "8986abb41c843706a15d64a3088c1aa39195c295"
+  version = "v0.2.2"
 
 [[projects]]
   branch = "PMM-2.0"
@@ -342,8 +342,8 @@
     "model",
   ]
   pruneopts = "NUT"
-  revision = "cfeb6f9992ffa54aaa4f2170ade4067ee478b250"
-  version = "v0.2.0"
+  revision = "a82f4c12f983cc2649298185f296632953e50d3e"
+  version = "v0.3.0"
 
 [[projects]]
   branch = "master"
@@ -386,15 +386,15 @@
     "trace",
   ]
   pruneopts = "NUT"
-  revision = "1da14a5a36f220ea3f03470682b737b1dfd5de22"
+  revision = "afa5a82059c6356159f699d81beff22a81842231"
 
 [[projects]]
   branch = "master"
-  digest = "1:eab2847aaaaf2869870b0c40a7e0e78f101cbdc86b596301284b327a71a5a57d"
+  digest = "1:f632c225ef300cb47bb7363bc1006ca57601af35f03b8fe41d03ed67b581c4fc"
   name = "golang.org/x/sys"
   packages = ["unix"]
   pruneopts = "NUT"
-  revision = "f0ce4c0180bef7e9c51babed693a6e47fdd8962f"
+  revision = "e8e3143a4f4a00f1fafef0dd82ba78223281b01b"
 
 [[projects]]
   digest = "1:e33513a825fcd765e97b5de639a2f7547542d1a8245df0cef18e1fd390b778a9"
@@ -442,7 +442,7 @@
   revision = "e7d98fc518a78c9f8b5ee77be7b0b317475d89e1"
 
 [[projects]]
-  digest = "1:e9e1fac2a1cc58c85943af7b0ee67dffc51cf3895e44066df85b747e3cd7988e"
+  digest = "1:1b8aa4536bdaa407eb67608be643900a731c8c1ac01205a9e2f6fb38e5a56204"
   name = "google.golang.org/grpc"
   packages = [
     ".",
@@ -483,8 +483,8 @@
     "tap",
   ]
   pruneopts = "NUT"
-  revision = "236199dd5f8031d698fb64091194aecd1c3895b2"
-  version = "v1.20.0"
+  revision = "25c4f928eaa6d96443009bd842389fb4fa48664e"
+  version = "v1.20.1"
 
 [[projects]]
   digest = "1:22b2dee6f30bc8601f087449a2a819df8388e54e9547349c658f14d8f8c590f2"
