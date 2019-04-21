@@ -293,7 +293,7 @@ func TestMySQL(t *testing.T) {
 		expected := &qanpb.MetricsBucket{
 			Fingerprint:         "SELECT `sleep` (?)",
 			DSchema:             "world",
-			AgentUuid:           "agent_id",
+			AgentId:             "agent_id",
 			PeriodStartUnixSecs: 1554116340,
 			PeriodLengthSecs:    60,
 			MetricsSource:       qanpb.MetricsSource_MYSQL_PERFSCHEMA,
@@ -308,7 +308,6 @@ func TestMySQL(t *testing.T) {
 		}
 		expected.Queryid = digests[expected.Fingerprint]
 		assertBucketsEqual(t, expected, actual)
-
 	})
 
 	t.Run("AllCities", func(t *testing.T) {
@@ -330,7 +329,7 @@ func TestMySQL(t *testing.T) {
 		expected := &qanpb.MetricsBucket{
 			Fingerprint:         "SELECT * FROM `city`",
 			DSchema:             "world",
-			AgentUuid:           "agent_id",
+			AgentId:             "agent_id",
 			PeriodStartUnixSecs: 1554116340,
 			PeriodLengthSecs:    60,
 			MetricsSource:       qanpb.MetricsSource_MYSQL_PERFSCHEMA,

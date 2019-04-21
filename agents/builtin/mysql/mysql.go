@@ -197,7 +197,7 @@ func (m *MySQL) getNewBuckets(periodStart time.Time, periodLength time.Duration)
 	lengthS := uint32(periodLength.Seconds())
 	history := m.historyCache.get()
 	for i, b := range buckets {
-		b.AgentUuid = m.agentID
+		b.AgentId = m.agentID
 		b.PeriodStartUnixSecs = startS
 		b.PeriodLengthSecs = lengthS
 
@@ -259,7 +259,7 @@ func makeBuckets(current, prev map[string]*eventsStatementsSummaryByDigest, l *l
 			NumQueries:             count,
 			NumQueriesWithErrors:   float32(currentESS.SumErrors - prevESS.SumErrors),
 			NumQueriesWithWarnings: float32(currentESS.SumWarnings - prevESS.SumWarnings),
-			MetricsSource:          qanpb.MetricsSource_MYSQL_PERFSCHEMA,
+			MetricsSource:          qanpb.MetricsSource_MYSQL_PERFSCHEMA, // TODO replace with agent_type
 		}
 
 		for _, p := range []struct {
