@@ -202,7 +202,7 @@ func setup(t *testing.T, db *reform.DB) *MySQL {
 	_, err = db.Exec("TRUNCATE performance_schema.events_statements_summary_by_digest")
 	require.NoError(t, err)
 
-	return newMySQL(db, logrus.WithField("test", t.Name()))
+	return newMySQL(db, "agent_id", logrus.WithField("test", t.Name()))
 }
 
 // filter removes buckets for queries that are not expected by tests.
@@ -293,6 +293,7 @@ func TestMySQL(t *testing.T) {
 		expected := &qanpb.MetricsBucket{
 			Fingerprint:         "SELECT `sleep` (?)",
 			DSchema:             "world",
+			AgentUuid:           "agent_id",
 			PeriodStartUnixSecs: 1554116340,
 			PeriodLengthSecs:    60,
 			MetricsSource:       qanpb.MetricsSource_MYSQL_PERFSCHEMA,
@@ -329,6 +330,7 @@ func TestMySQL(t *testing.T) {
 		expected := &qanpb.MetricsBucket{
 			Fingerprint:         "SELECT * FROM `city`",
 			DSchema:             "world",
+			AgentUuid:           "agent_id",
 			PeriodStartUnixSecs: 1554116340,
 			PeriodLengthSecs:    60,
 			MetricsSource:       qanpb.MetricsSource_MYSQL_PERFSCHEMA,
