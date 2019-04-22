@@ -27,7 +27,6 @@ import (
 
 	_ "github.com/go-sql-driver/mysql" // register SQL driver
 	"github.com/percona/go-mysql/event"
-	"github.com/percona/go-mysql/log"
 	slowlog "github.com/percona/go-mysql/log"
 	parser "github.com/percona/go-mysql/log/slow"
 	"github.com/percona/go-mysql/query"
@@ -39,24 +38,22 @@ import (
 )
 
 const (
-	queryInterval = time.Minute
-	// TODO: get some
-	agentUUID = "dc889ca7be92a66f0a00f616f69ffa7b"
+	querySummaries = time.Minute
 )
 
 // SlowLog extracts performance data from MySQL slow log.
 type SlowLog struct {
-	db               *reform.DB
-	l                *logrus.Entry
-	slowQueryLog     uint8
-	slowQueryLogFile string
-	changes          chan Change
-	aggregator       *event.Aggregator
+	db          *reform.DB
+	l           *logrus.Entry
+	outlierTime float32
+	agentID     string
+	changes     chan Change
 }
 
 // Params represent Agent parameters.
 type Params struct {
-	DSN string
+	DSN     string
+	AgentID string
 }
 
 // Change represents Agent status change _or_ QAN collect request.
@@ -75,127 +72,159 @@ func New(params *Params, l *logrus.Entry) (*SlowLog, error) {
 	sqlDB.SetMaxOpenConns(1)
 	sqlDB.SetConnMaxLifetime(0)
 	db := reform.NewDB(sqlDB, mysql.Dialect, reform.NewPrintfLogger(l.Tracef))
-	return newMySQL(db, l), nil
+	return newMySQL(db, l, params.AgentID), nil
 }
 
-func newMySQL(db *reform.DB, l *logrus.Entry) *SlowLog {
+func newMySQL(db *reform.DB, l *logrus.Entry, agentID string) *SlowLog {
 	return &SlowLog{
 		db:      db,
 		l:       l,
+		agentID: agentID,
 		changes: make(chan Change, 10),
 	}
 }
 
 // Run extracts performance data and sends it to the channel until ctx is canceled.
 func (m *SlowLog) Run(ctx context.Context) {
-	fmt.Println("\n\n ---- MY SLOW LOG RUN ---- \n\n")
 	defer func() {
 		m.db.DBInterface().(*sql.DB).Close() //nolint:errcheck
 		m.changes <- Change{Status: inventorypb.AgentStatus_DONE}
 		close(m.changes)
 	}()
 
-	row := m.db.QueryRow("SELECT @@slow_query_log")
-	if err := row.Scan(&m.slowQueryLog); err != nil {
-		m.l.Errorf("cannon select @@slow_query_log:%v", err)
-	}
-	if m.slowQueryLog != 1 {
-		m.l.Errorf("cannot parse slowlog: @@slow_query_log is off: %v", m.slowQueryLog)
-	}
-
-	row = m.db.QueryRow("SELECT @@slow_query_log_file")
-	if err := row.Scan(&m.slowQueryLogFile); err != nil {
-		m.l.Errorf("cannon select @@slow_query_log_file:%v", err)
-	}
-	if m.slowQueryLogFile == "" {
-		m.l.Errorf("cannot parse slowlog: @@slow_query_log_file is empty: %v", m.slowQueryLogFile)
-	}
-
-	m.l.Infof("@@slow_query_log: %v; @@slow_query_log_file: %v.", m.slowQueryLog, m.slowQueryLogFile)
-
-	file, err := os.Open(filepath.Clean(m.slowQueryLogFile))
+	slowLogFilePath, err := m.getSlowLogFilePath()
 	if err != nil {
-		m.l.Errorf("cannot open slowlog (%s): %v", m.slowQueryLogFile, err)
+		m.l.Errorf("cannot get getSlowLogFilePath: %v", err)
+		return
 	}
-	p := parser.NewSlowLogParser(file, slowlog.Options{})
-	go func() {
-		err = p.Start()
-		if err != nil {
-			m.l.Errorf("cannot start parser: %v", err)
-		}
-	}()
-	logEvent := p.EventChan()
+
+	fileSize := uint64(0)
+	stat, err := os.Stat(slowLogFilePath)
+	if err != nil {
+		m.l.Errorf("cannot get stat of slowlog (%s): %v", slowLogFilePath, err)
+		return
+	} else {
+		fileSize = uint64(stat.Size())
+	}
+
+	opts := slowlog.Options{
+		StartOffset: fileSize,
+		Debug:       false,
+		FilterAdminCommand: map[string]bool{
+			"Binlog Dump":      true,
+			"Binlog Dump GTID": true,
+		},
+	}
 
 	var running bool
 	m.changes <- Change{Status: inventorypb.AgentStatus_STARTING}
 
-	start := time.Now().Truncate(0) // strip monotoning clock reading
-	wait := start.Truncate(queryInterval).Add(queryInterval).Sub(start)
-	m.l.Debugf("Scheduling next collection in %s at %s.", wait, start.Add(wait))
-	t := time.NewTimer(wait)
-	defer t.Stop()
+	ticker := time.NewTicker(1 * querySummaries)
+
+	logEvent := parseSlowLog(slowLogFilePath, opts)
+	aggregator := event.NewAggregator(true, 0, 1)
 
 	for {
 		select {
 		case <-ctx.Done():
 			m.changes <- Change{Status: inventorypb.AgentStatus_STOPPING}
-			p.Stop()
 			m.l.Infof("Context canceled.")
 			return
-
-		case logEntry := <-logEvent:
+		case e := <-logEvent:
+			if e == nil {
+				continue
+			}
 			if !running {
 				m.changes <- Change{Status: inventorypb.AgentStatus_STARTING}
 			}
-
-			buckets, err := m.getNewBuckets(logEntry)
-
-			if err != nil {
-				m.l.Error(err)
-				running = false
-				m.changes <- Change{Status: inventorypb.AgentStatus_WAITING}
-				continue
-			}
-
+			m.l.Debugf("Parsed %v events in slowlog.\n", e)
+			fingerprint := query.Fingerprint(e.Query)
+			digest := query.Id(fingerprint)
+			opts.StartOffset = e.OffsetEnd
+			aggregator.AddEvent(e, digest, e.User, e.Host, e.Db, e.Server, fingerprint)
+		case <-ticker.C:
 			if !running {
 				running = true
 				m.changes <- Change{Status: inventorypb.AgentStatus_RUNNING}
 			}
+			m.l.Debugln("Aggregating slowlog events.")
+			res := aggregator.Finalize()
 
-			if len(buckets) == 0 {
+			// Check if MySQL SlowLog config is changed and slowlog rotated.
+			curStat, err := os.Stat(slowLogFilePath)
+			if err != nil {
+				m.l.Errorf("cannot get stat of slowlog (%s): %v", slowLogFilePath, err)
+				return
+			}
+			if !os.SameFile(stat, curStat) {
+				opts.StartOffset = uint64(curStat.Size())
+			}
+			// Prepare fresh parser and agregator for next iteration.
+			logEvent = parseSlowLog(slowLogFilePath, opts)
+			aggregator = event.NewAggregator(true, 0, 1)
+
+			buckets := makeBuckets(m.agentID, res, time.Now())
+			lenBuckets := len(buckets)
+			if lenBuckets == 0 {
 				continue
 			}
-
+			m.l.Debugf("Collected %d buckets.\n", lenBuckets)
 			m.changes <- Change{Request: &qanpb.CollectRequest{MetricsBucket: buckets}}
-
+		default:
+			running = false
+			m.changes <- Change{Status: inventorypb.AgentStatus_WAITING}
 		}
 	}
 }
 
-func (m *SlowLog) getNewBuckets(e *log.Event) ([]*qanpb.MetricsBucket, error) {
-	if m.aggregator == nil {
-		m.aggregator = event.NewAggregator(true, 0, 1)
+// getSlowLogFilePath get path to  MySQL slow log and check correct config.
+func (m *SlowLog) getSlowLogFilePath() (string, error) {
+	var isSlowQueryLogON int
+	row := m.db.QueryRow("SELECT @@slow_query_log")
+	if err := row.Scan(&isSlowQueryLogON); err != nil {
+		return "", fmt.Errorf("cannon select @@slow_query_log:%v", err)
 	}
-	fingerprint := query.Fingerprint(e.Query)
-	digest := query.Id(fingerprint)
-
-	m.aggregator.AddEvent(e, digest, e.User, e.Host, e.Db, e.Server, fingerprint)
-
-	// TODO: here we need to juggle with prev/next events
-	if e.Ts.Second() < 50 {
-		return []*qanpb.MetricsBucket{}, nil
+	if isSlowQueryLogON != 1 {
+		return "", fmt.Errorf("cannot parse slowlog: @@slow_query_log is off: %v", isSlowQueryLogON)
+	}
+	var slowLogFilePath string
+	row = m.db.QueryRow("SELECT @@slow_query_log_file")
+	if err := row.Scan(&slowLogFilePath); err != nil {
+		return "", fmt.Errorf("cannon select @@slow_query_log_file:%v", err)
+	}
+	if slowLogFilePath == "" {
+		return "", fmt.Errorf("cannot parse slowlog: @@slow_query_log_file is empty: %v", slowLogFilePath)
 	}
 
-	res := m.aggregator.Finalize()
-	m.aggregator = nil
+	row = m.db.QueryRow("SELECT @@slow_query_log_always_write_time")
+	if err := row.Scan(&m.outlierTime); err != nil {
+		return "", fmt.Errorf("cannon select @@slow_query_log_always_write_time:%v", err)
+	}
 
-	return makeBuckets(res, e.Ts)
+	m.l.Debugf("@@slow_query_log: %v; @@slow_query_log_file: %v.", isSlowQueryLogON, slowLogFilePath)
+	return filepath.Clean(slowLogFilePath), nil
+}
+
+// parseSlowLog create new slow log parser.
+func parseSlowLog(filename string, o slowlog.Options) <-chan *slowlog.Event {
+	file, err := os.Open(filename)
+	if err != nil {
+		fmt.Printf("cannot open slowlog:%v", err)
+	}
+	p := parser.NewSlowLogParser(file, o)
+	go func() {
+		err = p.Start()
+		if err != nil {
+			fmt.Printf("start error:%v", err)
+		}
+	}()
+	return p.EventChan()
 }
 
 // makeBuckets XXX.
 //
 // makeBuckets is a pure function for easier testing.
-func makeBuckets(res event.Result, ts time.Time) ([]*qanpb.MetricsBucket, error) {
+func makeBuckets(agentUUID string, res event.Result, ts time.Time) []*qanpb.MetricsBucket {
 	buckets := []*qanpb.MetricsBucket{}
 	for _, v := range res.Class {
 
@@ -433,7 +462,7 @@ func makeBuckets(res event.Result, ts time.Time) ([]*qanpb.MetricsBucket, error)
 		buckets = append(buckets, mb)
 	}
 
-	return buckets, nil
+	return buckets
 }
 
 // Changes returns channel that should be read until it is closed.
