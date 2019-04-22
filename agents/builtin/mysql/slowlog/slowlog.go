@@ -234,7 +234,6 @@ func makeBuckets(agentID string, res event.Result, ts time.Time) []*qanpb.Metric
 			DUsername:           v.User,
 			DClientHost:         v.Host,
 			ServiceName:         v.Server,
-			Labels:              listsToMap(v.LabelsKey, v.LabelsValue),
 			AgentId:             agentID,
 			MetricsSource:       qanpb.MetricsSource_MYSQL_SLOWLOG,
 			PeriodStartUnixSecs: uint32(ts.Truncate(1 * time.Minute).Unix()),
@@ -459,19 +458,10 @@ func makeBuckets(agentID string, res event.Result, ts time.Time) []*qanpb.Metric
 
 		buckets = append(buckets, mb)
 	}
-
 	return buckets
 }
 
 // Changes returns channel that should be read until it is closed.
 func (m *SlowLog) Changes() <-chan Change {
 	return m.changes
-}
-
-func listsToMap(k, v []string) map[string]string {
-	m := map[string]string{}
-	for i, e := range k {
-		m[e] = v[i]
-	}
-	return m
 }

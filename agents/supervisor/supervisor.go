@@ -422,13 +422,6 @@ func (s *Supervisor) startBuiltin(agentID string, builtinAgent *agentpb.SetState
 		go pprof.Do(ctx, pprof.Labels("agentID", agentID, "type", agentType), m.Run)
 
 		go func() {
-			defer func() {
-				// recover from panic caused by writing to a closed channel
-				if r := recover(); r != nil {
-					l.Errorf("error writing on channel: %v.\n", r)
-					return
-				}
-			}()
 			for change := range m.Changes() {
 				if change.Status != inventorypb.AgentStatus_AGENT_STATUS_INVALID {
 					s.changes <- agentpb.StateChangedRequest{
