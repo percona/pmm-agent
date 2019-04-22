@@ -43,11 +43,10 @@ const (
 
 // SlowLog extracts performance data from MySQL slow log.
 type SlowLog struct {
-	db          *reform.DB
-	l           *logrus.Entry
-	outlierTime float32
-	agentID     string
-	changes     chan Change
+	db      *reform.DB
+	agentID string
+	l       *logrus.Entry
+	changes chan Change
 }
 
 // Params represent Agent parameters.
@@ -72,14 +71,14 @@ func New(params *Params, l *logrus.Entry) (*SlowLog, error) {
 	sqlDB.SetMaxOpenConns(1)
 	sqlDB.SetConnMaxLifetime(0)
 	db := reform.NewDB(sqlDB, mysql.Dialect, reform.NewPrintfLogger(l.Tracef))
-	return newMySQL(db, l, params.AgentID), nil
+	return newMySQL(db, params.AgentID, l), nil
 }
 
-func newMySQL(db *reform.DB, l *logrus.Entry, agentID string) *SlowLog {
+func newMySQL(db *reform.DB, agentID string, l *logrus.Entry) *SlowLog {
 	return &SlowLog{
 		db:      db,
-		l:       l,
 		agentID: agentID,
+		l:       l,
 		changes: make(chan Change, 10),
 	}
 }
@@ -196,8 +195,9 @@ func (m *SlowLog) getSlowLogFilePath() (string, error) {
 		return "", fmt.Errorf("cannot parse slowlog: @@slow_query_log_file is empty: %v", slowLogFilePath)
 	}
 
+	var outlierTime float32
 	row = m.db.QueryRow("SELECT @@slow_query_log_always_write_time")
-	if err := row.Scan(&m.outlierTime); err != nil {
+	if err := row.Scan(&outlierTime); err != nil {
 		return "", fmt.Errorf("cannon select @@slow_query_log_always_write_time:%v", err)
 	}
 
@@ -221,10 +221,8 @@ func parseSlowLog(filename string, o slowlog.Options) <-chan *slowlog.Event {
 	return p.EventChan()
 }
 
-// makeBuckets XXX.
-//
 // makeBuckets is a pure function for easier testing.
-func makeBuckets(agentUUID string, res event.Result, ts time.Time) []*qanpb.MetricsBucket {
+func makeBuckets(agentID string, res event.Result, ts time.Time) []*qanpb.MetricsBucket {
 	buckets := []*qanpb.MetricsBucket{}
 	for _, v := range res.Class {
 
@@ -235,9 +233,9 @@ func makeBuckets(agentUUID string, res event.Result, ts time.Time) []*qanpb.Metr
 			DSchema:             v.Db,
 			DUsername:           v.User,
 			DClientHost:         v.Host,
-			DServer:             v.Server,
+			ServiceName:         v.Server,
 			Labels:              listsToMap(v.LabelsKey, v.LabelsValue),
-			AgentUuid:           agentUUID,
+			AgentId:             agentID,
 			MetricsSource:       qanpb.MetricsSource_MYSQL_SLOWLOG,
 			PeriodStartUnixSecs: uint32(ts.Truncate(1 * time.Minute).Unix()),
 			PeriodLengthSecs:    uint32(60),
