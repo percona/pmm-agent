@@ -38,6 +38,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 
+	"github.com/percona/pmm-agent/agents/builtin/mongo"
 	"github.com/percona/pmm-agent/agents/builtin/mysql"
 	"github.com/percona/pmm-agent/agents/builtin/noop"
 	"github.com/percona/pmm-agent/agents/process"
@@ -383,6 +384,36 @@ func (s *Supervisor) startBuiltin(agentID string, builtinAgent *agentpb.SetState
 			AgentID: agentID,
 		}
 		m, err := mysql.New(params, l)
+		if err != nil {
+			cancel()
+			return err
+		}
+
+		go pprof.Do(ctx, pprof.Labels("agentID", agentID, "type", agentType), m.Run)
+
+		go func() {
+			for change := range m.Changes() {
+				if change.Status != inventorypb.AgentStatus_AGENT_STATUS_INVALID {
+					s.changes <- agentpb.StateChangedRequest{
+						AgentId: agentID,
+						Status:  change.Status,
+					}
+					s.storeLastStatus(agentID, change.Status)
+				} else {
+					s.qanRequests <- agentpb.QANCollectRequest{
+						Message: change.Request,
+					}
+				}
+			}
+			close(done)
+		}()
+
+	case agentpb.Type_QAN_MONGODB_PROFILER_AGENT:
+		params := &mongo.Params{
+			DSN:     builtinAgent.Dsn,
+			AgentID: agentID,
+		}
+		m, err := mongo.New(params, l)
 		if err != nil {
 			cancel()
 			return err
