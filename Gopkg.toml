@@ -33,3 +33,7 @@ required = [
 [[constraint]]
   name = "go.mongodb.org/mongo-driver"
   version = "~1.0.0"
+
+[[constraint]]
+  name = "github.com/percona/go-mysql"
+  branch = "PMM-2.0"
