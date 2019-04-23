@@ -655,6 +655,7 @@
     "github.com/stretchr/testify/assert",
     "github.com/stretchr/testify/require",
     "go.mongodb.org/mongo-driver/mongo",
+    "go.mongodb.org/mongo-driver/mongo/options",
     "golang.org/x/sys/unix",
     "google.golang.org/grpc",
     "google.golang.org/grpc/channelz/service",
