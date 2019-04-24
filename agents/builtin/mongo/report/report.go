@@ -29,7 +29,7 @@ type Report struct {
 	Buckets []*qanpb.MetricsBucket // per-class metrics
 }
 
-// slowlog|perf schema --> Result --> qan.Report --> data.Spooler
+// mongodb-profiler --> Result --> qan.Report --> data.Spooler
 
 // Data for an interval from slow log or performance schema (pfs) parser,
 // passed to MakeReport() which transforms into a qan.Report{}.
