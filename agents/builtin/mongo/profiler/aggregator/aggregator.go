@@ -26,32 +26,22 @@ import (
 	mongostats "github.com/percona/percona-toolkit/src/go/mongolib/stats"
 	"github.com/percona/pmm/api/qanpb"
 
-	"github.com/percona/pmm-agent/agents/builtin/mongo/config"
 	"github.com/percona/pmm-agent/agents/builtin/mongo/report"
 	"github.com/percona/pmm-agent/agents/builtin/mongo/status"
 )
 
 const (
-	DefaultInterval       = 60 // in seconds
-	DefaultExampleQueries = true
-	ReportChanBuffer      = 1000
+	DefaultInterval  = 60 // in seconds
+	ReportChanBuffer = 1000
 )
 
 // New returns configured *Aggregator
-func New(timeStart time.Time, config config.QAN) *Aggregator {
-	defaultExampleQueries := DefaultExampleQueries
-	// verify config
-	if config.Interval == 0 {
-		config.Interval = DefaultInterval
-		config.ExampleQueries = &defaultExampleQueries
-	}
+func New(timeStart time.Time) *Aggregator {
 
-	aggregator := &Aggregator{
-		config: config,
-	}
+	aggregator := &Aggregator{}
 
 	// create duration from interval
-	aggregator.d = time.Duration(config.Interval) * time.Second
+	aggregator.d = time.Duration(DefaultInterval) * time.Second
 
 	// create mongolib stats
 	fp := fingerprinter.NewFingerprinter(fingerprinter.DEFAULT_KEY_FILTERS)
@@ -65,9 +55,6 @@ func New(timeStart time.Time, config config.QAN) *Aggregator {
 
 // Aggregator aggregates system.profile document
 type Aggregator struct {
-	// dependencies
-	config config.QAN
-
 	// status
 	status *status.Status
 	stats  *stats
@@ -229,7 +216,7 @@ func (a *Aggregator) interval(ts time.Time) *report.Report {
 	result := a.createResult()
 
 	// translate result into report and return it
-	return report.MakeReport(a.config, a.timeStart, a.timeEnd, result)
+	return report.MakeReport(a.timeStart, a.timeEnd, result)
 }
 
 // TimeStart returns start time for current interval
@@ -254,7 +241,7 @@ func (a *Aggregator) newInterval(ts time.Time) {
 
 func (a *Aggregator) createResult() *report.Result {
 	queries := a.mongostats.Queries()
-	queryStats := queries.CalcQueriesStats(int64(a.config.Interval))
+	queryStats := queries.CalcQueriesStats(int64(DefaultInterval))
 	buckets := []*qanpb.MetricsBucket{}
 
 	for _, queryInfo := range queryStats {

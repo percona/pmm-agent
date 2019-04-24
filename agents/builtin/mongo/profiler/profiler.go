@@ -26,18 +26,16 @@ import (
 	"github.com/sirupsen/logrus"
 	"gopkg.in/mgo.v2"
 
-	"github.com/percona/pmm-agent/agents/builtin/mongo/config"
 	"github.com/percona/pmm-agent/agents/builtin/mongo/profiler/aggregator"
 	"github.com/percona/pmm-agent/agents/builtin/mongo/profiler/sender"
 )
 
-func New(dialInfo *pmgo.DialInfo, dialer pmgo.Dialer, logger *logrus.Entry, spool sender.Spooler, config config.QAN) *profiler {
+func New(dialInfo *pmgo.DialInfo, dialer pmgo.Dialer, logger *logrus.Entry, spool sender.Spooler) *profiler {
 	return &profiler{
 		dialInfo: dialInfo,
 		dialer:   dialer,
 		logger:   logger,
 		spool:    spool,
-		config:   config,
 	}
 }
 
@@ -47,7 +45,6 @@ type profiler struct {
 	dialer   pmgo.Dialer
 	spool    sender.Spooler
 	logger   *logrus.Entry
-	config   config.QAN
 
 	// internal deps
 	monitors   *monitors
@@ -78,7 +75,7 @@ func (p *profiler) Start() error {
 	p.session = session
 
 	// create aggregator which collects documents and aggregates them into qan report
-	p.aggregator = aggregator.New(time.Now(), p.config)
+	p.aggregator = aggregator.New(time.Now())
 	reportChan := p.aggregator.Start()
 
 	// create sender which sends qan reports and start it

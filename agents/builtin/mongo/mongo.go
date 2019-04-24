@@ -20,15 +20,18 @@ package mongo
 import (
 	"context"
 
-	_ "github.com/go-sql-driver/mysql" // register SQL driver
 	"github.com/percona/pmgo"
 	"github.com/percona/pmm/api/inventorypb"
 	"github.com/percona/pmm/api/qanpb"
 	"github.com/sirupsen/logrus"
 
-	"github.com/percona/pmm-agent/agents/builtin/mongo/config"
 	"github.com/percona/pmm-agent/agents/builtin/mongo/profiler"
 	"github.com/percona/pmm-agent/agents/builtin/mongo/report"
+)
+
+const (
+	DefaultInterval       uint = 60 // 1 minute
+	DefaultExampleQueries      = true
 )
 
 // Mongo extracts performance data from Mongo op log.
@@ -40,7 +43,6 @@ type Mongo struct {
 	dialer   pmgo.Dialer
 
 	profiler Profiler
-	config   config.QAN
 }
 
 // Params represent Agent parameters.
@@ -55,7 +57,7 @@ type Change struct {
 	Request *qanpb.CollectRequest
 }
 
-// New creates new MySQL QAN service.
+// New creates new MongoDB QAN service.
 func New(params *Params, l *logrus.Entry) (*Mongo, error) {
 	// if dsn is incorrect we should exit immediately as this is not gonna correct itself
 	dialInfo, err := pmgo.ParseURL(params.DSN)
@@ -70,7 +72,6 @@ func newMongo(dialInfo *pmgo.DialInfo, l *logrus.Entry) *Mongo {
 	return &Mongo{
 		dialInfo: dialInfo,
 		dialer:   pmgo.NewDialer(),
-		config:   config.NewQAN(),
 
 		l:       l,
 		changes: make(chan Change, 10),
@@ -88,7 +89,7 @@ func (m *Mongo) Run(ctx context.Context) {
 
 	m.changes <- Change{Status: inventorypb.AgentStatus_STARTING}
 
-	m.profiler = profiler.New(m.dialInfo, m.dialer, m.l, m, m.config)
+	m.profiler = profiler.New(m.dialInfo, m.dialer, m.l, m)
 	if err := m.profiler.Start(); err != nil {
 		m.changes <- Change{Status: inventorypb.AgentStatus_STOPPING}
 		return
