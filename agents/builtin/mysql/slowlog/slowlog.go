@@ -126,7 +126,9 @@ func (m *SlowLog) Run(ctx context.Context) {
 	}
 	defer func() {
 		slowLogParser.Stop()
-		slowLogFileDescriptor.Close()
+		if err = slowLogFileDescriptor.Close(); err != nil {
+			m.l.Warn(err)
+		}
 	}()
 	logEvent := slowLogParser.EventChan()
 	aggregator := event.NewAggregator(true, 0, outlierTime)
@@ -168,7 +170,11 @@ func (m *SlowLog) Run(ctx context.Context) {
 			if !os.SameFile(stat, curStat) {
 				opts.StartOffset = uint64(curStat.Size())
 			}
-			// Prepare fresh parser and agregator for next iteration.
+			// Prepare fresh parser and aggregator for next iteration.
+			slowLogParser.Stop()
+			if err = slowLogFileDescriptor.Close(); err != nil {
+				m.l.Warn(err)
+			}
 			slowLogParser, slowLogFileDescriptor = parseSlowLog(slowLogFilePath, opts, m.l)
 			if slowLogParser == nil {
 				return
@@ -229,8 +235,6 @@ func parseSlowLog(filename string, o slowlog.Options, l *logrus.Entry) (*parser.
 		l.Errorf("Failed to open slowlog file %q: %s.", filename, err)
 		return nil, nil
 	}
-
-	// FIXME file never closed?
 
 	p := parser.NewSlowLogParser(file, o)
 	go func() {
