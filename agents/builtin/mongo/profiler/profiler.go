@@ -1,0 +1,232 @@
+package profiler
+
+import (
+	"fmt"
+	"strings"
+	"sync"
+	"time"
+
+	"github.com/percona/pmgo"
+	"github.com/sirupsen/logrus"
+
+	"github.com/percona/pmm-agent/agents/builtin/mongo/profiler/aggregator"
+	"github.com/percona/pmm-agent/agents/builtin/mongo/profiler/sender"
+	pc "github.com/percona/pmm-agent/agents/builtin/mongo/proto/config"
+)
+
+func New(
+	dialInfo *pmgo.DialInfo,
+	dialer pmgo.Dialer,
+	logger *logrus.Entry,
+	spool sender.Spooler,
+	config pc.QAN,
+) *profiler {
+	return &profiler{
+		dialInfo: dialInfo,
+		dialer:   dialer,
+		logger:   logger,
+		spool:    spool,
+		config:   config,
+	}
+}
+
+type profiler struct {
+	// dependencies
+	dialInfo *pmgo.DialInfo
+	dialer   pmgo.Dialer
+	spool    sender.Spooler
+	logger   *logrus.Entry
+	config   pc.QAN
+
+	// internal deps
+	monitors   *monitors
+	session    pmgo.SessionManager
+	aggregator *aggregator.Aggregator
+	sender     *sender.Sender
+
+	// state
+	sync.RWMutex                 // Lock() to protect internal consistency of the service
+	running      bool            // Is this service running?
+	doneChan     chan struct{}   // close(doneChan) to notify goroutines that they should shutdown
+	wg           *sync.WaitGroup // Wait() for goroutines to stop after being notified they should shutdown
+}
+
+// Start starts analyzer but doesn't wait until it exits
+func (p *profiler) Start() error {
+	p.Lock()
+	defer p.Unlock()
+	if p.running {
+		return nil
+	}
+
+	// create new session
+	session, err := createSession(p.dialInfo, p.dialer)
+	if err != nil {
+		return err
+	}
+	p.session = session
+
+	// create aggregator which collects documents and aggregates them into qan report
+	p.aggregator = aggregator.New(time.Now(), p.config)
+	reportChan := p.aggregator.Start()
+
+	// create sender which sends qan reports and start it
+	p.sender = sender.New(reportChan, p.spool, p.logger)
+	err = p.sender.Start()
+	if err != nil {
+		return err
+	}
+
+	f := func(session pmgo.SessionManager, dbName string) *monitor {
+		return NewMonitor(session, dbName, p.aggregator)
+	}
+
+	// create monitors service which we use to periodically scan server for new/removed databases
+	p.monitors = NewMonitors(session, f)
+
+	// create new channel over which
+	// we will tell goroutine it should close
+	p.doneChan = make(chan struct{})
+
+	// start a goroutine and Add() it to WaitGroup
+	// so we could later Wait() for it to finish
+	p.wg = &sync.WaitGroup{}
+	p.wg.Add(1)
+
+	// create ready sync.Cond so we could know when goroutine actually started getting data from db
+	ready := sync.NewCond(&sync.Mutex{})
+	ready.L.Lock()
+	defer ready.L.Unlock()
+
+	go start(
+		p.monitors,
+		p.wg,
+		p.doneChan,
+		ready,
+	)
+
+	// wait until we actually fetch data from db
+	ready.Wait()
+
+	p.running = true
+	return nil
+}
+
+// Status returns list of statuses
+func (p *profiler) Status() map[string]string {
+	p.RLock()
+	defer p.RUnlock()
+	if !p.running {
+		return nil
+	}
+
+	statuses := &sync.Map{}
+	monitors := p.monitors.GetAll()
+
+	wg := &sync.WaitGroup{}
+	wg.Add(len(monitors))
+	for dbName, m := range monitors {
+		go func(dbName string, m *monitor) {
+			defer wg.Done()
+			for k, v := range m.Status() {
+				key := fmt.Sprintf("%s-%s", k, dbName)
+				statuses.Store(key, v)
+			}
+		}(dbName, m)
+	}
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for k, v := range p.aggregator.Status() {
+			key := fmt.Sprintf("%s-%s", "aggregator", k)
+			statuses.Store(key, v)
+		}
+	}()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for k, v := range p.sender.Status() {
+			key := fmt.Sprintf("%s-%s", "sender", k)
+			statuses.Store(key, v)
+		}
+	}()
+
+	wg.Wait()
+
+	statusesMap := map[string]string{}
+	statuses.Range(func(key, value interface{}) bool {
+		statusesMap[key.(string)] = value.(string)
+		return true
+	})
+	statusesMap["servers"] = strings.Join(p.session.LiveServers(), ", ")
+	return statusesMap
+}
+
+// Stop stops running analyzer, waits until it stops
+func (p *profiler) Stop() error {
+	p.Lock()
+	defer p.Unlock()
+	if !p.running {
+		return nil
+	}
+
+	// notify goroutine to close
+	close(p.doneChan)
+
+	// wait for goroutine to exit
+	p.wg.Wait()
+
+	// stop aggregator; do it after goroutine is closed
+	p.aggregator.Stop()
+
+	// stop sender; do it after goroutine is closed
+	p.sender.Stop()
+
+	// close the session; do it after goroutine is closed
+	p.session.Close()
+
+	// set state to "not running"
+	p.running = false
+	return nil
+}
+
+func start(
+	monitors *monitors,
+	wg *sync.WaitGroup,
+	doneChan <-chan struct{},
+	ready *sync.Cond,
+) {
+	// signal WaitGroup when goroutine finished
+	defer wg.Done()
+
+	// stop all monitors
+	defer monitors.StopAll()
+
+	// monitor all databases
+	monitors.MonitorAll()
+
+	// signal we started monitoring
+	signalReady(ready)
+
+	// loop to periodically refresh monitors
+	for {
+		// check if we should shutdown
+		select {
+		case <-doneChan:
+			return
+		case <-time.After(1 * time.Minute):
+			// just continue after delay if not
+		}
+
+		// update monitors
+		monitors.MonitorAll()
+	}
+}
+
+func signalReady(ready *sync.Cond) {
+	ready.L.Lock()
+	defer ready.L.Unlock()
+	ready.Broadcast()
+}

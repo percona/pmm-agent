@@ -61,12 +61,28 @@
   version = "v1.0.0"
 
 [[projects]]
+  branch = "master"
+  digest = "1:e6e08ca7f9755f6473d609848f0a1978e0aa3643929670799bc277deef7e4757"
+  name = "github.com/bradfitz/slice"
+  packages = ["."]
+  pruneopts = "NUT"
+  revision = "2b758aa73013d2b1f11077aeca87ea042a1438bf"
+
+[[projects]]
   digest = "1:ffe9824d294da03b391f44e1ae8281281b4afc1bdaa9588c9097785e3af10cec"
   name = "github.com/davecgh/go-spew"
   packages = ["spew"]
   pruneopts = "NUT"
   revision = "8991bc29aa16c548c550c7ff78260e27b9ab7c73"
   version = "v1.1.1"
+
+[[projects]]
+  digest = "1:aa3ed0a71c4e66e4ae6486bf97a3f4cab28edc78df2e50c5ad01dc7d91604b88"
+  name = "github.com/fatih/structs"
+  packages = ["."]
+  pruneopts = "NUT"
+  revision = "4966fc68f5b7593aafa6cbbba2d65ec6e1416047"
+  version = "v1.1.0"
 
 [[projects]]
   branch = "master"
@@ -277,6 +293,14 @@
   version = "v1.1.2"
 
 [[projects]]
+  digest = "1:f52029594051cf22010ace6271566663aa0732d14871d2e4818dc92a4215051d"
+  name = "github.com/montanaflynn/stats"
+  packages = ["."]
+  pruneopts = "NUT"
+  revision = "63fbb2597b7a13043b453a4b819945badb8f8926"
+  version = "v0.5.0"
+
+[[projects]]
   branch = "master"
   digest = "1:a643872ee8f7077f6d8393590da1d364e3647bdc9bb3f6ac8427c30812c9f6cc"
   name = "github.com/mwitkow/go-proto-validators"
@@ -304,6 +328,27 @@
   ]
   pruneopts = "NUT"
   revision = "a7705a60b657bfd4b07854cf57ad4dbcb2920524"
+
+[[projects]]
+  digest = "1:6aafc91fcbce8e22bf69aa258d186850334f29c9b5be9cd74c09777ef178d8f1"
+  name = "github.com/percona/percona-toolkit"
+  packages = [
+    "src/go/mongolib/fingerprinter",
+    "src/go/mongolib/proto",
+    "src/go/mongolib/stats",
+    "src/go/mongolib/util",
+  ]
+  pruneopts = "NUT"
+  revision = "78a311b2b049a53a04a5c5b870378c8a576d9cf6"
+  version = "3.0.5"
+
+[[projects]]
+  branch = "master"
+  digest = "1:70ee03bf12ec45ae150c349a6e7c11b4abc45a552a2d240324328ddde134e2df"
+  name = "github.com/percona/pmgo"
+  packages = ["."]
+  pruneopts = "NUT"
+  revision = "497d06e28f910fbe26d5d60f59d36284a6901c6f"
 
 [[projects]]
   branch = "PMM-2.0"
@@ -458,6 +503,14 @@
 
 [[projects]]
   branch = "master"
+  digest = "1:87ccd3930fecd2fda7b482c7914f73f89c85c2f1854ef009d187f81362630c69"
+  name = "go4.org"
+  packages = ["reflectutil"]
+  pruneopts = "NUT"
+  revision = "94abd6928b1da39b1d757b60c93fb2419c409fa1"
+
+[[projects]]
+  branch = "master"
   digest = "1:f92f6956e4059f6a3efc14924d2dd58ba90da25cc57fe07ae3779ef2f5e0c5f2"
   name = "golang.org/x/crypto"
   packages = ["pbkdf2"]
@@ -595,6 +648,21 @@
   version = "v2.2.6"
 
 [[projects]]
+  branch = "v2"
+  digest = "1:19da70edbba5aa9b8081ad1b0a1c01d5b13fe1eb69a44bbe2dd3ab05cf41a636"
+  name = "gopkg.in/mgo.v2"
+  packages = [
+    ".",
+    "bson",
+    "dbtest",
+    "internal/json",
+    "internal/sasl",
+    "internal/scram",
+  ]
+  pruneopts = "NUT"
+  revision = "9856a29383ce1c59f308dd1cf0363a79b5bef6b5"
+
+[[projects]]
   digest = "1:2ed325d52993ed3487ff72c036bb5826a4cd0e0d8d145956c746bf32eb7afafb"
   name = "gopkg.in/reform.v1"
   packages = [
@@ -614,6 +682,14 @@
   version = "v1.3.3"
 
 [[projects]]
+  branch = "v2"
+  digest = "1:4a4a84807a00390f3b8dd9c5efeeef92345d06115baa2e7fbfad4d22f2486ca1"
+  name = "gopkg.in/tomb.v2"
+  packages = ["."]
+  pruneopts = "NUT"
+  revision = "d5d1b5820637886def9eef33e03a27a9f166942c"
+
+[[projects]]
   digest = "1:18108594151654e9e696b27b181b953f9a90b16bf14d253dd1b397b025a1487f"
   name = "gopkg.in/yaml.v2"
   packages = ["."]
@@ -627,6 +703,7 @@
   input-imports = [
     "github.com/AlekSi/pointer",
     "github.com/davecgh/go-spew/spew",
+    "github.com/fatih/structs",
     "github.com/go-openapi/runtime",
     "github.com/go-openapi/runtime/client",
     "github.com/go-sql-driver/mysql",
@@ -638,6 +715,10 @@
     "github.com/percona/go-mysql/log",
     "github.com/percona/go-mysql/log/slow",
     "github.com/percona/go-mysql/query",
+    "github.com/percona/percona-toolkit/src/go/mongolib/fingerprinter",
+    "github.com/percona/percona-toolkit/src/go/mongolib/proto",
+    "github.com/percona/percona-toolkit/src/go/mongolib/stats",
+    "github.com/percona/pmgo",
     "github.com/percona/pmm/api/agentlocalpb",
     "github.com/percona/pmm/api/agentlocalpb/json/client",
     "github.com/percona/pmm/api/agentlocalpb/json/client/agent_local",
@@ -665,6 +746,7 @@
     "google.golang.org/grpc/reflection",
     "google.golang.org/grpc/status",
     "gopkg.in/alecthomas/kingpin.v2",
+    "gopkg.in/mgo.v2/bson",
     "gopkg.in/reform.v1",
     "gopkg.in/reform.v1/dialects/mysql",
     "gopkg.in/reform.v1/parse",

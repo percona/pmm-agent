@@ -23,11 +23,15 @@ import (
 	"time"
 
 	_ "github.com/go-sql-driver/mysql" // register SQL driver
+	"github.com/percona/pmgo"
 	"github.com/percona/pmm/api/inventorypb"
 	"github.com/percona/pmm/api/qanpb"
 	"github.com/sirupsen/logrus"
-	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
+
+	"github.com/percona/pmm-agent/agents/builtin/mongo/profiler"
+	"github.com/percona/pmm-agent/agents/builtin/mongo/profiler/sender"
+	pc "github.com/percona/pmm-agent/agents/builtin/mongo/proto/config"
+	"github.com/percona/pmm-agent/agents/builtin/mongo/spooler"
 )
 
 const (
@@ -40,9 +44,15 @@ const (
 
 // Mongo extracts performance data from Mongo op log.
 type Mongo struct {
-	db      *mongo.Client
 	l       *logrus.Entry
 	changes chan Change
+
+	dialInfo *pmgo.DialInfo
+	dialer   pmgo.Dialer
+
+	profiler Profiler
+	config   pc.QAN
+	spooler  sender.Spooler
 }
 
 // Params represent Agent parameters.
@@ -59,35 +69,38 @@ type Change struct {
 
 // New creates new MySQL QAN service.
 func New(params *Params, l *logrus.Entry) (*Mongo, error) {
-	client, err := mongo.NewClient(options.Client().ApplyURI(params.DSN))
+	// if dsn is incorrect we should exit immediately as this is not gonna correct itself
+	dialInfo, err := pmgo.ParseURL(params.DSN)
 	if err != nil {
 		return nil, err
 	}
 
-	return newMongo(client, l), nil
+	return newMongo(dialInfo, l), nil
 }
 
-func newMongo(db *mongo.Client, l *logrus.Entry) *Mongo {
+func newMongo(dialInfo *pmgo.DialInfo, l *logrus.Entry) *Mongo {
 	return &Mongo{
-		db:      db,
-		l:       l,
-		changes: make(chan Change, 10),
+		dialInfo: dialInfo,
+		dialer:   pmgo.NewDialer(),
+		spooler:  spooler.New(),
+		l:        l,
+		changes:  make(chan Change, 10),
 	}
 }
 
 // Run extracts performance data and sends it to the channel until ctx is canceled.
 func (m *Mongo) Run(ctx context.Context) {
 	defer func() {
-		m.db.Disconnect(ctx) //nolint:errcheck
+		m.profiler.Stop() //nolint:errcheck
+		m.profiler = nil
 		m.changes <- Change{Status: inventorypb.AgentStatus_DONE}
 		close(m.changes)
 	}()
 
 	m.changes <- Change{Status: inventorypb.AgentStatus_STARTING}
 
-	err := m.db.Connect(ctx)
-	if err != nil {
-		m.l.Error(err)
+	m.profiler = profiler.New(m.dialInfo, m.dialer, m.l, m.spooler, m.config)
+	if err := m.profiler.Start(); err != nil {
 		m.changes <- Change{Status: inventorypb.AgentStatus_STOPPING}
 		return
 	}
@@ -117,4 +130,10 @@ func makeBuckets() ([]*qanpb.MetricsBucket, error) {
 // Changes returns channel that should be read until it is closed.
 func (m *Mongo) Changes() <-chan Change {
 	return m.changes
+}
+
+type Profiler interface {
+	Start() error
+	Stop() error
+	Status() map[string]string
 }
