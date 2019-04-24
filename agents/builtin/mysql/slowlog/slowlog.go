@@ -199,6 +199,8 @@ func (m *SlowLog) Run(ctx context.Context) {
 
 // getSlowLogFilePath get path to  MySQL slow log and check correct config.
 func (m *SlowLog) getSlowLogFilePath() (string, float64, error) {
+	// Only @@slow_query_log is required, the rest global variables selected here
+	// are optional and just help troubleshooting.
 	var isSlowQueryLogON int
 	row := m.db.QueryRow("SELECT @@slow_query_log")
 	if err := row.Scan(&isSlowQueryLogON); err != nil {
@@ -217,6 +219,7 @@ func (m *SlowLog) getSlowLogFilePath() (string, float64, error) {
 		return "", 0, errors.Errorf("cannot parse slowlog: @@slow_query_log_file is empty: %v", slowLogFilePath)
 	}
 
+	// Select @@slow_query_log_always_write_time if this version of MySQL has it.
 	var outlierTime float64
 	row = m.db.QueryRow("SELECT @@slow_query_log_always_write_time")
 	if err := row.Scan(&outlierTime); err != nil {
