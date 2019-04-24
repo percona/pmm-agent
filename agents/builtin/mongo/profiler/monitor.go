@@ -27,11 +27,7 @@ import (
 	"github.com/percona/pmm-agent/agents/builtin/mongo/profiler/parser"
 )
 
-func NewMonitor(
-	session pmgo.SessionManager,
-	dbName string,
-	aggregator *aggregator.Aggregator,
-) *monitor {
+func NewMonitor(session pmgo.SessionManager, dbName string, aggregator *aggregator.Aggregator) *monitor {
 	return &monitor{
 		session:    session,
 		dbName:     dbName,

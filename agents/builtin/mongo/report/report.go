@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-package qan
+package report
 
 import (
 	"sort"
@@ -22,7 +22,7 @@ import (
 
 	"github.com/percona/pmm/api/qanpb"
 
-	pc "github.com/percona/pmm-agent/agents/builtin/mongo/proto/config"
+	"github.com/percona/pmm-agent/agents/builtin/mongo/config"
 )
 
 type Report struct {
@@ -55,7 +55,7 @@ func (a ByQueryTime) Less(i, j int) bool {
 	return a[i].MQueryTimeSum > a[j].MQueryTimeSum
 }
 
-func MakeReport(config pc.QAN, startTime, endTime time.Time, result *Result) *Report {
+func MakeReport(config config.QAN, startTime, endTime time.Time, result *Result) *Report {
 	// Sort classes by Query_time_sum, descending.
 	sort.Sort(ByQueryTime(result.Buckets))
 

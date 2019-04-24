@@ -26,8 +26,8 @@ import (
 	mongostats "github.com/percona/percona-toolkit/src/go/mongolib/stats"
 	"github.com/percona/pmm/api/qanpb"
 
-	pc "github.com/percona/pmm-agent/agents/builtin/mongo/proto/config"
-	"github.com/percona/pmm-agent/agents/builtin/mongo/proto/qan"
+	"github.com/percona/pmm-agent/agents/builtin/mongo/config"
+	"github.com/percona/pmm-agent/agents/builtin/mongo/report"
 	"github.com/percona/pmm-agent/agents/builtin/mongo/status"
 )
 
@@ -38,7 +38,7 @@ const (
 )
 
 // New returns configured *Aggregator
-func New(timeStart time.Time, config pc.QAN) *Aggregator {
+func New(timeStart time.Time, config config.QAN) *Aggregator {
 	defaultExampleQueries := DefaultExampleQueries
 	// verify config
 	if config.Interval == 0 {
@@ -66,14 +66,14 @@ func New(timeStart time.Time, config pc.QAN) *Aggregator {
 // Aggregator aggregates system.profile document
 type Aggregator struct {
 	// dependencies
-	config pc.QAN
+	config config.QAN
 
 	// status
 	status *status.Status
 	stats  *stats
 
 	// provides
-	reportChan chan *qan.Report
+	reportChan chan *report.Report
 
 	// interval
 	timeStart  time.Time
@@ -118,7 +118,7 @@ func (a *Aggregator) Add(doc proto.SystemProfile) error {
 	return a.mongostats.Add(doc)
 }
 
-func (a *Aggregator) Start() <-chan *qan.Report {
+func (a *Aggregator) Start() <-chan *report.Report {
 	a.Lock()
 	defer a.Unlock()
 	if a.running {
@@ -127,7 +127,7 @@ func (a *Aggregator) Start() <-chan *qan.Report {
 
 	// create new channels over which we will communicate to...
 	// ... outside world by sending collected docs
-	a.reportChan = make(chan *qan.Report, ReportChanBuffer)
+	a.reportChan = make(chan *report.Report, ReportChanBuffer)
 	// ... inside goroutine to close it
 	a.doneChan = make(chan struct{})
 
@@ -142,12 +142,7 @@ func (a *Aggregator) Start() <-chan *qan.Report {
 	// so we could later Wait() for it to finish
 	a.wg = &sync.WaitGroup{}
 	a.wg.Add(1)
-	go start(
-		a.wg,
-		a,
-		a.doneChan,
-		a.stats,
-	)
+	go start(a.wg, a, a.doneChan, a.stats)
 
 	a.running = true
 	return a.reportChan
@@ -181,12 +176,7 @@ func (a *Aggregator) Status() map[string]string {
 	return a.status.Map()
 }
 
-func start(
-	wg *sync.WaitGroup,
-	aggregator *Aggregator,
-	doneChan <-chan struct{},
-	stats *stats,
-) {
+func start(wg *sync.WaitGroup, aggregator *Aggregator, doneChan <-chan struct{}, stats *stats) {
 	// signal WaitGroup when goroutine finished
 	defer wg.Done()
 
@@ -225,7 +215,7 @@ func (a *Aggregator) flush(ts time.Time) {
 }
 
 // interval sets interval if necessary and returns *qan.Report for old interval if not empty
-func (a *Aggregator) interval(ts time.Time) *qan.Report {
+func (a *Aggregator) interval(ts time.Time) *report.Report {
 	// create new interval
 	defer a.newInterval(ts)
 
@@ -239,7 +229,7 @@ func (a *Aggregator) interval(ts time.Time) *qan.Report {
 	result := a.createResult()
 
 	// translate result into report and return it
-	return qan.MakeReport(a.config, a.timeStart, a.timeEnd, result)
+	return report.MakeReport(a.config, a.timeStart, a.timeEnd, result)
 }
 
 // TimeStart returns start time for current interval
@@ -262,7 +252,7 @@ func (a *Aggregator) newInterval(ts time.Time) {
 	a.timeEnd = a.timeStart.Add(a.d)
 }
 
-func (a *Aggregator) createResult() *qan.Result {
+func (a *Aggregator) createResult() *report.Result {
 	queries := a.mongostats.Queries()
 	queryStats := queries.CalcQueriesStats(int64(a.config.Interval))
 	buckets := []*qanpb.MetricsBucket{}
@@ -297,7 +287,7 @@ func (a *Aggregator) createResult() *qan.Result {
 		buckets = append(buckets, bucket)
 	}
 
-	return &qan.Result{
+	return &report.Result{
 		Buckets: buckets,
 	}
 

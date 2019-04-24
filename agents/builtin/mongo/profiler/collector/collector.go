@@ -177,15 +177,7 @@ func (self *Collector) Name() string {
 	return "collector"
 }
 
-func start(
-	wg *sync.WaitGroup,
-	session pmgo.SessionManager,
-	dbName string,
-	docsChan chan<- proto.SystemProfile,
-	doneChan <-chan struct{},
-	stats *stats,
-	ready *sync.Cond,
-) {
+func start(wg *sync.WaitGroup, session pmgo.SessionManager, dbName string, docsChan chan<- proto.SystemProfile, doneChan <-chan struct{}, stats *stats, ready *sync.Cond) { //nolint: lll
 	// signal WaitGroup when goroutine finished
 	defer wg.Done()
 
@@ -218,14 +210,7 @@ func start(
 	}
 }
 
-func connectAndCollect(
-	session pmgo.SessionManager,
-	dbName string,
-	docsChan chan<- proto.SystemProfile,
-	doneChan <-chan struct{},
-	stats *stats,
-	ready *sync.Cond,
-) {
+func connectAndCollect(session pmgo.SessionManager, dbName string, docsChan chan<- proto.SystemProfile, doneChan <-chan struct{}, stats *stats, ready *sync.Cond) { //nolint: lll
 	session = session.Copy()
 	defer session.Close()
 

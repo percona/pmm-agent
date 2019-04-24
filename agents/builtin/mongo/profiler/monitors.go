@@ -30,15 +30,9 @@ const (
 	MgoTimeoutSessionSocket = 5 * time.Second
 )
 
-type newMonitor func(
-	session pmgo.SessionManager,
-	dbName string,
-) *monitor
+type newMonitor func(session pmgo.SessionManager, dbName string) *monitor
 
-func NewMonitors(
-	session pmgo.SessionManager,
-	newMonitor newMonitor,
-) *monitors {
+func NewMonitors(session pmgo.SessionManager, newMonitor newMonitor) *monitors {
 	return &monitors{
 		session:    session,
 		newMonitor: newMonitor,

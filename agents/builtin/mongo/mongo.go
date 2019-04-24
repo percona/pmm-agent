@@ -26,9 +26,9 @@ import (
 	"github.com/percona/pmm/api/qanpb"
 	"github.com/sirupsen/logrus"
 
+	"github.com/percona/pmm-agent/agents/builtin/mongo/config"
 	"github.com/percona/pmm-agent/agents/builtin/mongo/profiler"
-	pc "github.com/percona/pmm-agent/agents/builtin/mongo/proto/config"
-	"github.com/percona/pmm-agent/agents/builtin/mongo/proto/qan"
+	"github.com/percona/pmm-agent/agents/builtin/mongo/report"
 )
 
 // Mongo extracts performance data from Mongo op log.
@@ -40,7 +40,7 @@ type Mongo struct {
 	dialer   pmgo.Dialer
 
 	profiler Profiler
-	config   pc.QAN
+	config   config.QAN
 }
 
 // Params represent Agent parameters.
@@ -70,9 +70,10 @@ func newMongo(dialInfo *pmgo.DialInfo, l *logrus.Entry) *Mongo {
 	return &Mongo{
 		dialInfo: dialInfo,
 		dialer:   pmgo.NewDialer(),
-		l:        l,
-		changes:  make(chan Change, 10),
-		config:   pc.NewQAN(),
+		config:   config.NewQAN(),
+
+		l:       l,
+		changes: make(chan Change, 10),
 	}
 }
 
@@ -106,7 +107,7 @@ func (m *Mongo) Changes() <-chan Change {
 }
 
 // Write writes MetricsBuckets to pmm-managed
-func (m *Mongo) Write(r *qan.Report) error {
+func (m *Mongo) Write(r *report.Report) error {
 	m.changes <- Change{Request: &qanpb.CollectRequest{MetricsBucket: r.Buckets}}
 	return nil
 }

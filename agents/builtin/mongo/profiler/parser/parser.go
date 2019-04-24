@@ -26,10 +26,7 @@ import (
 	"github.com/percona/pmm-agent/agents/builtin/mongo/status"
 )
 
-func New(
-	docsChan <-chan proto.SystemProfile,
-	aggregator *aggregator.Aggregator,
-) *Parser {
+func New(docsChan <-chan proto.SystemProfile, aggregator *aggregator.Aggregator) *Parser {
 	return &Parser{
 		docsChan:   docsChan,
 		aggregator: aggregator,
@@ -114,13 +111,7 @@ func (self *Parser) Name() string {
 	return "parser"
 }
 
-func start(
-	wg *sync.WaitGroup,
-	docsChan <-chan proto.SystemProfile,
-	aggregator *aggregator.Aggregator,
-	doneChan <-chan struct{},
-	stats *stats,
-) {
+func start(wg *sync.WaitGroup, docsChan <-chan proto.SystemProfile, aggregator *aggregator.Aggregator, doneChan <-chan struct{}, stats *stats) {
 	// signal WaitGroup when goroutine finished
 	defer wg.Done()
 

@@ -24,19 +24,14 @@ import (
 
 	"github.com/percona/pmgo"
 	"github.com/sirupsen/logrus"
+	"gopkg.in/mgo.v2"
 
+	"github.com/percona/pmm-agent/agents/builtin/mongo/config"
 	"github.com/percona/pmm-agent/agents/builtin/mongo/profiler/aggregator"
 	"github.com/percona/pmm-agent/agents/builtin/mongo/profiler/sender"
-	pc "github.com/percona/pmm-agent/agents/builtin/mongo/proto/config"
 )
 
-func New(
-	dialInfo *pmgo.DialInfo,
-	dialer pmgo.Dialer,
-	logger *logrus.Entry,
-	spool sender.Spooler,
-	config pc.QAN,
-) *profiler {
+func New(dialInfo *pmgo.DialInfo, dialer pmgo.Dialer, logger *logrus.Entry, spool sender.Spooler, config config.QAN) *profiler {
 	return &profiler{
 		dialInfo: dialInfo,
 		dialer:   dialer,
@@ -52,7 +47,7 @@ type profiler struct {
 	dialer   pmgo.Dialer
 	spool    sender.Spooler
 	logger   *logrus.Entry
-	config   pc.QAN
+	config   config.QAN
 
 	// internal deps
 	monitors   *monitors
@@ -114,12 +109,7 @@ func (p *profiler) Start() error {
 	ready.L.Lock()
 	defer ready.L.Unlock()
 
-	go start(
-		p.monitors,
-		p.wg,
-		p.doneChan,
-		ready,
-	)
+	go start(p.monitors, p.wg, p.doneChan, ready)
 
 	// wait until we actually fetch data from db
 	ready.Wait()
@@ -208,12 +198,7 @@ func (p *profiler) Stop() error {
 	return nil
 }
 
-func start(
-	monitors *monitors,
-	wg *sync.WaitGroup,
-	doneChan <-chan struct{},
-	ready *sync.Cond,
-) {
+func start(monitors *monitors, wg *sync.WaitGroup, doneChan <-chan struct{}, ready *sync.Cond) {
 	// signal WaitGroup when goroutine finished
 	defer wg.Done()
 
@@ -245,4 +230,19 @@ func signalReady(ready *sync.Cond) {
 	ready.L.Lock()
 	defer ready.L.Unlock()
 	ready.Broadcast()
+}
+
+func createSession(dialInfo *pmgo.DialInfo, dialer pmgo.Dialer) (pmgo.SessionManager, error) {
+	dialInfo.Timeout = MgoTimeoutDialInfo
+	// Disable automatic replicaSet detection, connect directly to specified server
+	dialInfo.Direct = true
+	session, err := dialer.DialWithInfo(dialInfo)
+	if err != nil {
+		return nil, err
+	}
+	session.SetMode(mgo.Eventual, true)
+	session.SetSyncTimeout(MgoTimeoutSessionSync)
+	session.SetSocketTimeout(MgoTimeoutSessionSocket)
+
+	return session, nil
 }
