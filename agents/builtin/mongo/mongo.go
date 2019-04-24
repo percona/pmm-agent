@@ -36,6 +36,7 @@ const (
 
 // Mongo extracts performance data from Mongo op log.
 type Mongo struct {
+	agentID string
 	l       *logrus.Entry
 	changes chan Change
 
@@ -65,11 +66,12 @@ func New(params *Params, l *logrus.Entry) (*Mongo, error) {
 		return nil, err
 	}
 
-	return newMongo(dialInfo, l), nil
+	return newMongo(dialInfo, l, params), nil
 }
 
-func newMongo(dialInfo *pmgo.DialInfo, l *logrus.Entry) *Mongo {
+func newMongo(dialInfo *pmgo.DialInfo, l *logrus.Entry, params *Params) *Mongo {
 	return &Mongo{
+		agentID:  params.AgentID,
 		dialInfo: dialInfo,
 		dialer:   pmgo.NewDialer(),
 
@@ -89,7 +91,7 @@ func (m *Mongo) Run(ctx context.Context) {
 
 	m.changes <- Change{Status: inventorypb.AgentStatus_STARTING}
 
-	m.profiler = profiler.New(m.dialInfo, m.dialer, m.l, m)
+	m.profiler = profiler.New(m.dialInfo, m.dialer, m.l, m, m.agentID)
 	if err := m.profiler.Start(); err != nil {
 		m.changes <- Change{Status: inventorypb.AgentStatus_STOPPING}
 		return

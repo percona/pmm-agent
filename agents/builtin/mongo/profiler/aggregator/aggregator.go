@@ -18,6 +18,7 @@ package aggregator
 
 import (
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -36,9 +37,11 @@ const (
 )
 
 // New returns configured *Aggregator
-func New(timeStart time.Time) *Aggregator {
+func New(timeStart time.Time, agentID string) *Aggregator {
 
-	aggregator := &Aggregator{}
+	aggregator := &Aggregator{
+		agentID: agentID,
+	}
 
 	// create duration from interval
 	aggregator.d = time.Duration(DefaultInterval) * time.Second
@@ -55,6 +58,8 @@ func New(timeStart time.Time) *Aggregator {
 
 // Aggregator aggregates system.profile document
 type Aggregator struct {
+	agentID string
+
 	// status
 	status *status.Status
 	stats  *stats
@@ -244,32 +249,51 @@ func (a *Aggregator) createResult() *report.Result {
 	queryStats := queries.CalcQueriesStats(int64(DefaultInterval))
 	buckets := []*qanpb.MetricsBucket{}
 
-	for _, queryInfo := range queryStats {
-		bucket := &qanpb.MetricsBucket{}
+	for _, v := range queryStats {
+		db := ""
+		schema := ""
+		s := strings.SplitN(v.Namespace, ".", 2)
+		if len(s) == 2 {
+			db = s[0]
+			schema = s[1]
+		}
+
 		// TODO: Add more metrics... (See: https://jira.percona.com/browse/PMM-3880)
+		bucket := &qanpb.MetricsBucket{
+			Queryid:             v.ID,
+			Fingerprint:         v.Fingerprint,
+			DDatabase:           db,
+			DSchema:             schema,
+			DUsername:           "",
+			DClientHost:         "",
+			ServiceName:         "",
+			AgentId:             a.agentID,
+			MetricsSource:       qanpb.MetricsSource_MONGODB_PROFILER,
+			PeriodStartUnixSecs: uint32(a.timeStart.Truncate(1 * time.Minute).Unix()),
+			PeriodLengthSecs:    uint32(DefaultInterval),
+			Example:             v.Query,
+			ExampleFormat:       1,
+			ExampleType:         1,
+			NumQueries:          float32(v.Count),
+		}
 
-		bucket.Queryid = queryInfo.ID
-		bucket.Fingerprint = queryInfo.Fingerprint
+		bucket.MDocsReturnedCnt = float32(v.Count) // TODO: Check is it right value
+		bucket.MDocsReturnedMax = float32(v.Returned.Max)
+		bucket.MDocsReturnedMin = float32(v.Returned.Min)
+		bucket.MDocsReturnedP99 = float32(v.Returned.Pct) // TODO: Replace to P99
+		bucket.MDocsReturnedSum = float32(v.Returned.Total)
 
-		bucket.NumQueries = float32(queryInfo.Count)
+		bucket.MDocsScannedCnt = float32(v.Count) // TODO: Check is it right value
+		bucket.MDocsScannedMax = float32(v.Scanned.Max)
+		bucket.MDocsScannedMin = float32(v.Scanned.Min)
+		bucket.MDocsScannedP99 = float32(v.Scanned.Pct) // TODO: Replace to P99
+		bucket.MDocsScannedSum = float32(v.Scanned.Total)
 
-		bucket.MDocsReturnedCnt = float32(queryInfo.Count)
-		bucket.MDocsReturnedMax = float32(queryInfo.Returned.Max)
-		bucket.MDocsReturnedMin = float32(queryInfo.Returned.Min)
-		bucket.MDocsReturnedP99 = float32(queryInfo.Returned.Pct) // TODO: Replace to P99
-		bucket.MDocsReturnedSum = float32(queryInfo.Returned.Total)
-
-		bucket.MDocsScannedCnt = float32(queryInfo.Count)
-		bucket.MDocsScannedMax = float32(queryInfo.Scanned.Max)
-		bucket.MDocsScannedMin = float32(queryInfo.Scanned.Min)
-		bucket.MDocsScannedP99 = float32(queryInfo.Scanned.Pct) // TODO: Replace to P99
-		bucket.MDocsScannedSum = float32(queryInfo.Scanned.Total)
-
-		bucket.MResponseLengthCnt = float32(queryInfo.Count)
-		bucket.MResponseLengthMax = float32(queryInfo.ResponseLength.Max)
-		bucket.MResponseLengthMin = float32(queryInfo.ResponseLength.Min)
-		bucket.MResponseLengthP99 = float32(queryInfo.ResponseLength.Pct) // TODO: Replace to P99
-		bucket.MResponseLengthSum = float32(queryInfo.ResponseLength.Total)
+		bucket.MResponseLengthCnt = float32(v.Count) // TODO: Check is it right value
+		bucket.MResponseLengthMax = float32(v.ResponseLength.Max)
+		bucket.MResponseLengthMin = float32(v.ResponseLength.Min)
+		bucket.MResponseLengthP99 = float32(v.ResponseLength.Pct) // TODO: Replace to P99
+		bucket.MResponseLengthSum = float32(v.ResponseLength.Total)
 
 		buckets = append(buckets, bucket)
 	}
