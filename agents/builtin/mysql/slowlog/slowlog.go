@@ -94,7 +94,7 @@ func (m *SlowLog) Run(ctx context.Context) {
 
 	m.changes <- Change{Status: inventorypb.AgentStatus_STARTING}
 
-	slowLogFilePath, err := m.getSlowLogFilePath()
+	slowLogFilePath, outlierTime, err := m.getSlowLogFilePath()
 	if err != nil {
 		m.l.Errorf("cannot get getSlowLogFilePath: %s", err)
 		return
@@ -120,11 +120,16 @@ func (m *SlowLog) Run(ctx context.Context) {
 
 	ticker := time.NewTicker(1 * querySummaries)
 
-	logEvent := parseSlowLog(slowLogFilePath, opts, m.l)
-	if logEvent == nil {
+	slowLogParser, slowLogFileDescriptor := parseSlowLog(slowLogFilePath, opts, m.l)
+	if slowLogParser == nil {
 		return
 	}
-	aggregator := event.NewAggregator(true, 0, 1)
+	defer func() {
+		slowLogParser.Stop()
+		slowLogFileDescriptor.Close()
+	}()
+	logEvent := slowLogParser.EventChan()
+	aggregator := event.NewAggregator(true, 0, outlierTime)
 
 	for {
 		select {
@@ -164,11 +169,12 @@ func (m *SlowLog) Run(ctx context.Context) {
 				opts.StartOffset = uint64(curStat.Size())
 			}
 			// Prepare fresh parser and agregator for next iteration.
-			logEvent = parseSlowLog(slowLogFilePath, opts, m.l)
-			if logEvent == nil {
+			slowLogParser, slowLogFileDescriptor = parseSlowLog(slowLogFilePath, opts, m.l)
+			if slowLogParser == nil {
 				return
 			}
-			aggregator = event.NewAggregator(true, 0, 1)
+			logEvent = slowLogParser.EventChan()
+			aggregator = event.NewAggregator(true, 0, outlierTime)
 
 			buckets := makeBuckets(m.agentID, res, time.Now())
 			lenBuckets := len(buckets)
@@ -186,40 +192,42 @@ func (m *SlowLog) Run(ctx context.Context) {
 }
 
 // getSlowLogFilePath get path to  MySQL slow log and check correct config.
-func (m *SlowLog) getSlowLogFilePath() (string, error) {
+func (m *SlowLog) getSlowLogFilePath() (string, float64, error) {
 	var isSlowQueryLogON int
+	var outlierTime float64
+	var slowLogFilePath string
+
 	row := m.db.QueryRow("SELECT @@slow_query_log")
 	if err := row.Scan(&isSlowQueryLogON); err != nil {
-		return "", errors.Wrap(err, "cannon select @@slow_query_log")
+		m.l.Errorf("cannon select @@slow_query_log:%v", err)
 	}
 	if isSlowQueryLogON != 1 {
-		return "", errors.Errorf("cannot parse slowlog: @@slow_query_log is off: %v", isSlowQueryLogON)
-	}
-	var slowLogFilePath string
-	row = m.db.QueryRow("SELECT @@slow_query_log_file")
-	if err := row.Scan(&slowLogFilePath); err != nil {
-		return "", errors.Wrap(err, "cannon select @@slow_query_log_file")
-	}
-	if slowLogFilePath == "" {
-		return "", errors.Errorf("cannot parse slowlog: @@slow_query_log_file is empty: %v", slowLogFilePath)
+		m.l.Errorf("cannot parse slowlog: @@slow_query_log is off: %v\n", isSlowQueryLogON)
 	}
 
-	var outlierTime float32
+	row = m.db.QueryRow("SELECT @@slow_query_log_file")
+	if err := row.Scan(&slowLogFilePath); err != nil {
+		return "", outlierTime, errors.Wrap(err, "cannon select @@slow_query_log_file")
+	}
+	if slowLogFilePath == "" {
+		return "", outlierTime, errors.Errorf("cannot parse slowlog: @@slow_query_log_file is empty: %v", slowLogFilePath)
+	}
+
 	row = m.db.QueryRow("SELECT @@slow_query_log_always_write_time")
 	if err := row.Scan(&outlierTime); err != nil {
-		return "", errors.Wrap(err, "cannon select @@slow_query_log_always_write_time")
+		m.l.Infof("cannon select @@slow_query_log_always_write_time:%v\n", err)
 	}
 
 	m.l.Debugf("@@slow_query_log: %v; @@slow_query_log_file: %v.", isSlowQueryLogON, slowLogFilePath)
-	return filepath.Clean(slowLogFilePath), nil
+	return filepath.Clean(slowLogFilePath), outlierTime, nil
 }
 
 // parseSlowLog create new slow log parser.
-func parseSlowLog(filename string, o slowlog.Options, l *logrus.Entry) <-chan *slowlog.Event {
+func parseSlowLog(filename string, o slowlog.Options, l *logrus.Entry) (*parser.SlowLogParser, *os.File) {
 	file, err := os.Open(filename) //nolint:gosec
 	if err != nil {
 		l.Errorf("Failed to open slowlog file %q: %s.", filename, err)
-		return nil
+		return nil, nil
 	}
 
 	// FIXME file never closed?
@@ -230,7 +238,7 @@ func parseSlowLog(filename string, o slowlog.Options, l *logrus.Entry) <-chan *s
 			l.Errorf("Failed to start slowlog parser: %s.", err)
 		}
 	}()
-	return p.EventChan()
+	return p, file
 }
 
 // makeBuckets is a pure function for easier testing.
