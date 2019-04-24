@@ -164,7 +164,7 @@ func (m *SlowLog) Run(ctx context.Context) {
 			// Check if MySQL SlowLog config is changed and slowlog rotated.
 			curStat, err := os.Stat(slowLogFilePath)
 			if err != nil {
-				m.l.Errorf("cannot get stat of slowlog (%s): %v", slowLogFilePath, err)
+				m.l.Errorf("cannot get stat of slowlog (%s): %s", slowLogFilePath, err)
 				return
 			}
 			if !os.SameFile(stat, curStat) {
@@ -205,15 +205,15 @@ func (m *SlowLog) getSlowLogFilePath() (string, float64, error) {
 
 	row := m.db.QueryRow("SELECT @@slow_query_log")
 	if err := row.Scan(&isSlowQueryLogON); err != nil {
-		m.l.Errorf("cannon select @@slow_query_log:%v", err)
+		m.l.Errorf("cannot select @@slow_query_log: %s", err)
 	}
 	if isSlowQueryLogON != 1 {
-		m.l.Errorf("cannot parse slowlog: @@slow_query_log is off: %v\n", isSlowQueryLogON)
+		m.l.Errorf("cannot parse slowlog: @@slow_query_log is off: %v", isSlowQueryLogON)
 	}
 
 	row = m.db.QueryRow("SELECT @@slow_query_log_file")
 	if err := row.Scan(&slowLogFilePath); err != nil {
-		return "", outlierTime, errors.Wrap(err, "cannon select @@slow_query_log_file")
+		return "", outlierTime, errors.Wrap(err, "cannot select @@slow_query_log_file")
 	}
 	if slowLogFilePath == "" {
 		return "", outlierTime, errors.Errorf("cannot parse slowlog: @@slow_query_log_file is empty: %v", slowLogFilePath)
@@ -221,7 +221,7 @@ func (m *SlowLog) getSlowLogFilePath() (string, float64, error) {
 
 	row = m.db.QueryRow("SELECT @@slow_query_log_always_write_time")
 	if err := row.Scan(&outlierTime); err != nil {
-		m.l.Infof("cannon select @@slow_query_log_always_write_time:%v\n", err)
+		m.l.Infof("cannot select @@slow_query_log_always_write_time: %s", err)
 	}
 
 	m.l.Debugf("@@slow_query_log: %v; @@slow_query_log_file: %v.", isSlowQueryLogON, slowLogFilePath)
