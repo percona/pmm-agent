@@ -200,9 +200,6 @@ func (m *SlowLog) Run(ctx context.Context) {
 // getSlowLogFilePath get path to  MySQL slow log and check correct config.
 func (m *SlowLog) getSlowLogFilePath() (string, float64, error) {
 	var isSlowQueryLogON int
-	var outlierTime float64
-	var slowLogFilePath string
-
 	row := m.db.QueryRow("SELECT @@slow_query_log")
 	if err := row.Scan(&isSlowQueryLogON); err != nil {
 		m.l.Errorf("cannot select @@slow_query_log: %s", err)
@@ -211,17 +208,19 @@ func (m *SlowLog) getSlowLogFilePath() (string, float64, error) {
 		m.l.Errorf("cannot parse slowlog: @@slow_query_log is off: %v", isSlowQueryLogON)
 	}
 
+	var slowLogFilePath string
 	row = m.db.QueryRow("SELECT @@slow_query_log_file")
 	if err := row.Scan(&slowLogFilePath); err != nil {
-		return "", outlierTime, errors.Wrap(err, "cannot select @@slow_query_log_file")
+		return "", 0, errors.Wrap(err, "cannot select @@slow_query_log_file")
 	}
 	if slowLogFilePath == "" {
-		return "", outlierTime, errors.Errorf("cannot parse slowlog: @@slow_query_log_file is empty: %v", slowLogFilePath)
+		return "", 0, errors.Errorf("cannot parse slowlog: @@slow_query_log_file is empty: %v", slowLogFilePath)
 	}
 
+	var outlierTime float64
 	row = m.db.QueryRow("SELECT @@slow_query_log_always_write_time")
 	if err := row.Scan(&outlierTime); err != nil {
-		m.l.Infof("cannot select @@slow_query_log_always_write_time: %s", err)
+		m.l.Warnf("cannot select @@slow_query_log_always_write_time: %s", err)
 	}
 
 	m.l.Debugf("@@slow_query_log: %v; @@slow_query_log_file: %v.", isSlowQueryLogON, slowLogFilePath)
