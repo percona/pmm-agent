@@ -19,8 +19,6 @@ package mongo
 
 import (
 	"context"
-	"fmt"
-	"time"
 
 	_ "github.com/go-sql-driver/mysql" // register SQL driver
 	"github.com/percona/pmgo"
@@ -31,14 +29,6 @@ import (
 	"github.com/percona/pmm-agent/agents/builtin/mongo/profiler"
 	pc "github.com/percona/pmm-agent/agents/builtin/mongo/proto/config"
 	"github.com/percona/pmm-agent/agents/builtin/mongo/proto/qan"
-)
-
-const (
-	retainHistory  = 5 * time.Minute
-	refreshHistory = 5 * time.Second
-
-	retainSummaries = 25 * time.Hour // make it work for daily queries
-	querySummaries  = time.Minute
 )
 
 // Mongo extracts performance data from Mongo op log.
@@ -104,25 +94,10 @@ func (m *Mongo) Run(ctx context.Context) {
 	}
 
 	m.changes <- Change{Status: inventorypb.AgentStatus_RUNNING}
-	for {
-		select {
-		case <-ctx.Done():
-			m.changes <- Change{Status: inventorypb.AgentStatus_STOPPING}
-			return
-		}
-		// do some stuff
-	}
-}
 
-func (m *Mongo) getNewBuckets(periodStart time.Time, periodLength time.Duration) ([]*qanpb.MetricsBucket, error) {
-	return makeBuckets()
-}
-
-// makeBuckets XXX.
-//
-// makeBuckets is a pure function for easier testing.
-func makeBuckets() ([]*qanpb.MetricsBucket, error) {
-	return nil, fmt.Errorf("not implemented yet")
+	<-ctx.Done()
+	m.changes <- Change{Status: inventorypb.AgentStatus_STOPPING}
+	return
 }
 
 // Changes returns channel that should be read until it is closed.
