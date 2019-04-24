@@ -29,9 +29,8 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"github.com/percona/pmm-agent/agents/builtin/mongo/profiler"
-	"github.com/percona/pmm-agent/agents/builtin/mongo/profiler/sender"
 	pc "github.com/percona/pmm-agent/agents/builtin/mongo/proto/config"
-	"github.com/percona/pmm-agent/agents/builtin/mongo/spooler"
+	"github.com/percona/pmm-agent/agents/builtin/mongo/proto/qan"
 )
 
 const (
@@ -52,7 +51,6 @@ type Mongo struct {
 
 	profiler Profiler
 	config   pc.QAN
-	spooler  sender.Spooler
 }
 
 // Params represent Agent parameters.
@@ -82,9 +80,9 @@ func newMongo(dialInfo *pmgo.DialInfo, l *logrus.Entry) *Mongo {
 	return &Mongo{
 		dialInfo: dialInfo,
 		dialer:   pmgo.NewDialer(),
-		spooler:  spooler.New(),
 		l:        l,
 		changes:  make(chan Change, 10),
+		config:   pc.NewQAN(),
 	}
 }
 
@@ -99,7 +97,7 @@ func (m *Mongo) Run(ctx context.Context) {
 
 	m.changes <- Change{Status: inventorypb.AgentStatus_STARTING}
 
-	m.profiler = profiler.New(m.dialInfo, m.dialer, m.l, m.spooler, m.config)
+	m.profiler = profiler.New(m.dialInfo, m.dialer, m.l, m, m.config)
 	if err := m.profiler.Start(); err != nil {
 		m.changes <- Change{Status: inventorypb.AgentStatus_STOPPING}
 		return
@@ -130,6 +128,12 @@ func makeBuckets() ([]*qanpb.MetricsBucket, error) {
 // Changes returns channel that should be read until it is closed.
 func (m *Mongo) Changes() <-chan Change {
 	return m.changes
+}
+
+// Write writes MetricsBuckets to pmm-managed
+func (m *Mongo) Write(r *qan.Report) error {
+	m.changes <- Change{Request: &qanpb.CollectRequest{MetricsBucket: r.Buckets}}
+	return nil
 }
 
 type Profiler interface {

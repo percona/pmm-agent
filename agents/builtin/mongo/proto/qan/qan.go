@@ -1,102 +1,72 @@
-/*
-   Copyright (c) 2016, Percona LLC and/or its affiliates. All rights reserved.
-
-   This program is free software: you can redistribute it and/or modify
-   it under the terms of the GNU Affero General Public License as published by
-   the Free Software Foundation, either version 3 of the License, or
-   (at your option) any later version.
-
-   This program is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU Affero General Public License for more details.
-
-   You should have received a copy of the GNU Affero General Public License
-   along with this program.  If not, see <http://www.gnu.org/licenses/>
-*/
+// pmm-agent
+// Copyright (C) 2018 Percona LLC
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 package qan
 
 import (
+	"sort"
 	"time"
 
-	"github.com/percona/go-mysql/event"
+	"github.com/percona/pmm/api/qanpb"
 
-	"github.com/percona/pmm-agent/agents/builtin/mongo/proto/metrics"
-	"github.com/percona/pmm-agent/agents/builtin/mongo/proto/query"
+	pc "github.com/percona/pmm-agent/agents/builtin/mongo/proto/config"
 )
 
 type Report struct {
-	UUID    string         // UUID of MySQL instance
-	StartTs time.Time      // Start time of interval, UTC
-	EndTs   time.Time      // Stop time of interval, UTC
-	RunTime float64        // Time parsing data, seconds
-	Global  *event.Class   // Metrics for all data
-	Class   []*event.Class // per-class metrics
-	// slow log:
-	SlowLogFile     string `json:",omitempty"` // not slow_query_log_file if rotated
-	SlowLogFileSize int64  `json:",omitempty"`
-	StartOffset     int64  `json:",omitempty"` // parsing starts
-	EndOffset       int64  `json:",omitempty"` // parsing stops, but...
-	StopOffset      int64  `json:",omitempty"` // ...parsing didn't complete if stop < end
-	RateLimit       uint   `json:",omitempty"` // Percona Server rate limit
+	UUID    string                 // UUID of MySQL instance
+	StartTs time.Time              // Start time of interval, UTC
+	EndTs   time.Time              // Stop time of interval, UTC
+	RunTime float64                // Time parsing data, seconds
+	Buckets []*qanpb.MetricsBucket // per-class metrics
 }
 
-type Profile struct {
-	InstanceId   string      // UUID of MySQL instance
-	Begin        time.Time   // time range [Begin, End)
-	End          time.Time   // time range [Being, End)
-	TotalTime    uint        // total seconds in time range minus gaps (missing periods)
-	TotalQueries uint        // total unique class queries in time range
-	RankBy       RankBy      // criteria for ranking queries compared to global
-	Query        []QueryRank // 0=global, 1..N=queries
+// slowlog|perf schema --> Result --> qan.Report --> data.Spooler
+
+// Data for an interval from slow log or performance schema (pfs) parser,
+// passed to MakeReport() which transforms into a qan.Report{}.
+type Result struct {
+	Buckets    []*qanpb.MetricsBucket
+	RateLimit  uint    // Percona Server rate limit
+	RunTime    float64 // seconds parsing data, hopefully < interval
+	StopOffset int64   // slow log offset where parsing stopped, should be <= end offset
+	Error      string  `json:",omitempty"`
 }
 
-type RankBy struct {
-	Metric string // default: Query_time
-	Stat   string // default: sum
-	Limit  uint   // default: 10
+type ByQueryTime []*qanpb.MetricsBucket
+
+func (a ByQueryTime) Len() int      { return len(a) }
+func (a ByQueryTime) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
+func (a ByQueryTime) Less(i, j int) bool {
+	// todo: will panic if struct is incorrect
+	// descending order
+	return a[i].MQueryTimeSum > a[j].MQueryTimeSum
 }
 
-// start_ts, query_count, Query_time_sum
-type QueryLog struct {
-	Point          uint
-	Start_ts       time.Time
-	Query_count    float32
-	Query_load     float32
-	Query_time_avg float32
-}
+func MakeReport(config pc.QAN, startTime, endTime time.Time, result *Result) *Report {
+	// Sort classes by Query_time_sum, descending.
+	sort.Sort(ByQueryTime(result.Buckets))
 
-type QueryRank struct {
-	Rank        uint    // compared to global, same as Profile.Ranks index
-	Percentage  float64 // of global value
-	Id          string  // hex checksum
-	Abstract    string  // e.g. SELECT tbl
-	Fingerprint string  // e.g. SELECT tbl
-	QPS         float64 // ResponseTime.Cnt / Profile.TotalTime
-	Load        float64 // Query_time_sum / (Profile.End - Profile.Begin)
-	Log         []QueryLog
-	Stats       metrics.Stats // this query's Profile.Metric stats
-}
+	// Make qan.Report from Result and other metadata (e.g. Interval).
+	report := &Report{
+		UUID:    config.UUID,
+		StartTs: startTime,
+		EndTs:   endTime,
+		RunTime: result.RunTime,
+		Buckets: result.Buckets,
+	}
 
-type QueryReport struct {
-	InstanceId string                   // UUID of MySQL instance
-	Begin      time.Time                // time range [Begin, End)
-	End        time.Time                // time range [Being, End)
-	Query      query.Query              // id, abstract, fingerprint, etc.
-	Metrics    map[string]metrics.Stats // keyed on metric name, e.g. Query_time
-	Example    query.Example            // query example
-	Sparks     []interface{}            `json:",omitempty"`
-	Metrics2   interface{}              `json:",omitempty"`
-	Sparks2    interface{}              `json:",omitempty"`
-}
-
-type Summary struct {
-	InstanceId string                   // UUID of MySQL instance
-	Begin      time.Time                // time range [Begin, End)
-	End        time.Time                // time range [Being, End)
-	Metrics    map[string]metrics.Stats // keyed on metric name, e.g. Query_time
-	Sparks     []interface{}            `json:",omitempty"`
-	Metrics2   interface{}              `json:",omitempty"`
-	Sparks2    interface{}              `json:",omitempty"`
+	return report
 }

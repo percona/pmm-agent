@@ -1,19 +1,33 @@
+// pmm-agent
+// Copyright (C) 2018 Percona LLC
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program. If not, see <https://www.gnu.org/licenses/>.
+
 package aggregator
 
 import (
 	"fmt"
-	"strings"
 	"sync"
 	"time"
 
-	"github.com/percona/go-mysql/event"
 	"github.com/percona/percona-toolkit/src/go/mongolib/fingerprinter"
 	"github.com/percona/percona-toolkit/src/go/mongolib/proto"
 	mongostats "github.com/percona/percona-toolkit/src/go/mongolib/stats"
+	"github.com/percona/pmm/api/qanpb"
 
 	pc "github.com/percona/pmm-agent/agents/builtin/mongo/proto/config"
 	"github.com/percona/pmm-agent/agents/builtin/mongo/proto/qan"
-	"github.com/percona/pmm-agent/agents/builtin/mongo/report"
 	"github.com/percona/pmm-agent/agents/builtin/mongo/status"
 )
 
@@ -225,7 +239,7 @@ func (a *Aggregator) interval(ts time.Time) *qan.Report {
 	result := a.createResult()
 
 	// translate result into report and return it
-	return report.MakeReport(a.config, a.timeStart, a.timeEnd, result)
+	return qan.MakeReport(a.config, a.timeStart, a.timeEnd, result)
 }
 
 // TimeStart returns start time for current interval
@@ -248,82 +262,43 @@ func (a *Aggregator) newInterval(ts time.Time) {
 	a.timeEnd = a.timeStart.Add(a.d)
 }
 
-// TODO: Here we create mapping from MongoDB metrics to MySQLSlowLog report.
-// TODO: This should be refactored.
-func (a *Aggregator) createResult() *report.Result {
+func (a *Aggregator) createResult() *qan.Result {
 	queries := a.mongostats.Queries()
-	global := event.NewClass("", "", false)
 	queryStats := queries.CalcQueriesStats(int64(a.config.Interval))
-	classes := []*event.Class{}
-	exampleQueries := boolValue(a.config.ExampleQueries)
+	buckets := []*qanpb.MetricsBucket{}
+
 	for _, queryInfo := range queryStats {
-		class := event.NewClass(queryInfo.ID, queryInfo.Fingerprint, exampleQueries)
-		if exampleQueries {
-			db := ""
-			s := strings.SplitN(queryInfo.Namespace, ".", 2)
-			if len(s) == 2 {
-				db = s[0]
-			}
+		bucket := &qanpb.MetricsBucket{}
+		// TODO: Add more metrics... (See: https://jira.percona.com/browse/PMM-3880)
 
-			class.Example = &event.Example{
-				QueryTime: queryInfo.QueryTime.Total,
-				Db:        db,
-				Query:     queryInfo.Query,
-			}
-		}
+		bucket.Queryid = queryInfo.ID
+		bucket.Fingerprint = queryInfo.Fingerprint
 
-		metrics := event.NewMetrics()
+		bucket.NumQueries = float32(queryInfo.Count)
 
-		metrics.TimeMetrics["Query_time"] = newEventTimeStatsInMilliseconds(queryInfo.QueryTime)
+		bucket.MDocsReturnedCnt = float32(queryInfo.Count)
+		bucket.MDocsReturnedMax = float32(queryInfo.Returned.Max)
+		bucket.MDocsReturnedMin = float32(queryInfo.Returned.Min)
+		bucket.MDocsReturnedP99 = float32(queryInfo.Returned.Pct) // TODO: Replace to P99
+		bucket.MDocsReturnedSum = float32(queryInfo.Returned.Total)
 
-		// @todo we map below metrics to MySQL equivalents according to PMM-830
-		metrics.NumberMetrics["Bytes_sent"] = newEventNumberStats(queryInfo.ResponseLength)
-		metrics.NumberMetrics["Rows_sent"] = newEventNumberStats(queryInfo.Returned)
-		metrics.NumberMetrics["Rows_examined"] = newEventNumberStats(queryInfo.Scanned)
+		bucket.MDocsScannedCnt = float32(queryInfo.Count)
+		bucket.MDocsScannedMax = float32(queryInfo.Scanned.Max)
+		bucket.MDocsScannedMin = float32(queryInfo.Scanned.Min)
+		bucket.MDocsScannedP99 = float32(queryInfo.Scanned.Pct) // TODO: Replace to P99
+		bucket.MDocsScannedSum = float32(queryInfo.Scanned.Total)
 
-		class.Metrics = metrics
-		class.TotalQueries = uint(queryInfo.Count)
-		class.UniqueQueries = 1
-		classes = append(classes, class)
+		bucket.MResponseLengthCnt = float32(queryInfo.Count)
+		bucket.MResponseLengthMax = float32(queryInfo.ResponseLength.Max)
+		bucket.MResponseLengthMin = float32(queryInfo.ResponseLength.Min)
+		bucket.MResponseLengthP99 = float32(queryInfo.ResponseLength.Pct) // TODO: Replace to P99
+		bucket.MResponseLengthSum = float32(queryInfo.ResponseLength.Total)
 
-		// Add the class to the global metrics.
-		global.AddClass(class)
+		buckets = append(buckets, bucket)
 	}
 
-	return &report.Result{
-		Global: global,
-		Class:  classes,
+	return &qan.Result{
+		Buckets: buckets,
 	}
 
-}
-
-func newEventNumberStats(s mongostats.Statistics) *event.NumberStats {
-	return &event.NumberStats{
-		Sum: uint64(s.Total),
-		Min: event.Uint64(uint64(s.Min)),
-		Avg: event.Uint64(uint64(s.Avg)),
-		Med: event.Uint64(uint64(s.Median)),
-		P95: event.Uint64(uint64(s.Pct95)),
-		Max: event.Uint64(uint64(s.Max)),
-	}
-}
-
-func newEventTimeStatsInMilliseconds(s mongostats.Statistics) *event.TimeStats {
-	return &event.TimeStats{
-		Sum: s.Total / 1000,
-		Min: event.Float64(s.Min / 1000),
-		Avg: event.Float64(s.Avg / 1000),
-		Med: event.Float64(s.Median / 1000),
-		P95: event.Float64(s.Pct95 / 1000),
-		Max: event.Float64(s.Max / 1000),
-	}
-}
-
-// boolValue returns the value of the bool pointer passed in or
-// false if the pointer is nil.
-func boolValue(v *bool) bool {
-	if v != nil {
-		return *v
-	}
-	return false
 }
