@@ -197,26 +197,27 @@ func (m *SlowLog) Run(ctx context.Context) {
 	}
 }
 
-// getSlowLogFilePath get path to  MySQL slow log and check correct config.
+// getSlowLogFilePath get path to MySQL slow log and check correct config.
 func (m *SlowLog) getSlowLogFilePath() (string, float64, error) {
-	// Only @@slow_query_log is required, the rest global variables selected here
-	// are optional and just help troubleshooting.
-	var isSlowQueryLogON int
-	row := m.db.QueryRow("SELECT @@slow_query_log")
-	if err := row.Scan(&isSlowQueryLogON); err != nil {
-		m.l.Errorf("cannot select @@slow_query_log: %s", err)
-	}
-	if isSlowQueryLogON != 1 {
-		m.l.Errorf("cannot parse slowlog: @@slow_query_log is off: %v", isSlowQueryLogON)
-	}
-
 	var slowLogFilePath string
-	row = m.db.QueryRow("SELECT @@slow_query_log_file")
+	row := m.db.QueryRow("SELECT @@slow_query_log_file")
 	if err := row.Scan(&slowLogFilePath); err != nil {
 		return "", 0, errors.Wrap(err, "cannot select @@slow_query_log_file")
 	}
 	if slowLogFilePath == "" {
-		return "", 0, errors.Errorf("cannot parse slowlog: @@slow_query_log_file is empty: %v", slowLogFilePath)
+		return "", 0, errors.New("cannot parse slowlog: @@slow_query_log_file is empty")
+	}
+
+	// Only @@slow_query_log is required, the rest global variables selected here
+	// are optional and just help troubleshooting.
+
+	var isSlowQueryLogON int
+	row = m.db.QueryRow("SELECT @@slow_query_log")
+	if err := row.Scan(&isSlowQueryLogON); err != nil {
+		m.l.Warnf("cannot select @@slow_query_log: %s", err)
+	}
+	if isSlowQueryLogON != 1 {
+		m.l.Warnf("@@slow_query_log is off: %v", isSlowQueryLogON)
 	}
 
 	// Select @@slow_query_log_always_write_time if this version of MySQL has it.
@@ -226,8 +227,9 @@ func (m *SlowLog) getSlowLogFilePath() (string, float64, error) {
 		m.l.Warnf("cannot select @@slow_query_log_always_write_time: %s", err)
 	}
 
-	m.l.Debugf("@@slow_query_log: %v; @@slow_query_log_file: %v.", isSlowQueryLogON, slowLogFilePath)
-	return filepath.Clean(slowLogFilePath), outlierTime, nil
+	slowLogFilePath = filepath.Clean(slowLogFilePath)
+	m.l.Debugf("slowLogFilePath: %q, isSlowQueryLogON: %v, outlierTime: %v", slowLogFilePath, isSlowQueryLogON, outlierTime)
+	return slowLogFilePath, outlierTime, nil
 }
 
 // parseSlowLog create new slow log parser.
