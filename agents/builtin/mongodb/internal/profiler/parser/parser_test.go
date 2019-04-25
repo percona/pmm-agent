@@ -83,7 +83,7 @@ func TestParserrunning(t *testing.T) {
 	a := aggregator.New(time.Now(), "test-id")
 	reportChan := a.Start()
 	defer a.Stop()
-	d := time.Duration(aggregator.DefaultInterval) * time.Second
+	d := aggregator.DefaultInterval
 
 	parser1 := New(docsChan, a)
 	err := parser1.Start()

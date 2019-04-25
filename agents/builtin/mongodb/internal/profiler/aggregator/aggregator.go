@@ -32,7 +32,7 @@ import (
 )
 
 const (
-	DefaultInterval  = 60 // in seconds
+	DefaultInterval  = time.Duration(60 * time.Second)
 	ReportChanBuffer = 1000
 )
 
@@ -44,7 +44,7 @@ func New(timeStart time.Time, agentID string) *Aggregator {
 	}
 
 	// create duration from interval
-	aggregator.d = time.Duration(DefaultInterval) * time.Second
+	aggregator.d = DefaultInterval
 
 	// create mongolib stats
 	fp := fingerprinter.NewFingerprinter(fingerprinter.DEFAULT_KEY_FILTERS)
@@ -270,7 +270,7 @@ func (a *Aggregator) createResult() *report.Result {
 			AgentId:             a.agentID,
 			MetricsSource:       qanpb.MetricsSource_MONGODB_PROFILER,
 			PeriodStartUnixSecs: uint32(a.timeStart.Truncate(1 * time.Minute).Unix()),
-			PeriodLengthSecs:    uint32(DefaultInterval),
+			PeriodLengthSecs:    uint32(a.d.Seconds()),
 			Example:             v.Query,
 			ExampleFormat:       1,
 			ExampleType:         1,
