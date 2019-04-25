@@ -30,12 +30,12 @@ import (
 	"github.com/percona/pmm-agent/agents/builtin/mongo/profiler/sender"
 )
 
-func New(dialInfo *pmgo.DialInfo, dialer pmgo.Dialer, logger *logrus.Entry, spool sender.Spooler, agentID string) *profiler {
+func New(dialInfo *pmgo.DialInfo, dialer pmgo.Dialer, logger *logrus.Entry, w sender.Writer, agentID string) *profiler {
 	return &profiler{
 		dialInfo: dialInfo,
 		dialer:   dialer,
 		logger:   logger,
-		spool:    spool,
+		w:        w,
 		agentID:  agentID,
 	}
 }
@@ -44,7 +44,7 @@ type profiler struct {
 	// dependencies
 	dialInfo *pmgo.DialInfo
 	dialer   pmgo.Dialer
-	spool    sender.Spooler
+	w        sender.Writer
 	logger   *logrus.Entry
 	agentID  string
 
@@ -81,7 +81,7 @@ func (p *profiler) Start() error {
 	reportChan := p.aggregator.Start()
 
 	// create sender which sends qan reports and start it
-	p.sender = sender.New(reportChan, p.spool, p.logger)
+	p.sender = sender.New(reportChan, p.w, p.logger)
 	err = p.sender.Start()
 	if err != nil {
 		return err

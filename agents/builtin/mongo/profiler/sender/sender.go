@@ -25,10 +25,10 @@ import (
 	"github.com/percona/pmm-agent/agents/builtin/mongo/status"
 )
 
-func New(reportChan <-chan *report.Report, spool Spooler, logger *logrus.Entry) *Sender {
+func New(reportChan <-chan *report.Report, w Writer, logger *logrus.Entry) *Sender {
 	return &Sender{
 		reportChan: reportChan,
-		spool:      spool,
+		w:          w,
 		logger:     logger,
 	}
 }
@@ -36,7 +36,7 @@ func New(reportChan <-chan *report.Report, spool Spooler, logger *logrus.Entry) 
 type Sender struct {
 	// dependencies
 	reportChan <-chan *report.Report
-	spool      Spooler
+	w          Writer
 	logger     *logrus.Entry
 
 	// stats
@@ -69,7 +69,7 @@ func (self *Sender) Start() error {
 	// so we could later Wait() for it to finish
 	self.wg = &sync.WaitGroup{}
 	self.wg.Add(1)
-	go start(self.wg, self.reportChan, self.spool, self.logger, self.doneChan, stats)
+	go start(self.wg, self.reportChan, self.w, self.logger, self.doneChan, stats)
 
 	self.running = true
 	return nil
@@ -106,7 +106,7 @@ func (self *Sender) Name() string {
 	return "sender"
 }
 
-func start(wg *sync.WaitGroup, reportChan <-chan *report.Report, spool Spooler, logger *logrus.Entry, doneChan <-chan struct{}, stats *stats) {
+func start(wg *sync.WaitGroup, reportChan <-chan *report.Report, w Writer, logger *logrus.Entry, doneChan <-chan struct{}, stats *stats) {
 	// signal WaitGroup when goroutine finished
 	defer wg.Done()
 
@@ -129,7 +129,7 @@ func start(wg *sync.WaitGroup, reportChan <-chan *report.Report, spool Spooler, 
 			}
 
 			// sent report
-			if err := spool.Write(report); err != nil {
+			if err := w.Write(report); err != nil {
 				stats.ErrIter.Add(1)
 				logger.Warn("Lost report:", err)
 				continue
@@ -141,7 +141,7 @@ func start(wg *sync.WaitGroup, reportChan <-chan *report.Report, spool Spooler, 
 	}
 }
 
-// Spooler write QAN Report
-type Spooler interface {
+// Writer write QAN Report
+type Writer interface {
 	Write(r *report.Report) error
 }
