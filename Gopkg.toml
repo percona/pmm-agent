@@ -35,5 +35,10 @@ required = [
   branch = "PMM-2.0"
 
 [[constraint]]
-  branch = "master"
   name = "github.com/percona/pmgo"
+  version = "^0.5.1"
+
+[[constraint]]
+  branch = "3.0"
+  name = "github.com/percona/percona-toolkit"
+

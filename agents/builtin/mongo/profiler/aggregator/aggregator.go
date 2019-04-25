@@ -247,7 +247,7 @@ func (a *Aggregator) newInterval(ts time.Time) {
 func (a *Aggregator) createResult() *report.Result {
 	queries := a.mongostats.Queries()
 	queryStats := queries.CalcQueriesStats(int64(DefaultInterval))
-	buckets := []*qanpb.MetricsBucket{}
+	var buckets []*qanpb.MetricsBucket
 
 	for _, v := range queryStats {
 		db := ""
@@ -258,7 +258,7 @@ func (a *Aggregator) createResult() *report.Result {
 			schema = s[1]
 		}
 
-		// TODO: Add more metrics... (See: https://jira.percona.com/browse/PMM-3880)
+		// TODO: Add more metrics if needed... (See: https://jira.percona.com/browse/PMM-3880)
 		bucket := &qanpb.MetricsBucket{
 			Queryid:             v.ID,
 			Fingerprint:         v.Fingerprint,
@@ -280,19 +280,19 @@ func (a *Aggregator) createResult() *report.Result {
 		bucket.MDocsReturnedCnt = float32(v.Count) // TODO: Check is it right value
 		bucket.MDocsReturnedMax = float32(v.Returned.Max)
 		bucket.MDocsReturnedMin = float32(v.Returned.Min)
-		bucket.MDocsReturnedP99 = float32(v.Returned.Pct) // TODO: Replace to P99
+		bucket.MDocsReturnedP99 = float32(v.Returned.Pct99)
 		bucket.MDocsReturnedSum = float32(v.Returned.Total)
 
 		bucket.MDocsScannedCnt = float32(v.Count) // TODO: Check is it right value
 		bucket.MDocsScannedMax = float32(v.Scanned.Max)
 		bucket.MDocsScannedMin = float32(v.Scanned.Min)
-		bucket.MDocsScannedP99 = float32(v.Scanned.Pct) // TODO: Replace to P99
+		bucket.MDocsScannedP99 = float32(v.Scanned.Pct99)
 		bucket.MDocsScannedSum = float32(v.Scanned.Total)
 
 		bucket.MResponseLengthCnt = float32(v.Count) // TODO: Check is it right value
 		bucket.MResponseLengthMax = float32(v.ResponseLength.Max)
 		bucket.MResponseLengthMin = float32(v.ResponseLength.Min)
-		bucket.MResponseLengthP99 = float32(v.ResponseLength.Pct) // TODO: Replace to P99
+		bucket.MResponseLengthP99 = float32(v.ResponseLength.Pct99)
 		bucket.MResponseLengthSum = float32(v.ResponseLength.Total)
 
 		buckets = append(buckets, bucket)
