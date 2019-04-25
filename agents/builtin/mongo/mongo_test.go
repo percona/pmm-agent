@@ -58,5 +58,14 @@ func TestMongo_Run(t *testing.T) {
 		inventorypb.AgentStatus_STOPPING,
 		inventorypb.AgentStatus_DONE,
 	}
+
+	if m.ErrorsCount() > 0 {
+		expectedStatuses = []inventorypb.AgentStatus{
+			inventorypb.AgentStatus_STARTING,
+			inventorypb.AgentStatus_STOPPING,
+			inventorypb.AgentStatus_DONE,
+		}
+	}
+
 	assert.Equal(t, expectedStatuses, actualStatues)
 }

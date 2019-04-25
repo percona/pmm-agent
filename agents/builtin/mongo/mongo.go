@@ -19,6 +19,7 @@ package mongo
 
 import (
 	"context"
+	"sync"
 
 	"github.com/percona/pmgo"
 	"github.com/percona/pmm/api/inventorypb"
@@ -44,6 +45,9 @@ type Mongo struct {
 	dialer   pmgo.Dialer
 
 	profiler Profiler
+
+	mx     sync.Mutex
+	errors []error
 }
 
 // Params represent Agent parameters.
@@ -93,6 +97,7 @@ func (m *Mongo) Run(ctx context.Context) {
 
 	m.profiler = profiler.New(m.dialInfo, m.dialer, m.l, m, m.agentID)
 	if err := m.profiler.Start(); err != nil {
+		m.addError(err)
 		m.changes <- Change{Status: inventorypb.AgentStatus_STOPPING}
 		return
 	}
@@ -113,6 +118,18 @@ func (m *Mongo) Changes() <-chan Change {
 func (m *Mongo) Write(r *report.Report) error {
 	m.changes <- Change{Request: &qanpb.CollectRequest{MetricsBucket: r.Buckets}}
 	return nil
+}
+
+func (m *Mongo) ErrorsCount() int {
+	m.mx.Lock()
+	defer m.mx.Unlock()
+	return len(m.errors)
+}
+
+func (m *Mongo) addError(err error) {
+	m.mx.Lock()
+	defer m.mx.Unlock()
+	m.errors = append(m.errors, err)
 }
 
 type Profiler interface {
