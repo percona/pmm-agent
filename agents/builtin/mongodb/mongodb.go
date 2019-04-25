@@ -15,19 +15,18 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 // Package mongo runs built-in QAN Agent for Mongo profiler.
-package mongo
+package mongodb
 
 import (
 	"context"
-	"sync"
 
 	"github.com/percona/pmgo"
 	"github.com/percona/pmm/api/inventorypb"
 	"github.com/percona/pmm/api/qanpb"
 	"github.com/sirupsen/logrus"
 
-	"github.com/percona/pmm-agent/agents/builtin/mongo/internal/profiler"
-	"github.com/percona/pmm-agent/agents/builtin/mongo/internal/report"
+	"github.com/percona/pmm-agent/agents/builtin/mongodb/internal/profiler"
+	"github.com/percona/pmm-agent/agents/builtin/mongodb/internal/report"
 )
 
 const (
@@ -35,8 +34,8 @@ const (
 	DefaultExampleQueries      = true
 )
 
-// Mongo extracts performance data from Mongo op log.
-type Mongo struct {
+// MongoDB extracts performance data from Mongo op log.
+type MongoDB struct {
 	agentID string
 	l       *logrus.Entry
 	changes chan Change
@@ -45,9 +44,6 @@ type Mongo struct {
 	dialer   pmgo.Dialer
 
 	profiler Profiler
-
-	mx     sync.Mutex
-	errors []error
 }
 
 // Params represent Agent parameters.
@@ -63,7 +59,7 @@ type Change struct {
 }
 
 // New creates new MongoDB QAN service.
-func New(params *Params, l *logrus.Entry) (*Mongo, error) {
+func New(params *Params, l *logrus.Entry) (*MongoDB, error) {
 	// if dsn is incorrect we should exit immediately as this is not gonna correct itself
 	dialInfo, err := pmgo.ParseURL(params.DSN)
 	if err != nil {
@@ -73,8 +69,8 @@ func New(params *Params, l *logrus.Entry) (*Mongo, error) {
 	return newMongo(dialInfo, l, params), nil
 }
 
-func newMongo(dialInfo *pmgo.DialInfo, l *logrus.Entry, params *Params) *Mongo {
-	return &Mongo{
+func newMongo(dialInfo *pmgo.DialInfo, l *logrus.Entry, params *Params) *MongoDB {
+	return &MongoDB{
 		agentID:  params.AgentID,
 		dialInfo: dialInfo,
 		dialer:   pmgo.NewDialer(),
@@ -85,7 +81,7 @@ func newMongo(dialInfo *pmgo.DialInfo, l *logrus.Entry, params *Params) *Mongo {
 }
 
 // Run extracts performance data and sends it to the channel until ctx is canceled.
-func (m *Mongo) Run(ctx context.Context) {
+func (m *MongoDB) Run(ctx context.Context) {
 	defer func() {
 		m.profiler.Stop() //nolint:errcheck
 		m.profiler = nil
@@ -97,7 +93,6 @@ func (m *Mongo) Run(ctx context.Context) {
 
 	m.profiler = profiler.New(m.dialInfo, m.dialer, m.l, m, m.agentID)
 	if err := m.profiler.Start(); err != nil {
-		m.addError(err)
 		m.changes <- Change{Status: inventorypb.AgentStatus_STOPPING}
 		return
 	}
@@ -110,26 +105,14 @@ func (m *Mongo) Run(ctx context.Context) {
 }
 
 // Changes returns channel that should be read until it is closed.
-func (m *Mongo) Changes() <-chan Change {
+func (m *MongoDB) Changes() <-chan Change {
 	return m.changes
 }
 
 // Write writes MetricsBuckets to pmm-managed
-func (m *Mongo) Write(r *report.Report) error {
+func (m *MongoDB) Write(r *report.Report) error {
 	m.changes <- Change{Request: &qanpb.CollectRequest{MetricsBucket: r.Buckets}}
 	return nil
-}
-
-func (m *Mongo) ErrorsCount() int {
-	m.mx.Lock()
-	defer m.mx.Unlock()
-	return len(m.errors)
-}
-
-func (m *Mongo) addError(err error) {
-	m.mx.Lock()
-	defer m.mx.Unlock()
-	m.errors = append(m.errors, err)
 }
 
 type Profiler interface {

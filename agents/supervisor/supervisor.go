@@ -38,7 +38,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 
-	"github.com/percona/pmm-agent/agents/builtin/mongo"
+	"github.com/percona/pmm-agent/agents/builtin/mongodb"
 	"github.com/percona/pmm-agent/agents/builtin/mysql/perfschema"
 	"github.com/percona/pmm-agent/agents/builtin/mysql/slowlog"
 	"github.com/percona/pmm-agent/agents/builtin/noop"
@@ -412,11 +412,11 @@ func (s *Supervisor) startBuiltin(agentID string, builtinAgent *agentpb.SetState
 		}()
 
 	case agentpb.Type_QAN_MONGODB_PROFILER_AGENT:
-		params := &mongo.Params{
+		params := &mongodb.Params{
 			DSN:     builtinAgent.Dsn,
 			AgentID: agentID,
 		}
-		m, err := mongo.New(params, l)
+		m, err := mongodb.New(params, l)
 		if err != nil {
 			cancel()
 			return err

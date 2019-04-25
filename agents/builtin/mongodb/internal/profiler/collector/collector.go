@@ -25,7 +25,7 @@ import (
 	"github.com/percona/pmgo"
 	"gopkg.in/mgo.v2/bson"
 
-	"github.com/percona/pmm-agent/agents/builtin/mongo/internal/status"
+	"github.com/percona/pmm-agent/agents/builtin/mongodb/internal/status"
 )
 
 const (
@@ -219,8 +219,8 @@ func connectAndCollect(session pmgo.SessionManager, dbName string, docsChan chan
 	iterator := createIterator(collection, query)
 	defer iterator.Close()
 
-	stats.IteratorCreated.Set(time.Now().UTC().Format("2006-01-02 15:04:05"))
-	stats.IteratorCounter.Add(1)
+	stats.IteratorCreated = time.Now().UTC().Format("2006-01-02 15:04:05")
+	stats.IteratorCounter += 1
 
 	// we got iterator, we are ready
 	signalReady(ready)
@@ -236,7 +236,7 @@ func connectAndCollect(session pmgo.SessionManager, dbName string, docsChan chan
 
 		doc := proto.SystemProfile{}
 		for iterator.Next(&doc) {
-			stats.In.Add(1)
+			stats.In += 1
 
 			// check if we should shutdown
 			select {
@@ -249,7 +249,7 @@ func connectAndCollect(session pmgo.SessionManager, dbName string, docsChan chan
 			// try to push doc
 			select {
 			case docsChan <- doc:
-				stats.Out.Add(1)
+				stats.Out += 1
 			// or exit if we can't push the doc and we should shutdown
 			// note that if we can push the doc then exiting is not guaranteed
 			// that's why we have separate `select <-doneChan` above
@@ -258,18 +258,18 @@ func connectAndCollect(session pmgo.SessionManager, dbName string, docsChan chan
 			}
 		}
 		if err := iterator.Err(); err != nil {
-			stats.IteratorErrCounter.Add(1)
-			stats.IteratorErrLast.Set(err.Error())
+			stats.IteratorErrCounter += 1
+			stats.IteratorErrLast = err.Error()
 			return
 		}
 		if iterator.Timeout() {
-			stats.IteratorTimeout.Add(1)
+			stats.IteratorTimeout += 1
 			continue
 		}
 
 		// If Next() and Timeout() are false it means iterator is no longer valid
 		// and the query needs to be restarted.
-		stats.IteratorRestartCounter.Add(1)
+		stats.IteratorRestartCounter += 1
 		return
 	}
 }

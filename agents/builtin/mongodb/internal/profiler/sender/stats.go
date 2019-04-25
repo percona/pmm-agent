@@ -14,19 +14,10 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-package parser
-
-import (
-	"expvar"
-)
+package sender
 
 type stats struct {
-	InDocs         *expvar.Int    `name:"docs-in"`
-	OkDocs         *expvar.Int    `name:"docs-ok"`
-	OutReports     *expvar.Int    `name:"reports-out"`
-	IntervalStart  *expvar.String `name:"interval-start"`
-	IntervalEnd    *expvar.String `name:"interval-end"`
-	ErrFingerprint *expvar.Int    `name:"err-fingerprint"`
-	ErrParse       *expvar.Int    `name:"err-parse"`
-	SkippedDocs    *expvar.Int    `name:"skipped-docs"`
+	In      int64
+	Out     int64
+	ErrIter int64
 }

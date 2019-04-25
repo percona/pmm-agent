@@ -21,8 +21,8 @@ import (
 
 	"github.com/sirupsen/logrus"
 
-	"github.com/percona/pmm-agent/agents/builtin/mongo/internal/report"
-	"github.com/percona/pmm-agent/agents/builtin/mongo/internal/status"
+	"github.com/percona/pmm-agent/agents/builtin/mongodb/internal/report"
+	"github.com/percona/pmm-agent/agents/builtin/mongodb/internal/status"
 )
 
 func New(reportChan <-chan *report.Report, w Writer, logger *logrus.Entry) *Sender {
@@ -114,7 +114,7 @@ func start(wg *sync.WaitGroup, reportChan <-chan *report.Report, w Writer, logge
 
 		select {
 		case report, ok := <-reportChan:
-			stats.In.Add(1)
+			stats.In += 1
 			// if channel got closed we should exit as there is nothing we can listen to
 			if !ok {
 				return
@@ -130,11 +130,11 @@ func start(wg *sync.WaitGroup, reportChan <-chan *report.Report, w Writer, logge
 
 			// sent report
 			if err := w.Write(report); err != nil {
-				stats.ErrIter.Add(1)
+				stats.ErrIter += 1
 				logger.Warn("Lost report:", err)
 				continue
 			}
-			stats.Out.Add(1)
+			stats.Out += 1
 		case <-doneChan:
 			return
 		}

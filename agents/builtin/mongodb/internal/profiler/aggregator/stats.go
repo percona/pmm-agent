@@ -14,14 +14,12 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-package sender
-
-import (
-	"expvar"
-)
+package aggregator
 
 type stats struct {
-	In      *expvar.Int `name:"in"`
-	Out     *expvar.Int `name:"out"`
-	ErrIter *expvar.Int `name:"err-iter"`
+	DocsIn         int64
+	DocsSkippedOld int64
+	ReportsOut     int64
+	IntervalStart  string
+	IntervalEnd    string
 }

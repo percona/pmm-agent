@@ -22,8 +22,8 @@ import (
 	"github.com/percona/percona-toolkit/src/go/mongolib/proto"
 	mstats "github.com/percona/percona-toolkit/src/go/mongolib/stats"
 
-	"github.com/percona/pmm-agent/agents/builtin/mongo/internal/profiler/aggregator"
-	"github.com/percona/pmm-agent/agents/builtin/mongo/internal/status"
+	"github.com/percona/pmm-agent/agents/builtin/mongodb/internal/profiler/aggregator"
+	"github.com/percona/pmm-agent/agents/builtin/mongodb/internal/status"
 )
 
 func New(docsChan <-chan proto.SystemProfile, aggregator *aggregator.Aggregator) *Parser {
@@ -134,18 +134,18 @@ func start(wg *sync.WaitGroup, docsChan <-chan proto.SystemProfile, aggregator *
 			}
 
 			// we got new doc, increase stats
-			stats.InDocs.Add(1)
+			stats.InDocs += 1
 
 			// aggregate the doc
 			var err error
 			err = aggregator.Add(doc)
 			switch err.(type) {
 			case nil:
-				stats.OkDocs.Add(1)
+				stats.OkDocs += 1
 			case *mstats.StatsFingerprintError:
-				stats.ErrFingerprint.Add(1)
+				stats.ErrFingerprint += 1
 			default:
-				stats.ErrParse.Add(1)
+				stats.ErrParse += 1
 			}
 		case <-doneChan:
 			// doneChan needs to be repeated in this select as docsChan can block

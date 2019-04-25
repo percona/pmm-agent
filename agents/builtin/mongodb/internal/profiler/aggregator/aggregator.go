@@ -27,8 +27,8 @@ import (
 	mongostats "github.com/percona/percona-toolkit/src/go/mongolib/stats"
 	"github.com/percona/pmm/api/qanpb"
 
-	"github.com/percona/pmm-agent/agents/builtin/mongo/internal/report"
-	"github.com/percona/pmm-agent/agents/builtin/mongo/internal/status"
+	"github.com/percona/pmm-agent/agents/builtin/mongodb/internal/report"
+	"github.com/percona/pmm-agent/agents/builtin/mongodb/internal/status"
 )
 
 const (
@@ -93,7 +93,7 @@ func (a *Aggregator) Add(doc proto.SystemProfile) error {
 
 	// skip old metrics
 	if ts.Before(a.timeStart) {
-		a.stats.DocsSkippedOld.Add(1)
+		a.stats.DocsSkippedOld += 1
 		return nil
 	}
 
@@ -106,7 +106,7 @@ func (a *Aggregator) Add(doc proto.SystemProfile) error {
 	a.t.Reset(a.d)
 
 	// add new doc to stats
-	a.stats.DocsIn.Add(1)
+	a.stats.DocsIn += 1
 	return a.mongostats.Add(doc)
 }
 
@@ -173,8 +173,8 @@ func start(wg *sync.WaitGroup, aggregator *Aggregator, doneChan <-chan struct{},
 	defer wg.Done()
 
 	// update stats
-	stats.IntervalStart.Set(aggregator.TimeStart().Format("2006-01-02 15:04:05"))
-	stats.IntervalEnd.Set(aggregator.TimeEnd().Format("2006-01-02 15:04:05"))
+	stats.IntervalStart = aggregator.TimeStart().Format("2006-01-02 15:04:05")
+	stats.IntervalEnd = aggregator.TimeEnd().Format("2006-01-02 15:04:05")
 	for {
 		select {
 		case <-aggregator.t.C:
@@ -202,7 +202,7 @@ func (a *Aggregator) flush(ts time.Time) {
 	r := a.interval(ts)
 	if r != nil {
 		a.reportChan <- r
-		a.stats.ReportsOut.Add(1)
+		a.stats.ReportsOut += 1
 	}
 }
 
