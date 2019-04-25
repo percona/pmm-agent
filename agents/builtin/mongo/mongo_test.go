@@ -26,7 +26,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestMongo_Run(t *testing.T) {
+func TestMongoRun(t *testing.T) {
 	// setup
 	l := logrus.WithField("component", "mongo-builtin-agent")
 	p := &Params{DSN: "mongodb://127.0.0.1:27017/admin", AgentID: "/agent_id/test"}
