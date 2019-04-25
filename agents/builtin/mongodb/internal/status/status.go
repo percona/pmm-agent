@@ -18,7 +18,6 @@ package status
 
 import (
 	"fmt"
-	"reflect"
 
 	"github.com/fatih/structs"
 )
@@ -29,12 +28,6 @@ type Status struct {
 }
 
 func New(stats interface{}) *Status {
-	// initialize pointers for all struct fields
-	v := reflect.Indirect(reflect.ValueOf(stats))
-	for i := 0; i < v.NumField(); i++ {
-		v.Field(i).Set(reflect.New(v.Field(i).Type().Elem()))
-	}
-
 	return &Status{
 		stats: stats,
 	}

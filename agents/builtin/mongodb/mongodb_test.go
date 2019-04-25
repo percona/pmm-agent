@@ -29,7 +29,7 @@ import (
 func TestMongoRun(t *testing.T) {
 	// setup
 	l := logrus.WithField("component", "mongo-builtin-agent")
-	p := &Params{DSN: "mongodb://127.0.0.1:27017/admin", AgentID: "/agent_id/test"}
+	p := &Params{DSN: "mongodb://pmm-agent:root-password@127.0.0.1:27017/admin", AgentID: "/agent_id/test"}
 	m, err := New(p, l)
 	if err != nil {
 		t.Fatal(err)
@@ -57,14 +57,6 @@ func TestMongoRun(t *testing.T) {
 		inventorypb.AgentStatus_RUNNING,
 		inventorypb.AgentStatus_STOPPING,
 		inventorypb.AgentStatus_DONE,
-	}
-
-	if m.ErrorsCount() > 0 {
-		expectedStatuses = []inventorypb.AgentStatus{
-			inventorypb.AgentStatus_STARTING,
-			inventorypb.AgentStatus_STOPPING,
-			inventorypb.AgentStatus_DONE,
-		}
 	}
 
 	assert.Equal(t, expectedStatuses, actualStatues)
