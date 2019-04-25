@@ -29,11 +29,6 @@ import (
 	"github.com/percona/pmm-agent/agents/builtin/mongodb/internal/report"
 )
 
-const (
-	DefaultInterval       uint = 60 // 1 minute
-	DefaultExampleQueries      = true
-)
-
 // MongoDB extracts performance data from Mongo op log.
 type MongoDB struct {
 	agentID string
