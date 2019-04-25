@@ -68,6 +68,7 @@ type Aggregator struct {
 	reportChan chan *report.Report
 
 	// interval
+	mx         sync.RWMutex
 	timeStart  time.Time
 	timeEnd    time.Time
 	d          time.Duration
@@ -226,15 +227,21 @@ func (a *Aggregator) interval(ts time.Time) *report.Report {
 
 // TimeStart returns start time for current interval
 func (a *Aggregator) TimeStart() time.Time {
+	a.mx.RLock()
+	defer a.mx.RUnlock()
 	return a.timeStart
 }
 
 // TimeEnd returns end time for current interval
 func (a *Aggregator) TimeEnd() time.Time {
+	a.mx.RLock()
+	defer a.mx.RUnlock()
 	return a.timeEnd
 }
 
 func (a *Aggregator) newInterval(ts time.Time) {
+	a.mx.Lock()
+	defer a.mx.Unlock()
 	// reset stats
 	a.mongostats.Reset()
 
