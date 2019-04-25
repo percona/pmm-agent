@@ -15,3 +15,9 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 package status
+
+import "testing"
+
+func TestStatus(t *testing.T) {
+	// we need at least one test per package to correctly calculate coverage
+}
