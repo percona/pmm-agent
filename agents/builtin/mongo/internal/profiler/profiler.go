@@ -26,8 +26,8 @@ import (
 	"github.com/sirupsen/logrus"
 	"gopkg.in/mgo.v2"
 
-	"github.com/percona/pmm-agent/agents/builtin/mongo/profiler/aggregator"
-	"github.com/percona/pmm-agent/agents/builtin/mongo/profiler/sender"
+	"github.com/percona/pmm-agent/agents/builtin/mongo/internal/profiler/aggregator"
+	"github.com/percona/pmm-agent/agents/builtin/mongo/internal/profiler/sender"
 )
 
 func New(dialInfo *pmgo.DialInfo, dialer pmgo.Dialer, logger *logrus.Entry, w sender.Writer, agentID string) *profiler {

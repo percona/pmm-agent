@@ -26,8 +26,8 @@ import (
 	"github.com/percona/pmm/api/qanpb"
 	"github.com/sirupsen/logrus"
 
-	"github.com/percona/pmm-agent/agents/builtin/mongo/profiler"
-	"github.com/percona/pmm-agent/agents/builtin/mongo/report"
+	"github.com/percona/pmm-agent/agents/builtin/mongo/internal/profiler"
+	"github.com/percona/pmm-agent/agents/builtin/mongo/internal/report"
 )
 
 const (

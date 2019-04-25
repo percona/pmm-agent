@@ -27,8 +27,8 @@ import (
 	mongostats "github.com/percona/percona-toolkit/src/go/mongolib/stats"
 	"github.com/percona/pmm/api/qanpb"
 
-	"github.com/percona/pmm-agent/agents/builtin/mongo/report"
-	"github.com/percona/pmm-agent/agents/builtin/mongo/status"
+	"github.com/percona/pmm-agent/agents/builtin/mongo/internal/report"
+	"github.com/percona/pmm-agent/agents/builtin/mongo/internal/status"
 )
 
 const (
