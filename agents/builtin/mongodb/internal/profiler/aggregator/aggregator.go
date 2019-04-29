@@ -31,7 +31,7 @@ import (
 	"github.com/percona/pmm-agent/agents/builtin/mongodb/internal/status"
 )
 
-const (
+var (
 	DefaultInterval  = time.Duration(60 * time.Second)
 	ReportChanBuffer = 1000
 )

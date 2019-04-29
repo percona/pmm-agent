@@ -16,8 +16,43 @@
 
 package sender
 
-import "testing"
+import (
+	"testing"
+	"time"
+
+	"github.com/percona/pmm/api/qanpb"
+	"github.com/sirupsen/logrus"
+	"github.com/stretchr/testify/assert"
+
+	"github.com/percona/pmm-agent/agents/builtin/mongodb/internal/report"
+)
+
+type testWriter struct {
+	t              *testing.T
+	expectedReport *report.Report
+}
+
+func (w *testWriter) Write(actual *report.Report) error {
+	assert.NotNil(w.t, actual)
+	assert.Equal(w.t, w.expectedReport, actual)
+	return nil
+}
 
 func TestSender(t *testing.T) {
-	// we need at least one test per package to correctly calculate coverage
+	expected := &report.Report{
+		StartTs: time.Now(),
+		EndTs:   time.Now().Add(time.Second * 10),
+		Buckets: []*qanpb.MetricsBucket{{Queryid: "test"}},
+	}
+
+	repChan := make(chan *report.Report)
+	tw := &testWriter{t: t, expectedReport: expected}
+	snd := New(repChan, tw, logrus.WithField("component", "test-sender"))
+	err := snd.Start()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	repChan <- expected
+	snd.Stop()
 }
