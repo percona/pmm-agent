@@ -79,14 +79,18 @@ func (tw *testWriter) Write(actual *report.Report) error {
 	require.NotNil(tw.t, actual)
 	assert.Equal(tw.t, 1, len(actual.Buckets))
 
-	assert.Equal(tw.t, "INSERT peoples", actual.Buckets[0].Fingerprint)
-	assert.Equal(tw.t, "test", actual.Buckets[0].DDatabase)
-	assert.Equal(tw.t, "peoples", actual.Buckets[0].DSchema)
-	assert.Equal(tw.t, "test-id", actual.Buckets[0].AgentId)
-	assert.Equal(tw.t, qanpb.MetricsSource_MONGODB_PROFILER, actual.Buckets[0].MetricsSource)
-	assert.Equal(tw.t, 1, actual.Buckets[0].NumQueries)
-	assert.Equal(tw.t, 60, actual.Buckets[0].MResponseLengthSum)
-	assert.Equal(tw.t, 60, actual.Buckets[0].MResponseLengthMin)
-	assert.Equal(tw.t, 60, actual.Buckets[0].MResponseLengthMax)
+	expected := &qanpb.MetricsBucket{
+		Fingerprint:        "INSERT peoples",
+		DDatabase:          "test",
+		DSchema:            "peoples",
+		AgentId:            "test-id",
+		MetricsSource:      qanpb.MetricsSource_MONGODB_PROFILER,
+		NumQueries:         1,
+		MResponseLengthSum: 60,
+		MResponseLengthMin: 60,
+		MResponseLengthMax: 60,
+	}
+
+	assert.Equal(tw.t, expected, actual.Buckets[0])
 	return nil
 }
