@@ -29,7 +29,6 @@ import (
 
 	"github.com/percona/pmm-agent/agents/builtin/mongodb/internal/profiler/aggregator"
 	"github.com/percona/pmm-agent/agents/builtin/mongodb/internal/report"
-	"github.com/percona/pmm-agent/agents/builtin/mongodb/internal/test/profiling"
 )
 
 func TestProfiler(t *testing.T) {
@@ -38,7 +37,6 @@ func TestProfiler(t *testing.T) {
 	}()
 	aggregator.DefaultInterval = time.Duration(time.Second)
 	url := "mongodb://pmm-agent:root-password@127.0.0.1:27017"
-	p := profiling.New(url)
 
 	dialInfo, err := pmgo.ParseURL(url)
 	require.NoError(t, err)
@@ -49,9 +47,6 @@ func TestProfiler(t *testing.T) {
 	require.NoError(t, err)
 
 	err = sess.DB("test").DropDatabase()
-	require.NoError(t, err)
-
-	err = p.Enable("test")
 	require.NoError(t, err)
 
 	ms := &testWriter{t: t}
@@ -65,9 +60,6 @@ func TestProfiler(t *testing.T) {
 	<-time.After(aggregator.DefaultInterval)
 
 	err = prof.Stop()
-	require.NoError(t, err)
-
-	err = p.Disable("test")
 	require.NoError(t, err)
 }
 
