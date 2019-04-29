@@ -23,6 +23,7 @@ import (
 	"github.com/percona/pmm/api/qanpb"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/percona/pmm-agent/agents/builtin/mongodb/internal/report"
 )
@@ -49,9 +50,7 @@ func TestSender(t *testing.T) {
 	tw := &testWriter{t: t, expectedReport: expected}
 	snd := New(repChan, tw, logrus.WithField("component", "test-sender"))
 	err := snd.Start()
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	repChan <- expected
 	snd.Stop()

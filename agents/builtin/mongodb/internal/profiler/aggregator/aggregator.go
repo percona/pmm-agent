@@ -32,7 +32,7 @@ import (
 )
 
 var (
-	DefaultInterval  = time.Duration(60 * time.Second)
+	DefaultInterval  = time.Duration(time.Minute)
 	ReportChanBuffer = 1000
 )
 
