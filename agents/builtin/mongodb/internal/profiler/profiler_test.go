@@ -32,10 +32,10 @@ import (
 )
 
 func TestProfiler(t *testing.T) {
-	defer func() {
-		aggregator.DefaultInterval = time.Duration(time.Minute)
-	}()
+	defaultInterval := aggregator.DefaultInterval
 	aggregator.DefaultInterval = time.Duration(time.Second)
+	defer func() { aggregator.DefaultInterval = defaultInterval }()
+
 	url := "mongodb://pmm-agent:root-password@127.0.0.1:27017"
 
 	dialInfo, err := pmgo.ParseURL(url)
@@ -55,7 +55,7 @@ func TestProfiler(t *testing.T) {
 	require.NoError(t, err)
 
 	err = sess.DB("test").C("peoples").Insert(bson.M{"name": "Anton"}, bson.M{"name": "Alexey"})
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	<-time.After(aggregator.DefaultInterval)
 
