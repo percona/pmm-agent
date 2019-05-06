@@ -23,9 +23,10 @@ import (
 	"time"
 
 	"github.com/gogo/protobuf/proto"
+	"github.com/stretchr/testify/assert"
+
 	"github.com/percona/go-mysql/event"
 	"github.com/percona/pmm/api/qanpb"
-	"github.com/stretchr/testify/assert"
 )
 
 func assertBucketsEqual(t *testing.T, expected, actual *qanpb.MetricsBucket) bool {
