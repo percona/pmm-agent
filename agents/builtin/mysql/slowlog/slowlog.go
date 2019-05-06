@@ -100,12 +100,12 @@ func (m *SlowLog) Run(ctx context.Context) {
 		return
 	}
 
-	stat, err := os.Stat(slowLogFilePath)
+	operatingSlowLogFileStat, err := os.Stat(slowLogFilePath)
 	if err != nil {
 		m.l.Errorf("cannot get stat of slowlog (%s): %s", slowLogFilePath, err)
 		return
 	}
-	fileSize := uint64(stat.Size())
+	fileSize := uint64(operatingSlowLogFileStat.Size())
 
 	opts := slowlog.Options{
 		StartOffset: fileSize,
@@ -148,7 +148,7 @@ func (m *SlowLog) Run(ctx context.Context) {
 				// FIXME https://jira.percona.com/browse/PMM-3898
 				m.l.Infof("Events channel is closed.")
 				running = false
-				m.changes <- Change{Status: inventorypb.AgentStatus_WAITING}
+				m.changes <- Change{Status: inventorypb.AgentStatus_RUNNING}
 				logEvent = nil
 				continue
 			}
@@ -175,17 +175,20 @@ func (m *SlowLog) Run(ctx context.Context) {
 			res := aggregator.Finalize()
 
 			// Check if MySQL SlowLog config is changed and slowlog rotated.
-			curStat, err := os.Stat(slowLogFilePath)
+			newSlowLogFileStat, err := os.Stat(slowLogFilePath)
 			if err != nil {
 				m.l.Errorf("cannot get stat of slowlog (%s): %s", slowLogFilePath, err)
 				return
 			}
-			if !os.SameFile(stat, curStat) {
-				opts.StartOffset = uint64(curStat.Size())
+			// In case of rotatation a slowlog file, set a new offset to parse the new slow log file.
+			if !os.SameFile(operatingSlowLogFileStat, newSlowLogFileStat) {
+				opts.StartOffset = uint64(newSlowLogFileStat.Size())
+				// use new slowlog stat as current.
+				operatingSlowLogFileStat = newSlowLogFileStat
 			}
 
 			if !running {
-				m.changes <- Change{Status: inventorypb.AgentStatus_STARTING}
+				m.changes <- Change{Status: inventorypb.AgentStatus_RUNNING}
 			}
 
 			// Prepare fresh parser and aggregator for next iteration.
