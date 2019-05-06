@@ -183,7 +183,9 @@ func (m *SlowLog) Run(ctx context.Context) {
 			}
 			// In case of rotatation a slowlog file, set a new offset to parse the new slow log file.
 			if !os.SameFile(stat, newStat) {
-				opts.StartOffset = uint64(newStat.Size())
+				// Start from beginning of new file.
+				opts.StartOffset = uint64(0)
+				m.l.Infof("File changed. Start from beginning of new file %s.", slowLogFilePath)
 				// use new slowlog stat as current.
 				stat = newStat
 			}
