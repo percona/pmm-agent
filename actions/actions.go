@@ -18,6 +18,7 @@ package actions
 
 import (
 	"context"
+	"errors"
 
 	"github.com/google/uuid"
 )
@@ -30,6 +31,14 @@ type Action interface {
 	// Run runs command and returns output and error.
 	// This method is blocking.
 	Run(ctx context.Context) ([]byte, error)
+}
+
+func New(name string, params map[string]string) (Action, error) {
+	switch name {
+	case "pt-summary":
+		return NewPtSummary(params, ""), nil
+	}
+	return nil, errors.New("unsupported action")
 }
 
 func parseArguments(params map[string]string) []string {

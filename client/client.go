@@ -26,6 +26,7 @@ import (
 	"time"
 
 	"github.com/golang/protobuf/ptypes"
+	"github.com/google/uuid"
 	"github.com/percona/pmm/api/agentpb"
 	"github.com/percona/pmm/version"
 	"github.com/pkg/errors"
@@ -36,6 +37,7 @@ import (
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/status"
 
+	"github.com/percona/pmm-agent/actions"
 	"github.com/percona/pmm-agent/client/channel"
 	"github.com/percona/pmm-agent/config"
 	"github.com/percona/pmm-agent/utils/backoff"
@@ -58,8 +60,9 @@ type supervisor interface {
 
 // Client represents pmm-agent's connection to nginx/pmm-managed.
 type Client struct {
-	cfg        *config.Config
-	supervisor supervisor
+	cfg          *config.Config
+	supervisor   supervisor
+	actionRunner *actions.Runner
 
 	l       *logrus.Entry
 	backoff *backoff.Backoff
@@ -75,11 +78,12 @@ type Client struct {
 // Caller should call Run.
 func New(cfg *config.Config, supervisor supervisor) *Client {
 	return &Client{
-		cfg:        cfg,
-		supervisor: supervisor,
-		l:          logrus.WithField("component", "client"),
-		backoff:    backoff.New(backoffMinDelay, backoffMaxDelay),
-		done:       make(chan struct{}),
+		cfg:          cfg,
+		supervisor:   supervisor,
+		actionRunner: actions.NewRunner(logrus.WithField("component", "actions.Runner")),
+		l:            logrus.WithField("component", "client"),
+		backoff:      backoff.New(backoffMinDelay, backoffMaxDelay),
+		done:         make(chan struct{}),
 	}
 }
 
@@ -152,13 +156,17 @@ func (c *Client) Run(ctx context.Context) error {
 	//    It exits when an unexpected message is received from the channel, or when can't be received at all.
 	//    When Run is left, caller stops supervisor, and that allows processSupervisorRequests to exit.
 	// Done() channel is closed when both goroutines exited.
-	oneDone := make(chan struct{}, 2)
+	oneDone := make(chan struct{}, 3)
 	go func() {
 		c.processSupervisorRequests()
 		oneDone <- struct{}{}
 	}()
 	go func() {
 		c.processChannelRequests()
+		oneDone <- struct{}{}
+	}()
+	go func() {
+		c.sendActionResults()
 		oneDone <- struct{}{}
 	}()
 	<-oneDone
@@ -211,6 +219,32 @@ func (c *Client) processSupervisorRequests() {
 	wg.Wait()
 }
 
+func (c *Client) sendActionResults() {
+	var wg sync.WaitGroup
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+
+		for ar := range c.actionRunner.ActionReady() {
+			res := c.channel.SendRequest(&agentpb.AgentMessage_ActionResult{
+				ActionResult: &agentpb.ActionResult{
+					Id:             ar.ID.String(),
+					Name:           ar.Name,
+					Error:          ar.Error.Error(),
+					CombinedOutput: ar.CombinedOutput,
+				},
+			})
+			if res == nil {
+				c.l.Warn("Failed to send AgentMessage_ActionResult.")
+			}
+		}
+		c.l.Debugf("actionRunner ActionReady() channel drained.")
+	}()
+
+	wg.Wait()
+}
+
 func (c *Client) processChannelRequests() {
 	for serverMessage := range c.channel.Requests() {
 		var agentMessage *agentpb.AgentMessage
@@ -234,6 +268,24 @@ func (c *Client) processChannelRequests() {
 					SetState: new(agentpb.SetStateResponse),
 				},
 			}
+
+		// Handle Action Run request from pmm-managed
+		case *agentpb.ServerMessage_ActionRunRequest:
+			a, err := actions.New(payload.ActionRunRequest.Name, payload.ActionRunRequest.Parameters)
+			if err != nil {
+				c.l.Errorf("Unable to create action, reason: %s.", err)
+				continue
+			}
+			c.actionRunner.Run(a)
+
+		// Handle Action Cancel request from pmm-managed
+		case *agentpb.ServerMessage_ActionCancelRequest:
+			id, err := uuid.Parse(payload.ActionCancelRequest.Id)
+			if err != nil {
+				c.l.Errorf("Unable to parse action UUID=%s, reason: %s.", payload.ActionCancelRequest.Id, err)
+				continue
+			}
+			c.actionRunner.Cancel(id)
 
 		default:
 			// Requests() is not closed, so exit early to break channel

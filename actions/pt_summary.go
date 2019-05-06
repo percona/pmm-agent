@@ -31,6 +31,7 @@ type ptSummary struct {
 	params     map[string]string
 }
 
+// NewPtSummary creates pt-summary action
 func NewPtSummary(params map[string]string, customPath string) Action {
 	return &ptSummary{
 		id:         uuid.New(),
@@ -40,14 +41,17 @@ func NewPtSummary(params map[string]string, customPath string) Action {
 	}
 }
 
+// ID returns unique action id.
 func (p *ptSummary) ID() uuid.UUID {
 	return p.id
 }
 
+// ID returns action name.
 func (p *ptSummary) Name() string {
 	return p.name
 }
 
+// Run runs an action.
 func (p *ptSummary) Run(ctx context.Context) ([]byte, error) {
 	executable := path.Join(p.customPath, p.name)
 	cmd := exec.CommandContext(ctx, executable, parseArguments(p.params)...)

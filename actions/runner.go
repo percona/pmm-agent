@@ -18,9 +18,11 @@ package actions
 
 import (
 	"context"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/sirupsen/logrus"
 )
 
 const defaultTimeout = time.Duration(time.Second * 10)
@@ -36,35 +38,73 @@ type ActionResult struct {
 // Runner represents action runner.
 // Action runner is component that can run an Actions.
 type Runner struct {
-	out chan ActionResult
+	out    chan ActionResult
+	logger logrus.FieldLogger
+
+	rw      sync.RWMutex
+	actions map[uuid.UUID]context.CancelFunc
 }
 
 // NewRunner returns new runner.
-func NewRunner() *Runner {
-	return &Runner{}
+func NewRunner(l logrus.FieldLogger) *Runner {
+	return &Runner{
+		logger: l,
+		out:    make(chan ActionResult),
+	}
 }
 
 // Run runs an Action in separate goroutine.
 // When action is ready those output writes to ActionResult channel.
 // You can get all action results with ActionReady() method.
 func (r *Runner) Run(a Action) {
-	go run(a, r.out)
+	ctx, cancel := context.WithCancel(context.Background())
+
+	r.rw.Lock()
+	r.actions[a.ID()] = cancel
+	r.rw.Unlock()
+
+	go run(ctx, a, r.out, r.logger)
 }
 
 // ActionReady returns channel that you can use to read action results.
-func (r *Runner) ActionReady() chan ActionResult {
+func (r *Runner) ActionReady() <-chan ActionResult {
 	return r.out
 }
 
-func run(a Action, out chan ActionResult) {
-	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
+func (r *Runner) Cancel(id uuid.UUID) {
+	r.rw.Lock()
+	defer r.rw.Unlock()
+	if cancel, ok := r.actions[id]; ok {
+		cancel()
+		delete(r.actions, id)
+	}
+}
+
+func run(ctx context.Context, a Action, out chan<- ActionResult, logger logrus.FieldLogger) {
+	ctx, cancel := context.WithTimeout(ctx, defaultTimeout)
 	defer cancel()
+
+	logger.WithFields(logrus.Fields{
+		"action_id":   a.ID(),
+		"action_name": a.Name(),
+	}).Debugf("Running action...")
 
 	select {
 	case <-ctx.Done():
+		logger.WithFields(logrus.Fields{
+			"action_id":   a.ID(),
+			"action_name": a.Name(),
+		}).Debugf("Action canceled")
+
 		return
 	default:
 		cOut, err := a.Run(ctx)
+
+		logger.WithFields(logrus.Fields{
+			"action_id":   a.ID(),
+			"action_name": a.Name(),
+		}).Debugf("Action finished")
+
 		out <- ActionResult{
 			ID:             a.ID(),
 			Name:           a.Name(),
