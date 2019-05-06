@@ -220,6 +220,14 @@
   version = "v1.3.1"
 
 [[projects]]
+  digest = "1:ab3ec1fe3e39bac4b3ab63390767766622be35b7cab03f47f787f9ec60522a53"
+  name = "github.com/google/uuid"
+  packages = ["."]
+  pruneopts = "NUT"
+  revision = "0cd6bf5da1e1c83f8b45653022c74f71af0538a4"
+  version = "v1.1.1"
+
+[[projects]]
   digest = "1:d4a8371b45bcfb31c5437930fd26980405fb3b40e1b85abe17a899c72cdcc3a8"
   name = "github.com/grpc-ecosystem/grpc-gateway"
   packages = [
@@ -613,6 +621,7 @@
     "github.com/go-sql-driver/mysql",
     "github.com/golang/protobuf/proto",
     "github.com/golang/protobuf/ptypes",
+    "github.com/google/uuid",
     "github.com/grpc-ecosystem/grpc-gateway/runtime",
     "github.com/percona/exporter_shared/helpers",
     "github.com/percona/go-mysql/event",
