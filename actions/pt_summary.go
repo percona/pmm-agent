@@ -35,7 +35,7 @@ type ptSummary struct {
 func NewPtSummary(params map[string]string, customPath string) Action {
 	return &ptSummary{
 		id:         uuid.New(),
-		name:       "pt-summary",
+		name:       ActionPtSummary,
 		params:     params,
 		customPath: customPath,
 	}

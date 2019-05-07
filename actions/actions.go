@@ -23,6 +23,10 @@ import (
 	"github.com/google/uuid"
 )
 
+const (
+	ActionPtSummary = "pt-summary"
+)
+
 // Action describe abstract action that can be runned and must return []bytes slice.
 // Every structure that implement this interface can be an action.
 type Action interface {
@@ -33,9 +37,12 @@ type Action interface {
 	Run(ctx context.Context) ([]byte, error)
 }
 
+// New creates a new action by it's name.
+// It can be used only for actions with the same parameters.
+// TODO: Rethink this in the future. Maybe it shouldn't be used this way.
 func New(name string, params map[string]string) (Action, error) {
 	switch name {
-	case "pt-summary":
+	case ActionPtSummary:
 		return NewPtSummary(params, ""), nil
 	}
 	return nil, errors.New("unsupported action")
