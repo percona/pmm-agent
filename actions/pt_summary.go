@@ -31,11 +31,11 @@ type ptSummary struct {
 	params     map[string]string
 }
 
-// NewPtSummary creates pt-summary action
+// NewPtSummary creates pt-summary action.
 func NewPtSummary(params map[string]string, customPath string) Action {
 	return &ptSummary{
 		id:         uuid.New(),
-		name:       ActionPtSummary,
+		name:       actionPtSummary,
 		params:     params,
 		customPath: customPath,
 	}
@@ -53,8 +53,9 @@ func (p *ptSummary) Name() string {
 
 // Run runs an action.
 func (p *ptSummary) Run(ctx context.Context) ([]byte, error) {
+	// TODO: Could be vulnerable. Think about it and maybe refactor.
 	executable := path.Join(p.customPath, p.name)
-	cmd := exec.CommandContext(ctx, executable, parseArguments(p.params)...)
+	cmd := exec.CommandContext(ctx, executable, parseArguments(p.params)...) //nolint:gosec
 	stdoutStderr, err := cmd.CombinedOutput()
 	if err != nil {
 		return nil, err

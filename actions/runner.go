@@ -25,10 +25,10 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-const defaultTimeout = time.Duration(time.Second * 10)
+const defaultTimeout = time.Second * 10
 
 // ActionResult represents an action result.
-type ActionResult struct {
+type ActionResult struct { //nolint:unused
 	ID             uuid.UUID
 	Name           string
 	Error          error
@@ -37,7 +37,7 @@ type ActionResult struct {
 
 // Runner represents action runner.
 // Action runner is component that can run an Actions.
-type Runner struct {
+type Runner struct { //nolint:unused
 	out    chan ActionResult
 	logger logrus.FieldLogger
 
@@ -72,6 +72,7 @@ func (r *Runner) ActionReady() <-chan ActionResult {
 	return r.out
 }
 
+// Cancel stops running action.
 func (r *Runner) Cancel(id uuid.UUID) {
 	r.rw.Lock()
 	defer r.rw.Unlock()
@@ -81,7 +82,7 @@ func (r *Runner) Cancel(id uuid.UUID) {
 	}
 }
 
-func run(ctx context.Context, a Action, out chan<- ActionResult, logger logrus.FieldLogger) {
+func run(ctx context.Context, a Action, out chan<- ActionResult, logger logrus.FieldLogger) { //nolint:unused
 	ctx, cancel := context.WithTimeout(ctx, defaultTimeout)
 	defer cancel()
 
