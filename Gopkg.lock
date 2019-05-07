@@ -228,6 +228,14 @@
   version = "v1.3.1"
 
 [[projects]]
+  digest = "1:ab3ec1fe3e39bac4b3ab63390767766622be35b7cab03f47f787f9ec60522a53"
+  name = "github.com/google/uuid"
+  packages = ["."]
+  pruneopts = "NUT"
+  revision = "0cd6bf5da1e1c83f8b45653022c74f71af0538a4"
+  version = "v1.1.1"
+
+[[projects]]
   digest = "1:d4a8371b45bcfb31c5437930fd26980405fb3b40e1b85abe17a899c72cdcc3a8"
   name = "github.com/grpc-ecosystem/grpc-gateway"
   packages = [
@@ -335,8 +343,8 @@
   version = "0.5.2"
 
 [[projects]]
-  branch = "PMM-2.0"
-  digest = "1:ba561821e527b29dda18ee488420167f38748fcec8ccade0b7eb8da6b7a100f5"
+  branch = "PMM-3978-actions"
+  digest = "1:c1d72c7ba4a955a3bcc7086fc94cf344221a8d81137ee04c2407b112aea63fd9"
   name = "github.com/percona/pmm"
   packages = [
     "api/agentlocalpb",
@@ -345,6 +353,7 @@
     "api/agentpb",
     "api/inventorypb",
     "api/managementpb/json/client",
+    "api/managementpb/json/client/actions",
     "api/managementpb/json/client/mongo_db",
     "api/managementpb/json/client/my_sql",
     "api/managementpb/json/client/node",
@@ -355,7 +364,7 @@
     "version",
   ]
   pruneopts = "NUT"
-  revision = "143a173ad3b75a036c4e466017a8d132db826553"
+  revision = "95ff7bb6b04e10cdaeab52a53c4d6231b7c014b4"
 
 [[projects]]
   digest = "1:14715f705ff5dfe0ffd6571d7d201dd8e921030f8070321a79380d8ca4ec1a24"
@@ -656,6 +665,7 @@
     "github.com/go-sql-driver/mysql",
     "github.com/golang/protobuf/proto",
     "github.com/golang/protobuf/ptypes",
+    "github.com/google/uuid",
     "github.com/grpc-ecosystem/grpc-gateway/runtime",
     "github.com/percona/exporter_shared/helpers",
     "github.com/percona/go-mysql/event",

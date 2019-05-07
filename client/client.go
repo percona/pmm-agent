@@ -229,13 +229,11 @@ func (c *Client) sendActionResults() {
 				err = ar.Error.Error()
 			}
 
-			res := c.channel.SendRequest(&agentpb.AgentMessage_ActionResult{
-				ActionResult: &agentpb.ActionResult{
-					Id:             ar.ID.String(),
-					Name:           ar.Name,
-					Error:          err,
-					CombinedOutput: ar.CombinedOutput,
-				},
+			res := c.channel.SendRequest(&agentpb.ActionResult{
+				Id:             ar.ID.String(),
+				Name:           ar.Name,
+				Error:          err,
+				CombinedOutput: ar.CombinedOutput,
 			})
 			if res == nil {
 				c.l.Warn("Failed to send AgentMessage_ActionResult.")
@@ -260,37 +258,27 @@ func (c *Client) processChannelRequests() {
 			c.supervisor.SetState(p)
 			responsePayload = new(agentpb.SetStateResponse)
 
-		case *agentpb.ServerMessage_ActionRunRequest:
-			a, err := actions.New(payload.ActionRunRequest.Name, payload.ActionRunRequest.Parameters)
+		case *agentpb.ActionRunRequest:
+			a, err := actions.New(p.Name, p.Parameters)
 			if err != nil {
 				c.l.Errorf("Unable to create action, reason: %s.", err)
 				continue
 			}
 			c.actionRunner.Run(a)
-			agentMessage = &agentpb.AgentMessage{
-				Id: serverMessage.Id,
-				Payload: &agentpb.AgentMessage_ActionRunResponse{
-					ActionRunResponse: &agentpb.ActionRunResponse{
-						Id: a.ID().String(),
-					},
-				},
+			responsePayload = &agentpb.ActionRunResponse{
+				Id: a.ID().String(),
 			}
 
 		// Handle Action Cancel request from pmm-managed
-		case *agentpb.ServerMessage_ActionCancelRequest:
-			id, err := uuid.Parse(payload.ActionCancelRequest.Id)
+		case *agentpb.ActionCancelRequest:
+			id, err := uuid.Parse(p.Id)
 			if err != nil {
-				c.l.Errorf("Unable to parse action UUID=%s, reason: %s.", payload.ActionCancelRequest.Id, err)
+				c.l.Errorf("Unable to parse action UUID=%s, reason: %s.", p.Id, err)
 				continue
 			}
 			c.actionRunner.Cancel(id)
-			agentMessage = &agentpb.AgentMessage{
-				Id: serverMessage.Id,
-				Payload: &agentpb.AgentMessage_ActionCancelResponse{
-					ActionCancelResponse: &agentpb.ActionCancelResponse{
-						Success: true,
-					},
-				},
+			responsePayload = &agentpb.ActionCancelResponse{
+				Success: true,
 			}
 
 		case nil:
