@@ -226,7 +226,7 @@ func (c *Client) processChannelRequests() {
 			return
 		}
 
-		c.channel.SendResponse(&channel.Response{
+		c.channel.SendResponse(&channel.AgentResponse{
 			ID:      req.ID,
 			Payload: responsePayload,
 		})

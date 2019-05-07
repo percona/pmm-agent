@@ -184,7 +184,7 @@ func TestServerRequest(t *testing.T) {
 	for req := range channel.Requests() {
 		assert.IsType(t, new(agentpb.Ping), req.Payload)
 
-		channel.SendResponse(&Response{
+		channel.SendResponse(&AgentResponse{
 			ID: req.ID,
 			Payload: &agentpb.Pong{
 				CurrentTime: ptypes.TimestampNow(),

@@ -36,18 +36,18 @@ const (
 	prometheusSubsystem = "channel"
 )
 
-// Request represents an request from server.
+// ServerRequest represents an request from server.
 // It is similar to agentpb.ServerMessage except it can contain only requests,
 // and the payload is already unwrapped (XXX instead of ServerMessage_XXX).
-type Request struct {
+type ServerRequest struct {
 	ID      uint32
 	Payload agentpb.ServerRequestPayload
 }
 
-// Response represents agent's response.
+// AgentResponse represents agent's response.
 // It is similar to agentpb.AgentMessage except it can contain only responses,
 // and the payload is already unwrapped (XXX instead of AgentMessage_XXX).
-type Response struct {
+type AgentResponse struct {
 	ID      uint32
 	Payload agentpb.AgentResponsePayload
 }
@@ -67,7 +67,7 @@ type Channel struct { //nolint:maligned
 
 	m         sync.Mutex
 	responses map[uint32]chan agentpb.ServerResponsePayload
-	requests  chan *Request
+	requests  chan *ServerRequest
 
 	closeOnce sync.Once
 	closeWait chan struct{}
@@ -96,7 +96,7 @@ func New(stream agentpb.Agent_ConnectClient) *Channel {
 		}),
 
 		responses: make(map[uint32]chan agentpb.ServerResponsePayload),
-		requests:  make(chan *Request, serverRequestsCap),
+		requests:  make(chan *ServerRequest, serverRequestsCap),
 
 		closeWait: make(chan struct{}),
 	}
@@ -134,12 +134,12 @@ func (c *Channel) Wait() error {
 }
 
 // Requests returns a channel for incoming requests. It must be read. It is closed on any error (see Wait).
-func (c *Channel) Requests() <-chan *Request {
+func (c *Channel) Requests() <-chan *ServerRequest {
 	return c.requests
 }
 
 // SendResponse sends message to pmm-managed. It is no-op once channel is closed (see Wait).
-func (c *Channel) SendResponse(resp *Response) {
+func (c *Channel) SendResponse(resp *AgentResponse) {
 	msg := &agentpb.AgentMessage{
 		Id:      resp.ID,
 		Payload: resp.Payload.AgentMessageResponsePayload(),
@@ -212,12 +212,12 @@ func (c *Channel) runReceiver() {
 		switch p := msg.Payload.(type) {
 		// requests
 		case *agentpb.ServerMessage_Ping:
-			c.requests <- &Request{
+			c.requests <- &ServerRequest{
 				ID:      msg.Id,
 				Payload: p.Ping,
 			}
 		case *agentpb.ServerMessage_SetState:
-			c.requests <- &Request{
+			c.requests <- &ServerRequest{
 				ID:      msg.Id,
 				Payload: p.SetState,
 			}
