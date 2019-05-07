@@ -39,7 +39,8 @@ const (
 // Channel encapsulates two-way communication channel between pmm-managed and pmm-agent.
 //
 // All exported methods are thread-safe.
-type Channel struct { //nolint:maligned
+type Channel struct {
+	//nolint:maligned
 	s agentpb.Agent_ConnectClient
 	l *logrus.Entry
 
@@ -191,7 +192,10 @@ func (c *Channel) runReceiver() {
 
 		switch msg.Payload.(type) {
 		// requests
-		case *agentpb.ServerMessage_Ping, *agentpb.ServerMessage_SetState:
+		case *agentpb.ServerMessage_Ping,
+			*agentpb.ServerMessage_SetState,
+			*agentpb.ServerMessage_ActionRunRequest,
+			*agentpb.ServerMessage_ActionCancelRequest:
 			c.requests <- msg
 
 		// responses

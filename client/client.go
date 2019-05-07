@@ -227,11 +227,17 @@ func (c *Client) sendActionResults() {
 		defer wg.Done()
 
 		for ar := range c.actionRunner.ActionReady() {
+
+			err := ""
+			if ar.Error != nil {
+				err = ar.Error.Error()
+			}
+
 			res := c.channel.SendRequest(&agentpb.AgentMessage_ActionResult{
 				ActionResult: &agentpb.ActionResult{
 					Id:             ar.ID.String(),
 					Name:           ar.Name,
-					Error:          ar.Error.Error(),
+					Error:          err,
 					CombinedOutput: ar.CombinedOutput,
 				},
 			})
@@ -277,6 +283,14 @@ func (c *Client) processChannelRequests() {
 				continue
 			}
 			c.actionRunner.Run(a)
+			agentMessage = &agentpb.AgentMessage{
+				Id: serverMessage.Id,
+				Payload: &agentpb.AgentMessage_ActionRunResponse{
+					ActionRunResponse: &agentpb.ActionRunResponse{
+						Id: a.ID().String(),
+					},
+				},
+			}
 
 		// Handle Action Cancel request from pmm-managed
 		case *agentpb.ServerMessage_ActionCancelRequest:
@@ -286,6 +300,14 @@ func (c *Client) processChannelRequests() {
 				continue
 			}
 			c.actionRunner.Cancel(id)
+			agentMessage = &agentpb.AgentMessage{
+				Id: serverMessage.Id,
+				Payload: &agentpb.AgentMessage_ActionCancelResponse{
+					ActionCancelResponse: &agentpb.ActionCancelResponse{
+						Success: true,
+					},
+				},
+			}
 
 		default:
 			// Requests() is not closed, so exit early to break channel

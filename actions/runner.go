@@ -48,8 +48,9 @@ type Runner struct {
 // NewRunner returns new runner.
 func NewRunner(l logrus.FieldLogger) *Runner {
 	return &Runner{
-		logger: l,
-		out:    make(chan ActionResult),
+		logger:  l,
+		out:     make(chan ActionResult),
+		actions: make(map[uuid.UUID]context.CancelFunc),
 	}
 }
 
