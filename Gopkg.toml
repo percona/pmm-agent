@@ -4,8 +4,12 @@ ignored = [
 
 # tools
 required = [
+  "gopkg.in/reform.v1/reform",
+  "github.com/BurntSushi/go-sumtype",
+  "github.com/vektra/mockery/cmd/mockery",
+
+  # for make gen-init when it is needed
   # "gopkg.in/reform.v1/reform-db",
-  "gopkg.in/reform.v1/reform"
 ]
 
 [prune]
@@ -16,7 +20,7 @@ required = [
 # TODO switch to tags before PMM 2.0 release
 [[constraint]]
   name = "github.com/percona/pmm"
-  branch = "PMM-2.0"
+  branch = "sumtype"
 
 # Stick to 0.9.x for now.
 # https://github.com/prometheus/client_golang#important-note-about-releases-versioning-tagging-and-stability
