@@ -23,11 +23,9 @@ import (
 )
 
 type shellAction struct {
-	id         string
-	name       int32
-	command    string
-	customPath string
-	arg        []string
+	id      string
+	command string
+	arg     []string
 
 	forbidden map[string]struct{}
 
@@ -40,17 +38,16 @@ type shellAction struct {
 //
 // Shell action, it's an abstract action that can run some "predefined" set of shell commands.
 // This commands can be a shell script, script written on interpreted language, or binary file.
-func NewShellAction(id string, command string, params []string) Action {
+func NewShellAction(id string, command string, arg []string) Action {
 	return &shellAction{
 		id:      id,
 		command: command,
-		arg:     params,
+		arg:     arg,
 		forbidden: map[string]struct{}{
-			"rm":      {},
-			"bash":    {},
-			"sh":      {},
-			"sudo":    {},
-			"unknown": {},
+			"rm":   {},
+			"bash": {},
+			"sh":   {},
+			"sudo": {},
 		},
 	}
 }
@@ -60,6 +57,7 @@ func (p *shellAction) ID() string {
 	return p.id
 }
 
+// Name returns action name as as string.
 func (p *shellAction) Name() string {
 	return p.command
 }
@@ -74,7 +72,7 @@ func (p *shellAction) Run(ctx context.Context) ([]byte, error) {
 		return nil, errUnknownAction
 	}
 
-	cmd := exec.CommandContext(ctx, p.command, p.arg...) //nolint:gosec
+	cmd := exec.CommandContext(p.ctx, p.command, p.arg...) //nolint:gosec
 	stdoutStderr, err := cmd.CombinedOutput()
 	if err != nil {
 		return nil, err

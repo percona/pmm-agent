@@ -27,8 +27,8 @@ import (
 const defaultTimeout = time.Second * 10
 
 // ActionResult represents an action result.
+//nolint:unused
 type ActionResult struct {
-	//nolint:unused
 	ID             string
 	Name           string
 	Error          error
@@ -37,8 +37,8 @@ type ActionResult struct {
 
 // ConcurrentRunner represents concurrent action runner.
 // Action runner is component that can run an Actions.
+//nolint:unused
 type ConcurrentRunner struct {
-	//nolint:unused
 	out    chan ActionResult
 	logger logrus.FieldLogger
 
@@ -46,7 +46,7 @@ type ConcurrentRunner struct {
 	actions map[string]Action
 }
 
-// NewRunner returns new runner.
+// NewConcurrentRunner returns new runner.
 func NewConcurrentRunner(l logrus.FieldLogger) *ConcurrentRunner {
 	return &ConcurrentRunner{
 		logger:  l,
