@@ -19,42 +19,21 @@ package actions
 import (
 	"context"
 
-	"github.com/google/uuid"
 	"github.com/pkg/errors"
 )
 
-const (
-	actionPtSummary = "pt-summary"
-)
+var errUnknownAction = errors.New("unknown action")
 
-// Action describe abstract action that can be runned and must return []bytes slice.
+// Action describe abstract thing that can be runned by a client and returns some output.
 // Every structure that implement this interface can be an action.
 type Action interface {
-	ID() uuid.UUID
+	// ID returns an action UUID. Used in log messages.
+	ID() string
+	// String representation of action name. Used in log messages.
 	Name() string
-	// Run runs command and returns output and error.
+	// Run runs an action and returns output and error.
 	// This method is blocking.
 	Run(ctx context.Context) ([]byte, error)
-}
-
-// New creates a new action by it's name.
-// It can be used only for actions with unified parameters.
-// TODO: Rethink this in the future. Maybe it shouldn't be used this way.
-func New(name string, params map[string]string) (Action, error) {
-	switch name { //nolint:gocritic
-	case actionPtSummary:
-		return NewPtSummary(params, ""), nil
-	}
-	return nil, errors.New("unsupported action")
-}
-
-func parseArguments(params map[string]string) []string {
-	args := make([]string, 0)
-	for k, v := range params {
-		args = append(args, k)
-		if len(v) > 0 {
-			args = append(args, v)
-		}
-	}
-	return args
+	// Stop stops an action.
+	Stop()
 }

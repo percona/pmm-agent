@@ -25,10 +25,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestPtSummaryRun(t *testing.T) {
+func TestRunShellAction(t *testing.T) {
 	// setup
-	p := NewPtSummary(nil, "")
-	_, err := exec.LookPath(p.Name())
+	p := NewShellAction("/action_id/6a479303-5081-46d0-baa0-87d6248c987b", "pt-summary", nil)
+	_, err := exec.LookPath("pt-summary")
 	if err != nil {
 		t.Skipf("Test skipped, reason: %s", err)
 	}
@@ -36,11 +36,27 @@ func TestPtSummaryRun(t *testing.T) {
 	// run
 	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
 	defer cancel()
-
 	got, err := p.Run(ctx)
 
 	// check
 	require.NoError(t, err)
 	assert.NotEmpty(t, got)
 	t.Logf("'%d' bytes read", len(got))
+}
+
+func TestRunForbiddenShellAction(t *testing.T) {
+	// setup
+	p := NewShellAction("/action_id/84140ab2-612d-4d93-9360-162a4bd5de14", "rm", nil)
+	_, err := exec.LookPath("rm")
+	if err != nil {
+		t.Skipf("Test skipped, reason: %s", err)
+	}
+
+	// run
+	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
+	defer cancel()
+	_, err = p.Run(ctx)
+
+	// check
+	require.Equal(t, err, errUnknownAction)
 }

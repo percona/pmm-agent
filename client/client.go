@@ -26,7 +26,6 @@ import (
 	"time"
 
 	"github.com/golang/protobuf/ptypes"
-	"github.com/google/uuid"
 	"github.com/percona/pmm/api/agentpb"
 	"github.com/percona/pmm/version"
 	"github.com/pkg/errors"
@@ -60,9 +59,9 @@ type supervisor interface {
 
 // Client represents pmm-agent's connection to nginx/pmm-managed.
 type Client struct {
-	cfg          *config.Config
-	supervisor   supervisor
-	actionRunner *actions.Runner
+	cfg                    *config.Config
+	supervisor             supervisor
+	concurrentActionRunner *actions.ConcurrentRunner
 
 	l       *logrus.Entry
 	backoff *backoff.Backoff
@@ -78,12 +77,12 @@ type Client struct {
 // Caller should call Run.
 func New(cfg *config.Config, supervisor supervisor) *Client {
 	return &Client{
-		cfg:          cfg,
-		supervisor:   supervisor,
-		actionRunner: actions.NewRunner(logrus.WithField("component", "actions.Runner")),
-		l:            logrus.WithField("component", "client"),
-		backoff:      backoff.New(backoffMinDelay, backoffMaxDelay),
-		done:         make(chan struct{}),
+		cfg:                    cfg,
+		supervisor:             supervisor,
+		concurrentActionRunner: actions.NewConcurrentRunner(logrus.WithField("component", "actions.Runner")),
+		l:                      logrus.WithField("component", "client"),
+		backoff:                backoff.New(backoffMinDelay, backoffMaxDelay),
+		done:                   make(chan struct{}),
 	}
 }
 
@@ -222,22 +221,12 @@ func (c *Client) sendActionResults() {
 	go func() {
 		defer wg.Done()
 
-		for ar := range c.actionRunner.ActionReady() {
-
-			err := ""
-			if ar.Error != nil {
-				err = ar.Error.Error()
-			}
-
-			res := c.channel.SendRequest(&agentpb.ActionResult{
-				Id:             ar.ID.String(),
-				Name:           ar.Name,
-				Error:          err,
-				CombinedOutput: ar.CombinedOutput,
+		for ar := range c.concurrentActionRunner.ActionReady() {
+			c.channel.SendRequest(&agentpb.ActionResultRequest{
+				Id:       ar.ID,
+				LastPart: true,
+				Output:   ar.CombinedOutput,
 			})
-			if res == nil {
-				c.l.Warn("Failed to send AgentMessage_ActionResult.")
-			}
 		}
 		c.l.Debugf("actionRunner ActionReady() channel drained.")
 	}()
@@ -258,27 +247,38 @@ func (c *Client) processChannelRequests() {
 			c.supervisor.SetState(p)
 			responsePayload = new(agentpb.SetStateResponse)
 
-		case *agentpb.ActionRunRequest:
-			a, err := actions.New(p.Name, p.Parameters)
-			if err != nil {
-				c.l.Errorf("Unable to create action, reason: %s.", err)
+		case *agentpb.StartActionRequest:
+			var a actions.Action
+			switch p.Name {
+			case agentpb.ActionName_PT_SUMMARY:
+				a = actions.NewShellAction(p.Id, "pt-summary", p.Parameters)
+				c.concurrentActionRunner.Run(a)
+				responsePayload = &agentpb.StartActionResponse{
+					Id: a.ID(),
+				}
+
+			case agentpb.ActionName_PT_MYSQL_SUMMARY:
+				a = actions.NewShellAction(p.Id, "pt-mysql-summary", p.Parameters)
+				c.concurrentActionRunner.Run(a)
+				responsePayload = &agentpb.StartActionResponse{
+					Id: a.ID(),
+				}
+
+			case agentpb.ActionName_MYSQL_EXPLAIN:
+				// TODO: Implement explain action.
+				c.l.Errorf("not implemented action EXPLAIN")
 				continue
-			}
-			c.actionRunner.Run(a)
-			responsePayload = &agentpb.ActionRunResponse{
-				Id: a.ID().String(),
+
+			case agentpb.ActionName_ACTION_NAME_INVALID:
+				c.l.Errorf("Unsupported action: %s.", p.Name)
+				continue
 			}
 
 		// Handle Action Cancel request from pmm-managed
-		case *agentpb.ActionCancelRequest:
-			id, err := uuid.Parse(p.Id)
-			if err != nil {
-				c.l.Errorf("Unable to parse action UUID=%s, reason: %s.", p.Id, err)
-				continue
-			}
-			c.actionRunner.Cancel(id)
-			responsePayload = &agentpb.ActionCancelResponse{
-				Success: true,
+		case *agentpb.StopActionRequest:
+			c.concurrentActionRunner.Stop(p.Id)
+			responsePayload = &agentpb.StopActionResponse{
+				Id: p.Id,
 			}
 
 		case nil:

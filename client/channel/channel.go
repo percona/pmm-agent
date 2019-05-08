@@ -221,15 +221,15 @@ func (c *Channel) runReceiver() {
 				ID:      msg.Id,
 				Payload: p.SetState,
 			}
-		case *agentpb.ServerMessage_ActionRunRequest:
+		case *agentpb.ServerMessage_StartAction:
 			c.requests <- &ServerRequest{
 				ID:      msg.Id,
-				Payload: p.ActionRunRequest,
+				Payload: p.StartAction,
 			}
-		case *agentpb.ServerMessage_ActionCancelRequest:
+		case *agentpb.ServerMessage_StopAction:
 			c.requests <- &ServerRequest{
 				ID:      msg.Id,
-				Payload: p.ActionCancelRequest,
+				Payload: p.StopAction,
 			}
 
 		// responses

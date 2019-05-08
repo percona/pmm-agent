@@ -21,81 +21,80 @@ import (
 	"sync"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 )
 
 const defaultTimeout = time.Second * 10
 
 // ActionResult represents an action result.
-type ActionResult struct { //nolint:unused
-	ID             uuid.UUID
+type ActionResult struct {
+	//nolint:unused
+	ID             string
 	Name           string
 	Error          error
 	CombinedOutput []byte
 }
 
-// Runner represents action runner.
+// ConcurrentRunner represents concurrent action runner.
 // Action runner is component that can run an Actions.
-type Runner struct { //nolint:unused
+type ConcurrentRunner struct {
+	//nolint:unused
 	out    chan ActionResult
 	logger logrus.FieldLogger
 
 	rw      sync.RWMutex
-	actions map[uuid.UUID]context.CancelFunc
+	actions map[string]Action
 }
 
 // NewRunner returns new runner.
-func NewRunner(l logrus.FieldLogger) *Runner {
-	return &Runner{
+func NewConcurrentRunner(l logrus.FieldLogger) *ConcurrentRunner {
+	return &ConcurrentRunner{
 		logger:  l,
 		out:     make(chan ActionResult),
-		actions: make(map[uuid.UUID]context.CancelFunc),
+		actions: make(map[string]Action),
 	}
 }
 
 // Run runs an Action in separate goroutine.
 // When action is ready those output writes to ActionResult channel.
 // You can get all action results with ActionReady() method.
-func (r *Runner) Run(a Action) {
-	ctx, cancel := context.WithCancel(context.Background())
-
+func (r *ConcurrentRunner) Run(a Action) {
 	r.rw.Lock()
-	r.actions[a.ID()] = cancel
+	r.actions[a.ID()] = a
 	r.rw.Unlock()
 
-	go run(ctx, a, r.out, r.logger)
+	go run(a, r.out, r.logger)
 }
 
 // ActionReady returns channel that you can use to read action results.
-func (r *Runner) ActionReady() <-chan ActionResult {
+func (r *ConcurrentRunner) ActionReady() <-chan ActionResult {
 	return r.out
 }
 
-// Cancel stops running action.
-func (r *Runner) Cancel(id uuid.UUID) {
+// Stop stops running action.
+func (r *ConcurrentRunner) Stop(id string) {
 	r.rw.Lock()
 	defer r.rw.Unlock()
-	if cancel, ok := r.actions[id]; ok {
-		cancel()
+	if a, ok := r.actions[id]; ok {
+		a.Stop()
 		delete(r.actions, id)
 	}
 }
 
-func run(ctx context.Context, a Action, out chan<- ActionResult, logger logrus.FieldLogger) { //nolint:unused
-	ctx, cancel := context.WithTimeout(ctx, defaultTimeout)
+func run(a Action, out chan<- ActionResult, logger logrus.FieldLogger) { //nolint:unused
+	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
 	defer cancel()
 
 	logger.WithFields(logrus.Fields{
-		"action_id":   a.ID(),
-		"action_name": a.Name(),
+		"id":   a.ID(),
+		"name": a.Name(),
 	}).Debugf("Running action...")
 
 	select {
 	case <-ctx.Done():
 		logger.WithFields(logrus.Fields{
-			"action_id":   a.ID(),
-			"action_name": a.Name(),
+			"id":   a.ID(),
+			"name": a.Name(),
 		}).Debugf("Action canceled")
 
 		return
@@ -103,13 +102,12 @@ func run(ctx context.Context, a Action, out chan<- ActionResult, logger logrus.F
 		cOut, err := a.Run(ctx)
 
 		logger.WithFields(logrus.Fields{
-			"action_id":   a.ID(),
-			"action_name": a.Name(),
+			"id":   a.ID(),
+			"name": a.Name(),
 		}).Debugf("Action finished")
 
 		out <- ActionResult{
 			ID:             a.ID(),
-			Name:           a.Name(),
 			Error:          err,
 			CombinedOutput: cOut,
 		}
