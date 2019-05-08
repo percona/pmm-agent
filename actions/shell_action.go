@@ -65,7 +65,9 @@ func (p *shellAction) Name() string {
 	return p.command
 }
 
-// Run runs an action.
+// Run starts an action.
+// Action runs with internal CancelContext (by default), and can be stopped with Stop() method.
+// This method is blocking.
 func (p *shellAction) Run(ctx context.Context) ([]byte, error) {
 	p.mx.Lock()
 	p.ctx, p.cancel = context.WithCancel(ctx)
@@ -84,6 +86,9 @@ func (p *shellAction) Run(ctx context.Context) ([]byte, error) {
 	return stdoutStderr, nil
 }
 
+// Stop stops started action.
+// Calls cancel() of internal cation context.
+// If action isn't started yet, returns "false".
 func (p *shellAction) Stop() bool {
 	p.mx.Lock()
 	defer p.mx.Unlock()

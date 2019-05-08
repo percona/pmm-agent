@@ -32,8 +32,9 @@ type Action interface {
 	// String representation of action name. Used in log messages.
 	Name() string
 	// Run runs an action and returns output and error.
-	// This method is blocking.
+	// This method can be blocking.
 	Run(ctx context.Context) ([]byte, error)
 	// Stop stops an action.
+	// It should return "false" if action can't be stopped for some reason.
 	Stop() bool
 }
