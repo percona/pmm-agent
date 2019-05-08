@@ -29,6 +29,9 @@ type shellAction struct {
 
 	forbidden map[string]struct{}
 
+	// Because cxt, and cancel are using in Run() which is blocked and Stop(),
+	// and because those methods can be used by separate goroutine
+	// we should protect those vars by Mutex.
 	mx     sync.Mutex
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -81,8 +84,12 @@ func (p *shellAction) Run(ctx context.Context) ([]byte, error) {
 	return stdoutStderr, nil
 }
 
-func (p *shellAction) Stop() {
+func (p *shellAction) Stop() bool {
 	p.mx.Lock()
-	p.cancel()
-	p.mx.Unlock()
+	defer p.mx.Unlock()
+	if p.cancel != nil {
+		p.cancel()
+		return true
+	}
+	return false
 }

@@ -42,16 +42,14 @@ type ConcurrentRunner struct {
 	out    chan ActionResult
 	logger logrus.FieldLogger
 
-	rw      sync.RWMutex
-	actions map[string]Action
+	actions sync.Map // map[string]Action
 }
 
 // NewConcurrentRunner returns new runner.
 func NewConcurrentRunner(l logrus.FieldLogger) *ConcurrentRunner {
 	return &ConcurrentRunner{
-		logger:  l,
-		out:     make(chan ActionResult),
-		actions: make(map[string]Action),
+		logger: l,
+		out:    make(chan ActionResult),
 	}
 }
 
@@ -59,11 +57,7 @@ func NewConcurrentRunner(l logrus.FieldLogger) *ConcurrentRunner {
 // When action is ready those output writes to ActionResult channel.
 // You can get all action results with ActionReady() method.
 func (r *ConcurrentRunner) Run(a Action) {
-	r.rw.Lock()
-	r.actions[a.ID()] = a
-	r.rw.Unlock()
-
-	go run(a, r.out, r.logger)
+	go r.run(a)
 }
 
 // ActionReady returns channel that you can use to read action results.
@@ -73,40 +67,31 @@ func (r *ConcurrentRunner) ActionReady() <-chan ActionResult {
 
 // Stop stops running action.
 func (r *ConcurrentRunner) Stop(id string) {
-	r.rw.Lock()
-	defer r.rw.Unlock()
-	if a, ok := r.actions[id]; ok {
-		a.Stop()
-		delete(r.actions, id)
+	if a, ok := r.actions.Load(id); ok {
+		if a.(Action).Stop() {
+			r.actions.Delete(id)
+		}
 	}
 }
 
-func run(a Action, out chan<- ActionResult, logger logrus.FieldLogger) { //nolint:unused
+func (r *ConcurrentRunner) run(a Action) { //nolint:unused
 	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
 	defer cancel()
-
-	logger.WithFields(logrus.Fields{
-		"id":   a.ID(),
-		"name": a.Name(),
-	}).Debugf("Running action...")
+	r.actions.Store(a.ID(), a)
+	actionFields := logrus.Fields{"id": a.ID(), "name": a.Name()}
+	r.logger.WithFields(actionFields).Debugf("Running action...")
 
 	select {
 	case <-ctx.Done():
-		logger.WithFields(logrus.Fields{
-			"id":   a.ID(),
-			"name": a.Name(),
-		}).Debugf("Action canceled")
-
+		r.logger.WithFields(actionFields).Debugf("Action canceled")
+		r.actions.Delete(a.ID())
 		return
 	default:
 		cOut, err := a.Run(ctx)
+		r.actions.Delete(a.ID())
+		r.logger.WithFields(actionFields).Debugf("Action finished")
 
-		logger.WithFields(logrus.Fields{
-			"id":   a.ID(),
-			"name": a.Name(),
-		}).Debugf("Action finished")
-
-		out <- ActionResult{
+		r.out <- ActionResult{
 			ID:             a.ID(),
 			Error:          err,
 			CombinedOutput: cOut,

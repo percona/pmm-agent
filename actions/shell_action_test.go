@@ -20,6 +20,7 @@ import (
 	"context"
 	"os/exec"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -27,8 +28,10 @@ import (
 
 func TestRunShellAction(t *testing.T) {
 	// setup
-	p := NewShellAction("/action_id/6a479303-5081-46d0-baa0-87d6248c987b", "pt-summary", nil)
-	_, err := exec.LookPath("pt-summary")
+	id := "/action_id/6a479303-5081-46d0-baa0-87d6248c987b"
+	cmd := "echo"
+	p := NewShellAction(id, cmd, nil)
+	_, err := exec.LookPath(cmd)
 	if err != nil {
 		t.Skipf("Test skipped, reason: %s", err)
 	}
@@ -41,10 +44,11 @@ func TestRunShellAction(t *testing.T) {
 	// check
 	require.NoError(t, err)
 	assert.NotEmpty(t, got)
-	t.Logf("'%d' bytes read", len(got))
+	assert.Equal(t, id, p.ID())
+	assert.Equal(t, cmd, p.Name())
 }
 
-func TestRunForbiddenShellAction(t *testing.T) {
+func TestRunUnknownShellAction(t *testing.T) {
 	// setup
 	p := NewShellAction("/action_id/84140ab2-612d-4d93-9360-162a4bd5de14", "rm", nil)
 	_, err := exec.LookPath("rm")
@@ -59,4 +63,26 @@ func TestRunForbiddenShellAction(t *testing.T) {
 
 	// check
 	require.Equal(t, err, errUnknownAction)
+}
+
+func TestRunActionAndCancel(t *testing.T) {
+	// setup
+	p := NewShellAction("/action_id/14b2422d-32ec-44fb-9019-8b70e3cc8a3a", "sleep", []string{"10"})
+	p2 := NewShellAction("/action_id/293c095e-726d-45e6-9e3d-36c1874af76b", "sleep", []string{"10"})
+	_, err := exec.LookPath("sleep")
+	if err != nil {
+		t.Skipf("Test skipped, reason: %s", err)
+	}
+
+	stop := func() {
+		assert.True(t, p.Stop())
+	}
+
+	// run
+	time.AfterFunc(time.Millisecond, stop)
+	_, err = p.Run(context.Background())
+
+	// check
+	assert.Error(t, err)
+	assert.False(t, p2.Stop()) // check wrong usage (Before Run() call).
 }

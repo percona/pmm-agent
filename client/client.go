@@ -251,14 +251,14 @@ func (c *Client) processChannelRequests() {
 			var a actions.Action
 			switch p.Name {
 			case agentpb.ActionName_PT_SUMMARY:
-				a = actions.NewShellAction(p.Id, "pt-summary", p.Parameters)
+				a = actions.NewShellAction(p.Id, c.cfg.Paths.PtSummaryAction, p.Parameters)
 				c.concurrentActionRunner.Run(a)
 				responsePayload = &agentpb.StartActionResponse{
 					Id: a.ID(),
 				}
 
 			case agentpb.ActionName_PT_MYSQL_SUMMARY:
-				a = actions.NewShellAction(p.Id, "pt-mysql-summary", p.Parameters)
+				a = actions.NewShellAction(p.Id, c.cfg.Paths.PtMySQLSummaryAction, p.Parameters)
 				c.concurrentActionRunner.Run(a)
 				responsePayload = &agentpb.StartActionResponse{
 					Id: a.ID(),

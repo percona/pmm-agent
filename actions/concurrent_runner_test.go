@@ -17,23 +17,31 @@
 package actions
 
 import (
-	"context"
+	"sync"
+	"testing"
 
-	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
+	"github.com/stretchr/testify/assert"
 )
 
-var errUnknownAction = errors.New("unknown action")
+func TestConcurrentRunnerRun(t *testing.T) {
+	cr := NewConcurrentRunner(logrus.WithField("component", "runner"))
 
-// Action describe abstract thing that can be runned by a client and returns some output.
-// Every structure that implement this interface can be an action.
-type Action interface {
-	// ID returns an action UUID. Used in log messages.
-	ID() string
-	// String representation of action name. Used in log messages.
-	Name() string
-	// Run runs an action and returns output and error.
-	// This method is blocking.
-	Run(ctx context.Context) ([]byte, error)
-	// Stop stops an action.
-	Stop() bool
+	a1 := NewShellAction("/action_id/6a479303-5081-46d0-baa0-87d6248c987b", "echo", []string{"test"})
+	a2 := NewShellAction("/action_id/84140ab2-612d-4d93-9360-162a4bd5de14", "echo", []string{"test2"})
+
+	cr.Run(a1)
+	cr.Run(a2)
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func(t *testing.T, ready <-chan ActionResult) {
+		defer wg.Done()
+		expected := []string{"test\n", "test2\n"}
+		for i := 0; i < 2; i++ {
+			a := <-ready
+			assert.Contains(t, expected, string(a.CombinedOutput))
+		}
+	}(t, cr.ActionReady())
+	wg.Wait()
 }
