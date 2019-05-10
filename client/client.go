@@ -222,10 +222,19 @@ func (c *Client) sendActionResults() {
 		defer wg.Done()
 
 		for ar := range c.concurrentActionRunner.ActionReady() {
+			var errCode int32 = 0
+			errMessage := ""
+			if ar.Error != nil {
+				errCode = 1
+				errMessage = ar.Error.Error()
+			}
+
 			c.channel.SendRequest(&agentpb.ActionResultRequest{
-				Id:       ar.ID,
-				LastPart: true,
-				Output:   ar.CombinedOutput,
+				ActionId:   ar.ID,
+				ErrCode:    errCode,
+				ErrMessage: errMessage,
+				LastPart:   true,
+				Output:     ar.CombinedOutput,
 			})
 		}
 		c.l.Debugf("actionRunner ActionReady() channel drained.")
@@ -251,17 +260,17 @@ func (c *Client) processChannelRequests() {
 			var a actions.Action
 			switch p.Name {
 			case agentpb.ActionName_PT_SUMMARY:
-				a = actions.NewShellAction(p.Id, c.cfg.Paths.PtSummaryAction, p.Parameters)
+				a = actions.NewShellAction(p.ActionId, c.cfg.Paths.PtSummaryAction, p.Parameters)
 				c.concurrentActionRunner.Run(a)
 				responsePayload = &agentpb.StartActionResponse{
-					Id: a.ID(),
+					ActionId: a.ID(),
 				}
 
 			case agentpb.ActionName_PT_MYSQL_SUMMARY:
-				a = actions.NewShellAction(p.Id, c.cfg.Paths.PtMySQLSummaryAction, p.Parameters)
+				a = actions.NewShellAction(p.ActionId, c.cfg.Paths.PtMySQLSummaryAction, p.Parameters)
 				c.concurrentActionRunner.Run(a)
 				responsePayload = &agentpb.StartActionResponse{
-					Id: a.ID(),
+					ActionId: a.ID(),
 				}
 
 			case agentpb.ActionName_MYSQL_EXPLAIN:
@@ -276,9 +285,9 @@ func (c *Client) processChannelRequests() {
 
 		// Handle Action Cancel request from pmm-managed
 		case *agentpb.StopActionRequest:
-			c.concurrentActionRunner.Stop(p.Id)
+			c.concurrentActionRunner.Stop(p.ActionId)
 			responsePayload = &agentpb.StopActionResponse{
-				Id: p.Id,
+				ActionId: p.ActionId,
 			}
 
 		case nil:
