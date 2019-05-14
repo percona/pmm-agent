@@ -19,13 +19,14 @@ package actions
 import (
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestConcurrentRunnerRun(t *testing.T) {
-	cr := NewConcurrentRunner(logrus.WithField("component", "runner"))
+	cr := NewConcurrentRunner(logrus.WithField("component", "runner"), 0)
 
 	a1 := NewShellAction("/action_id/6a479303-5081-46d0-baa0-87d6248c987b", "echo", []string{"test"})
 	a2 := NewShellAction("/action_id/84140ab2-612d-4d93-9360-162a4bd5de14", "echo", []string{"test2"})
@@ -41,6 +42,30 @@ func TestConcurrentRunnerRun(t *testing.T) {
 		for i := 0; i < 2; i++ {
 			a := <-ready
 			assert.Contains(t, expected, string(a.CombinedOutput))
+		}
+	}(t, cr.ActionReady())
+	wg.Wait()
+}
+
+func TestConcurrentRunnerTimeout(t *testing.T) {
+	cr := NewConcurrentRunner(logrus.WithField("component", "runner"), time.Second)
+
+	a1 := NewShellAction("/action_id/6a479303-5081-46d0-baa0-87d6248c987b", "sleep", []string{"20"})
+	a2 := NewShellAction("/action_id/84140ab2-612d-4d93-9360-162a4bd5de14", "sleep", []string{"30"})
+
+	cr.Run(a1)
+	cr.Run(a2)
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func(t *testing.T, ready <-chan ActionResult) {
+		defer wg.Done()
+		expected := []string{"signal: killed", "signal: killed"}
+		expectedOut := []string{"", ""}
+		for i := 0; i < 2; i++ {
+			a := <-ready
+			assert.Contains(t, expected, string(a.Error.Error()))
+			assert.Contains(t, expectedOut, string(a.CombinedOutput))
 		}
 	}(t, cr.ActionReady())
 	wg.Wait()

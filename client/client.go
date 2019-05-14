@@ -79,7 +79,7 @@ func New(cfg *config.Config, supervisor supervisor) *Client {
 	return &Client{
 		cfg:                    cfg,
 		supervisor:             supervisor,
-		concurrentActionRunner: actions.NewConcurrentRunner(logrus.WithField("component", "actions.Runner")),
+		concurrentActionRunner: actions.NewConcurrentRunner(logrus.WithField("component", "actions.Runner"), 0),
 		l:                      logrus.WithField("component", "client"),
 		backoff:                backoff.New(backoffMinDelay, backoffMaxDelay),
 		done:                   make(chan struct{}),

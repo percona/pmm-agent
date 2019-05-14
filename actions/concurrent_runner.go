@@ -43,13 +43,20 @@ type ConcurrentRunner struct {
 	logger logrus.FieldLogger
 
 	actions sync.Map // map[string]Action
+	timeout time.Duration
 }
 
 // NewConcurrentRunner returns new runner.
-func NewConcurrentRunner(l logrus.FieldLogger) *ConcurrentRunner {
+// If timeout is 0 it sets to defaultTimeout constant (10sec).
+func NewConcurrentRunner(l logrus.FieldLogger, timeout time.Duration) *ConcurrentRunner {
+	if timeout == 0 {
+		timeout = defaultTimeout
+	}
+
 	return &ConcurrentRunner{
-		logger: l,
-		out:    make(chan ActionResult),
+		logger:  l,
+		timeout: timeout,
+		out:     make(chan ActionResult),
 	}
 }
 
@@ -57,7 +64,7 @@ func NewConcurrentRunner(l logrus.FieldLogger) *ConcurrentRunner {
 // When action is ready those output writes to ActionResult channel.
 // You can get all action results with ActionReady() method.
 func (r *ConcurrentRunner) Run(a Action) {
-	go r.run(a)
+	go r.run(a, r.timeout)
 }
 
 // ActionReady returns channel that you can use to read action results.
@@ -74,27 +81,29 @@ func (r *ConcurrentRunner) Stop(id string) {
 	}
 }
 
-func (r *ConcurrentRunner) run(a Action) { //nolint:unused
-	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
+func (r *ConcurrentRunner) run(a Action, t time.Duration) { //nolint:unused
+	ctx, cancel := context.WithTimeout(context.Background(), t)
 	defer cancel()
 	r.actions.Store(a.ID(), a)
 	actionFields := logrus.Fields{"id": a.ID(), "name": a.Name()}
 	r.logger.WithFields(actionFields).Debugf("Running action...")
 
+	var cOut []byte
+	var err error
+
 	select {
 	case <-ctx.Done():
 		r.logger.WithFields(actionFields).Debugf("Action canceled")
 		r.actions.Delete(a.ID())
-		return
 	default:
-		cOut, err := a.Run(ctx)
+		cOut, err = a.Run(ctx)
 		r.actions.Delete(a.ID())
 		r.logger.WithFields(actionFields).Debugf("Action finished")
+	}
 
-		r.out <- ActionResult{
-			ID:             a.ID(),
-			Error:          err,
-			CombinedOutput: cOut,
-		}
+	r.out <- ActionResult{
+		ID:             a.ID(),
+		Error:          err,
+		CombinedOutput: cOut,
 	}
 }
