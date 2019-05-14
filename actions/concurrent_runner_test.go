@@ -49,7 +49,6 @@ func TestConcurrentRunnerRun(t *testing.T) {
 
 func TestConcurrentRunnerTimeout(t *testing.T) {
 	cr := NewConcurrentRunner(logrus.WithField("component", "runner"), time.Second)
-
 	a1 := NewShellAction("/action_id/6a479303-5081-46d0-baa0-87d6248c987b", "sleep", []string{"20"})
 	a2 := NewShellAction("/action_id/84140ab2-612d-4d93-9360-162a4bd5de14", "sleep", []string{"30"})
 
@@ -60,6 +59,8 @@ func TestConcurrentRunnerTimeout(t *testing.T) {
 	wg.Add(1)
 	go func(t *testing.T, ready <-chan ActionResult) {
 		defer wg.Done()
+
+		// check action returns proper errors and output.
 		expected := []string{"signal: killed", "signal: killed"}
 		expectedOut := []string{"", ""}
 		for i := 0; i < 2; i++ {
@@ -67,6 +68,13 @@ func TestConcurrentRunnerTimeout(t *testing.T) {
 			assert.Contains(t, expected, string(a.Error.Error()))
 			assert.Contains(t, expectedOut, string(a.CombinedOutput))
 		}
+
+		// check action was deleted from actions map.
+		_, ok := cr.actions.Load(a1.ID())
+		_, ok2 := cr.actions.Load(a2.ID())
+		assert.False(t, ok)
+		assert.False(t, ok2)
+
 	}(t, cr.ActionReady())
 	wg.Wait()
 }

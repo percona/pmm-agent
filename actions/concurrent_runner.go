@@ -88,18 +88,9 @@ func (r *ConcurrentRunner) run(a Action, t time.Duration) { //nolint:unused
 	actionFields := logrus.Fields{"id": a.ID(), "name": a.Name()}
 	r.logger.WithFields(actionFields).Debugf("Running action...")
 
-	var cOut []byte
-	var err error
-
-	select {
-	case <-ctx.Done():
-		r.logger.WithFields(actionFields).Debugf("Action canceled")
-		r.actions.Delete(a.ID())
-	default:
-		cOut, err = a.Run(ctx)
-		r.actions.Delete(a.ID())
-		r.logger.WithFields(actionFields).Debugf("Action finished")
-	}
+	cOut, err := a.Run(ctx)
+	r.actions.Delete(a.ID())
+	r.logger.WithFields(actionFields).Debugf("Action finished")
 
 	r.out <- ActionResult{
 		ID:             a.ID(),
