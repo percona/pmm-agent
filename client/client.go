@@ -27,6 +27,7 @@ import (
 
 	"github.com/golang/protobuf/ptypes"
 	"github.com/percona/pmm/api/agentpb"
+	"github.com/percona/pmm/api/managementpb"
 	"github.com/percona/pmm/version"
 	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus"
@@ -222,19 +223,16 @@ func (c *Client) sendActionResults() {
 		defer wg.Done()
 
 		for ar := range c.concurrentActionRunner.ActionReady() {
-			var errCode int32
 			errMessage := ""
 			if ar.Error != nil {
-				errCode = 1
 				errMessage = ar.Error.Error()
 			}
 
 			c.channel.SendRequest(&agentpb.ActionResultRequest{
-				ActionId:   ar.ID,
-				ErrCode:    errCode,
-				ErrMessage: errMessage,
-				LastPart:   true,
-				Output:     ar.CombinedOutput,
+				ActionId: ar.ID,
+				Done:     ar.Error != nil,
+				Error:    errMessage,
+				Output:   ar.CombinedOutput,
 			})
 		}
 		c.l.Debugf("actionRunner ActionReady() channel drained.")
@@ -258,37 +256,33 @@ func (c *Client) processChannelRequests() {
 
 		case *agentpb.StartActionRequest:
 			var a actions.Action
-			switch p.Name {
-			case agentpb.ActionName_PT_SUMMARY:
-				a = actions.NewShellAction(p.ActionId, c.cfg.Paths.PtSummaryAction, p.Parameters)
+			switch p.Type {
+			case managementpb.ActionType_PT_SUMMARY:
+				processParams := p.Params.(*agentpb.StartActionRequest_ProcessParams_)
+				a = actions.NewShellAction(p.ActionId, c.cfg.Paths.PtSummaryAction, processParams.ProcessParams.Args)
 				c.concurrentActionRunner.Run(a)
-				responsePayload = &agentpb.StartActionResponse{
-					ActionId: a.ID(),
-				}
+				responsePayload = &agentpb.StartActionResponse{}
 
-			case agentpb.ActionName_PT_MYSQL_SUMMARY:
-				a = actions.NewShellAction(p.ActionId, c.cfg.Paths.PtMySQLSummaryAction, p.Parameters)
+			case managementpb.ActionType_PT_MYSQL_SUMMARY:
+				processParams := p.Params.(*agentpb.StartActionRequest_ProcessParams_)
+				a = actions.NewShellAction(p.ActionId, c.cfg.Paths.PtMySQLSummaryAction, processParams.ProcessParams.Args)
 				c.concurrentActionRunner.Run(a)
-				responsePayload = &agentpb.StartActionResponse{
-					ActionId: a.ID(),
-				}
+				responsePayload = &agentpb.StartActionResponse{}
 
-			case agentpb.ActionName_MYSQL_EXPLAIN:
+			case managementpb.ActionType_MYSQL_EXPLAIN:
 				// TODO: Implement explain action.
 				c.l.Errorf("not implemented action EXPLAIN")
 				continue
 
-			case agentpb.ActionName_ACTION_NAME_INVALID:
-				c.l.Errorf("Unsupported action: %s.", p.Name)
+			case managementpb.ActionType_ACTION_TYPE_INVALID:
+				c.l.Errorf("Unsupported action: %s.", p.Type)
 				continue
 			}
 
 		// Handle Action Cancel request from pmm-managed
 		case *agentpb.StopActionRequest:
 			c.concurrentActionRunner.Stop(p.ActionId)
-			responsePayload = &agentpb.StopActionResponse{
-				ActionId: p.ActionId,
-			}
+			responsePayload = &agentpb.StopActionResponse{}
 
 		case nil:
 			// Requests() is not closed, so exit early to break channel
