@@ -48,23 +48,6 @@ func TestRunShellAction(t *testing.T) {
 	assert.Equal(t, cmd, p.Name())
 }
 
-func TestRunUnknownShellAction(t *testing.T) {
-	// setup
-	p := NewShellAction("/action_id/84140ab2-612d-4d93-9360-162a4bd5de14", "rm", nil)
-	_, err := exec.LookPath("rm")
-	if err != nil {
-		t.Skipf("Test skipped, reason: %s", err)
-	}
-
-	// run
-	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
-	defer cancel()
-	_, err = p.Run(ctx)
-
-	// check
-	require.Equal(t, err, errUnknownAction)
-}
-
 func TestRunActionAndCancel(t *testing.T) {
 	// setup
 	p := NewShellAction("/action_id/14b2422d-32ec-44fb-9019-8b70e3cc8a3a", "sleep", []string{"10"})

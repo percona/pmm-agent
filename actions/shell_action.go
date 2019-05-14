@@ -27,8 +27,6 @@ type shellAction struct {
 	command string
 	arg     []string
 
-	forbidden map[string]struct{}
-
 	// Because cxt, and cancel are using in Run() which is blocked and Stop(),
 	// and because those methods can be used by separate goroutine
 	// we should protect those vars by Mutex.
@@ -39,19 +37,13 @@ type shellAction struct {
 
 // NewShellAction creates Shell action.
 //
-// Shell action, it's an abstract action that can run some "predefined" set of shell commands.
+// Shell action, it's an abstract action that can run an external commands.
 // This commands can be a shell script, script written on interpreted language, or binary file.
-func NewShellAction(id string, command string, arg []string) Action {
+func NewShellAction(id string, cmd string, arg []string) Action {
 	return &shellAction{
 		id:      id,
-		command: command,
+		command: cmd,
 		arg:     arg,
-		forbidden: map[string]struct{}{
-			"rm":   {},
-			"bash": {},
-			"sh":   {},
-			"sudo": {},
-		},
 	}
 }
 
@@ -72,10 +64,6 @@ func (p *shellAction) Run(ctx context.Context) ([]byte, error) {
 	p.mx.Lock()
 	p.ctx, p.cancel = context.WithCancel(ctx)
 	p.mx.Unlock()
-
-	if _, ok := p.forbidden[p.command]; ok {
-		return nil, errUnknownAction
-	}
 
 	cmd := exec.CommandContext(p.ctx, p.command, p.arg...) //nolint:gosec
 	stdoutStderr, err := cmd.CombinedOutput()
