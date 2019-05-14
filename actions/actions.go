@@ -18,11 +18,7 @@ package actions
 
 import (
 	"context"
-
-	"github.com/pkg/errors"
 )
-
-var errUnknownAction = errors.New("unknown action")
 
 // Action describe abstract thing that can be runned by a client and returns some output.
 // Every structure that implement this interface can be an action.
