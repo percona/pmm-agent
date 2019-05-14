@@ -65,7 +65,7 @@ func TestConcurrentRunnerTimeout(t *testing.T) {
 		expectedOut := []string{"", ""}
 		for i := 0; i < 2; i++ {
 			a := <-ready
-			assert.Contains(t, expected, string(a.Error.Error()))
+			assert.Contains(t, expected, a.Error.Error())
 			assert.Contains(t, expectedOut, string(a.CombinedOutput))
 		}
 

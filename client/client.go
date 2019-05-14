@@ -222,7 +222,7 @@ func (c *Client) sendActionResults() {
 		defer wg.Done()
 
 		for ar := range c.concurrentActionRunner.ActionReady() {
-			var errCode int32 = 0
+			var errCode int32
 			errMessage := ""
 			if ar.Error != nil {
 				errCode = 1
