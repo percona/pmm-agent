@@ -70,8 +70,8 @@ func TestConcurrentRunnerTimeout(t *testing.T) {
 		}
 
 		// check action was deleted from actions map.
-		_, ok := cr.actions.Load(a1.ID())
-		_, ok2 := cr.actions.Load(a2.ID())
+		_, ok := cr.runningActions.Load(a1.ID())
+		_, ok2 := cr.runningActions.Load(a2.ID())
 		assert.False(t, ok)
 		assert.False(t, ok2)
 

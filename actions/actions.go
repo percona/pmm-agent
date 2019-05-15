@@ -30,7 +30,4 @@ type Action interface {
 	// Run runs an action and returns output and error.
 	// This method can be blocking.
 	Run(ctx context.Context) ([]byte, error)
-	// Stop stops an action.
-	// It should return "false" if action can't be stopped for some reason.
-	Stop() bool
 }

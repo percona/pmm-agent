@@ -42,8 +42,9 @@ type ConcurrentRunner struct {
 	out    chan ActionResult
 	logger logrus.FieldLogger
 
-	actions sync.Map // map[string]Action
-	timeout time.Duration
+	// runningActions stores CancelFunc's for running actions.
+	runningActions sync.Map // map[string]CancelFunc
+	timeout        time.Duration
 }
 
 // NewConcurrentRunner returns new runner.
@@ -74,22 +75,25 @@ func (r *ConcurrentRunner) ActionReady() <-chan ActionResult {
 
 // Stop stops running action.
 func (r *ConcurrentRunner) Stop(id string) {
-	if a, ok := r.actions.Load(id); ok {
-		if a.(Action).Stop() {
-			r.actions.Delete(id)
+	if a, ok := r.runningActions.Load(id); ok {
+		if cancel, ok := a.(context.CancelFunc); ok {
+			cancel()
+			r.runningActions.Delete(id)
 		}
 	}
 }
 
 func (r *ConcurrentRunner) run(a Action, t time.Duration) { //nolint:unused
-	ctx, cancel := context.WithTimeout(context.Background(), t)
-	defer cancel()
-	r.actions.Store(a.ID(), a)
+	tCtx, tCancel := context.WithTimeout(context.Background(), t)
+	ctx, cancel := context.WithCancel(tCtx)
+	defer tCancel()
+
+	r.runningActions.Store(a.ID(), cancel)
 	l := r.logger.WithFields(logrus.Fields{"id": a.ID(), "name": a.Name()})
 	l.Debugf("Running action...")
 
 	cOut, err := a.Run(ctx)
-	r.actions.Delete(a.ID())
+	r.runningActions.Delete(a.ID())
 	l.Debugf("Action finished")
 
 	r.out <- ActionResult{

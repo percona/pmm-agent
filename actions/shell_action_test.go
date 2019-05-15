@@ -51,21 +51,16 @@ func TestRunShellAction(t *testing.T) {
 func TestRunActionAndCancel(t *testing.T) {
 	// setup
 	p := NewShellAction("/action_id/14b2422d-32ec-44fb-9019-8b70e3cc8a3a", "sleep", []string{"10"})
-	p2 := NewShellAction("/action_id/293c095e-726d-45e6-9e3d-36c1874af76b", "sleep", []string{"10"})
 	_, err := exec.LookPath("sleep")
 	if err != nil {
 		t.Skipf("Test skipped, reason: %s", err)
 	}
 
-	stop := func() {
-		assert.True(t, p.Stop())
-	}
-
+	ctx, cancel := context.WithCancel(context.Background())
 	// run
-	time.AfterFunc(time.Millisecond, stop)
-	_, err = p.Run(context.Background())
+	time.AfterFunc(time.Millisecond, cancel)
+	_, err = p.Run(ctx)
 
 	// check
 	assert.Error(t, err)
-	assert.False(t, p2.Stop()) // check wrong usage (Before Run() call).
 }

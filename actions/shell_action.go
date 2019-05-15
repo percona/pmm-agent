@@ -19,20 +19,12 @@ package actions
 import (
 	"context"
 	"os/exec"
-	"sync"
 )
 
 type shellAction struct {
 	id      string
 	command string
 	arg     []string
-
-	// Because cxt, and cancel are using in Run() which is blocked and Stop(),
-	// and because those methods can be used by separate goroutine
-	// we should protect those vars by Mutex.
-	mx     sync.Mutex
-	ctx    context.Context
-	cancel context.CancelFunc
 }
 
 // NewShellAction creates Shell action.
@@ -57,32 +49,13 @@ func (p *shellAction) Name() string {
 	return p.command
 }
 
-// Run starts an action.
-// Action runs with internal CancelContext (by default), and can be stopped with Stop() method.
-// This method is blocking.
+// Run starts an action. This method is blocking.
 func (p *shellAction) Run(ctx context.Context) ([]byte, error) {
-	p.mx.Lock()
-	p.ctx, p.cancel = context.WithCancel(ctx)
-	p.mx.Unlock()
-
-	cmd := exec.CommandContext(p.ctx, p.command, p.arg...) //nolint:gosec
+	cmd := exec.CommandContext(ctx, p.command, p.arg...) //nolint:gosec
 	b, err := cmd.CombinedOutput()
 	if err != nil {
 		return nil, err
 	}
 
 	return b, nil
-}
-
-// Stop stops started action.
-// Calls cancel() of internal cation context.
-// If action isn't started yet, returns "false".
-func (p *shellAction) Stop() bool {
-	p.mx.Lock()
-	defer p.mx.Unlock()
-	if p.cancel != nil {
-		p.cancel()
-		return true
-	}
-	return false
 }
