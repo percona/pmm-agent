@@ -273,7 +273,6 @@ func (c *Client) processChannelRequests() {
 				continue
 			}
 
-		// Handle Action Stop request.
 		case *agentpb.StopActionRequest:
 			c.runner.Stop(p.ActionId)
 			responsePayload = new(agentpb.StopActionResponse)
