@@ -17,7 +17,7 @@
 package actions
 
 import (
-	"sync"
+	"context"
 	"testing"
 	"time"
 
@@ -26,55 +26,41 @@ import (
 )
 
 func TestConcurrentRunnerRun(t *testing.T) {
-	cr := NewConcurrentRunner(logrus.WithField("component", "runner"), 0)
+	cr := NewConcurrentRunner(context.Background(), logrus.WithField("component", "runner"), 0)
 
-	a1 := NewShellAction("/action_id/6a479303-5081-46d0-baa0-87d6248c987b", "echo", []string{"test"})
-	a2 := NewShellAction("/action_id/84140ab2-612d-4d93-9360-162a4bd5de14", "echo", []string{"test2"})
+	a1 := NewProcessAction("/action_id/6a479303-5081-46d0-baa0-87d6248c987b", "echo", []string{"test"})
+	a2 := NewProcessAction("/action_id/84140ab2-612d-4d93-9360-162a4bd5de14", "echo", []string{"test2"})
 
-	cr.Run(a1)
-	cr.Run(a2)
+	cr.Start(a1)
+	cr.Start(a2)
 
-	var wg sync.WaitGroup
-	wg.Add(1)
-	go func(t *testing.T, ready <-chan ActionResult) {
-		defer wg.Done()
-		expected := []string{"test\n", "test2\n"}
-		for i := 0; i < 2; i++ {
-			a := <-ready
-			assert.Contains(t, expected, string(a.CombinedOutput))
-		}
-	}(t, cr.ActionReady())
-	wg.Wait()
+	expected := []string{"test\n", "test2\n"}
+	for i := 0; i < 2; i++ {
+		a := <-cr.ActionReady()
+		assert.Contains(t, expected, string(a.CombinedOutput))
+	}
 }
 
 func TestConcurrentRunnerTimeout(t *testing.T) {
-	cr := NewConcurrentRunner(logrus.WithField("component", "runner"), time.Second)
-	a1 := NewShellAction("/action_id/6a479303-5081-46d0-baa0-87d6248c987b", "sleep", []string{"20"})
-	a2 := NewShellAction("/action_id/84140ab2-612d-4d93-9360-162a4bd5de14", "sleep", []string{"30"})
+	cr := NewConcurrentRunner(context.Background(), logrus.WithField("component", "runner"), time.Second)
+	a1 := NewProcessAction("/action_id/6a479303-5081-46d0-baa0-87d6248c987b", "sleep", []string{"20"})
+	a2 := NewProcessAction("/action_id/84140ab2-612d-4d93-9360-162a4bd5de14", "sleep", []string{"30"})
 
-	cr.Run(a1)
-	cr.Run(a2)
+	cr.Start(a1)
+	cr.Start(a2)
 
-	var wg sync.WaitGroup
-	wg.Add(1)
-	go func(t *testing.T, ready <-chan ActionResult) {
-		defer wg.Done()
+	// check action returns proper errors and output.
+	expected := []string{"signal: killed", "signal: killed"}
+	expectedOut := []string{"", ""}
+	for i := 0; i < 2; i++ {
+		a := <-cr.ActionReady()
+		assert.Contains(t, expected, a.Error.Error())
+		assert.Contains(t, expectedOut, string(a.CombinedOutput))
+	}
 
-		// check action returns proper errors and output.
-		expected := []string{"signal: killed", "signal: killed"}
-		expectedOut := []string{"", ""}
-		for i := 0; i < 2; i++ {
-			a := <-ready
-			assert.Contains(t, expected, a.Error.Error())
-			assert.Contains(t, expectedOut, string(a.CombinedOutput))
-		}
-
-		// check action was deleted from actions map.
-		_, ok := cr.runningActions.Load(a1.ID())
-		_, ok2 := cr.runningActions.Load(a2.ID())
-		assert.False(t, ok)
-		assert.False(t, ok2)
-
-	}(t, cr.ActionReady())
-	wg.Wait()
+	// check action was deleted from actions map.
+	_, ok := cr.runningActions.Load(a1.ID())
+	_, ok2 := cr.runningActions.Load(a2.ID())
+	assert.False(t, ok)
+	assert.False(t, ok2)
 }

@@ -60,9 +60,9 @@ type supervisor interface {
 
 // Client represents pmm-agent's connection to nginx/pmm-managed.
 type Client struct {
-	cfg                    *config.Config
-	supervisor             supervisor
-	concurrentActionRunner *actions.ConcurrentRunner
+	cfg        *config.Config
+	supervisor supervisor
+	runner     *actions.ConcurrentRunner
 
 	l       *logrus.Entry
 	backoff *backoff.Backoff
@@ -78,12 +78,11 @@ type Client struct {
 // Caller should call Run.
 func New(cfg *config.Config, supervisor supervisor) *Client {
 	return &Client{
-		cfg:                    cfg,
-		supervisor:             supervisor,
-		concurrentActionRunner: actions.NewConcurrentRunner(logrus.WithField("component", "actions.Runner"), 0),
-		l:                      logrus.WithField("component", "client"),
-		backoff:                backoff.New(backoffMinDelay, backoffMaxDelay),
-		done:                   make(chan struct{}),
+		cfg:        cfg,
+		supervisor: supervisor,
+		l:          logrus.WithField("component", "client"),
+		backoff:    backoff.New(backoffMinDelay, backoffMaxDelay),
+		done:       make(chan struct{}),
 	}
 }
 
@@ -96,6 +95,8 @@ func New(cfg *config.Config, supervisor supervisor) *Client {
 // Returned error is already logged and should be ignored. It is returned only for unit tests.
 func (c *Client) Run(ctx context.Context) error {
 	c.l.Info("Starting...")
+
+	c.runner = actions.NewConcurrentRunner(ctx, logrus.WithField("component", "actions.Runner"), 0)
 
 	// do nothing until ctx is canceled if config misses critical info
 	var missing string
@@ -148,13 +149,15 @@ func (c *Client) Run(ctx context.Context) error {
 	c.rw.Unlock()
 
 	// Once the client is connected, ctx cancellation is ignored.
-	// We start two goroutines, and terminate the gRPC connection and exit Run when any of them exits:
+	// We start three goroutines, and terminate the gRPC connection and exit Run when any of them exits:
 	// 1. processSupervisorRequests reads requests (status changes and QAN data) from the supervisor and sends them to the channel.
 	//    It exits when the supervisor is stopped.
 	//    When the gRPC connection is terminated on exiting Run, processChannelRequests exits too.
 	// 2. processChannelRequests reads requests from the channel and processes them.
 	//    It exits when an unexpected message is received from the channel, or when can't be received at all.
 	//    When Run is left, caller stops supervisor, and that allows processSupervisorRequests to exit.
+	// 3. sendActionResults reads action results from action runner and sends them to pmm-managed.
+	//    It exits when messages can't be received at all or when appContext is done.
 	// Done() channel is closed when both goroutines exited.
 	oneDone := make(chan struct{}, 3)
 	go func() {
@@ -216,29 +219,20 @@ func (c *Client) processSupervisorRequests() {
 }
 
 func (c *Client) sendActionResults() {
-	var wg sync.WaitGroup
-
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-
-		for ar := range c.concurrentActionRunner.ActionReady() {
-			errMessage := ""
-			if ar.Error != nil {
-				errMessage = ar.Error.Error()
-			}
-
-			c.channel.SendRequest(&agentpb.ActionResultRequest{
-				ActionId: ar.ID,
-				Done:     ar.Error == nil,
-				Error:    errMessage,
-				Output:   ar.CombinedOutput,
-			})
+	for ar := range c.runner.ActionReady() {
+		var errMessage string
+		if ar.Error != nil {
+			errMessage = ar.Error.Error()
 		}
-		c.l.Debugf("actionRunner ActionReady() channel drained.")
-	}()
 
-	wg.Wait()
+		c.channel.SendRequest(&agentpb.ActionResultRequest{
+			ActionId: ar.ID,
+			Done:     ar.Error == nil,
+			Error:    errMessage,
+			Output:   ar.CombinedOutput,
+		})
+	}
+	c.l.Debugf("actionRunner ActionReady() channel drained.")
 }
 
 func (c *Client) processChannelRequests() {
@@ -259,14 +253,14 @@ func (c *Client) processChannelRequests() {
 			switch p.Type {
 			case managementpb.ActionType_PT_SUMMARY:
 				pp := p.GetProcessParams()
-				a = actions.NewShellAction(p.ActionId, c.cfg.Paths.PtSummary, pp.Args)
-				c.concurrentActionRunner.Run(a)
+				a = actions.NewProcessAction(p.ActionId, c.cfg.Paths.PtSummary, pp.Args)
+				c.runner.Start(a)
 				responsePayload = new(agentpb.StartActionResponse)
 
 			case managementpb.ActionType_PT_MYSQL_SUMMARY:
 				pp := p.GetProcessParams()
-				a = actions.NewShellAction(p.ActionId, c.cfg.Paths.PtMySQLSummary, pp.Args)
-				c.concurrentActionRunner.Run(a)
+				a = actions.NewProcessAction(p.ActionId, c.cfg.Paths.PtMySQLSummary, pp.Args)
+				c.runner.Start(a)
 				responsePayload = new(agentpb.StartActionResponse)
 
 			case managementpb.ActionType_MYSQL_EXPLAIN:
@@ -281,7 +275,7 @@ func (c *Client) processChannelRequests() {
 
 		// Handle Action Stop request.
 		case *agentpb.StopActionRequest:
-			c.concurrentActionRunner.Stop(p.ActionId)
+			c.runner.Stop(p.ActionId)
 			responsePayload = new(agentpb.StopActionResponse)
 
 		case nil:

@@ -30,7 +30,7 @@ const defaultTimeout = time.Second * 10
 //nolint:unused
 type ActionResult struct {
 	ID             string
-	Name           string
+	Type           string
 	Error          error
 	CombinedOutput []byte
 }
@@ -39,33 +39,43 @@ type ActionResult struct {
 // Action runner is component that can run an Actions.
 //nolint:unused
 type ConcurrentRunner struct {
-	out    chan ActionResult
-	logger logrus.FieldLogger
+	out chan ActionResult
+	l   *logrus.Entry
 
 	// runningActions stores CancelFunc's for running actions.
 	runningActions sync.Map // map[string]CancelFunc
 	timeout        time.Duration
+
+	appCtx context.Context
 }
 
 // NewConcurrentRunner returns new runner.
 // If timeout is 0 it sets to defaultTimeout constant (10sec).
-func NewConcurrentRunner(l logrus.FieldLogger, timeout time.Duration) *ConcurrentRunner {
+func NewConcurrentRunner(appCtx context.Context, l *logrus.Entry, timeout time.Duration) *ConcurrentRunner {
 	if timeout == 0 {
 		timeout = defaultTimeout
 	}
 
-	return &ConcurrentRunner{
-		logger:  l,
+	runner := &ConcurrentRunner{
+		appCtx:  appCtx,
+		l:       l,
 		timeout: timeout,
 		out:     make(chan ActionResult),
 	}
+
+	go func() {
+		<-appCtx.Done()
+		close(runner.out)
+	}()
+
+	return runner
 }
 
-// Run runs an Action in separate goroutine.
+// Start runs an Action in separate goroutine.
 // When action is ready those output writes to ActionResult channel.
 // You can get all action results with ActionReady() method.
-func (r *ConcurrentRunner) Run(a Action) {
-	go r.run(a, r.timeout)
+func (r *ConcurrentRunner) Start(a Action) {
+	go r.run(r.appCtx, a, r.timeout)
 }
 
 // ActionReady returns channel that you can use to read action results.
@@ -78,18 +88,17 @@ func (r *ConcurrentRunner) Stop(id string) {
 	if a, ok := r.runningActions.Load(id); ok {
 		if cancel, ok := a.(context.CancelFunc); ok {
 			cancel()
-			r.runningActions.Delete(id)
 		}
 	}
 }
 
-func (r *ConcurrentRunner) run(a Action, t time.Duration) { //nolint:unused
-	tCtx, tCancel := context.WithTimeout(context.Background(), t)
+func (r *ConcurrentRunner) run(appCtx context.Context, a Action, t time.Duration) { //nolint:unused
+	tCtx, tCancel := context.WithTimeout(appCtx, t)
 	ctx, cancel := context.WithCancel(tCtx)
 	defer tCancel()
 
 	r.runningActions.Store(a.ID(), cancel)
-	l := r.logger.WithFields(logrus.Fields{"id": a.ID(), "name": a.Name()})
+	l := r.l.WithFields(logrus.Fields{"id": a.ID(), "type": a.Type()})
 	l.Debugf("Running action...")
 
 	cOut, err := a.Run(ctx)
