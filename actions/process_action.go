@@ -52,6 +52,7 @@ func (p *processAction) Type() string {
 // Run starts an action. This method is blocking.
 func (p *processAction) Run(ctx context.Context) ([]byte, error) {
 	cmd := exec.CommandContext(ctx, p.command, p.arg...) //nolint:gosec
+	setSysProcAttr(cmd)
 	b, err := cmd.CombinedOutput()
 	if err != nil {
 		return nil, err
