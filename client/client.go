@@ -20,6 +20,7 @@ package client
 import (
 	"context"
 	"crypto/tls"
+	"fmt"
 	"net"
 	"strings"
 	"sync"
@@ -37,6 +38,7 @@ import (
 	"google.golang.org/grpc/status"
 
 	"github.com/percona/pmm-agent/client/channel"
+	"github.com/percona/pmm-agent/common"
 	"github.com/percona/pmm-agent/config"
 	"github.com/percona/pmm-agent/utils/backoff"
 )
@@ -316,13 +318,29 @@ func dial(dialCtx context.Context, cfg *config.Config, l *logrus.Entry) *dialRes
 		return nil
 	}
 
+	channel := channel.New(stream)
+	networkInfo, err := getNetworkInfo(channel, l)
+	if err != nil {
+		l.Errorf(err.Error())
+		teardown()
+		return nil
+	}
+	l.Infof("Two-way communication channel established in %s.", networkInfo.Roundtrip)
+
+	if networkInfo.ClockDrift > clockDriftWarning || -networkInfo.ClockDrift > clockDriftWarning {
+		l.Warnf("Estimated clock drift: %s.", networkInfo.ClockDrift)
+	}
+
+	return &dialResult{conn, streamCancel, channel, md}
+}
+
+func getNetworkInfo(channel *channel.Channel, l *logrus.Entry) (*common.NetworkInformation, error) {
 	// So far nginx can handle all that itself without pmm-managed.
 	// We need to send ping to ensure that pmm-managed is alive and that Agent ID is valid.
 	start := time.Now()
-	channel := channel.New(stream)
 	resp := channel.SendRequest(new(agentpb.Ping))
 	if resp == nil {
-		err = channel.Wait()
+		err := channel.Wait()
 		msg := err.Error()
 
 		// improve error message in that particular case
@@ -331,26 +349,19 @@ func dial(dialCtx context.Context, cfg *config.Config, l *logrus.Entry) *dialRes
 			msg += "\nPlease check that pmm-managed is running"
 		}
 
-		l.Errorf("Failed to send Ping message: %s.", msg)
-		teardown()
-		return nil
+		return nil, fmt.Errorf("Failed to send Ping message: %s.", msg)
 	}
-
 	roundtrip := time.Since(start)
 	serverTime, err := ptypes.Timestamp(resp.(*agentpb.Pong).CurrentTime)
 	if err != nil {
-		l.Errorf("Failed to decode Pong.current_time: %s.", err)
-		teardown()
-		return nil
+		return nil, fmt.Errorf("Failed to decode Pong.current_time: %s.", err)
 	}
-	l.Infof("Two-way communication channel established in %s.", roundtrip)
-
 	clockDrift := serverTime.Sub(start) - roundtrip/2
-	if clockDrift > clockDriftWarning || -clockDrift > clockDriftWarning {
-		l.Warnf("Estimated clock drift: %s.", clockDrift)
-	}
+	return &common.NetworkInformation{ClockDrift: clockDrift, Ping: roundtrip / 2, Roundtrip: roundtrip}, nil
+}
 
-	return &dialResult{conn, streamCancel, channel, md}
+func (c *Client) GetNetworkInfo() (*common.NetworkInformation, error) {
+	return getNetworkInfo(c.channel, c.l)
 }
 
 // GetAgentServerMetadata returns current server's metadata, or nil.

@@ -31,6 +31,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/golang/protobuf/ptypes"
+	"github.com/golang/protobuf/ptypes/duration"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"github.com/percona/pmm/api/agentlocalpb"
 	"github.com/percona/pmm/api/agentpb"
@@ -44,6 +46,7 @@ import (
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/grpc/status"
 
+	"github.com/percona/pmm-agent/common"
 	"github.com/percona/pmm-agent/config"
 )
 
@@ -59,6 +62,7 @@ type client interface {
 	GetAgentServerMetadata() *agentpb.AgentServerMetadata
 	Describe(chan<- *prometheus.Desc)
 	Collect(chan<- prometheus.Metric)
+	GetNetworkInfo() (*common.NetworkInformation, error)
 }
 
 const (
@@ -145,16 +149,27 @@ func (s *Server) Status(ctx context.Context, req *agentlocalpb.StatusRequest) (*
 		connected = false
 		md = new(agentpb.AgentServerMetadata)
 	}
+	var clockDrift *duration.Duration
+	var latency *duration.Duration
+	if req.GetNetworkInfo {
+		networkInfo, err := s.client.GetNetworkInfo()
+		if err != nil {
+			s.l.Errorf("Can't get network info")
+		} else {
+			clockDrift = ptypes.DurationProto(networkInfo.ClockDrift)
+			latency = ptypes.DurationProto(networkInfo.Ping)
+		}
+	}
 
 	var serverInfo *agentlocalpb.ServerInfo
 	if u := s.cfg.Server.URL(); u != nil {
 		serverInfo = &agentlocalpb.ServerInfo{
-			Url:          u.String(),
-			InsecureTls:  s.cfg.Server.InsecureTLS,
-			Version:      md.ServerVersion,
-			LastPingTime: nil, // TODO https://jira.percona.com/browse/PMM-3758
-			Latency:      nil, // TODO https://jira.percona.com/browse/PMM-3758
-			Connected:    connected,
+			Url:         u.String(),
+			InsecureTls: s.cfg.Server.InsecureTLS,
+			Version:     md.ServerVersion,
+			ClockDrift:  clockDrift,
+			Latency:     latency,
+			Connected:   connected,
 		}
 	}
 
