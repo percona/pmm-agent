@@ -52,6 +52,7 @@ const (
 type Client struct {
 	cfg        *config.Config
 	supervisor supervisor
+	withoutTLS bool // only for unit tests
 
 	l       *logrus.Entry
 	backoff *backoff.Backoff
@@ -104,7 +105,7 @@ func (c *Client) Run(ctx context.Context) error {
 	var dialResult *dialResult
 	for {
 		dialCtx, dialCancel := context.WithTimeout(ctx, dialTimeout)
-		dialResult = dial(dialCtx, c.cfg, c.l)
+		dialResult = dial(dialCtx, c.cfg, c.withoutTLS, c.l)
 		dialCancel()
 		if dialResult != nil {
 			break
@@ -245,16 +246,20 @@ type dialResult struct {
 }
 
 // dial tries to connect to the server once.
-func dial(dialCtx context.Context, cfg *config.Config, l *logrus.Entry) *dialResult {
-	host, _, _ := net.SplitHostPort(cfg.Server.Address)
-	tlsConfig := &tls.Config{
-		ServerName:         host,
-		InsecureSkipVerify: cfg.Server.InsecureTLS, //nolint:gosec
-	}
+func dial(dialCtx context.Context, cfg *config.Config, withoutTLS bool, l *logrus.Entry) *dialResult {
 	opts := []grpc.DialOption{
 		grpc.WithBlock(),
 		grpc.WithUserAgent("pmm-agent/" + version.Version),
-		grpc.WithTransportCredentials(credentials.NewTLS(tlsConfig)),
+	}
+	if withoutTLS {
+		opts = append(opts, grpc.WithInsecure())
+	} else {
+		host, _, _ := net.SplitHostPort(cfg.Server.Address)
+		tlsConfig := &tls.Config{
+			ServerName:         host,
+			InsecureSkipVerify: cfg.Server.InsecureTLS, //nolint:gosec
+		}
+		opts = append(opts, grpc.WithTransportCredentials(credentials.NewTLS(tlsConfig)))
 	}
 
 	// FIXME https://jira.percona.com/browse/PMM-3867
