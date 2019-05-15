@@ -261,13 +261,13 @@ func (c *Client) processChannelRequests() {
 				pp := p.GetProcessParams()
 				a = actions.NewShellAction(p.ActionId, c.cfg.Paths.PtSummary, pp.Args)
 				c.concurrentActionRunner.Run(a)
-				responsePayload = &agentpb.StartActionResponse{}
+				responsePayload = new(agentpb.StartActionResponse)
 
 			case managementpb.ActionType_PT_MYSQL_SUMMARY:
 				pp := p.GetProcessParams()
 				a = actions.NewShellAction(p.ActionId, c.cfg.Paths.PtMySQLSummary, pp.Args)
 				c.concurrentActionRunner.Run(a)
-				responsePayload = &agentpb.StartActionResponse{}
+				responsePayload = new(agentpb.StartActionResponse)
 
 			case managementpb.ActionType_MYSQL_EXPLAIN:
 				// TODO: Implement explain action.
@@ -282,7 +282,7 @@ func (c *Client) processChannelRequests() {
 		// Handle Action Stop request.
 		case *agentpb.StopActionRequest:
 			c.concurrentActionRunner.Stop(p.ActionId)
-			responsePayload = &agentpb.StopActionResponse{}
+			responsePayload = new(agentpb.StopActionResponse)
 
 		case nil:
 			// Requests() is not closed, so exit early to break channel
