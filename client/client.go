@@ -158,6 +158,7 @@ func (c *Client) Run(ctx context.Context) error {
 	//    When Run is left, caller stops supervisor, and that allows processSupervisorRequests to exit.
 	// 3. sendActionResults reads action results from action runner and sends them to pmm-managed.
 	//    It exits when messages can't be received at all or when appContext is done.
+	//    When ctx argument is Done, Runners closes c.runner.ActionReady() channel and that allows sendActionResults to exit.
 	// Done() channel is closed when both goroutines exited.
 	oneDone := make(chan struct{}, 3)
 	go func() {
