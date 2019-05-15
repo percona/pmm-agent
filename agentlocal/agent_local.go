@@ -149,12 +149,12 @@ func (s *Server) Status(ctx context.Context, req *agentlocalpb.StatusRequest) (*
 	var serverInfo *agentlocalpb.ServerInfo
 	if u := s.cfg.Server.URL(); u != nil {
 		serverInfo = &agentlocalpb.ServerInfo{
-			Url:          u.String(),
-			InsecureTls:  s.cfg.Server.InsecureTLS,
-			Version:      md.ServerVersion,
-			LastPingTime: nil, // TODO https://jira.percona.com/browse/PMM-3758
-			Latency:      nil, // TODO https://jira.percona.com/browse/PMM-3758
-			Connected:    connected,
+			Url:         u.String(),
+			InsecureTls: s.cfg.Server.InsecureTLS,
+			Version:     md.ServerVersion,
+			ClockDrift:  nil, // TODO https://jira.percona.com/browse/PMM-3758
+			Latency:     nil, // TODO https://jira.percona.com/browse/PMM-3758
+			Connected:   connected,
 		}
 	}
 
