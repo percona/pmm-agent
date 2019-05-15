@@ -27,7 +27,6 @@ import (
 const defaultTimeout = time.Second * 10
 
 // ActionResult represents an action result.
-//nolint:unused
 type ActionResult struct {
 	ID             string
 	Type           string

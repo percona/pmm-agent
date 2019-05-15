@@ -227,7 +227,7 @@ func (c *Client) sendActionResults() {
 
 		c.channel.SendRequest(&agentpb.ActionResultRequest{
 			ActionId: ar.ID,
-			Done:     ar.Error == nil,
+			Done:     true,
 			Error:    errMessage,
 			Output:   ar.CombinedOutput,
 		})
