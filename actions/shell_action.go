@@ -66,12 +66,12 @@ func (p *shellAction) Run(ctx context.Context) ([]byte, error) {
 	p.mx.Unlock()
 
 	cmd := exec.CommandContext(p.ctx, p.command, p.arg...) //nolint:gosec
-	stdoutStderr, err := cmd.CombinedOutput()
+	b, err := cmd.CombinedOutput()
 	if err != nil {
 		return nil, err
 	}
 
-	return stdoutStderr, nil
+	return b, nil
 }
 
 // Stop stops started action.

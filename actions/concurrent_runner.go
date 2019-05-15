@@ -85,12 +85,12 @@ func (r *ConcurrentRunner) run(a Action, t time.Duration) { //nolint:unused
 	ctx, cancel := context.WithTimeout(context.Background(), t)
 	defer cancel()
 	r.actions.Store(a.ID(), a)
-	actionFields := logrus.Fields{"id": a.ID(), "name": a.Name()}
-	r.logger.WithFields(actionFields).Debugf("Running action...")
+	l := r.logger.WithFields(logrus.Fields{"id": a.ID(), "name": a.Name()})
+	l.Debugf("Running action...")
 
 	cOut, err := a.Run(ctx)
 	r.actions.Delete(a.ID())
-	r.logger.WithFields(actionFields).Debugf("Action finished")
+	l.Debugf("Action finished")
 
 	r.out <- ActionResult{
 		ID:             a.ID(),

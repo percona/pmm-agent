@@ -230,7 +230,7 @@ func (c *Client) sendActionResults() {
 
 			c.channel.SendRequest(&agentpb.ActionResultRequest{
 				ActionId: ar.ID,
-				Done:     ar.Error != nil,
+				Done:     ar.Error == nil,
 				Error:    errMessage,
 				Output:   ar.CombinedOutput,
 			})
@@ -258,14 +258,14 @@ func (c *Client) processChannelRequests() {
 			var a actions.Action
 			switch p.Type {
 			case managementpb.ActionType_PT_SUMMARY:
-				processParams := p.Params.(*agentpb.StartActionRequest_ProcessParams_)
-				a = actions.NewShellAction(p.ActionId, c.cfg.Paths.PtSummaryAction, processParams.ProcessParams.Args)
+				pp := p.GetProcessParams()
+				a = actions.NewShellAction(p.ActionId, c.cfg.Paths.PtSummary, pp.Args)
 				c.concurrentActionRunner.Run(a)
 				responsePayload = &agentpb.StartActionResponse{}
 
 			case managementpb.ActionType_PT_MYSQL_SUMMARY:
-				processParams := p.Params.(*agentpb.StartActionRequest_ProcessParams_)
-				a = actions.NewShellAction(p.ActionId, c.cfg.Paths.PtMySQLSummaryAction, processParams.ProcessParams.Args)
+				pp := p.GetProcessParams()
+				a = actions.NewShellAction(p.ActionId, c.cfg.Paths.PtMySQLSummary, pp.Args)
 				c.concurrentActionRunner.Run(a)
 				responsePayload = &agentpb.StartActionResponse{}
 
@@ -279,7 +279,7 @@ func (c *Client) processChannelRequests() {
 				continue
 			}
 
-		// Handle Action Cancel request from pmm-managed
+		// Handle Action Stop request.
 		case *agentpb.StopActionRequest:
 			c.concurrentActionRunner.Stop(p.ActionId)
 			responsePayload = &agentpb.StopActionResponse{}
