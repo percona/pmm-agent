@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-// Package actions provides PMM Actions implementations and related utils.
+// Package actionsCancel provides PMM Actions implementations and related utils.
 package actions
 
 import (

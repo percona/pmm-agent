@@ -58,9 +58,9 @@ func TestConcurrentRunnerTimeout(t *testing.T) {
 		assert.Contains(t, expectedOut, string(a.CombinedOutput))
 	}
 
-	// check action was deleted from actions map.
-	_, ok := cr.runningActions.Load(a1.ID())
-	_, ok2 := cr.runningActions.Load(a2.ID())
+	// check action was deleted from actionsCancel map.
+	_, ok := cr.actionsCancel.Load(a1.ID())
+	_, ok2 := cr.actionsCancel.Load(a2.ID())
 	assert.False(t, ok)
 	assert.False(t, ok2)
 }
@@ -87,14 +87,14 @@ func TestConcurrentRunnerStop(t *testing.T) {
 		assert.Contains(t, expectedOut, string(a.CombinedOutput))
 	}
 
-	// check action was deleted from actions map.
-	_, ok := cr.runningActions.Load(a1.ID())
-	_, ok2 := cr.runningActions.Load(a2.ID())
+	// check action was deleted from actionsCancel map.
+	_, ok := cr.actionsCancel.Load(a1.ID())
+	_, ok2 := cr.actionsCancel.Load(a2.ID())
 	assert.False(t, ok)
 	assert.False(t, ok2)
 }
 
-func TestConcurrentRunnerCancel(t *testing.T) {
+func TestConcurrentRunnerCancelApplicationContext(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cr := NewConcurrentRunner(ctx, logrus.WithField("component", "runner"), 0)
 	a1 := NewProcessAction("/action_id/6a479303-5081-46d0-baa0-87d6248c987b", "sleep", []string{"20"})
@@ -105,8 +105,7 @@ func TestConcurrentRunnerCancel(t *testing.T) {
 
 	cancel()
 
-	// TODO check action returns proper errors and output.
-	expected := []string{"signal: killed", "signal: killed"}
+	expected := []string{"context canceled", "context canceled"}
 	expectedOut := []string{"", ""}
 	for i := 0; i < 2; i++ {
 		a := <-cr.ActionReady()
@@ -114,9 +113,9 @@ func TestConcurrentRunnerCancel(t *testing.T) {
 		assert.Contains(t, expectedOut, string(a.CombinedOutput))
 	}
 
-	// check action was deleted from actions map.
-	_, ok := cr.runningActions.Load(a1.ID())
-	_, ok2 := cr.runningActions.Load(a2.ID())
+	// check action was deleted from actionsCancel map.
+	_, ok := cr.actionsCancel.Load(a1.ID())
+	_, ok2 := cr.actionsCancel.Load(a2.ID())
 	assert.False(t, ok)
 	assert.False(t, ok2)
 }

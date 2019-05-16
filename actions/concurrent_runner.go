@@ -38,12 +38,13 @@ type ActionResult struct {
 // Action runner is component that can run an Actions.
 //nolint:unused
 type ConcurrentRunner struct {
-	out chan ActionResult
-	l   *logrus.Entry
+	runningActions sync.WaitGroup
+	out            chan ActionResult
+	l              *logrus.Entry
 
-	// runningActions stores CancelFunc's for running actions.
-	runningActions sync.Map // map[string]CancelFunc
-	timeout        time.Duration
+	// actionsCancel stores CancelFunc's for running actionsCancel.
+	actionsCancel sync.Map // map[string]CancelFunc
+	timeout       time.Duration
 
 	appCtx context.Context
 }
@@ -55,7 +56,7 @@ func NewConcurrentRunner(appCtx context.Context, l *logrus.Entry, timeout time.D
 		timeout = defaultTimeout
 	}
 
-	runner := &ConcurrentRunner{
+	r := &ConcurrentRunner{
 		appCtx:  appCtx,
 		l:       l,
 		timeout: timeout,
@@ -64,16 +65,18 @@ func NewConcurrentRunner(appCtx context.Context, l *logrus.Entry, timeout time.D
 
 	go func() {
 		<-appCtx.Done()
-		close(runner.out)
+		r.runningActions.Wait()
+		close(r.out)
 	}()
 
-	return runner
+	return r
 }
 
 // Start runs an Action in separate goroutine.
 // When action is ready those output writes to ActionResult channel.
 // You can get all action results with ActionReady() method.
 func (r *ConcurrentRunner) Start(a Action) {
+	r.runningActions.Add(1)
 	go r.run(r.appCtx, a, r.timeout)
 }
 
@@ -84,7 +87,7 @@ func (r *ConcurrentRunner) ActionReady() <-chan ActionResult {
 
 // Stop stops running action.
 func (r *ConcurrentRunner) Stop(id string) {
-	if a, ok := r.runningActions.Load(id); ok {
+	if a, ok := r.actionsCancel.Load(id); ok {
 		if cancel, ok := a.(context.CancelFunc); ok {
 			cancel()
 		}
@@ -92,16 +95,17 @@ func (r *ConcurrentRunner) Stop(id string) {
 }
 
 func (r *ConcurrentRunner) run(appCtx context.Context, a Action, t time.Duration) { //nolint:unused
+	defer r.runningActions.Done()
 	tCtx, tCancel := context.WithTimeout(appCtx, t)
 	ctx, cancel := context.WithCancel(tCtx)
 	defer tCancel()
 
-	r.runningActions.Store(a.ID(), cancel)
+	r.actionsCancel.Store(a.ID(), cancel)
 	l := r.l.WithFields(logrus.Fields{"id": a.ID(), "type": a.Type()})
 	l.Debugf("Running action...")
 
 	cOut, err := a.Run(ctx)
-	r.runningActions.Delete(a.ID())
+	r.actionsCancel.Delete(a.ID())
 	l.Debugf("Action finished")
 
 	r.out <- ActionResult{
