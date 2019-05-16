@@ -43,25 +43,21 @@ import (
 	"github.com/percona/pmm-agent/utils/backoff"
 )
 
+var (
+	dialTimeout = 5 * time.Second // changed by unit tests
+)
+
 const (
-	dialTimeout       = 5 * time.Second
 	backoffMinDelay   = 1 * time.Second
 	backoffMaxDelay   = 15 * time.Second
 	clockDriftWarning = 5 * time.Second
 )
 
-// supervisor is a subset of methods of supervisor.Supervisor used by this package.
-// We use it instead of real type for testing and to avoid dependency cycle.
-type supervisor interface {
-	Changes() <-chan agentpb.StateChangedRequest
-	QANRequests() <-chan agentpb.QANCollectRequest
-	SetState(*agentpb.SetStateRequest)
-}
-
 // Client represents pmm-agent's connection to nginx/pmm-managed.
 type Client struct {
 	cfg        *config.Config
 	supervisor supervisor
+	withoutTLS bool // only for unit tests
 
 	l       *logrus.Entry
 	backoff *backoff.Backoff
@@ -112,9 +108,10 @@ func (c *Client) Run(ctx context.Context) error {
 
 	// try to connect until success, or until ctx is canceled
 	var dialResult *dialResult
+	var dialErr error
 	for {
 		dialCtx, dialCancel := context.WithTimeout(ctx, dialTimeout)
-		dialResult = dial(dialCtx, c.cfg, c.l)
+		dialResult, dialErr = dial(dialCtx, c.cfg, c.withoutTLS, c.l)
 		dialCancel()
 		if dialResult != nil {
 			break
@@ -129,7 +126,10 @@ func (c *Client) Run(ctx context.Context) error {
 	}
 	if ctx.Err() != nil {
 		close(c.done)
-		return errors.Wrap(ctx.Err(), "failed to connect")
+		if dialErr != nil {
+			return dialErr
+		}
+		return ctx.Err()
 	}
 
 	defer func() {
@@ -255,16 +255,21 @@ type dialResult struct {
 }
 
 // dial tries to connect to the server once.
-func dial(dialCtx context.Context, cfg *config.Config, l *logrus.Entry) *dialResult {
-	host, _, _ := net.SplitHostPort(cfg.Server.Address)
-	tlsConfig := &tls.Config{
-		ServerName:         host,
-		InsecureSkipVerify: cfg.Server.InsecureTLS, //nolint:gosec
-	}
+// State changes are logged via l. Returned error is not user-visible.
+func dial(dialCtx context.Context, cfg *config.Config, withoutTLS bool, l *logrus.Entry) (*dialResult, error) {
 	opts := []grpc.DialOption{
 		grpc.WithBlock(),
 		grpc.WithUserAgent("pmm-agent/" + version.Version),
-		grpc.WithTransportCredentials(credentials.NewTLS(tlsConfig)),
+	}
+	if withoutTLS {
+		opts = append(opts, grpc.WithInsecure())
+	} else {
+		host, _, _ := net.SplitHostPort(cfg.Server.Address)
+		tlsConfig := &tls.Config{
+			ServerName:         host,
+			InsecureSkipVerify: cfg.Server.InsecureTLS, //nolint:gosec
+		}
+		opts = append(opts, grpc.WithTransportCredentials(credentials.NewTLS(tlsConfig)))
 	}
 
 	// FIXME https://jira.percona.com/browse/PMM-3867
@@ -281,23 +286,32 @@ func dial(dialCtx context.Context, cfg *config.Config, l *logrus.Entry) *dialRes
 
 		// improve error message in that particular case
 		if err == context.DeadlineExceeded {
-			msg = "connection timeout"
+			msg = "timeout"
 		}
 
 		l.Errorf("Failed to connect to %s: %s.", cfg.Server.Address, msg)
-		return nil
+		return nil, errors.Wrap(err, "failed to dial")
 	}
 	l.Infof("Connected to %s.", cfg.Server.Address)
 
+	// gRPC stream is created without lifetime timeout.
+	// However, we need to cancel it if two-way communication channel can't be established
+	// when pmm-managed is down. A separate timer is used for that.
 	streamCtx, streamCancel := context.WithCancel(context.Background())
 	teardown := func() {
 		streamCancel()
-		if err = conn.Close(); err != nil {
+		if err := conn.Close(); err != nil {
 			l.Debugf("Connection closed: %s.", err)
 			return
 		}
 		l.Debugf("Connection closed.")
 	}
+	d, ok := dialCtx.Deadline()
+	if !ok {
+		panic("no deadline in dialCtx")
+	}
+	streamCancelT := time.AfterFunc(time.Until(d), streamCancel)
+	defer streamCancelT.Stop()
 
 	l.Info("Establishing two-way communication channel ...")
 	streamCtx = agentpb.AddAgentConnectMetadata(streamCtx, &agentpb.AgentConnectMetadata{
@@ -308,14 +322,25 @@ func dial(dialCtx context.Context, cfg *config.Config, l *logrus.Entry) *dialRes
 	if err != nil {
 		l.Errorf("Failed to establish two-way communication channel: %s.", err)
 		teardown()
-		return nil
+		return nil, errors.Wrap(err, "failed to connect")
 	}
+
+	// So far nginx can handle all that itself without pmm-managed.
+	// We need to exchange metadata and one pair of messages (ping/pong)
+	// to ensure that pmm-managed is alive and that Agent ID is valid.
 
 	md, err := agentpb.GetAgentServerMetadata(stream)
 	if err != nil {
-		l.Errorf("Can't get server metadata: %s.", err)
+		msg := err.Error()
+
+		// improve error message in that particular case
+		if code := status.Code(err); code == codes.DeadlineExceeded || code == codes.Canceled {
+			msg = "timeout"
+		}
+
+		l.Errorf("Can't get server metadata: %s.", msg)
 		teardown()
-		return nil
+		return nil, errors.Wrap(err, "failed to get server metadata")
 	}
 
 	channel := channel.New(stream)
@@ -326,12 +351,13 @@ func dial(dialCtx context.Context, cfg *config.Config, l *logrus.Entry) *dialRes
 		return nil
 	}
 	l.Infof("Two-way communication channel established in %s.", networkInfo.Roundtrip)
+	streamCancelT.Stop()
 
 	if networkInfo.ClockDrift > clockDriftWarning || -networkInfo.ClockDrift > clockDriftWarning {
 		l.Warnf("Estimated clock drift: %s.", networkInfo.ClockDrift)
 	}
 
-	return &dialResult{conn, streamCancel, channel, md}
+	return &dialResult{conn, streamCancel, channel, md}, nil
 }
 
 func getNetworkInformation(channel *channel.Channel) (*common.NetworkInformation, error) {
@@ -350,11 +376,16 @@ func getNetworkInformation(channel *channel.Channel) (*common.NetworkInformation
 		}
 
 		return nil, fmt.Errorf("Failed to send Ping message: %s.", msg)
+		l.Errorf("Failed to send Ping message: %s.", msg)
+		teardown()
+		return nil, errors.Wrap(err, "failed to send Ping")
 	}
 	roundtrip := time.Since(start)
 	serverTime, err := ptypes.Timestamp(resp.(*agentpb.Pong).CurrentTime)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to decode Pong.current_time: %s.", err)
+		l.Errorf("Failed to decode Pong.current_time: %s.", err)
+		teardown()
+		return nil, errors.Wrap(err, "failed to decode Ping")
 	}
 	clockDrift := serverTime.Sub(start) - roundtrip/2
 	return &common.NetworkInformation{ClockDrift: clockDrift, Ping: roundtrip / 2, Roundtrip: roundtrip}, nil
