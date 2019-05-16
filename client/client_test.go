@@ -25,6 +25,7 @@ import (
 
 	"github.com/golang/protobuf/ptypes"
 	"github.com/percona/pmm/api/agentpb"
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
@@ -137,7 +138,7 @@ func TestClient(t *testing.T) {
 				})
 				require.NoError(t, err)
 
-				return nil
+				return errors.New("connect done")
 			}
 
 			port, teardown := setup(t, connect)
@@ -166,8 +167,8 @@ func TestClient(t *testing.T) {
 			defer cancel()
 
 			connect := func(stream agentpb.Agent_ConnectServer) error {
-				<-stream.Context().Done()
-				return nil
+				time.Sleep(300 * time.Millisecond)
+				return errors.New("connect done")
 			}
 
 			port, teardown := setup(t, connect)

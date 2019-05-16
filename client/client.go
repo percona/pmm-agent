@@ -284,7 +284,7 @@ func dial(dialCtx context.Context, cfg *config.Config, withoutTLS bool, l *logru
 
 		// improve error message in that particular case
 		if err == context.DeadlineExceeded {
-			msg = "connection timeout"
+			msg = "timeout"
 		}
 
 		l.Errorf("Failed to connect to %s: %s.", cfg.Server.Address, msg)
@@ -329,7 +329,14 @@ func dial(dialCtx context.Context, cfg *config.Config, withoutTLS bool, l *logru
 
 	md, err := agentpb.GetAgentServerMetadata(stream)
 	if err != nil {
-		l.Errorf("Can't get server metadata: %s.", err)
+		msg := err.Error()
+
+		// improve error message in that particular case
+		if code := status.Code(err); code == codes.DeadlineExceeded || code == codes.Canceled {
+			msg = "timeout"
+		}
+
+		l.Errorf("Can't get server metadata: %s.", msg)
 		teardown()
 		return nil, errors.Wrap(err, "failed to get server metadata")
 	}
