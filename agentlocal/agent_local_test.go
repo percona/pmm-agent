@@ -18,23 +18,22 @@ package agentlocal
 
 import (
 	"context"
-	"github.com/golang/protobuf/ptypes/duration"
 	"testing"
 	"time"
 
-	"github.com/percona/pmm-agent/common"
-
+	"github.com/golang/protobuf/ptypes/duration"
 	"github.com/percona/pmm/api/agentlocalpb"
 	"github.com/percona/pmm/api/agentpb"
 	"github.com/percona/pmm/api/inventorypb"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/percona/pmm-agent/common"
 	"github.com/percona/pmm-agent/config"
 )
 
 func TestServerStatus(t *testing.T) {
-	setup := func (t *testing.T) ([]*agentlocalpb.AgentInfo, *mockSupervisor, *mockClient, *config.Config) {
+	setup := func(t *testing.T) ([]*agentlocalpb.AgentInfo, *mockSupervisor, *mockClient, *config.Config) {
 		agentInfo := []*agentlocalpb.AgentInfo{{
 			AgentId:   "/agent_id/00000000-0000-4000-8000-000000000002",
 			AgentType: agentpb.Type_NODE_EXPORTER,
