@@ -59,8 +59,8 @@ func TestConcurrentRunnerTimeout(t *testing.T) {
 	}
 
 	// check action was deleted from actionsCancel map.
-	_, ok := cr.actionsCancel.Load(a1.ID())
-	_, ok2 := cr.actionsCancel.Load(a2.ID())
+	_, ok := cr.actionsCancel[a1.ID()]
+	_, ok2 := cr.actionsCancel[a2.ID()]
 	assert.False(t, ok)
 	assert.False(t, ok2)
 }
@@ -88,8 +88,8 @@ func TestConcurrentRunnerStop(t *testing.T) {
 	}
 
 	// check action was deleted from actionsCancel map.
-	_, ok := cr.actionsCancel.Load(a1.ID())
-	_, ok2 := cr.actionsCancel.Load(a2.ID())
+	_, ok := cr.actionsCancel[a1.ID()]
+	_, ok2 := cr.actionsCancel[a2.ID()]
 	assert.False(t, ok)
 	assert.False(t, ok2)
 }
@@ -114,8 +114,8 @@ func TestConcurrentRunnerCancelApplicationContext(t *testing.T) {
 	}
 
 	// check action was deleted from actionsCancel map.
-	_, ok := cr.actionsCancel.Load(a1.ID())
-	_, ok2 := cr.actionsCancel.Load(a2.ID())
+	_, ok := cr.actionsCancel[a1.ID()]
+	_, ok2 := cr.actionsCancel[a2.ID()]
 	assert.False(t, ok)
 	assert.False(t, ok2)
 }

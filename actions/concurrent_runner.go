@@ -42,11 +42,11 @@ type ConcurrentRunner struct {
 	out            chan ActionResult
 	l              *logrus.Entry
 
-	// actionsCancel stores CancelFunc's for running actionsCancel.
-	actionsCancel sync.Map // map[string]CancelFunc
-	timeout       time.Duration
+	mx            sync.Mutex
+	actionsCancel map[string]context.CancelFunc
 
-	appCtx context.Context
+	timeout time.Duration
+	appCtx  context.Context
 }
 
 // NewConcurrentRunner returns new runner.
@@ -57,10 +57,11 @@ func NewConcurrentRunner(appCtx context.Context, l *logrus.Entry, timeout time.D
 	}
 
 	r := &ConcurrentRunner{
-		appCtx:  appCtx,
-		l:       l,
-		timeout: timeout,
-		out:     make(chan ActionResult),
+		appCtx:        appCtx,
+		l:             l,
+		timeout:       timeout,
+		out:           make(chan ActionResult),
+		actionsCancel: make(map[string]context.CancelFunc),
 	}
 
 	go func() {
@@ -75,9 +76,35 @@ func NewConcurrentRunner(appCtx context.Context, l *logrus.Entry, timeout time.D
 // Start runs an Action in separate goroutine.
 // When action is ready those output writes to ActionResult channel.
 // You can get all action results with ActionReady() method.
-func (r *ConcurrentRunner) Start(a Action) {
+func (r *ConcurrentRunner) Start(a action) {
 	r.runningActions.Add(1)
-	go r.run(r.appCtx, a, r.timeout)
+	go func() {
+		defer r.runningActions.Done()
+		tCtx, tCancel := context.WithTimeout(r.appCtx, r.timeout)
+		ctx, cancel := context.WithCancel(tCtx)
+		defer tCancel()
+
+		r.mx.Lock()
+		r.actionsCancel[a.ID()] = cancel
+		r.mx.Unlock()
+
+		l := r.l.WithFields(logrus.Fields{"id": a.ID(), "type": a.Type()})
+		l.Debugf("Running action...")
+
+		cOut, err := a.Run(ctx)
+
+		r.mx.Lock()
+		delete(r.actionsCancel, a.ID())
+		r.mx.Unlock()
+
+		l.Debugf("Action finished")
+
+		r.out <- ActionResult{
+			ID:             a.ID(),
+			Error:          err,
+			CombinedOutput: cOut,
+		}
+	}()
 }
 
 // ActionReady returns channel that you can use to read action results.
@@ -87,30 +114,9 @@ func (r *ConcurrentRunner) ActionReady() <-chan ActionResult {
 
 // Stop stops running action.
 func (r *ConcurrentRunner) Stop(id string) {
-	if a, ok := r.actionsCancel.Load(id); ok {
-		if cancel, ok := a.(context.CancelFunc); ok {
-			cancel()
-		}
-	}
-}
-
-func (r *ConcurrentRunner) run(appCtx context.Context, a Action, t time.Duration) { //nolint:unused
-	defer r.runningActions.Done()
-	tCtx, tCancel := context.WithTimeout(appCtx, t)
-	ctx, cancel := context.WithCancel(tCtx)
-	defer tCancel()
-
-	r.actionsCancel.Store(a.ID(), cancel)
-	l := r.l.WithFields(logrus.Fields{"id": a.ID(), "type": a.Type()})
-	l.Debugf("Running action...")
-
-	cOut, err := a.Run(ctx)
-	r.actionsCancel.Delete(a.ID())
-	l.Debugf("Action finished")
-
-	r.out <- ActionResult{
-		ID:             a.ID(),
-		Error:          err,
-		CombinedOutput: cOut,
+	r.mx.Lock()
+	defer r.mx.Unlock()
+	if cancel, ok := r.actionsCancel[id]; ok {
+		cancel()
 	}
 }

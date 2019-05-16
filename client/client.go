@@ -156,9 +156,12 @@ func (c *Client) Run(ctx context.Context) error {
 	// 2. sendActionResults reads action results from action runner and sends them to the channel.
 	//    It exits when the action runner is stopped.
 	//    When the gRPC connection is terminated on exiting Run, sendActionResults exits too.
+	//    The caller cancels context passed as an argument to Run.
+	//    This context also passed to action runner, and it stops own goroutines, then closes ActionReady channel.
+	//    That allows processChannelRequests to exit.
 	// 3. processChannelRequests reads requests from the channel and processes them.
 	//    It exits when an unexpected message is received from the channel, or when can't be received at all.
-	//    When Run is left, caller stops supervisor FIXME BUT DOES NOT STOP ACTION RUNNER, and that allows processSupervisorRequests to exit.
+	//    When Run is left, caller stops supervisor, and that allows processSupervisorRequests to exit.
 	// Done() channel is closed when all three goroutines exited.
 	oneDone := make(chan struct{}, 3)
 	go func() {
@@ -251,17 +254,16 @@ func (c *Client) processChannelRequests() {
 			responsePayload = new(agentpb.SetStateResponse)
 
 		case *agentpb.StartActionRequest:
-			var a actions.Action
 			switch p.Type {
 			case managementpb.ActionType_PT_SUMMARY:
 				pp := p.GetProcessParams()
-				a = actions.NewProcessAction(p.ActionId, c.cfg.Paths.PtSummary, pp.Args)
+				a := actions.NewProcessAction(p.ActionId, c.cfg.Paths.PtSummary, pp.Args)
 				c.runner.Start(a)
 				responsePayload = new(agentpb.StartActionResponse)
 
 			case managementpb.ActionType_PT_MYSQL_SUMMARY:
 				pp := p.GetProcessParams()
-				a = actions.NewProcessAction(p.ActionId, c.cfg.Paths.PtMySQLSummary, pp.Args)
+				a := actions.NewProcessAction(p.ActionId, c.cfg.Paths.PtMySQLSummary, pp.Args)
 				c.runner.Start(a)
 				responsePayload = new(agentpb.StartActionResponse)
 

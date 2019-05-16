@@ -31,7 +31,7 @@ type processAction struct {
 //
 // Process action, it's an abstract action that can run an external commands.
 // This commands can be a shell script, script written on interpreted language, or binary file.
-func NewProcessAction(id string, cmd string, arg []string) Action {
+func NewProcessAction(id string, cmd string, arg []string) action {
 	return &processAction{
 		id:      id,
 		command: cmd,
