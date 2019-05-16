@@ -43,6 +43,7 @@ import (
 )
 
 const (
+	// DefaultDialTimeout is default timeout for client dial.
 	DefaultDialTimeout = 5 * time.Second
 	backoffMinDelay    = 1 * time.Second
 	backoffMaxDelay    = 15 * time.Second
