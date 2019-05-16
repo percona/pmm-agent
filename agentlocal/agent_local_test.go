@@ -28,7 +28,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/percona/pmm-agent/common"
+	"github.com/percona/pmm-agent/client/shared"
 	"github.com/percona/pmm-agent/config"
 )
 
@@ -85,7 +85,7 @@ func TestServerStatus(t *testing.T) {
 
 	t.Run("with network info", func(t *testing.T) {
 		agentInfo, supervisor, client, cfg := setup(t)
-		client.On("GetNetworkInformation").Return(&common.NetworkInformation{Ping: 5 * time.Millisecond, ClockDrift: 1 * time.Second}, nil)
+		client.On("GetNetworkInformation").Return(&shared.NetworkInformation{Ping: 5 * time.Millisecond, ClockDrift: 1 * time.Second}, nil)
 		defer supervisor.AssertExpectations(t)
 		defer client.AssertExpectations(t)
 		s := NewServer(cfg, supervisor, client, "/some/dir/pmm-agent.yaml")
