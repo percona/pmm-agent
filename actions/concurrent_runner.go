@@ -26,8 +26,8 @@ import (
 
 const defaultTimeout = time.Second * 10
 
-// actionResult represents an Action result.
-type actionResult struct {
+// ActionResult represents an Action result.
+type ActionResult struct {
 	ID             string
 	Type           string
 	Error          error
@@ -39,7 +39,7 @@ type actionResult struct {
 //nolint:unused
 type ConcurrentRunner struct {
 	runningActions sync.WaitGroup
-	out            chan actionResult
+	out            chan ActionResult
 	l              *logrus.Entry
 
 	mx            sync.Mutex
@@ -60,7 +60,7 @@ func NewConcurrentRunner(appCtx context.Context, l *logrus.Entry, timeout time.D
 		appCtx:        appCtx,
 		l:             l,
 		timeout:       timeout,
-		out:           make(chan actionResult),
+		out:           make(chan ActionResult),
 		actionsCancel: make(map[string]context.CancelFunc),
 	}
 
@@ -99,7 +99,7 @@ func (r *ConcurrentRunner) Start(a Action) {
 
 		l.Debugf("Action finished")
 
-		r.out <- actionResult{
+		r.out <- ActionResult{
 			ID:             a.ID(),
 			Error:          err,
 			CombinedOutput: cOut,
@@ -108,7 +108,7 @@ func (r *ConcurrentRunner) Start(a Action) {
 }
 
 // ActionReady returns channel that you can use to read Action results.
-func (r *ConcurrentRunner) ActionReady() <-chan actionResult {
+func (r *ConcurrentRunner) ActionReady() <-chan ActionResult {
 	return r.out
 }
 
