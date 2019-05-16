@@ -167,9 +167,6 @@ func TestClient(t *testing.T) {
 			defer cancel()
 
 			connect := func(stream agentpb.Agent_ConnectServer) error {
-				md := agentpb.GetAgentConnectMetadata(stream.Context())
-				assert.Equal(t, agentpb.AgentConnectMetadata{ID: "agent_id"}, md)
-
 				time.Sleep(300 * time.Millisecond)
 				return errors.New("connect done")
 			}
