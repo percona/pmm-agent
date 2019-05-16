@@ -46,12 +46,31 @@ import (
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/grpc/status"
 
+	"github.com/percona/pmm-agent/common"
 	"github.com/percona/pmm-agent/config"
 )
 
 const (
 	shutdownTimeout = 1 * time.Second
 )
+
+//go:generate mockery -name=supervisor -case=snake -inpkg -testonly
+//go:generate mockery -name=client -case=snake -inpkg -testonly
+
+// supervisor is a subset of methods of supervisor.Supervisor used by this package.
+// We use it instead of real type for testing and to avoid dependency cycle.
+type supervisor interface {
+	AgentsList() []*agentlocalpb.AgentInfo
+}
+
+// client is a subset of methods of client.Client used by this package.
+// We use it instead of real type for testing and to avoid dependency cycle.
+type client interface {
+	GetAgentServerMetadata() *agentpb.AgentServerMetadata
+	Describe(chan<- *prometheus.Desc)
+	Collect(chan<- prometheus.Metric)
+	GetNetworkInformation() (*common.NetworkInformation, error)
+}
 
 // ErrReload is returned from Service.Run after request to reload configuration.
 var ErrReload = errors.New("reload")
