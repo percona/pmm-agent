@@ -346,6 +346,7 @@ func dial(dialCtx context.Context, cfg *config.Config, withoutTLS bool, l *logru
 	networkInfo, err := getNetworkInformation(channel)
 	if err != nil {
 		l.Errorf(err.Error())
+		teardown()
 		return nil, err
 	}
 	l.Infof("Two-way communication channel established in %s.", networkInfo.Roundtrip)
