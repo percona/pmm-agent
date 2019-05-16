@@ -93,3 +93,30 @@ func TestConcurrentRunnerStop(t *testing.T) {
 	assert.False(t, ok)
 	assert.False(t, ok2)
 }
+
+func TestConcurrentRunnerCancel(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cr := NewConcurrentRunner(ctx, logrus.WithField("component", "runner"), 0)
+	a1 := NewProcessAction("/action_id/6a479303-5081-46d0-baa0-87d6248c987b", "sleep", []string{"20"})
+	a2 := NewProcessAction("/action_id/84140ab2-612d-4d93-9360-162a4bd5de14", "sleep", []string{"30"})
+
+	cr.Start(a1)
+	cr.Start(a2)
+
+	cancel()
+
+	// TODO check action returns proper errors and output.
+	expected := []string{"signal: killed", "signal: killed"}
+	expectedOut := []string{"", ""}
+	for i := 0; i < 2; i++ {
+		a := <-cr.ActionReady()
+		assert.Contains(t, expected, a.Error.Error())
+		assert.Contains(t, expectedOut, string(a.CombinedOutput))
+	}
+
+	// check action was deleted from actions map.
+	_, ok := cr.runningActions.Load(a1.ID())
+	_, ok2 := cr.runningActions.Load(a2.ID())
+	assert.False(t, ok)
+	assert.False(t, ok2)
+}
