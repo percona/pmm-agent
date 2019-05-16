@@ -26,20 +26,20 @@ import (
 
 const defaultTimeout = time.Second * 10
 
-// ActionResult represents an action result.
-type ActionResult struct {
+// actionResult represents an Action result.
+type actionResult struct {
 	ID             string
 	Type           string
 	Error          error
 	CombinedOutput []byte
 }
 
-// ConcurrentRunner represents concurrent action runner.
+// ConcurrentRunner represents concurrent Action runner.
 // Action runner is component that can run an Actions.
 //nolint:unused
 type ConcurrentRunner struct {
 	runningActions sync.WaitGroup
-	out            chan ActionResult
+	out            chan actionResult
 	l              *logrus.Entry
 
 	mx            sync.Mutex
@@ -60,7 +60,7 @@ func NewConcurrentRunner(appCtx context.Context, l *logrus.Entry, timeout time.D
 		appCtx:        appCtx,
 		l:             l,
 		timeout:       timeout,
-		out:           make(chan ActionResult),
+		out:           make(chan actionResult),
 		actionsCancel: make(map[string]context.CancelFunc),
 	}
 
@@ -74,9 +74,9 @@ func NewConcurrentRunner(appCtx context.Context, l *logrus.Entry, timeout time.D
 }
 
 // Start runs an Action in separate goroutine.
-// When action is ready those output writes to ActionResult channel.
-// You can get all action results with ActionReady() method.
-func (r *ConcurrentRunner) Start(a action) {
+// When Action is ready those output writes to ActionResult channel.
+// You can get all Action results with ActionReady() method.
+func (r *ConcurrentRunner) Start(a Action) {
 	r.runningActions.Add(1)
 	go func() {
 		defer r.runningActions.Done()
@@ -89,7 +89,7 @@ func (r *ConcurrentRunner) Start(a action) {
 		r.mx.Unlock()
 
 		l := r.l.WithFields(logrus.Fields{"id": a.ID(), "type": a.Type()})
-		l.Debugf("Running action...")
+		l.Debugf("Running Action...")
 
 		cOut, err := a.Run(ctx)
 
@@ -99,7 +99,7 @@ func (r *ConcurrentRunner) Start(a action) {
 
 		l.Debugf("Action finished")
 
-		r.out <- ActionResult{
+		r.out <- actionResult{
 			ID:             a.ID(),
 			Error:          err,
 			CombinedOutput: cOut,
@@ -107,12 +107,12 @@ func (r *ConcurrentRunner) Start(a action) {
 	}()
 }
 
-// ActionReady returns channel that you can use to read action results.
-func (r *ConcurrentRunner) ActionReady() <-chan ActionResult {
+// ActionReady returns channel that you can use to read Action results.
+func (r *ConcurrentRunner) ActionReady() <-chan actionResult {
 	return r.out
 }
 
-// Stop stops running action.
+// Stop stops running Action.
 func (r *ConcurrentRunner) Stop(id string) {
 	r.mx.Lock()
 	defer r.mx.Unlock()

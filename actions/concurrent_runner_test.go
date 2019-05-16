@@ -49,7 +49,7 @@ func TestConcurrentRunnerTimeout(t *testing.T) {
 	cr.Start(a1)
 	cr.Start(a2)
 
-	// check action returns proper errors and output.
+	// check Action returns proper errors and output.
 	expected := []string{"signal: killed", "signal: killed"}
 	expectedOut := []string{"", ""}
 	for i := 0; i < 2; i++ {
@@ -58,7 +58,7 @@ func TestConcurrentRunnerTimeout(t *testing.T) {
 		assert.Contains(t, expectedOut, string(a.CombinedOutput))
 	}
 
-	// check action was deleted from actionsCancel map.
+	// check Action was deleted from actionsCancel map.
 	_, ok := cr.actionsCancel[a1.ID()]
 	_, ok2 := cr.actionsCancel[a2.ID()]
 	assert.False(t, ok)
@@ -78,7 +78,7 @@ func TestConcurrentRunnerStop(t *testing.T) {
 	cr.Stop(a1.ID())
 	cr.Stop(a2.ID())
 
-	// check action returns proper errors and output.
+	// check Action returns proper errors and output.
 	expected := []string{"signal: killed", "signal: killed"}
 	expectedOut := []string{"", ""}
 	for i := 0; i < 2; i++ {
@@ -87,7 +87,7 @@ func TestConcurrentRunnerStop(t *testing.T) {
 		assert.Contains(t, expectedOut, string(a.CombinedOutput))
 	}
 
-	// check action was deleted from actionsCancel map.
+	// check Action was deleted from actionsCancel map.
 	_, ok := cr.actionsCancel[a1.ID()]
 	_, ok2 := cr.actionsCancel[a2.ID()]
 	assert.False(t, ok)
@@ -113,7 +113,7 @@ func TestConcurrentRunnerCancelApplicationContext(t *testing.T) {
 		assert.Contains(t, expectedOut, string(a.CombinedOutput))
 	}
 
-	// check action was deleted from actionsCancel map.
+	// check Action was deleted from actionsCancel map.
 	_, ok := cr.actionsCancel[a1.ID()]
 	_, ok2 := cr.actionsCancel[a2.ID()]
 	assert.False(t, ok)
