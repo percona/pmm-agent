@@ -45,8 +45,6 @@ var _ agentpb.AgentServer = (*testServer)(nil)
 func setup(t *testing.T, connect func(agentpb.Agent_ConnectServer) error) (port uint16, teardown func()) {
 	// logrus.SetLevel(logrus.DebugLevel)
 
-	// t.Parallel()
-
 	// start server with given connect handler
 	lis, err := net.Listen("tcp", "127.0.0.1:0")
 	require.NoError(t, err)
@@ -79,7 +77,7 @@ func TestClient(t *testing.T) {
 		client := New(cfg, nil)
 		cancel()
 		err := client.Run(ctx)
-		assert.Equal(t, "missing PMM Server address: context canceled", err.Error())
+		assert.EqualError(t, err, "missing PMM Server address: context canceled")
 	})
 
 	t.Run("NoAgentID", func(t *testing.T) {
@@ -94,12 +92,12 @@ func TestClient(t *testing.T) {
 		client := New(cfg, nil)
 		cancel()
 		err := client.Run(ctx)
-		assert.Equal(t, "missing Agent ID: context canceled", err.Error())
+		assert.EqualError(t, err, "missing Agent ID: context canceled")
 	})
 
-	t.Run("FailedToConnect", func(t *testing.T) {
+	t.Run("FailedToDial", func(t *testing.T) {
 		t.Parallel()
-		ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
+		ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 		defer cancel()
 
 		cfg := &config.Config{
@@ -110,54 +108,82 @@ func TestClient(t *testing.T) {
 		}
 		client := New(cfg, nil)
 		err := client.Run(ctx)
-		assert.Equal(t, "failed to connect: context deadline exceeded", err.Error())
+		assert.EqualError(t, err, "failed to dial: context deadline exceeded")
 	})
 
-	t.Run("Normal", func(t *testing.T) {
-		serverMD := &agentpb.AgentServerMetadata{
-			ServerVersion: t.Name(),
-		}
+	t.Run("WithServer", func(t *testing.T) {
+		var origDialTimeout time.Duration
+		origDialTimeout, dialTimeout = dialTimeout, 100*time.Millisecond
+		defer func() { dialTimeout = origDialTimeout }()
 
-		connect := func(stream agentpb.Agent_ConnectServer) error {
-			md := agentpb.GetAgentConnectMetadata(stream.Context())
-			assert.Equal(t, agentpb.AgentConnectMetadata{ID: "agent_id"}, md)
-			err := agentpb.SendAgentServerMetadata(stream, serverMD)
-			require.NoError(t, err)
+		t.Run("Normal", func(t *testing.T) {
+			serverMD := &agentpb.AgentServerMetadata{
+				ServerVersion: t.Name(),
+			}
 
-			msg, err := stream.Recv()
-			require.NoError(t, err)
-			ping := msg.GetPing()
-			require.NotNil(t, ping)
-			err = stream.Send(&agentpb.ServerMessage{
-				Id:      msg.Id,
-				Payload: (&agentpb.Pong{CurrentTime: ptypes.TimestampNow()}).ServerMessageResponsePayload(),
-			})
-			require.NoError(t, err)
+			connect := func(stream agentpb.Agent_ConnectServer) error {
+				md := agentpb.GetAgentConnectMetadata(stream.Context())
+				assert.Equal(t, agentpb.AgentConnectMetadata{ID: "agent_id"}, md)
+				err := agentpb.SendAgentServerMetadata(stream, serverMD)
+				require.NoError(t, err)
 
-			return nil
-		}
+				msg, err := stream.Recv()
+				require.NoError(t, err)
+				ping := msg.GetPing()
+				require.NotNil(t, ping)
+				err = stream.Send(&agentpb.ServerMessage{
+					Id:      msg.Id,
+					Payload: (&agentpb.Pong{CurrentTime: ptypes.TimestampNow()}).ServerMessageResponsePayload(),
+				})
+				require.NoError(t, err)
 
-		port, teardown := setup(t, connect)
-		defer teardown()
+				return nil
+			}
 
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-		defer cancel()
+			port, teardown := setup(t, connect)
+			defer teardown()
 
-		cfg := &config.Config{
-			ID: "agent_id",
-			Server: config.Server{
-				Address: fmt.Sprintf("127.0.0.1:%d", port),
-			},
-		}
+			cfg := &config.Config{
+				ID: "agent_id",
+				Server: config.Server{
+					Address: fmt.Sprintf("127.0.0.1:%d", port),
+				},
+			}
 
-		s := new(mockSupervisor)
-		s.On("Changes").Return(make(<-chan agentpb.StateChangedRequest))
-		s.On("QANRequests").Return(make(<-chan agentpb.QANCollectRequest))
+			s := new(mockSupervisor)
+			s.On("Changes").Return(make(<-chan agentpb.StateChangedRequest))
+			s.On("QANRequests").Return(make(<-chan agentpb.QANCollectRequest))
 
-		client := New(cfg, s)
-		client.withoutTLS = true
-		err := client.Run(ctx)
-		assert.NoError(t, err)
-		assert.Equal(t, serverMD, client.GetAgentServerMetadata())
+			client := New(cfg, s)
+			client.withoutTLS = true
+			err := client.Run(context.Background())
+			assert.NoError(t, err)
+			assert.Equal(t, serverMD, client.GetAgentServerMetadata())
+		})
+
+		t.Run("NoManaged", func(t *testing.T) {
+			ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
+			defer cancel()
+
+			connect := func(stream agentpb.Agent_ConnectServer) error {
+				<-stream.Context().Done()
+				return nil
+			}
+
+			port, teardown := setup(t, connect)
+			defer teardown()
+
+			cfg := &config.Config{
+				ID: "agent_id",
+				Server: config.Server{
+					Address: fmt.Sprintf("127.0.0.1:%d", port),
+				},
+			}
+
+			client := New(cfg, nil)
+			client.withoutTLS = true
+			err := client.Run(ctx)
+			assert.EqualError(t, err, "failed to get server metadata: rpc error: code = Canceled desc = context canceled")
+		})
 	})
 }
