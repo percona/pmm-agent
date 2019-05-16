@@ -77,7 +77,7 @@ func Run() {
 		for appCtx.Err() == nil {
 			ctx, cancel := context.WithCancel(appCtx)
 			supervisor := supervisor.NewSupervisor(ctx, &cfg.Paths, &cfg.Ports)
-			client := client.New(cfg, supervisor)
+			client := client.New(cfg, supervisor, client.DefaultDialTimeout)
 			localServer := agentlocal.NewServer(cfg, supervisor, client, configFilePath)
 
 			go func() {

@@ -75,7 +75,7 @@ func TestClient(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 
 		cfg := &config.Config{}
-		client := New(cfg, nil)
+		client := New(cfg, nil, DefaultDialTimeout)
 		cancel()
 		err := client.Run(ctx)
 		assert.EqualError(t, err, "missing PMM Server address: context canceled")
@@ -90,7 +90,7 @@ func TestClient(t *testing.T) {
 				Address: "127.0.0.1:1",
 			},
 		}
-		client := New(cfg, nil)
+		client := New(cfg, nil, DefaultDialTimeout)
 		cancel()
 		err := client.Run(ctx)
 		assert.EqualError(t, err, "missing Agent ID: context canceled")
@@ -107,15 +107,12 @@ func TestClient(t *testing.T) {
 				Address: "127.0.0.1:1",
 			},
 		}
-		client := New(cfg, nil)
+		client := New(cfg, nil, DefaultDialTimeout)
 		err := client.Run(ctx)
 		assert.EqualError(t, err, "failed to dial: context deadline exceeded")
 	})
 
 	t.Run("WithServer", func(t *testing.T) {
-		var origDialTimeout time.Duration
-		origDialTimeout, dialTimeout = dialTimeout, 100*time.Millisecond
-		defer func() { dialTimeout = origDialTimeout }()
 
 		t.Run("Normal", func(t *testing.T) {
 			serverMD := &agentpb.AgentServerMetadata{
@@ -155,7 +152,7 @@ func TestClient(t *testing.T) {
 			s.On("Changes").Return(make(<-chan agentpb.StateChangedRequest))
 			s.On("QANRequests").Return(make(<-chan agentpb.QANCollectRequest))
 
-			client := New(cfg, s)
+			client := New(cfg, s, 100*time.Millisecond)
 			client.withoutTLS = true
 			err := client.Run(context.Background())
 			assert.NoError(t, err)
@@ -181,7 +178,7 @@ func TestClient(t *testing.T) {
 				},
 			}
 
-			client := New(cfg, nil)
+			client := New(cfg, nil, DefaultDialTimeout)
 			client.withoutTLS = true
 			err := client.Run(ctx)
 			assert.EqualError(t, err, "failed to get server metadata: rpc error: code = Canceled desc = context canceled")
