@@ -37,7 +37,7 @@ import (
 	"google.golang.org/grpc/status"
 
 	"github.com/percona/pmm-agent/client/channel"
-	"github.com/percona/pmm-agent/common"
+	"github.com/percona/pmm-agent/client/shared"
 	"github.com/percona/pmm-agent/config"
 	"github.com/percona/pmm-agent/utils/backoff"
 )
@@ -359,7 +359,7 @@ func dial(dialCtx context.Context, cfg *config.Config, withoutTLS bool, l *logru
 	return &dialResult{conn, streamCancel, channel, md}, nil
 }
 
-func getNetworkInformation(channel *channel.Channel) (*common.NetworkInformation, error) {
+func getNetworkInformation(channel *channel.Channel) (*shared.NetworkInformation, error) {
 	start := time.Now()
 	resp := channel.SendRequest(new(agentpb.Ping))
 	if resp == nil {
@@ -379,11 +379,11 @@ func getNetworkInformation(channel *channel.Channel) (*common.NetworkInformation
 		return nil, errors.Wrap(err, "Failed to decode Ping")
 	}
 	clockDrift := serverTime.Sub(start) - roundtrip/2
-	return &common.NetworkInformation{ClockDrift: clockDrift, Ping: roundtrip / 2, Roundtrip: roundtrip}, nil
+	return &shared.NetworkInformation{ClockDrift: clockDrift, Ping: roundtrip / 2, Roundtrip: roundtrip}, nil
 }
 
 // GetNetworkInformation sends ping request to the server and returns info about ping and time drift.
-func (c *Client) GetNetworkInformation() (*common.NetworkInformation, error) {
+func (c *Client) GetNetworkInformation() (*shared.NetworkInformation, error) {
 	return getNetworkInformation(c.channel)
 }
 

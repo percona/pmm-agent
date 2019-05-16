@@ -21,7 +21,7 @@ import (
 	"github.com/percona/pmm/api/agentpb"
 	"github.com/prometheus/client_golang/prometheus"
 
-	"github.com/percona/pmm-agent/common"
+	"github.com/percona/pmm-agent/client/shared"
 )
 
 //go:generate mockery -name=supervisor -case=snake -inpkg -testonly
@@ -39,5 +39,5 @@ type client interface {
 	GetAgentServerMetadata() *agentpb.AgentServerMetadata
 	Describe(chan<- *prometheus.Desc)
 	Collect(chan<- prometheus.Metric)
-	GetNetworkInformation() (*common.NetworkInformation, error)
+	GetNetworkInformation() (*shared.NetworkInformation, error)
 }
