@@ -319,7 +319,7 @@ func dial(dialCtx context.Context, cfg *config.Config, l *logrus.Entry) *dialRes
 	}
 
 	channel := channel.New(stream)
-	networkInfo, err := getNetworkInfo(channel, l)
+	networkInfo, err := getNetworkInformation(channel)
 	if err != nil {
 		l.Errorf(err.Error())
 		teardown()
@@ -334,7 +334,7 @@ func dial(dialCtx context.Context, cfg *config.Config, l *logrus.Entry) *dialRes
 	return &dialResult{conn, streamCancel, channel, md}
 }
 
-func getNetworkInfo(channel *channel.Channel, l *logrus.Entry) (*common.NetworkInformation, error) {
+func getNetworkInformation(channel *channel.Channel) (*common.NetworkInformation, error) {
 	// So far nginx can handle all that itself without pmm-managed.
 	// We need to send ping to ensure that pmm-managed is alive and that Agent ID is valid.
 	start := time.Now()
@@ -360,8 +360,9 @@ func getNetworkInfo(channel *channel.Channel, l *logrus.Entry) (*common.NetworkI
 	return &common.NetworkInformation{ClockDrift: clockDrift, Ping: roundtrip / 2, Roundtrip: roundtrip}, nil
 }
 
-func (c *Client) GetNetworkInfo() (*common.NetworkInformation, error) {
-	return getNetworkInfo(c.channel, c.l)
+// GetNetworkInformation sends ping request to the server and returns info about ping and time drift.
+func (c *Client) GetNetworkInformation() (*common.NetworkInformation, error) {
+	return getNetworkInformation(c.channel)
 }
 
 // GetAgentServerMetadata returns current server's metadata, or nil.

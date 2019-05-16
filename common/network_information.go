@@ -19,9 +19,9 @@ package common
 
 import "time"
 
+// NetworkInformation contains data about ping, time drift and roundtrip.
 type NetworkInformation struct {
 	ClockDrift time.Duration
 	Ping       time.Duration
 	Roundtrip  time.Duration
 }
-
