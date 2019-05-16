@@ -46,7 +46,6 @@ import (
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/grpc/status"
 
-	"github.com/percona/pmm-agent/common"
 	"github.com/percona/pmm-agent/config"
 )
 
@@ -137,7 +136,7 @@ func (s *Server) Status(ctx context.Context, req *agentlocalpb.StatusRequest) (*
 	var clockDrift *duration.Duration
 	var latency *duration.Duration
 	if req.GetNetworkInfo {
-		networkInfo, err := s.client.GetNetworkInfo()
+		networkInfo, err := s.client.GetNetworkInformation()
 		if err != nil {
 			s.l.Errorf("Can't get network info")
 		} else {

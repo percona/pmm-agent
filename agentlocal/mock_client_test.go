@@ -3,6 +3,7 @@
 package agentlocal
 
 import agentpb "github.com/percona/pmm/api/agentpb"
+import common "github.com/percona/pmm-agent/common"
 import mock "github.com/stretchr/testify/mock"
 import prometheus "github.com/prometheus/client_golang/prometheus"
 
@@ -35,4 +36,27 @@ func (_m *mockClient) GetAgentServerMetadata() *agentpb.AgentServerMetadata {
 	}
 
 	return r0
+}
+
+// GetNetworkInformation provides a mock function with given fields:
+func (_m *mockClient) GetNetworkInformation() (*common.NetworkInformation, error) {
+	ret := _m.Called()
+
+	var r0 *common.NetworkInformation
+	if rf, ok := ret.Get(0).(func() *common.NetworkInformation); ok {
+		r0 = rf()
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*common.NetworkInformation)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func() error); ok {
+		r1 = rf()
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
 }

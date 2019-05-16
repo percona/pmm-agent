@@ -20,7 +20,6 @@ package client
 import (
 	"context"
 	"crypto/tls"
-	"fmt"
 	"net"
 	"strings"
 	"sync"
@@ -347,8 +346,7 @@ func dial(dialCtx context.Context, cfg *config.Config, withoutTLS bool, l *logru
 	networkInfo, err := getNetworkInformation(channel)
 	if err != nil {
 		l.Errorf(err.Error())
-		teardown()
-		return nil
+		return nil, err
 	}
 	l.Infof("Two-way communication channel established in %s.", networkInfo.Roundtrip)
 	streamCancelT.Stop()
@@ -361,8 +359,6 @@ func dial(dialCtx context.Context, cfg *config.Config, withoutTLS bool, l *logru
 }
 
 func getNetworkInformation(channel *channel.Channel) (*common.NetworkInformation, error) {
-	// So far nginx can handle all that itself without pmm-managed.
-	// We need to send ping to ensure that pmm-managed is alive and that Agent ID is valid.
 	start := time.Now()
 	resp := channel.SendRequest(new(agentpb.Ping))
 	if resp == nil {
@@ -374,18 +370,12 @@ func getNetworkInformation(channel *channel.Channel) (*common.NetworkInformation
 		if status.Code() == codes.Internal && strings.Contains(status.Message(), "received the unexpected content-type") {
 			msg += "\nPlease check that pmm-managed is running"
 		}
-
-		return nil, fmt.Errorf("Failed to send Ping message: %s.", msg)
-		l.Errorf("Failed to send Ping message: %s.", msg)
-		teardown()
-		return nil, errors.Wrap(err, "failed to send Ping")
+		return nil, errors.Wrap(err, "Failed to send Ping")
 	}
 	roundtrip := time.Since(start)
 	serverTime, err := ptypes.Timestamp(resp.(*agentpb.Pong).CurrentTime)
 	if err != nil {
-		l.Errorf("Failed to decode Pong.current_time: %s.", err)
-		teardown()
-		return nil, errors.Wrap(err, "failed to decode Ping")
+		return nil, errors.Wrap(err, "Failed to decode Ping")
 	}
 	clockDrift := serverTime.Sub(start) - roundtrip/2
 	return &common.NetworkInformation{ClockDrift: clockDrift, Ping: roundtrip / 2, Roundtrip: roundtrip}, nil
