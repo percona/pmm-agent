@@ -153,28 +153,29 @@ func (c *Client) Run(ctx context.Context) error {
 	// 1. processSupervisorRequests reads requests (status changes and QAN data) from the supervisor and sends them to the channel.
 	//    It exits when the supervisor is stopped.
 	//    When the gRPC connection is terminated on exiting Run, processChannelRequests exits too.
-	// 2. processChannelRequests reads requests from the channel and processes them.
+	// 2. sendActionResults reads action results from action runner and sends them to the channel.
+	//    It exits when the action runner is stopped.
+	//    When the gRPC connection is terminated on exiting Run, sendActionResults exits too.
+	// 3. processChannelRequests reads requests from the channel and processes them.
 	//    It exits when an unexpected message is received from the channel, or when can't be received at all.
-	//    When Run is left, caller stops supervisor, and that allows processSupervisorRequests to exit.
-	// 3. sendActionResults reads action results from action runner and sends them to pmm-managed.
-	//    It exits when messages can't be received at all or when appContext is done.
-	//    When ctx argument is Done, Runners closes c.runner.ActionReady() channel and that allows sendActionResults to exit.
-	// Done() channel is closed when both goroutines exited.
+	//    When Run is left, caller stops supervisor FIXME BUT DOES NOT STOP ACTION RUNNER, and that allows processSupervisorRequests to exit.
+	// Done() channel is closed when all three goroutines exited.
 	oneDone := make(chan struct{}, 3)
 	go func() {
 		c.processSupervisorRequests()
 		oneDone <- struct{}{}
 	}()
 	go func() {
-		c.processChannelRequests()
+		c.sendActionResults()
 		oneDone <- struct{}{}
 	}()
 	go func() {
-		c.sendActionResults()
+		c.processChannelRequests()
 		oneDone <- struct{}{}
 	}()
 	<-oneDone
 	go func() {
+		<-oneDone
 		<-oneDone
 		c.l.Info("Done.")
 		close(c.done)
