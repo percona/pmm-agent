@@ -43,11 +43,8 @@ import (
 	"github.com/percona/pmm-agent/utils/backoff"
 )
 
-var (
-	dialTimeout = 5 * time.Second // changed by unit tests
-)
-
 const (
+	dialTimeout       = 5 * time.Second
 	backoffMinDelay   = 1 * time.Second
 	backoffMaxDelay   = 15 * time.Second
 	clockDriftWarning = 5 * time.Second
@@ -57,12 +54,16 @@ const (
 type Client struct {
 	cfg        *config.Config
 	supervisor supervisor
-	withoutTLS bool // only for unit tests
-	runner     *actions.ConcurrentRunner
 
 	l       *logrus.Entry
 	backoff *backoff.Backoff
 	done    chan struct{}
+
+	// for unit tests only
+	dialTimeout time.Duration
+	withoutTLS  bool
+
+	runner *actions.ConcurrentRunner
 
 	rw      sync.RWMutex
 	md      *agentpb.AgentServerMetadata
@@ -74,11 +75,12 @@ type Client struct {
 // Caller should call Run.
 func New(cfg *config.Config, supervisor supervisor) *Client {
 	return &Client{
-		cfg:        cfg,
-		supervisor: supervisor,
-		l:          logrus.WithField("component", "client"),
-		backoff:    backoff.New(backoffMinDelay, backoffMaxDelay),
-		done:       make(chan struct{}),
+		cfg:         cfg,
+		supervisor:  supervisor,
+		l:           logrus.WithField("component", "client"),
+		backoff:     backoff.New(backoffMinDelay, backoffMaxDelay),
+		done:        make(chan struct{}),
+		dialTimeout: dialTimeout,
 	}
 }
 
@@ -113,7 +115,7 @@ func (c *Client) Run(ctx context.Context) error {
 	var dialResult *dialResult
 	var dialErr error
 	for {
-		dialCtx, dialCancel := context.WithTimeout(ctx, dialTimeout)
+		dialCtx, dialCancel := context.WithTimeout(ctx, c.dialTimeout)
 		dialResult, dialErr = dial(dialCtx, c.cfg, c.withoutTLS, c.l)
 		dialCancel()
 		if dialResult != nil {
