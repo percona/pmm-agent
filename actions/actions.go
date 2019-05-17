@@ -21,10 +21,10 @@ import (
 	"context"
 )
 
-// action describe abstract thing that can be running by a client and returns some output.
+// Action describe abstract thing that can be running by a client and returns some output.
 // Every structure that implement this interface can be an Action.
 // This interface is for package usage only. Don't implement it in other packages.
-type action interface {
+type Action interface {
 	// ID returns an Action UUID. Used in log messages.
 	ID() string
 	// Type string representation of Action name. Used in log messages.

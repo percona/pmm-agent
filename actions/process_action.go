@@ -21,8 +21,7 @@ import (
 	"os/exec"
 )
 
-// ProcessAction represents process action.
-type ProcessAction struct {
+type processAction struct {
 	id      string
 	command string
 	arg     []string
@@ -32,8 +31,8 @@ type ProcessAction struct {
 //
 // Process Action, it's an abstract Action that can run an external commands.
 // This commands can be a shell script, script written on interpreted language, or binary file.
-func NewProcessAction(id string, cmd string, arg []string) *ProcessAction {
-	return &ProcessAction{
+func NewProcessAction(id string, cmd string, arg []string) Action {
+	return &processAction{
 		id:      id,
 		command: cmd,
 		arg:     arg,
@@ -41,17 +40,17 @@ func NewProcessAction(id string, cmd string, arg []string) *ProcessAction {
 }
 
 // ID returns unique Action id.
-func (p *ProcessAction) ID() string {
+func (p *processAction) ID() string {
 	return p.id
 }
 
 // Type returns Action name as as string.
-func (p *ProcessAction) Type() string {
+func (p *processAction) Type() string {
 	return p.command
 }
 
 // Run starts an Action. This method is blocking.
-func (p *ProcessAction) Run(ctx context.Context) ([]byte, error) {
+func (p *processAction) Run(ctx context.Context) ([]byte, error) {
 	cmd := exec.CommandContext(ctx, p.command, p.arg...) //nolint:gosec
 	setSysProcAttr(cmd)
 	b, err := cmd.CombinedOutput()
