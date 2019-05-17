@@ -36,7 +36,7 @@ func TestConcurrentRunnerRun(t *testing.T) {
 
 	expected := []string{"test\n", "test2\n"}
 	for i := 0; i < 2; i++ {
-		a := <-cr.ActionReady()
+		a, _ := cr.WaitNextAction()
 		assert.Contains(t, expected, string(a.CombinedOutput))
 	}
 }
@@ -53,7 +53,7 @@ func TestConcurrentRunnerTimeout(t *testing.T) {
 	expected := []string{"signal: killed", "signal: killed"}
 	expectedOut := []string{"", ""}
 	for i := 0; i < 2; i++ {
-		a := <-cr.ActionReady()
+		a, _ := cr.WaitNextAction()
 		assert.Contains(t, expected, a.Error.Error())
 		assert.Contains(t, expectedOut, string(a.CombinedOutput))
 	}
@@ -82,7 +82,7 @@ func TestConcurrentRunnerStop(t *testing.T) {
 	expected := []string{"signal: killed", "signal: killed"}
 	expectedOut := []string{"", ""}
 	for i := 0; i < 2; i++ {
-		a := <-cr.ActionReady()
+		a, _ := cr.WaitNextAction()
 		assert.Contains(t, expected, a.Error.Error())
 		assert.Contains(t, expectedOut, string(a.CombinedOutput))
 	}
@@ -108,7 +108,7 @@ func TestConcurrentRunnerCancelApplicationContext(t *testing.T) {
 	expected := []string{"context canceled", "context canceled"}
 	expectedOut := []string{"", ""}
 	for i := 0; i < 2; i++ {
-		a := <-cr.ActionReady()
+		a, _ := cr.WaitNextAction()
 		assert.Contains(t, expected, a.Error.Error())
 		assert.Contains(t, expectedOut, string(a.CombinedOutput))
 	}

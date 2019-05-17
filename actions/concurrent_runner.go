@@ -21,10 +21,15 @@ import (
 	"sync"
 	"time"
 
+	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
 
 const defaultTimeout = time.Second * 10
+
+var (
+	errChannelClosed = errors.New("Actions channel was closed")
+)
 
 // ActionResult represents an Action result.
 type ActionResult struct {
@@ -50,7 +55,8 @@ type ConcurrentRunner struct {
 }
 
 // NewConcurrentRunner returns new runner.
-// If timeout is 0 it sets to defaultTimeout constant (10sec).
+// With this component you can run actions concurrently and read action results when they will be finished.
+// If timeout is 0 it sets to default = 10 seconds.
 func NewConcurrentRunner(appCtx context.Context, l *logrus.Entry, timeout time.Duration) *ConcurrentRunner {
 	if timeout == 0 {
 		timeout = defaultTimeout
@@ -64,6 +70,9 @@ func NewConcurrentRunner(appCtx context.Context, l *logrus.Entry, timeout time.D
 		actionsCancel: make(map[string]context.CancelFunc),
 	}
 
+	// When an external context is done, we waiting for all running actions to finish and then closing "r.out" channel.
+	// The reason we doing this is to guarantee, all actions will return its output data
+	// and only then method "NextActionResult()" will return an error.
 	go func() {
 		<-appCtx.Done()
 		r.runningActions.Wait()
@@ -74,8 +83,8 @@ func NewConcurrentRunner(appCtx context.Context, l *logrus.Entry, timeout time.D
 }
 
 // Start runs an Action in separate goroutine.
-// When Action is ready those output writes to ActionResult channel.
-// You can get all Action results with ActionReady() method.
+// Call of this method doesn't block execution.
+// When Action will be ready you can read it result by WaitNextAction() method.
 func (r *ConcurrentRunner) Start(a Action) {
 	r.runningActions.Add(1)
 	go func() {
@@ -107,9 +116,16 @@ func (r *ConcurrentRunner) Start(a Action) {
 	}()
 }
 
-// ActionReady returns channel that you can use to read Action results.
-func (r *ConcurrentRunner) ActionReady() <-chan ActionResult {
-	return r.out
+// WaitNextAction returns an action result.
+// Calling this method blocks execution and wait for next action will be finished.
+// Each time the action becomes finished method returns an action result.
+// The error will be returned after all actions were finished and when the runner is going to stop their work.
+func (r *ConcurrentRunner) WaitNextAction() (ActionResult, error) {
+	ar, ok := <-r.out
+	if !ok {
+		return ar, errChannelClosed
+	}
+	return ar, nil
 }
 
 // Stop stops running Action.

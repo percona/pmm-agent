@@ -226,7 +226,12 @@ func (c *Client) processSupervisorRequests() {
 }
 
 func (c *Client) sendActionResults() {
-	for ar := range c.runner.ActionReady() {
+	for {
+		ar, err := c.runner.WaitNextAction()
+		if err != nil {
+			break
+		}
+
 		var errMessage string
 		if ar.Error != nil {
 			errMessage = ar.Error.Error()
@@ -239,7 +244,7 @@ func (c *Client) sendActionResults() {
 			Output:   ar.CombinedOutput,
 		})
 	}
-	c.l.Debugf("actionRunner ActionReady() channel drained.")
+	c.l.Debugf("ActionRunner actions was read.")
 }
 
 func (c *Client) processChannelRequests() {
