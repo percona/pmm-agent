@@ -21,7 +21,6 @@ import (
 	"context"
 	"crypto/tls"
 	"net"
-	"strings"
 	"sync"
 	"time"
 
@@ -37,7 +36,6 @@ import (
 	"google.golang.org/grpc/status"
 
 	"github.com/percona/pmm-agent/client/channel"
-	"github.com/percona/pmm-agent/common"
 	"github.com/percona/pmm-agent/config"
 	"github.com/percona/pmm-agent/utils/backoff"
 )
@@ -51,6 +49,11 @@ const (
 	backoffMaxDelay   = 15 * time.Second
 	clockDriftWarning = 5 * time.Second
 )
+
+type networkInformation struct {
+	ClockDrift time.Duration
+	Ping       time.Duration
+}
 
 // Client represents pmm-agent's connection to nginx/pmm-managed.
 type Client struct {
@@ -313,6 +316,7 @@ func dial(dialCtx context.Context, cfg *config.Config, withoutTLS bool, l *logru
 	defer streamCancelT.Stop()
 
 	l.Info("Establishing two-way communication channel ...")
+	start := time.Now()
 	streamCtx = agentpb.AddAgentConnectMetadata(streamCtx, &agentpb.AgentConnectMetadata{
 		ID:      cfg.ID,
 		Version: version.Version,
@@ -349,7 +353,7 @@ func dial(dialCtx context.Context, cfg *config.Config, withoutTLS bool, l *logru
 		teardown()
 		return nil, err
 	}
-	l.Infof("Two-way communication channel established in %s.", networkInfo.Roundtrip)
+	l.Infof("Two-way communication channel established in %s.", time.Since(start))
 	streamCancelT.Stop()
 
 	if networkInfo.ClockDrift > clockDriftWarning || -networkInfo.ClockDrift > clockDriftWarning {
@@ -359,19 +363,11 @@ func dial(dialCtx context.Context, cfg *config.Config, withoutTLS bool, l *logru
 	return &dialResult{conn, streamCancel, channel, md}, nil
 }
 
-func getNetworkInformation(channel *channel.Channel) (*common.NetworkInformation, error) {
+func getNetworkInformation(channel *channel.Channel) (*networkInformation, error) {
 	start := time.Now()
 	resp := channel.SendRequest(new(agentpb.Ping))
 	if resp == nil {
-		err := channel.Wait()
-		msg := err.Error()
-
-		// improve error message in that particular case
-		status := status.Convert(errors.Cause(err))
-		if status.Code() == codes.Internal && strings.Contains(status.Message(), "received the unexpected content-type") {
-			msg += "\nPlease check that pmm-managed is running"
-		}
-		return nil, errors.Wrap(err, "Failed to send Ping")
+		return nil, errors.Wrap(channel.Wait(), "Failed to send Ping")
 	}
 	roundtrip := time.Since(start)
 	serverTime, err := ptypes.Timestamp(resp.(*agentpb.Pong).CurrentTime)
@@ -379,12 +375,16 @@ func getNetworkInformation(channel *channel.Channel) (*common.NetworkInformation
 		return nil, errors.Wrap(err, "Failed to decode Ping")
 	}
 	clockDrift := serverTime.Sub(start) - roundtrip/2
-	return &common.NetworkInformation{ClockDrift: clockDrift, Ping: roundtrip / 2, Roundtrip: roundtrip}, nil
+	return &networkInformation{ClockDrift: clockDrift, Ping: roundtrip / 2}, nil
 }
 
 // GetNetworkInformation sends ping request to the server and returns info about ping and time drift.
-func (c *Client) GetNetworkInformation() (*common.NetworkInformation, error) {
-	return getNetworkInformation(c.channel)
+func (c *Client) GetNetworkInformation() (ping, clockDrift *time.Duration, err error) {
+	information, err := getNetworkInformation(c.channel)
+	if err != nil {
+		return nil, nil, err
+	}
+	return &information.Ping, &information.ClockDrift, err
 }
 
 // GetAgentServerMetadata returns current server's metadata, or nil.

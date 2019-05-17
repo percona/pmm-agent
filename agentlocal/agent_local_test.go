@@ -21,14 +21,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang/protobuf/ptypes/duration"
+	"github.com/golang/protobuf/ptypes"
 	"github.com/percona/pmm/api/agentlocalpb"
 	"github.com/percona/pmm/api/agentpb"
 	"github.com/percona/pmm/api/inventorypb"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/percona/pmm-agent/common"
 	"github.com/percona/pmm-agent/config"
 )
 
@@ -85,7 +84,9 @@ func TestServerStatus(t *testing.T) {
 
 	t.Run("with network info", func(t *testing.T) {
 		agentInfo, supervisor, client, cfg := setup(t)
-		client.On("GetNetworkInformation").Return(&common.NetworkInformation{Ping: 5 * time.Millisecond, ClockDrift: 1 * time.Second}, nil)
+		ping := 5 * time.Millisecond
+		clockDrift := time.Second
+		client.On("GetNetworkInformation").Return(&ping, &clockDrift, nil)
 		defer supervisor.AssertExpectations(t)
 		defer client.AssertExpectations(t)
 		s := NewServer(cfg, supervisor, client, "/some/dir/pmm-agent.yaml")
@@ -99,8 +100,8 @@ func TestServerStatus(t *testing.T) {
 			ServerInfo: &agentlocalpb.ServerInfo{
 				Url:        "https://username:password@127.0.0.1:8443/",
 				Version:    "2.0.0-dev",
-				ClockDrift: &duration.Duration{Seconds: 1},
-				Latency:    &duration.Duration{Nanos: 5000000},
+				ClockDrift: ptypes.DurationProto(time.Second),
+				Latency:    ptypes.DurationProto(5 * time.Millisecond),
 				Connected:  true,
 			},
 			AgentsInfo:     agentInfo,
