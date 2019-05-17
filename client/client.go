@@ -383,6 +383,11 @@ func dial(dialCtx context.Context, cfg *config.Config, withoutTLS bool, l *logru
 	// to ensure that pmm-managed is alive and that Agent ID is valid.
 
 	md, err := agentpb.GetAgentServerMetadata(stream)
+	l.Debugf("Received server metadata: %+v. Error: %v.", md, err)
+	if (err == nil) && (md == agentpb.AgentServerMetadata{}) {
+		// https://jira.percona.com/browse/PMM-4076
+		err = errors.New("empty")
+	}
 	if err != nil {
 		msg := err.Error()
 
@@ -394,6 +399,10 @@ func dial(dialCtx context.Context, cfg *config.Config, withoutTLS bool, l *logru
 		l.Errorf("Can't get server metadata: %s.", msg)
 		teardown()
 		return nil, errors.Wrap(err, "failed to get server metadata")
+	}
+	if md.ServerVersion == "" {
+		// TODO make this a hard error after https://jira.percona.com/browse/PMM-3705
+		l.Warnf("Server metadata does not contain server version.")
 	}
 
 	start := time.Now()
