@@ -76,7 +76,7 @@ func NewConcurrentRunner(appCtx context.Context, l *logrus.Entry, timeout time.D
 // Start runs an Action in separate goroutine.
 // When Action is ready those output writes to ActionResult channel.
 // You can get all Action results with ActionReady() method.
-func (r *ConcurrentRunner) Start(a Action) {
+func (r *ConcurrentRunner) Start(a action) {
 	r.runningActions.Add(1)
 	go func() {
 		defer r.runningActions.Done()
