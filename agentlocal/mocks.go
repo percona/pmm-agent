@@ -39,5 +39,5 @@ type client interface {
 	GetAgentServerMetadata() *agentpb.AgentServerMetadata
 	Describe(chan<- *prometheus.Desc)
 	Collect(chan<- prometheus.Metric)
-	GetNetworkInformation() (ping, clockDrift *time.Duration, err error)
+	GetNetworkInformation() (latency, clockDrift time.Duration, err error)
 }

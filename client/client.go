@@ -50,11 +50,6 @@ const (
 	clockDriftWarning = 5 * time.Second
 )
 
-type networkInformation struct {
-	ClockDrift time.Duration
-	Ping       time.Duration
-}
-
 // Client represents pmm-agent's connection to nginx/pmm-managed.
 type Client struct {
 	cfg        *config.Config
@@ -347,44 +342,52 @@ func dial(dialCtx context.Context, cfg *config.Config, withoutTLS bool, l *logru
 	}
 
 	channel := channel.New(stream)
-	networkInfo, err := getNetworkInformation(channel)
+	_, clockDrift, err := getNetworkInformation(channel)
 	if err != nil {
-		l.Errorf(err.Error())
+		l.Errorf("Failed to get network information: %s.", err)
 		teardown()
 		return nil, err
 	}
 	l.Infof("Two-way communication channel established in %s.", time.Since(start))
 	streamCancelT.Stop()
 
-	if networkInfo.ClockDrift > clockDriftWarning || -networkInfo.ClockDrift > clockDriftWarning {
-		l.Warnf("Estimated clock drift: %s.", networkInfo.ClockDrift)
+	if clockDrift > clockDriftWarning || -clockDrift > clockDriftWarning {
+		l.Warnf("Estimated clock drift: %s.", clockDrift)
 	}
 
 	return &dialResult{conn, streamCancel, channel, md}, nil
 }
 
-func getNetworkInformation(channel *channel.Channel) (*networkInformation, error) {
+func getNetworkInformation(channel *channel.Channel) (latency, clockDrift time.Duration, err error) {
 	start := time.Now()
 	resp := channel.SendRequest(new(agentpb.Ping))
 	if resp == nil {
-		return nil, errors.Wrap(channel.Wait(), "Failed to send Ping")
+		err = errors.Wrap(channel.Wait(), "Failed to send Ping")
+		return
 	}
 	roundtrip := time.Since(start)
 	serverTime, err := ptypes.Timestamp(resp.(*agentpb.Pong).CurrentTime)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to decode Ping")
+		err = errors.Wrap(err, "Failed to decode Ping")
+		return
 	}
-	clockDrift := serverTime.Sub(start) - roundtrip/2
-	return &networkInformation{ClockDrift: clockDrift, Ping: roundtrip / 2}, nil
+	latency = roundtrip / 2
+	clockDrift = serverTime.Sub(start) - latency
+	return
 }
 
-// GetNetworkInformation sends ping request to the server and returns info about ping and time drift.
-func (c *Client) GetNetworkInformation() (ping, clockDrift *time.Duration, err error) {
-	information, err := getNetworkInformation(c.channel)
-	if err != nil {
-		return nil, nil, err
+// GetNetworkInformation sends ping request to the server and returns info about latency and clock drift.
+func (c *Client) GetNetworkInformation() (latency, clockDrift time.Duration, err error) {
+	c.rw.RLock()
+	channel := c.channel
+	c.rw.RUnlock()
+	if channel == nil {
+		err = errors.New("not connected")
+		return
 	}
-	return &information.Ping, &information.ClockDrift, err
+
+	latency, clockDrift, err = getNetworkInformation(c.channel)
+	return
 }
 
 // GetAgentServerMetadata returns current server's metadata, or nil.

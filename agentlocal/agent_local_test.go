@@ -84,9 +84,9 @@ func TestServerStatus(t *testing.T) {
 
 	t.Run("with network info", func(t *testing.T) {
 		agentInfo, supervisor, client, cfg := setup(t)
-		ping := 5 * time.Millisecond
+		latency := 5 * time.Millisecond
 		clockDrift := time.Second
-		client.On("GetNetworkInformation").Return(&ping, &clockDrift, nil)
+		client.On("GetNetworkInformation").Return(latency, clockDrift, nil)
 		defer supervisor.AssertExpectations(t)
 		defer client.AssertExpectations(t)
 		s := NewServer(cfg, supervisor, client, "/some/dir/pmm-agent.yaml")
@@ -100,8 +100,8 @@ func TestServerStatus(t *testing.T) {
 			ServerInfo: &agentlocalpb.ServerInfo{
 				Url:        "https://username:password@127.0.0.1:8443/",
 				Version:    "2.0.0-dev",
-				ClockDrift: ptypes.DurationProto(time.Second),
-				Latency:    ptypes.DurationProto(5 * time.Millisecond),
+				Latency:    ptypes.DurationProto(latency),
+				ClockDrift: ptypes.DurationProto(clockDrift),
 				Connected:  true,
 			},
 			AgentsInfo:     agentInfo,

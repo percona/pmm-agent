@@ -32,7 +32,6 @@ import (
 	"time"
 
 	"github.com/golang/protobuf/ptypes"
-	"github.com/golang/protobuf/ptypes/duration"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"github.com/percona/pmm/api/agentlocalpb"
 	"github.com/percona/pmm/api/agentpb"
@@ -133,17 +132,6 @@ func (s *Server) Status(ctx context.Context, req *agentlocalpb.StatusRequest) (*
 		connected = false
 		md = new(agentpb.AgentServerMetadata)
 	}
-	var clockDrift *duration.Duration
-	var latency *duration.Duration
-	if req.GetNetworkInfo {
-		ping, drift, err := s.client.GetNetworkInformation()
-		if err != nil {
-			s.l.Errorf("Can't get network info: %s", err)
-		} else {
-			clockDrift = ptypes.DurationProto(*drift)
-			latency = ptypes.DurationProto(*ping)
-		}
-	}
 
 	var serverInfo *agentlocalpb.ServerInfo
 	if u := s.cfg.Server.URL(); u != nil {
@@ -151,9 +139,17 @@ func (s *Server) Status(ctx context.Context, req *agentlocalpb.StatusRequest) (*
 			Url:         u.String(),
 			InsecureTls: s.cfg.Server.InsecureTLS,
 			Version:     md.ServerVersion,
-			ClockDrift:  clockDrift,
-			Latency:     latency,
 			Connected:   connected,
+		}
+
+		if req.GetNetworkInfo && connected {
+			latency, clockDrift, err := s.client.GetNetworkInformation()
+			if err != nil {
+				s.l.Errorf("Can't get network info: %s", err)
+			} else {
+				serverInfo.Latency = ptypes.DurationProto(latency)
+				serverInfo.ClockDrift = ptypes.DurationProto(clockDrift)
+			}
 		}
 	}
 

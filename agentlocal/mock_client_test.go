@@ -39,25 +39,21 @@ func (_m *mockClient) GetAgentServerMetadata() *agentpb.AgentServerMetadata {
 }
 
 // GetNetworkInformation provides a mock function with given fields:
-func (_m *mockClient) GetNetworkInformation() (*time.Duration, *time.Duration, error) {
+func (_m *mockClient) GetNetworkInformation() (time.Duration, time.Duration, error) {
 	ret := _m.Called()
 
-	var r0 *time.Duration
-	if rf, ok := ret.Get(0).(func() *time.Duration); ok {
+	var r0 time.Duration
+	if rf, ok := ret.Get(0).(func() time.Duration); ok {
 		r0 = rf()
 	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*time.Duration)
-		}
+		r0 = ret.Get(0).(time.Duration)
 	}
 
-	var r1 *time.Duration
-	if rf, ok := ret.Get(1).(func() *time.Duration); ok {
+	var r1 time.Duration
+	if rf, ok := ret.Get(1).(func() time.Duration); ok {
 		r1 = rf()
 	} else {
-		if ret.Get(1) != nil {
-			r1 = ret.Get(1).(*time.Duration)
-		}
+		r1 = ret.Get(1).(time.Duration)
 	}
 
 	var r2 error
