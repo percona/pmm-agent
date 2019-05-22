@@ -145,7 +145,7 @@ func (p *mysqlExplainAction) classicExplain(tx *sql.Tx) ([]*explainRow, error) {
 	// We can simply run EXPLAIN /*!50100 PARTITIONS*/ to get this column when it's available
 	// without prior check for MySQL version.
 	if strings.TrimSpace(p.query) == "" {
-		return nil, fmt.Errorf("cannot run EXPLAIN on an empty query example")
+		return nil, errors.Errorf("cannot run EXPLAIN on an empty query example")
 	}
 	rows, err := tx.Query(fmt.Sprintf("EXPLAIN %s", p.query))
 	if err != nil {
@@ -166,34 +166,7 @@ func (p *mysqlExplainAction) classicExplain(tx *sql.Tx) ([]*explainRow, error) {
 	for rows.Next() {
 		explainRow := &explainRow{}
 		switch nCols {
-		case 10:
-			err = rows.Scan(
-				&explainRow.Id,
-				&explainRow.SelectType,
-				&explainRow.Table,
-				&explainRow.Type,
-				&explainRow.PossibleKeys,
-				&explainRow.Key,
-				&explainRow.KeyLen,
-				&explainRow.Ref,
-				&explainRow.Rows,
-				&explainRow.Extra,
-			)
-		case 11: // MySQL 5.1 with "partitions"
-			err = rows.Scan(
-				&explainRow.Id,
-				&explainRow.SelectType,
-				&explainRow.Table,
-				&explainRow.Partitions, // here
-				&explainRow.Type,
-				&explainRow.PossibleKeys,
-				&explainRow.Key,
-				&explainRow.KeyLen,
-				&explainRow.Ref,
-				&explainRow.Rows,
-				&explainRow.Extra,
-			)
-		case 12: // MySQL 5.7 with "filtered"
+		case 12: // MySQL 5.6 with "filtered"
 			err = rows.Scan(
 				&explainRow.Id,
 				&explainRow.SelectType,
@@ -208,6 +181,8 @@ func (p *mysqlExplainAction) classicExplain(tx *sql.Tx) ([]*explainRow, error) {
 				&explainRow.Filtered, // here
 				&explainRow.Extra,
 			)
+		default:
+			err = errors.New("unsupported EXPLAIN format")
 		}
 		if err != nil {
 			return nil, err
