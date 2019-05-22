@@ -274,8 +274,11 @@ func (c *Client) processChannelRequests() {
 				responsePayload = new(agentpb.StartActionResponse)
 
 			case managementpb.ActionType_MYSQL_EXPLAIN:
-				// TODO: Implement explain action.
-				c.l.Errorf("not implemented action EXPLAIN")
+				//pp := p.GetMysqlExplainParams()
+				// TODO: PMM-3832 Add real parameters.
+				a := actions.NewMySQLExplainAction(p.ActionId, "", "", "", actions.ExplainFormatDefault)
+				c.runner.Start(a)
+				responsePayload = new(agentpb.StartActionResponse)
 				continue
 
 			case managementpb.ActionType_ACTION_TYPE_INVALID:
