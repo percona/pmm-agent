@@ -30,19 +30,20 @@ import (
 	"github.com/pkg/errors"
 )
 
-type mysqlExplainOutputFormat string
+// MysqlExplainOutputFormat explain output format.
+type MysqlExplainOutputFormat int32
 
 var (
 	// ExplainFormatDefault default (table) explain format.
-	ExplainFormatDefault mysqlExplainOutputFormat = "default"
+	ExplainFormatDefault MysqlExplainOutputFormat = 1
 	// ExplainFormatJSON json explain format.
-	ExplainFormatJSON mysqlExplainOutputFormat = "json"
+	ExplainFormatJSON MysqlExplainOutputFormat = 2
 )
 
 type mysqlExplainAction struct {
 	id     string
 	dsn    string
-	format mysqlExplainOutputFormat
+	format MysqlExplainOutputFormat
 	dbName string
 	query  string
 
@@ -51,7 +52,7 @@ type mysqlExplainAction struct {
 
 // NewMySQLExplainAction creates MySQL Explain Action.
 // This is an Action that can run `EXPLAIN` command on MySQL service with given DSN.
-func NewMySQLExplainAction(id, dsn, dbName, query string, format mysqlExplainOutputFormat) Action {
+func NewMySQLExplainAction(id, dsn, dbName, query string, format MysqlExplainOutputFormat) Action {
 	return &mysqlExplainAction{
 		id:     id,
 		dsn:    dsn,
@@ -90,7 +91,7 @@ func (p *mysqlExplainAction) Run(ctx context.Context) ([]byte, error) {
 	// If the query has a default db, use it; else, all tables need to be db-qualified
 	// or EXPLAIN will throw an error.
 	if p.dbName != "" {
-		_, err = tx.Exec(fmt.Sprintf("USE %s", p.dbName))
+		_, err = tx.ExecContext(ctx, fmt.Sprintf("USE %s", p.dbName))
 		if err != nil {
 			return nil, err
 		}
@@ -100,7 +101,7 @@ func (p *mysqlExplainAction) Run(ctx context.Context) ([]byte, error) {
 
 	switch p.format {
 	case ExplainFormatDefault:
-		out, err := p.classicExplain(tx)
+		out, err := p.classicExplain(ctx, tx)
 		if err != nil {
 			return nil, err
 		}
@@ -110,7 +111,7 @@ func (p *mysqlExplainAction) Run(ctx context.Context) ([]byte, error) {
 			return nil, err
 		}
 	case ExplainFormatJSON:
-		out, err := p.jsonExplain(tx)
+		out, err := p.jsonExplain(ctx, tx)
 		if err != nil {
 			return nil, err
 		}
@@ -119,6 +120,8 @@ func (p *mysqlExplainAction) Run(ctx context.Context) ([]byte, error) {
 		if err != nil {
 			return nil, err
 		}
+	default:
+		return nil, errors.New("unsupported output format")
 	}
 
 	return bytes, nil
@@ -140,14 +143,14 @@ type explainRow struct {
 	Extra        sql.NullString  // split by semicolon
 }
 
-func (p *mysqlExplainAction) classicExplain(tx *sql.Tx) ([]*explainRow, error) {
+func (p *mysqlExplainAction) classicExplain(ctx context.Context, tx *sql.Tx) ([]*explainRow, error) {
 	// Partitions are introduced since MySQL 5.1
 	// We can simply run EXPLAIN /*!50100 PARTITIONS*/ to get this column when it's available
 	// without prior check for MySQL version.
 	if strings.TrimSpace(p.query) == "" {
 		return nil, errors.Errorf("cannot run EXPLAIN on an empty query example")
 	}
-	rows, err := tx.Query(fmt.Sprintf("EXPLAIN %s", p.query))
+	rows, err := tx.QueryContext(ctx, fmt.Sprintf("EXPLAIN %s", p.query))
 	if err != nil {
 		return nil, err
 	}
@@ -197,16 +200,16 @@ func (p *mysqlExplainAction) classicExplain(tx *sql.Tx) ([]*explainRow, error) {
 	return out, nil
 }
 
-func (p *mysqlExplainAction) jsonExplain(tx *sql.Tx) (string, error) {
+func (p *mysqlExplainAction) jsonExplain(ctx context.Context, tx *sql.Tx) (string, error) {
 	// EXPLAIN in JSON format is introduced since MySQL 5.6.5 and MariaDB 10.1.2
 	// https://mariadb.com/kb/en/mariadb/explain-format-json/
-	ok, err := p.versionConstraint(">= 5.6.5, < 10.0.0 || >= 10.1.2")
+	ok, err := p.versionConstraint(ctx, ">= 5.6.5, < 10.0.0 || >= 10.1.2")
 	if !ok || err != nil {
 		return "", err
 	}
 
 	explain := ""
-	err = tx.QueryRow(fmt.Sprintf("EXPLAIN FORMAT=JSON %s", p.query)).Scan(&explain)
+	err = tx.QueryRowContext(ctx, fmt.Sprintf("EXPLAIN FORMAT=JSON %s", p.query)).Scan(&explain)
 	if err != nil {
 		return "", err
 	}
@@ -215,8 +218,8 @@ func (p *mysqlExplainAction) jsonExplain(tx *sql.Tx) (string, error) {
 }
 
 // versionConstraint checks if version fits given constraint
-func (p *mysqlExplainAction) versionConstraint(constraint string) (bool, error) {
-	version, err := p.getGlobalVarString("version")
+func (p *mysqlExplainAction) versionConstraint(ctx context.Context, constraint string) (bool, error) {
+	version, err := p.getGlobalVarString(ctx, "version")
 	if err != nil {
 		return false, err
 	}
@@ -236,12 +239,12 @@ func (p *mysqlExplainAction) versionConstraint(constraint string) (bool, error) 
 	return constraints.Check(v), nil
 }
 
-func (p *mysqlExplainAction) getGlobalVarString(varName string) (string, error) {
+func (p *mysqlExplainAction) getGlobalVarString(ctx context.Context, varName string) (string, error) {
 	if err := p.db.Ping(); err != nil {
 		return "", errors.New("not connected")
 	}
 	var value string
-	err := p.db.QueryRow("SELECT @@GLOBAL." + varName).Scan(&value)
+	err := p.db.QueryRowContext(ctx, "SELECT @@GLOBAL."+varName).Scan(&value)
 	if val, ok := err.(*mysql.MySQLError); ok {
 		if val.Number == 1193 /*ER_UNKNOWN_SYSTEM_VARIABLE*/ {
 			return "", errors.New("unknown system variable")

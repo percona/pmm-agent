@@ -274,12 +274,11 @@ func (c *Client) processChannelRequests() {
 				responsePayload = new(agentpb.StartActionResponse)
 
 			case managementpb.ActionType_MYSQL_EXPLAIN:
-				//pp := p.GetMysqlExplainParams()
-				// TODO: PMM-3832 Add real parameters.
-				a := actions.NewMySQLExplainAction(p.ActionId, "", "", "", actions.ExplainFormatDefault)
+				pp := p.GetMysqlExplainParams()
+				format := actions.MysqlExplainOutputFormat(pp.OutputFormat)
+				a := actions.NewMySQLExplainAction(p.ActionId, pp.Dsn, pp.Db, pp.Query, format)
 				c.runner.Start(a)
 				responsePayload = new(agentpb.StartActionResponse)
-				continue
 
 			case managementpb.ActionType_ACTION_TYPE_INVALID:
 				c.l.Errorf("Unsupported action: %s.", p.Type)
