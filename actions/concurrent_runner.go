@@ -18,6 +18,7 @@ package actions
 
 import (
 	"context"
+	"runtime/pprof"
 	"sync"
 	"time"
 
@@ -86,34 +87,40 @@ func NewConcurrentRunner(appCtx context.Context, l *logrus.Entry, timeout time.D
 // Call of this method doesn't block execution.
 // When Action will be ready you can read it result by WaitNextAction() method.
 func (r *ConcurrentRunner) Start(a Action) {
+	if err := r.appCtx.Err(); err != nil {
+		r.l.Errorf("Ignoring Start: %s.", err)
+		return
+	}
+
+	actionID, actionType := a.ID(), a.Type()
 	r.runningActions.Add(1)
-	go func() {
+	ctx, cancel := context.WithTimeout(r.appCtx, r.timeout)
+	run := func(ctx context.Context) {
 		defer r.runningActions.Done()
-		tCtx, tCancel := context.WithTimeout(r.appCtx, r.timeout)
-		ctx, cancel := context.WithCancel(tCtx)
-		defer tCancel()
+		defer cancel()
 
 		r.mx.Lock()
-		r.actionsCancel[a.ID()] = cancel
+		r.actionsCancel[actionID] = cancel
 		r.mx.Unlock()
 
-		l := r.l.WithFields(logrus.Fields{"id": a.ID(), "type": a.Type()})
+		l := r.l.WithFields(logrus.Fields{"id": actionID, "type": actionType})
 		l.Debugf("Running Action...")
 
 		cOut, err := a.Run(ctx)
 
 		r.mx.Lock()
-		delete(r.actionsCancel, a.ID())
+		delete(r.actionsCancel, actionID)
 		r.mx.Unlock()
 
 		l.Debugf("Action finished")
 
 		r.out <- ActionResult{
-			ID:             a.ID(),
+			ID:             actionID,
 			Error:          err,
 			CombinedOutput: cOut,
 		}
-	}()
+	}
+	go pprof.Do(ctx, pprof.Labels("actionID", actionID, "type", actionType), run)
 }
 
 // WaitNextAction returns an action result.
