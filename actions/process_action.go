@@ -60,3 +60,5 @@ func (p *processAction) Run(ctx context.Context) ([]byte, error) {
 
 	return b, nil
 }
+
+func (*processAction) sealed() {}

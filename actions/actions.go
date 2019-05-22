@@ -22,8 +22,6 @@ import (
 )
 
 // Action describe abstract thing that can be running by a client and returns some output.
-// Every structure that implement this interface can be an Action.
-// This interface is for package usage only. Don't implement it in other packages.
 type Action interface {
 	// ID returns an Action UUID. Used in log messages.
 	ID() string
@@ -32,4 +30,6 @@ type Action interface {
 	// Run runs an Action and returns output and error.
 	// This method should be blocking.
 	Run(ctx context.Context) ([]byte, error)
+
+	sealed()
 }
