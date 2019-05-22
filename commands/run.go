@@ -18,6 +18,7 @@ package commands
 
 import (
 	"context"
+	"github.com/percona/pmm-agent/connection_checker"
 	"os"
 	"os/signal"
 	"sync"
@@ -77,7 +78,8 @@ func Run() {
 		for appCtx.Err() == nil {
 			ctx, cancel := context.WithCancel(appCtx)
 			supervisor := supervisor.NewSupervisor(ctx, &cfg.Paths, &cfg.Ports)
-			client := client.New(cfg, supervisor)
+			connectionChecker := connection_checker.New()
+			client := client.New(cfg, supervisor, connectionChecker)
 			localServer := agentlocal.NewServer(cfg, supervisor, client, configFilePath)
 
 			go func() {

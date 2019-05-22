@@ -52,9 +52,10 @@ const (
 
 // Client represents pmm-agent's connection to nginx/pmm-managed.
 type Client struct {
-	cfg        *config.Config
-	supervisor supervisor
-	withoutTLS bool // only for unit tests
+	cfg               *config.Config
+	supervisor        supervisor
+	connectionChecker connectionChecker
+	withoutTLS        bool // only for unit tests
 
 	l       *logrus.Entry
 	backoff *backoff.Backoff
@@ -68,13 +69,14 @@ type Client struct {
 // New creates new client.
 //
 // Caller should call Run.
-func New(cfg *config.Config, supervisor supervisor) *Client {
+func New(cfg *config.Config, supervisor supervisor, connectionChecker connectionChecker) *Client {
 	return &Client{
-		cfg:        cfg,
-		supervisor: supervisor,
-		l:          logrus.WithField("component", "client"),
-		backoff:    backoff.New(backoffMinDelay, backoffMaxDelay),
-		done:       make(chan struct{}),
+		cfg:               cfg,
+		supervisor:        supervisor,
+		connectionChecker: connectionChecker,
+		l:                 logrus.WithField("component", "client"),
+		backoff:           backoff.New(backoffMinDelay, backoffMaxDelay),
+		done:              make(chan struct{}),
 	}
 }
 
@@ -224,6 +226,14 @@ func (c *Client) processChannelRequests() {
 
 		case *agentpb.StopActionRequest:
 			panic("TODO")
+
+		case *agentpb.CheckConnectionRequest:
+			responsePayload = new(agentpb.CheckConnectionResponse)
+			if err := c.connectionChecker.Check(p); err != nil {
+				responsePayload = &agentpb.CheckConnectionResponse{
+					Error: err.Error(),
+				}
+			}
 
 		case nil:
 			// Requests() is not closed, so exit early to break channel

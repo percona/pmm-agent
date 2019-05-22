@@ -29,3 +29,11 @@ type supervisor interface {
 	QANRequests() <-chan agentpb.QANCollectRequest
 	SetState(*agentpb.SetStateRequest)
 }
+
+//go:generate mockery -name=connectionChecker -case=snake -inpkg -testonly
+
+// supervisor is a subset of methods of supervisor.Supervisor used by this package.
+// We use it instead of real type for testing and to avoid dependency cycle.
+type connectionChecker interface {
+	Check(msg *agentpb.CheckConnectionRequest) error
+}

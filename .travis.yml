@@ -26,9 +26,9 @@ env:
     - CODECOV_ENV=MYSQL_IMAGE,MONGO_IMAGE
 
   matrix:
-    - MYSQL_IMAGE=percona:5.6 MONGO_IMAGE=mongo:3.4
-    - MYSQL_IMAGE=percona:5.7 MONGO_IMAGE=mongo:3.6
-    - MYSQL_IMAGE=percona:8.0 MONGO_IMAGE=mongo:4.0
+    - MYSQL_IMAGE=percona:5.6 MONGO_IMAGE=mongo:3.4 POSTGRES_IMAGE=postgres:9.6
+    - MYSQL_IMAGE=percona:5.7 MONGO_IMAGE=mongo:3.6 POSTGRES_IMAGE=postgres:10.8
+    - MYSQL_IMAGE=percona:8.0 MONGO_IMAGE=mongo:4.0 POSTGRES_IMAGE=postgres:11.3
 
     # TODO
     # - MYSQL_IMAGE=mariadb:5.5
