@@ -276,7 +276,7 @@ func (c *Client) processChannelRequests() {
 			case managementpb.ActionType_MYSQL_EXPLAIN:
 				pp := p.GetMysqlExplainParams()
 				format := actions.MysqlExplainOutputFormat(pp.OutputFormat)
-				a := actions.NewMySQLExplainAction(p.ActionId, pp.Dsn, pp.Db, pp.Query, format)
+				a := actions.NewMySQLExplainAction(p.ActionId, pp.Dsn, pp.Query, format)
 				c.runner.Start(a)
 				responsePayload = new(agentpb.StartActionResponse)
 

@@ -30,9 +30,8 @@ func TestMysqlExplainActionRun(t *testing.T) {
 	id := "/action_id/6a479303-5081-46d0-baa0-87d6248c987b"
 	dsn := "pmm-agent:pmm-agent-password@tcp(127.0.0.1:3306)/information_schema"
 	q := "SELECT * FROM information_schema.GLOBAL_STATUS"
-	db := "information_schema"
 
-	exp := NewMySQLExplainAction(id, dsn, db, q, ExplainFormatDefault)
+	exp := NewMySQLExplainAction(id, dsn, q, ExplainFormatDefault)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
@@ -46,9 +45,8 @@ func TestMysqlExplainActionRunJson(t *testing.T) {
 	id := "/action_id/6a479303-5081-46d0-baa0-87d6248c987b"
 	dsn := "pmm-agent:pmm-agent-password@tcp(127.0.0.1:3306)/information_schema"
 	q := "SELECT * FROM information_schema.GLOBAL_STATUS"
-	db := "information_schema"
 
-	exp := NewMySQLExplainAction(id, dsn, db, q, ExplainFormatJSON)
+	exp := NewMySQLExplainAction(id, dsn, q, ExplainFormatJSON)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 

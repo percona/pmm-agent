@@ -43,20 +43,18 @@ var (
 type mysqlExplainAction struct {
 	id     string
 	dsn    string
-	format MysqlExplainOutputFormat
-	dbName string
 	query  string
+	format MysqlExplainOutputFormat
 
 	db *sql.DB
 }
 
 // NewMySQLExplainAction creates MySQL Explain Action.
 // This is an Action that can run `EXPLAIN` command on MySQL service with given DSN.
-func NewMySQLExplainAction(id, dsn, dbName, query string, format MysqlExplainOutputFormat) Action {
+func NewMySQLExplainAction(id, dsn, query string, format MysqlExplainOutputFormat) Action {
 	return &mysqlExplainAction{
 		id:     id,
 		dsn:    dsn,
-		dbName: dbName,
 		query:  query,
 		format: format,
 	}
@@ -88,10 +86,15 @@ func (p *mysqlExplainAction) Run(ctx context.Context) ([]byte, error) {
 	}
 	defer tx.Rollback()
 
+	cfg, err := mysql.ParseDSN(p.dsn)
+	if err != nil {
+		return nil, err
+	}
+
 	// If the query has a default db, use it; else, all tables need to be db-qualified
 	// or EXPLAIN will throw an error.
-	if p.dbName != "" {
-		_, err = tx.ExecContext(ctx, fmt.Sprintf("USE %s", p.dbName))
+	if cfg.DBName != "" {
+		_, err = tx.ExecContext(ctx, fmt.Sprintf("USE %s", cfg.DBName))
 		if err != nil {
 			return nil, err
 		}
