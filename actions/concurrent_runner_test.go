@@ -37,7 +37,7 @@ func TestConcurrentRunnerRun(t *testing.T) {
 	expected := []string{"test\n", "test2\n"}
 	for i := 0; i < 2; i++ {
 		a, _ := cr.WaitNextAction()
-		assert.Contains(t, expected, string(a.CombinedOutput))
+		assert.Contains(t, expected, string(a.Output))
 	}
 }
 
@@ -55,7 +55,7 @@ func TestConcurrentRunnerTimeout(t *testing.T) {
 	for i := 0; i < 2; i++ {
 		a, _ := cr.WaitNextAction()
 		assert.Contains(t, expected, a.Error.Error())
-		assert.Contains(t, expectedOut, string(a.CombinedOutput))
+		assert.Contains(t, expectedOut, string(a.Output))
 	}
 
 	// check Action was deleted from actionsCancel map.
@@ -84,7 +84,7 @@ func TestConcurrentRunnerStop(t *testing.T) {
 	for i := 0; i < 2; i++ {
 		a, _ := cr.WaitNextAction()
 		assert.Contains(t, expected, a.Error.Error())
-		assert.Contains(t, expectedOut, string(a.CombinedOutput))
+		assert.Contains(t, expectedOut, string(a.Output))
 	}
 
 	// check Action was deleted from actionsCancel map.
@@ -110,7 +110,7 @@ func TestConcurrentRunnerCancelApplicationContext(t *testing.T) {
 	for i := 0; i < 2; i++ {
 		a, _ := cr.WaitNextAction()
 		assert.Contains(t, expected, a.Error.Error())
-		assert.Contains(t, expectedOut, string(a.CombinedOutput))
+		assert.Contains(t, expectedOut, string(a.Output))
 	}
 
 	// check Action was deleted from actionsCancel map.

@@ -34,40 +34,38 @@ var (
 
 // ActionResult represents an Action result.
 type ActionResult struct {
-	ID             string
-	Type           string
-	Error          error
-	CombinedOutput []byte
+	ID     string
+	Output []byte
+	Error  error
 }
 
 // ConcurrentRunner represents concurrent Action runner.
 // Action runner is component that can run an Actions.
-//nolint:unused
 type ConcurrentRunner struct {
-	runningActions sync.WaitGroup
-	out            chan ActionResult
-	l              *logrus.Entry
-
-	mx            sync.Mutex
-	actionsCancel map[string]context.CancelFunc
-
+	ctx     context.Context
+	l       *logrus.Entry
 	timeout time.Duration
-	appCtx  context.Context
+	results chan ActionResult
+
+	runningActions sync.WaitGroup
+
+	rw            sync.RWMutex
+	actionsCancel map[string]context.CancelFunc
 }
 
 // NewConcurrentRunner returns new runner.
 // With this component you can run actions concurrently and read action results when they will be finished.
 // If timeout is 0 it sets to default = 10 seconds.
-func NewConcurrentRunner(appCtx context.Context, l *logrus.Entry, timeout time.Duration) *ConcurrentRunner {
+func NewConcurrentRunner(ctx context.Context, l *logrus.Entry, timeout time.Duration) *ConcurrentRunner {
 	if timeout == 0 {
 		timeout = defaultTimeout
 	}
 
 	r := &ConcurrentRunner{
-		appCtx:        appCtx,
+		ctx:           ctx,
 		l:             l,
 		timeout:       timeout,
-		out:           make(chan ActionResult),
+		results:       make(chan ActionResult),
 		actionsCancel: make(map[string]context.CancelFunc),
 	}
 
@@ -75,9 +73,9 @@ func NewConcurrentRunner(appCtx context.Context, l *logrus.Entry, timeout time.D
 	// The reason we doing this is to guarantee, all actions will return its output data
 	// and only then method "NextActionResult()" will return an error.
 	go func() {
-		<-appCtx.Done()
+		<-ctx.Done()
 		r.runningActions.Wait()
-		close(r.out)
+		close(r.results)
 	}()
 
 	return r
@@ -87,37 +85,37 @@ func NewConcurrentRunner(appCtx context.Context, l *logrus.Entry, timeout time.D
 // Call of this method doesn't block execution.
 // When Action will be ready you can read it result by WaitNextAction() method.
 func (r *ConcurrentRunner) Start(a Action) {
-	if err := r.appCtx.Err(); err != nil {
+	if err := r.ctx.Err(); err != nil {
 		r.l.Errorf("Ignoring Start: %s.", err)
 		return
 	}
 
 	actionID, actionType := a.ID(), a.Type()
 	r.runningActions.Add(1)
-	ctx, cancel := context.WithTimeout(r.appCtx, r.timeout)
+	ctx, cancel := context.WithTimeout(r.ctx, r.timeout)
 	run := func(ctx context.Context) {
 		defer r.runningActions.Done()
 		defer cancel()
 
-		r.mx.Lock()
+		r.rw.Lock()
 		r.actionsCancel[actionID] = cancel
-		r.mx.Unlock()
+		r.rw.Unlock()
 
 		l := r.l.WithFields(logrus.Fields{"id": actionID, "type": actionType})
 		l.Debugf("Running Action...")
 
-		cOut, err := a.Run(ctx)
+		b, err := a.Run(ctx)
 
-		r.mx.Lock()
+		r.rw.Lock()
 		delete(r.actionsCancel, actionID)
-		r.mx.Unlock()
+		r.rw.Unlock()
 
 		l.Debugf("Action finished")
 
-		r.out <- ActionResult{
-			ID:             actionID,
-			Error:          err,
-			CombinedOutput: cOut,
+		r.results <- ActionResult{
+			ID:     actionID,
+			Output: b,
+			Error:  err,
 		}
 	}
 	go pprof.Do(ctx, pprof.Labels("actionID", actionID, "type", actionType), run)
@@ -128,7 +126,7 @@ func (r *ConcurrentRunner) Start(a Action) {
 // Each time the action becomes finished method returns an action result.
 // The error will be returned after all actions were finished and when the runner is going to stop their work.
 func (r *ConcurrentRunner) WaitNextAction() (ActionResult, error) {
-	ar, ok := <-r.out
+	ar, ok := <-r.results
 	if !ok {
 		return ar, errChannelClosed
 	}
@@ -137,8 +135,8 @@ func (r *ConcurrentRunner) WaitNextAction() (ActionResult, error) {
 
 // Stop stops running Action.
 func (r *ConcurrentRunner) Stop(id string) {
-	r.mx.Lock()
-	defer r.mx.Unlock()
+	r.rw.RLock()
+	defer r.rw.RUnlock()
 	if cancel, ok := r.actionsCancel[id]; ok {
 		cancel()
 	}

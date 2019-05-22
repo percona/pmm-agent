@@ -238,9 +238,9 @@ func (c *Client) sendActionResults() {
 
 		c.channel.SendRequest(&agentpb.ActionResultRequest{
 			ActionId: ar.ID,
+			Output:   ar.Output,
 			Done:     true,
 			Error:    errMessage,
-			Output:   ar.CombinedOutput,
 		})
 	}
 	c.l.Debugf("ActionRunner actions was read.")
