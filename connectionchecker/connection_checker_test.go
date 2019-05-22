@@ -14,14 +14,13 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-package connection_checker
+package connectionchecker
 
 import (
 	"testing"
 
-	"github.com/percona/pmm/api/inventorypb"
-
 	"github.com/percona/pmm/api/agentpb"
+	"github.com/percona/pmm/api/inventorypb"
 )
 
 func TestConnectionChecker_Check(t *testing.T) {

@@ -18,7 +18,6 @@ package commands
 
 import (
 	"context"
-	"github.com/percona/pmm-agent/connection_checker"
 	"os"
 	"os/signal"
 	"sync"
@@ -31,6 +30,7 @@ import (
 	"github.com/percona/pmm-agent/agents/supervisor"
 	"github.com/percona/pmm-agent/client"
 	"github.com/percona/pmm-agent/config"
+	"github.com/percona/pmm-agent/connectionchecker"
 	"github.com/percona/pmm-agent/utils/logger"
 )
 
@@ -78,7 +78,7 @@ func Run() {
 		for appCtx.Err() == nil {
 			ctx, cancel := context.WithCancel(appCtx)
 			supervisor := supervisor.NewSupervisor(ctx, &cfg.Paths, &cfg.Ports)
-			connectionChecker := connection_checker.New()
+			connectionChecker := connectionchecker.New()
 			client := client.New(cfg, supervisor, connectionChecker)
 			localServer := agentlocal.NewServer(cfg, supervisor, client, configFilePath)
 

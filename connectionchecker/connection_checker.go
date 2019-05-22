@@ -14,11 +14,12 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-package connection_checker
+package connectionchecker
 
 import (
 	"database/sql"
 	"fmt"
+
 	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/lib/pq"
 	"github.com/percona/pmgo"
@@ -26,13 +27,16 @@ import (
 	"github.com/percona/pmm/api/inventorypb"
 )
 
+// New creates ConnectionChecker.
 func New() *ConnectionChecker {
 	return &ConnectionChecker{}
 }
 
+// ConnectionChecker is a struct to check connection to services.
 type ConnectionChecker struct {
 }
 
+// Check checks connection to a service.
 func (c *ConnectionChecker) Check(msg *agentpb.CheckConnectionRequest) error {
 	switch msg.Type {
 	case inventorypb.ServiceType_MYSQL_SERVICE:
@@ -44,7 +48,6 @@ func (c *ConnectionChecker) Check(msg *agentpb.CheckConnectionRequest) error {
 	default:
 		panic(fmt.Sprintf("unhandled service type: %v", msg.Type))
 	}
-	return nil
 }
 
 func (c *ConnectionChecker) checkMongoDBConnection(dsn string) error {
