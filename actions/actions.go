@@ -14,21 +14,20 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-// Package actions provides PMM Actions implementations and related utils.
+// Package actions provides Actions implementations and runner.
 package actions
 
 import (
 	"context"
 )
 
-// Action describe abstract thing that can be running by a client and returns some output.
+// Action describes an abstract thing that can be run by a client and return some output.
 type Action interface {
-	// ID returns an Action UUID. Used in log messages.
+	// ID returns an Action ID.
 	ID() string
-	// Type string representation of Action name. Used in log messages.
+	// Type returns an Action type. Used for logging.
 	Type() string
 	// Run runs an Action and returns output and error.
-	// This method should be blocking.
 	Run(ctx context.Context) ([]byte, error)
 
 	sealed()
