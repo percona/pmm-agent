@@ -31,13 +31,17 @@ func TestConcurrentRunnerRun(t *testing.T) {
 	a1 := NewProcessAction("/action_id/6a479303-5081-46d0-baa0-87d6248c987b", "echo", []string{"test"})
 	a2 := NewProcessAction("/action_id/84140ab2-612d-4d93-9360-162a4bd5de14", "echo", []string{"test2"})
 
-	cr.Start(a1)
-	cr.Start(a2)
+	ch1, _ := cr.Start(a1)
+	ch2, _ := cr.Start(a2)
+
+	var res []<-chan *ActionResult
+	res = append(res, ch1)
+	res = append(res, ch2)
 
 	expected := []string{"test\n", "test2\n"}
-	for i := 0; i < 2; i++ {
-		a := <-cr.Results()
-		assert.Contains(t, expected, string(a.Output))
+	for _, ch := range res {
+		r := <-ch
+		assert.Contains(t, expected, string(r.Output))
 	}
 }
 
@@ -48,14 +52,18 @@ func TestConcurrentRunnerTimeout(t *testing.T) {
 	a1 := NewProcessAction("/action_id/6a479303-5081-46d0-baa0-87d6248c987b", "sleep", []string{"20"})
 	a2 := NewProcessAction("/action_id/84140ab2-612d-4d93-9360-162a4bd5de14", "sleep", []string{"30"})
 
-	cr.Start(a1)
-	cr.Start(a2)
+	ch1, _ := cr.Start(a1)
+	ch2, _ := cr.Start(a2)
+
+	var res []<-chan *ActionResult
+	res = append(res, ch1)
+	res = append(res, ch2)
 
 	// check Action returns proper errors and output.
 	expected := []string{"signal: killed", "signal: killed"}
 	expectedOut := []string{"", ""}
-	for i := 0; i < 2; i++ {
-		r := <-cr.Results()
+	for _, ch := range res {
+		r := <-ch
 		assert.Contains(t, expected, r.Error.Error())
 		assert.Contains(t, expectedOut, string(r.Output))
 	}
@@ -71,8 +79,12 @@ func TestConcurrentRunnerStop(t *testing.T) {
 	a1 := NewProcessAction("/action_id/6a479303-5081-46d0-baa0-87d6248c987b", "sleep", []string{"20"})
 	a2 := NewProcessAction("/action_id/84140ab2-612d-4d93-9360-162a4bd5de14", "sleep", []string{"30"})
 
-	cr.Start(a1)
-	cr.Start(a2)
+	ch1, _ := cr.Start(a1)
+	ch2, _ := cr.Start(a2)
+
+	var res []<-chan *ActionResult
+	res = append(res, ch1)
+	res = append(res, ch2)
 
 	<-time.After(time.Second)
 
@@ -82,8 +94,8 @@ func TestConcurrentRunnerStop(t *testing.T) {
 	// check Action returns proper errors and output.
 	expected := []string{"signal: killed", "signal: killed"}
 	expectedOut := []string{"", ""}
-	for i := 0; i < 2; i++ {
-		r := <-cr.Results()
+	for _, ch := range res {
+		r := <-ch
 		assert.Contains(t, expected, r.Error.Error())
 		assert.Contains(t, expectedOut, string(r.Output))
 	}
@@ -100,15 +112,19 @@ func TestConcurrentRunnerCancel(t *testing.T) {
 	a1 := NewProcessAction("/action_id/6a479303-5081-46d0-baa0-87d6248c987b", "sleep", []string{"20"})
 	a2 := NewProcessAction("/action_id/84140ab2-612d-4d93-9360-162a4bd5de14", "sleep", []string{"30"})
 
-	cr.Start(a1)
-	cr.Start(a2)
+	ch1, _ := cr.Start(a1)
+	ch2, _ := cr.Start(a2)
+
+	var res []<-chan *ActionResult
+	res = append(res, ch1)
+	res = append(res, ch2)
 
 	cancel()
 
 	expected := []string{"context canceled", "context canceled"}
 	expectedOut := []string{"", ""}
-	for i := 0; i < 2; i++ {
-		r := <-cr.Results()
+	for _, ch := range res {
+		r := <-ch
 		assert.Contains(t, expected, r.Error.Error())
 		assert.Contains(t, expectedOut, string(r.Output))
 	}
@@ -118,7 +134,6 @@ func TestConcurrentRunnerCancel(t *testing.T) {
 }
 
 func TestConcurrentRunnerCancelEmpty(t *testing.T) {
-	t.Skip("https://jira.percona.com/browse/PMM-4112")
 	t.Parallel()
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -126,13 +141,15 @@ func TestConcurrentRunnerCancelEmpty(t *testing.T) {
 	a := NewProcessAction("/action_id/6a479303-5081-46d0-baa0-87d6248c987b", "sleep", []string{"20"})
 
 	go cancel()
-	cr.Start(a)
 
 	expected := []string{"context canceled", "context canceled"}
 	expectedOut := []string{"", ""}
-	r := <-cr.Results()
-	assert.Contains(t, expected, r.Error.Error())
-	assert.Contains(t, expectedOut, string(r.Output))
+	ch, err := cr.Start(a)
+	if err == nil {
+		r := <-ch
+		assert.Contains(t, expected, r.Error.Error())
+		assert.Contains(t, expectedOut, string(r.Output))
+	}
 
 	assert.NotContains(t, cr.actionsCancel, a.ID())
 }

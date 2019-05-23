@@ -40,9 +40,6 @@ type ConcurrentRunner struct {
 	ctx     context.Context
 	timeout time.Duration
 	l       *logrus.Entry
-	results chan ActionResult
-
-	runningActions sync.WaitGroup
 
 	rw            sync.RWMutex
 	actionsCancel map[string]context.CancelFunc
@@ -63,42 +60,25 @@ func NewConcurrentRunner(ctx context.Context, timeout time.Duration) *Concurrent
 		ctx:           ctx,
 		timeout:       timeout,
 		l:             logrus.WithField("component", "actions-runner"),
-		results:       make(chan ActionResult),
 		actionsCancel: make(map[string]context.CancelFunc),
 	}
-
-	// let all actions finish and send their results before closing it
-	go func() {
-		<-ctx.Done()
-		r.runningActions.Wait()
-		r.l.Infof("Done.")
-		close(r.results)
-	}()
 
 	return r
 }
 
 // Start starts an Action in a separate goroutine.
-func (r *ConcurrentRunner) Start(a Action) {
+// Returns ActionResult channel. You can read ActionResult from it.
+// Also returns error if Start was called after Context was Done.
+func (r *ConcurrentRunner) Start(a Action) (<-chan *ActionResult, error) {
+	res := make(chan *ActionResult)
 	if err := r.ctx.Err(); err != nil {
-		r.l.Errorf("Ignoring Start: %s.", err)
-		return
+		return nil, err
 	}
 
-	// FIXME There is a data race. Add must not be called concurrently with Wait, but it can be:
-	// 0. no actions are running, WaitGroup has 0
-	// 1. Start is called
-	// 2. ctx is canceled on this line
-	// 3. Wait is called in the goroutine above
-	// 4. Add is called below
-	// 5. Add panics with "sync: WaitGroup misuse: Add called concurrently with Wait"
-	// See skipped test (run it in a loop with race detector).
-	// https://jira.percona.com/browse/PMM-4112
-	r.runningActions.Add(1)
 	actionID, actionType := a.ID(), a.Type()
 	ctx, cancel := context.WithTimeout(r.ctx, r.timeout)
 	run := func(ctx context.Context) {
-		defer r.runningActions.Done()
+		defer close(res) // close should be executed by sender, so here it is.
 		defer cancel()
 
 		r.rw.Lock()
@@ -120,18 +100,15 @@ func (r *ConcurrentRunner) Start(a Action) {
 			l.Warnf("Done with error: %s.", err)
 		}
 
-		r.results <- ActionResult{
+		res <- &ActionResult{
 			ID:     actionID,
 			Output: b,
 			Error:  err,
 		}
 	}
 	go pprof.Do(ctx, pprof.Labels("actionID", actionID, "type", actionType), run)
-}
 
-// Results returns channel with Actions results.
-func (r *ConcurrentRunner) Results() <-chan ActionResult {
-	return r.results
+	return res, nil
 }
 
 // Stop stops running Action.

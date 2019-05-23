@@ -170,11 +170,7 @@ func (c *Client) Run(ctx context.Context) error {
 
 	// TODO Make 2 and 3 behave more like 1 - that seems to be simpler.
 
-	oneDone := make(chan struct{}, 3)
-	go func() {
-		c.processActionResults()
-		oneDone <- struct{}{}
-	}()
+	oneDone := make(chan struct{}, 2)
 	go func() {
 		c.processSupervisorRequests()
 		oneDone <- struct{}{}
@@ -185,7 +181,6 @@ func (c *Client) Run(ctx context.Context) error {
 	}()
 	<-oneDone
 	go func() {
-		<-oneDone
 		<-oneDone
 		c.l.Info("Done.")
 		close(c.done)
@@ -198,23 +193,31 @@ func (c *Client) Done() <-chan struct{} {
 	return c.done
 }
 
-func (c *Client) processActionResults() {
-	for result := range c.runner.Results() {
-		var errMessage string
-		if result.Error != nil {
-			errMessage = result.Error.Error()
-		}
-
-		resp := c.channel.SendRequest(&agentpb.ActionResultRequest{
-			ActionId: result.ID,
-			Output:   result.Output,
-			Done:     true,
-			Error:    errMessage,
-		})
-		if resp == nil {
-			c.l.Warn("Failed to send ActionResult request.")
-		}
+// sendActionResultRequest sends ActionResult to pmm-managed.
+// This call is BLOCKING, so run it with `go` keyword.
+// WaitGroup used to wait when function ended.
+func (c *Client) sendActionResultRequest(in <-chan *actions.ActionResult, wg *sync.WaitGroup) {
+	defer wg.Done()
+	result, ok := <-in
+	if !ok || result == nil {
+		return
 	}
+
+	var errMessage string
+	if result.Error != nil {
+		errMessage = result.Error.Error()
+	}
+
+	resp := c.channel.SendRequest(&agentpb.ActionResultRequest{
+		ActionId: result.ID,
+		Output:   result.Output,
+		Done:     true,
+		Error:    errMessage,
+	})
+	if resp == nil {
+		c.l.Warn("Failed to send ActionResult request.")
+	}
+
 	c.l.Debugf("Runner Results() channel drained.")
 }
 
@@ -251,6 +254,9 @@ func (c *Client) processSupervisorRequests() {
 }
 
 func (c *Client) processChannelRequests() {
+	// We should wait until all actions will be sent to pmm-managed so we use WaitGroup for that.
+	var awg sync.WaitGroup
+
 	for req := range c.channel.Requests() {
 		var responsePayload agentpb.AgentResponsePayload
 		switch p := req.Payload.(type) {
@@ -268,13 +274,22 @@ func (c *Client) processChannelRequests() {
 			case managementpb.ActionType_PT_SUMMARY:
 				pp := p.GetProcessParams()
 				a := actions.NewProcessAction(p.ActionId, c.cfg.Paths.PtSummary, pp.Args)
-				c.runner.Start(a)
+				aRes, err := c.runner.Start(a)
+				if err == nil {
+					awg.Add(1)
+					go c.sendActionResultRequest(aRes, &awg)
+				}
 				responsePayload = new(agentpb.StartActionResponse)
 
 			case managementpb.ActionType_PT_MYSQL_SUMMARY:
 				pp := p.GetProcessParams()
 				a := actions.NewProcessAction(p.ActionId, c.cfg.Paths.PtMySQLSummary, pp.Args)
-				c.runner.Start(a)
+				aRes, err := c.runner.Start(a)
+				if err == nil {
+					awg.Add(1)
+					go c.sendActionResultRequest(aRes, &awg)
+				}
+
 				responsePayload = new(agentpb.StartActionResponse)
 
 			case managementpb.ActionType_MYSQL_EXPLAIN:
@@ -310,6 +325,8 @@ func (c *Client) processChannelRequests() {
 			Payload: responsePayload,
 		})
 	}
+
+	awg.Wait() // Wait all action results processed, then proceed.
 
 	if err := c.channel.Wait(); err != nil {
 		c.l.Debugf("Channel closed: %s.", err)
