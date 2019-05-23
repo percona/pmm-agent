@@ -27,7 +27,7 @@ type processAction struct {
 	arg     []string
 }
 
-// NewProcessAction creates Shell Action.
+// NewProcessAction creates a new process Action.
 //
 // Process Action, it's an abstract Action that can run an external commands.
 // This commands can be a shell script, script written on interpreted language, or binary file.
@@ -53,12 +53,7 @@ func (p *processAction) Type() string {
 func (p *processAction) Run(ctx context.Context) ([]byte, error) {
 	cmd := exec.CommandContext(ctx, p.command, p.arg...) //nolint:gosec
 	setSysProcAttr(cmd)
-	b, err := cmd.CombinedOutput()
-	if err != nil {
-		return nil, err
-	}
-
-	return b, nil
+	return cmd.CombinedOutput()
 }
 
 func (*processAction) sealed() {}
