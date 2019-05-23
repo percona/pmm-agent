@@ -49,6 +49,8 @@ type mysqlExplainAction struct {
 	db *sql.DB
 }
 
+func (p *mysqlExplainAction) sealed() {}
+
 // NewMySQLExplainAction creates MySQL Explain Action.
 // This is an Action that can run `EXPLAIN` command on MySQL service with given DSN.
 func NewMySQLExplainAction(id, dsn, query string, format MysqlExplainOutputFormat) Action {
