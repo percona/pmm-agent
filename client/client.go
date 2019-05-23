@@ -149,28 +149,32 @@ func (c *Client) Run(ctx context.Context) error {
 	c.channel = dialResult.channel
 	c.rw.Unlock()
 
-	// Once the client is connected, ctx cancellation is ignored.
+	// Once the client is connected, ctx cancellation is ignored by it.
+	//
 	// We start three goroutines, and terminate the gRPC connection and exit Run when any of them exits:
-	// 1. processSupervisorRequests reads requests (status changes and QAN data) from the supervisor and sends them to the channel.
-	//    It exits when the supervisor is stopped.
-	//    When the gRPC connection is terminated on exiting Run, processChannelRequests exits too.
-	// 2. processActionResults reads action results from action runner and sends them to the channel.
-	//    It exits when the action runner is stopped.
-	//    When the gRPC connection is terminated on exiting Run, processActionResults exits too.
-	//    The caller cancels context passed as an argument to Run.
-	//    This context also passed to action runner, and it stops own goroutines, then closes ActionReady channel.
-	//    That allows processChannelRequests to exit.
+	//
+	// 1. processActionResults reads action results from action runner and sends them to the channel.
+	//    It exits when the action runner is stopped by cancelling ctx.
+	//
+	// 2. processSupervisorRequests reads requests (status changes and QAN data) from the supervisor and sends them to the channel.
+	//    It exits when the supervisor is stopped by the caller.
+	//    Caller stops supervisor when Run is left and gRPC connection is closed.
+	//
 	// 3. processChannelRequests reads requests from the channel and processes them.
 	//    It exits when an unexpected message is received from the channel, or when can't be received at all.
 	//    When Run is left, caller stops supervisor, and that allows processSupervisorRequests to exit.
+	//
 	// Done() channel is closed when all three goroutines exited.
+
+	// TODO Make 2 and 3 behave more like 1 - that seems to be simpler.
+
 	oneDone := make(chan struct{}, 3)
 	go func() {
-		c.processSupervisorRequests()
+		c.processActionResults()
 		oneDone <- struct{}{}
 	}()
 	go func() {
-		c.processActionResults()
+		c.processSupervisorRequests()
 		oneDone <- struct{}{}
 	}()
 	go func() {
@@ -190,6 +194,26 @@ func (c *Client) Run(ctx context.Context) error {
 // Done is closed when all supervisors's requests are sent (if possible) and connection is closed.
 func (c *Client) Done() <-chan struct{} {
 	return c.done
+}
+
+func (c *Client) processActionResults() {
+	for result := range c.runner.Results() {
+		var errMessage string
+		if result.Error != nil {
+			errMessage = result.Error.Error()
+		}
+
+		resp := c.channel.SendRequest(&agentpb.ActionResultRequest{
+			ActionId: result.ID,
+			Output:   result.Output,
+			Done:     true,
+			Error:    errMessage,
+		})
+		if resp == nil {
+			c.l.Warn("Failed to send ActionResult request.")
+		}
+	}
+	c.l.Debugf("Runner Results() channel drained.")
 }
 
 func (c *Client) processSupervisorRequests() {
@@ -222,26 +246,6 @@ func (c *Client) processSupervisorRequests() {
 	}()
 
 	wg.Wait()
-}
-
-func (c *Client) processActionResults() {
-	for result := range c.runner.Results() {
-		var errMessage string
-		if result.Error != nil {
-			errMessage = result.Error.Error()
-		}
-
-		resp := c.channel.SendRequest(&agentpb.ActionResultRequest{
-			ActionId: result.ID,
-			Output:   result.Output,
-			Done:     true,
-			Error:    errMessage,
-		})
-		if resp == nil {
-			c.l.Warn("Failed to send ActionResult request.")
-		}
-	}
-	c.l.Debugf("Runner Results() channel drained.")
 }
 
 func (c *Client) processChannelRequests() {
@@ -406,8 +410,9 @@ func dial(dialCtx context.Context, cfg *config.Config, withoutTLS bool, l *logru
 		return nil, errors.Wrap(err, "failed to get server metadata")
 	}
 	if md.ServerVersion == "" {
-		// TODO make this a hard error after https://jira.percona.com/browse/PMM-3705
-		l.Warnf("Server metadata does not contain server version.")
+		l.Errorf("Server metadata does not contain server version.")
+		teardown()
+		return nil, errors.New("empty server version in metadata")
 	}
 
 	channel := channel.New(stream)
