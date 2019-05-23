@@ -93,7 +93,7 @@ func New(cfg *config.Config, supervisor supervisor) *Client {
 func (c *Client) Run(ctx context.Context) error {
 	c.l.Info("Starting...")
 
-	c.runner = actions.NewConcurrentRunner(ctx, logrus.WithField("component", "actions.Runner"), 0)
+	c.runner = actions.NewConcurrentRunner(ctx, 0)
 
 	// do nothing until ctx is canceled if config misses critical info
 	var missing string
@@ -154,9 +154,9 @@ func (c *Client) Run(ctx context.Context) error {
 	// 1. processSupervisorRequests reads requests (status changes and QAN data) from the supervisor and sends them to the channel.
 	//    It exits when the supervisor is stopped.
 	//    When the gRPC connection is terminated on exiting Run, processChannelRequests exits too.
-	// 2. sendActionResults reads action results from action runner and sends them to the channel.
+	// 2. processActionResults reads action results from action runner and sends them to the channel.
 	//    It exits when the action runner is stopped.
-	//    When the gRPC connection is terminated on exiting Run, sendActionResults exits too.
+	//    When the gRPC connection is terminated on exiting Run, processActionResults exits too.
 	//    The caller cancels context passed as an argument to Run.
 	//    This context also passed to action runner, and it stops own goroutines, then closes ActionReady channel.
 	//    That allows processChannelRequests to exit.
@@ -170,7 +170,7 @@ func (c *Client) Run(ctx context.Context) error {
 		oneDone <- struct{}{}
 	}()
 	go func() {
-		c.sendActionResults()
+		c.processActionResults()
 		oneDone <- struct{}{}
 	}()
 	go func() {
@@ -224,26 +224,24 @@ func (c *Client) processSupervisorRequests() {
 	wg.Wait()
 }
 
-func (c *Client) sendActionResults() {
-	for {
-		ar, err := c.runner.WaitNextAction()
-		if err != nil {
-			break
-		}
-
+func (c *Client) processActionResults() {
+	for result := range c.runner.Results() {
 		var errMessage string
-		if ar.Error != nil {
-			errMessage = ar.Error.Error()
+		if result.Error != nil {
+			errMessage = result.Error.Error()
 		}
 
-		c.channel.SendRequest(&agentpb.ActionResultRequest{
-			ActionId: ar.ID,
-			Output:   ar.Output,
+		resp := c.channel.SendRequest(&agentpb.ActionResultRequest{
+			ActionId: result.ID,
+			Output:   result.Output,
 			Done:     true,
 			Error:    errMessage,
 		})
+		if resp == nil {
+			c.l.Warn("Failed to send ActionResult request.")
+		}
 	}
-	c.l.Debugf("ActionRunner actions was read.")
+	c.l.Debugf("Runner Results() channel drained.")
 }
 
 func (c *Client) processChannelRequests() {

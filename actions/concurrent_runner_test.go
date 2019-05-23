@@ -21,13 +21,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestConcurrentRunnerRun(t *testing.T) {
-	cr := NewConcurrentRunner(context.Background(), logrus.WithField("component", "runner"), 0)
+	t.Parallel()
 
+	cr := NewConcurrentRunner(context.Background(), 0)
 	a1 := NewProcessAction("/action_id/6a479303-5081-46d0-baa0-87d6248c987b", "echo", []string{"test"})
 	a2 := NewProcessAction("/action_id/84140ab2-612d-4d93-9360-162a4bd5de14", "echo", []string{"test2"})
 
@@ -36,13 +36,15 @@ func TestConcurrentRunnerRun(t *testing.T) {
 
 	expected := []string{"test\n", "test2\n"}
 	for i := 0; i < 2; i++ {
-		a, _ := cr.WaitNextAction()
+		a := <-cr.Results()
 		assert.Contains(t, expected, string(a.Output))
 	}
 }
 
 func TestConcurrentRunnerTimeout(t *testing.T) {
-	cr := NewConcurrentRunner(context.Background(), logrus.WithField("component", "runner"), time.Second)
+	t.Parallel()
+
+	cr := NewConcurrentRunner(context.Background(), time.Second)
 	a1 := NewProcessAction("/action_id/6a479303-5081-46d0-baa0-87d6248c987b", "sleep", []string{"20"})
 	a2 := NewProcessAction("/action_id/84140ab2-612d-4d93-9360-162a4bd5de14", "sleep", []string{"30"})
 
@@ -53,20 +55,19 @@ func TestConcurrentRunnerTimeout(t *testing.T) {
 	expected := []string{"signal: killed", "signal: killed"}
 	expectedOut := []string{"", ""}
 	for i := 0; i < 2; i++ {
-		a, _ := cr.WaitNextAction()
-		assert.Contains(t, expected, a.Error.Error())
-		assert.Contains(t, expectedOut, string(a.Output))
+		r := <-cr.Results()
+		assert.Contains(t, expected, r.Error.Error())
+		assert.Contains(t, expectedOut, string(r.Output))
 	}
 
-	// check Action was deleted from actionsCancel map.
-	_, ok := cr.actionsCancel[a1.ID()]
-	_, ok2 := cr.actionsCancel[a2.ID()]
-	assert.False(t, ok)
-	assert.False(t, ok2)
+	assert.NotContains(t, cr.actionsCancel, a1.ID())
+	assert.NotContains(t, cr.actionsCancel, a2.ID())
 }
 
 func TestConcurrentRunnerStop(t *testing.T) {
-	cr := NewConcurrentRunner(context.Background(), logrus.WithField("component", "runner"), 0)
+	t.Parallel()
+
+	cr := NewConcurrentRunner(context.Background(), 0)
 	a1 := NewProcessAction("/action_id/6a479303-5081-46d0-baa0-87d6248c987b", "sleep", []string{"20"})
 	a2 := NewProcessAction("/action_id/84140ab2-612d-4d93-9360-162a4bd5de14", "sleep", []string{"30"})
 
@@ -82,21 +83,20 @@ func TestConcurrentRunnerStop(t *testing.T) {
 	expected := []string{"signal: killed", "signal: killed"}
 	expectedOut := []string{"", ""}
 	for i := 0; i < 2; i++ {
-		a, _ := cr.WaitNextAction()
-		assert.Contains(t, expected, a.Error.Error())
-		assert.Contains(t, expectedOut, string(a.Output))
+		r := <-cr.Results()
+		assert.Contains(t, expected, r.Error.Error())
+		assert.Contains(t, expectedOut, string(r.Output))
 	}
 
-	// check Action was deleted from actionsCancel map.
-	_, ok := cr.actionsCancel[a1.ID()]
-	_, ok2 := cr.actionsCancel[a2.ID()]
-	assert.False(t, ok)
-	assert.False(t, ok2)
+	assert.NotContains(t, cr.actionsCancel, a1.ID())
+	assert.NotContains(t, cr.actionsCancel, a2.ID())
 }
 
-func TestConcurrentRunnerCancelApplicationContext(t *testing.T) {
+func TestConcurrentRunnerCancel(t *testing.T) {
+	t.Parallel()
+
 	ctx, cancel := context.WithCancel(context.Background())
-	cr := NewConcurrentRunner(ctx, logrus.WithField("component", "runner"), 0)
+	cr := NewConcurrentRunner(ctx, 0)
 	a1 := NewProcessAction("/action_id/6a479303-5081-46d0-baa0-87d6248c987b", "sleep", []string{"20"})
 	a2 := NewProcessAction("/action_id/84140ab2-612d-4d93-9360-162a4bd5de14", "sleep", []string{"30"})
 
@@ -108,14 +108,31 @@ func TestConcurrentRunnerCancelApplicationContext(t *testing.T) {
 	expected := []string{"context canceled", "context canceled"}
 	expectedOut := []string{"", ""}
 	for i := 0; i < 2; i++ {
-		a, _ := cr.WaitNextAction()
-		assert.Contains(t, expected, a.Error.Error())
-		assert.Contains(t, expectedOut, string(a.Output))
+		r := <-cr.Results()
+		assert.Contains(t, expected, r.Error.Error())
+		assert.Contains(t, expectedOut, string(r.Output))
 	}
 
-	// check Action was deleted from actionsCancel map.
-	_, ok := cr.actionsCancel[a1.ID()]
-	_, ok2 := cr.actionsCancel[a2.ID()]
-	assert.False(t, ok)
-	assert.False(t, ok2)
+	assert.NotContains(t, cr.actionsCancel, a1.ID())
+	assert.NotContains(t, cr.actionsCancel, a2.ID())
+}
+
+func TestConcurrentRunnerCancelEmpty(t *testing.T) {
+	t.Skip("https://jira.percona.com/browse/PMM-4112")
+	t.Parallel()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cr := NewConcurrentRunner(ctx, 0)
+	a := NewProcessAction("/action_id/6a479303-5081-46d0-baa0-87d6248c987b", "sleep", []string{"20"})
+
+	go cancel()
+	cr.Start(a)
+
+	expected := []string{"context canceled", "context canceled"}
+	expectedOut := []string{"", ""}
+	r := <-cr.Results()
+	assert.Contains(t, expected, r.Error.Error())
+	assert.Contains(t, expectedOut, string(r.Output))
+
+	assert.NotContains(t, cr.actionsCancel, a.ID())
 }
