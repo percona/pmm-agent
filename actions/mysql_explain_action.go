@@ -17,16 +17,14 @@
 package actions
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
-	"encoding/json"
 	"fmt"
-	"regexp"
 	"strings"
+	"text/tabwriter"
 
-	"github.com/Masterminds/semver"
-	"github.com/go-sql-driver/mysql"
-	_ "github.com/go-sql-driver/mysql"
+	_ "github.com/go-sql-driver/mysql" // register SQL driver
 	"github.com/pkg/errors"
 )
 
@@ -40,16 +38,37 @@ var (
 	ExplainFormatJSON MysqlExplainOutputFormat = 2
 )
 
+type nullString string
+
+func (ns *nullString) String() string {
+	if ns == nil {
+		return "NULL"
+	}
+	return string(*ns)
+}
+
+//go:generate reform
+
+//reform:mysql_explain
+type mysqlExplain struct {
+	ID           *nullString `reform:"id"`
+	SelectType   *nullString `reform:"select_type"`
+	Table        *nullString `reform:"table"`
+	Type         *nullString `reform:"type"`
+	PossibleKeys *nullString `reform:"possible_keys"`
+	Key          *nullString `reform:"key"`
+	KeyKen       *nullString `reform:"key_len"`
+	Ref          *nullString `reform:"ref"`
+	Rows         *nullString `reform:"rows"`
+	Extra        *nullString `reform:"Extra"`
+}
+
 type mysqlExplainAction struct {
 	id     string
 	dsn    string
 	query  string
 	format MysqlExplainOutputFormat
-
-	db *sql.DB
 }
-
-func (p *mysqlExplainAction) sealed() {}
 
 // NewMySQLExplainAction creates MySQL Explain Action.
 // This is an Action that can run `EXPLAIN` command on MySQL service with given DSN.
@@ -62,198 +81,69 @@ func NewMySQLExplainAction(id, dsn, query string, format MysqlExplainOutputForma
 	}
 }
 
-// ID returns unique Action id.
-func (p *mysqlExplainAction) ID() string {
-	return p.id
+// ID returns an Action ID.
+func (e *mysqlExplainAction) ID() string {
+	return e.id
 }
 
-// Type returns Action type as as string.
-func (p *mysqlExplainAction) Type() string {
-	return "pt-mysql-explain"
+// Type returns an Action type.
+func (e *mysqlExplainAction) Type() string {
+	return "mysql-explain"
 }
 
-// Run starts an Action. This method is blocking.
-func (p *mysqlExplainAction) Run(ctx context.Context) ([]byte, error) {
-	var err error
-	p.db, err = sql.Open("mysql", p.dsn)
+// Run runs an Action and returns output and error.
+func (e *mysqlExplainAction) Run(ctx context.Context) ([]byte, error) {
+	// TODO use ctx for connection
+
+	db, err := sql.Open("mysql", e.dsn)
 	if err != nil {
 		return nil, err
 	}
-	defer p.db.Close()
+	defer db.Close()
 
-	// Transaction because we need to ensure USE and EXPLAIN are run in one connection
-	tx, err := p.db.Begin()
-	if err != nil {
-		return nil, err
-	}
-	defer tx.Rollback()
-
-	cfg, err := mysql.ParseDSN(p.dsn)
-	if err != nil {
-		return nil, err
-	}
-
-	// If the query has a default db, use it; else, all tables need to be db-qualified
-	// or EXPLAIN will throw an error.
-	if cfg.DBName != "" {
-		_, err = tx.ExecContext(ctx, fmt.Sprintf("USE %s", cfg.DBName))
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	var bytes []byte
-
-	switch p.format {
+	switch e.format {
 	case ExplainFormatDefault:
-		out, err := p.classicExplain(ctx, tx)
-		if err != nil {
-			return nil, err
-		}
-
-		bytes, err = json.Marshal(out)
-		if err != nil {
-			return nil, err
-		}
+		return e.explain(ctx, db)
 	case ExplainFormatJSON:
-		out, err := p.jsonExplain(ctx, tx)
-		if err != nil {
-			return nil, err
-		}
-
-		bytes, err = json.Marshal(out)
-		if err != nil {
-			return nil, err
-		}
+		return e.explainJSON(ctx, db)
 	default:
 		return nil, errors.New("unsupported output format")
 	}
-
-	return bytes, nil
 }
 
-type explainRow struct {
-	Id           sql.NullInt64
-	SelectType   sql.NullString
-	Table        sql.NullString
-	Partitions   sql.NullString // split by comma; since MySQL 5.1
-	CreateTable  sql.NullString
-	Type         sql.NullString
-	PossibleKeys sql.NullString // split by comma
-	Key          sql.NullString
-	KeyLen       sql.NullString
-	Ref          sql.NullString
-	Rows         sql.NullInt64
-	Filtered     sql.NullFloat64 // as of 5.7.3
-	Extra        sql.NullString  // split by semicolon
-}
+func (e *mysqlExplainAction) sealed() {}
 
-func (p *mysqlExplainAction) classicExplain(ctx context.Context, tx *sql.Tx) ([]*explainRow, error) {
-	// Partitions are introduced since MySQL 5.1
-	// We can simply run EXPLAIN /*!50100 PARTITIONS*/ to get this column when it's available
-	// without prior check for MySQL version.
-	if strings.TrimSpace(p.query) == "" {
-		return nil, errors.Errorf("cannot run EXPLAIN on an empty query example")
-	}
-	rows, err := tx.QueryContext(ctx, fmt.Sprintf("EXPLAIN %s", p.query))
+func (e *mysqlExplainAction) explain(ctx context.Context, db *sql.DB) ([]byte, error) {
+	rows, err := db.QueryContext(ctx, fmt.Sprintf("EXPLAIN /* pmm-agent */ %s", e.query))
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer rows.Close() // nolint:errcheck
 
-	// Go rows.Scan() expects exact number of columns
-	// so when number of columns is undefined then the easiest way to
-	// overcome this problem is to count received number of columns
-	columns, err := rows.Columns()
-	if err != nil {
-		return nil, err
-	}
-	nCols := len(columns)
-
-	var out []*explainRow
+	var buf bytes.Buffer
+	w := tabwriter.NewWriter(&buf, 0, 0, 1, ' ', tabwriter.Debug)
+	w.Write([]byte(strings.Join(mysqlExplainView.Columns(), "\t"))) // nolint:errcheck
 	for rows.Next() {
-		explainRow := &explainRow{}
-		switch nCols {
-		case 12: // MySQL 5.6 with "filtered"
-			err = rows.Scan(
-				&explainRow.Id,
-				&explainRow.SelectType,
-				&explainRow.Table,
-				&explainRow.Partitions,
-				&explainRow.Type,
-				&explainRow.PossibleKeys,
-				&explainRow.Key,
-				&explainRow.KeyLen,
-				&explainRow.Ref,
-				&explainRow.Rows,
-				&explainRow.Filtered, // here
-				&explainRow.Extra,
-			)
-		default:
-			err = errors.New("unsupported EXPLAIN format")
-		}
-		if err != nil {
+		var str mysqlExplain
+		if err = rows.Scan(str.Pointers()...); err != nil {
 			return nil, err
 		}
-		out = append(out, explainRow)
+
+		row := "\n"
+		for _, d := range str.Values() {
+			row += d.(*nullString).String() + "\t"
+		}
+		w.Write([]byte(row)) // nolint:errcheck
 	}
-	err = rows.Err()
-	if err != nil {
+
+	if err = w.Flush(); err != nil {
 		return nil, err
 	}
-
-	return out, nil
+	return buf.Bytes(), nil
 }
 
-func (p *mysqlExplainAction) jsonExplain(ctx context.Context, tx *sql.Tx) (string, error) {
-	// EXPLAIN in JSON format is introduced since MySQL 5.6.5 and MariaDB 10.1.2
-	// https://mariadb.com/kb/en/mariadb/explain-format-json/
-	ok, err := p.versionConstraint(ctx, ">= 5.6.5, < 10.0.0 || >= 10.1.2")
-	if !ok || err != nil {
-		return "", err
-	}
-
-	explain := ""
-	err = tx.QueryRowContext(ctx, fmt.Sprintf("EXPLAIN FORMAT=JSON %s", p.query)).Scan(&explain)
-	if err != nil {
-		return "", err
-	}
-
-	return explain, nil
-}
-
-// versionConstraint checks if version fits given constraint
-func (p *mysqlExplainAction) versionConstraint(ctx context.Context, constraint string) (bool, error) {
-	version, err := p.getGlobalVarString(ctx, "version")
-	if err != nil {
-		return false, err
-	}
-
-	// Strip everything after the first dash
-	re := regexp.MustCompile("-.*$")
-	version = re.ReplaceAllString(version, "")
-	v, err := semver.NewVersion(version)
-	if err != nil {
-		return false, err
-	}
-
-	constraints, err := semver.NewConstraint(constraint)
-	if err != nil {
-		return false, err
-	}
-	return constraints.Check(v), nil
-}
-
-func (p *mysqlExplainAction) getGlobalVarString(ctx context.Context, varName string) (string, error) {
-	if err := p.db.Ping(); err != nil {
-		return "", errors.New("not connected")
-	}
-	var value string
-	err := p.db.QueryRowContext(ctx, "SELECT @@GLOBAL."+varName).Scan(&value)
-	if val, ok := err.(*mysql.MySQLError); ok {
-		if val.Number == 1193 /*ER_UNKNOWN_SYSTEM_VARIABLE*/ {
-			return "", errors.New("unknown system variable")
-		}
-	}
-	return value, nil
+func (e *mysqlExplainAction) explainJSON(ctx context.Context, db *sql.DB) ([]byte, error) {
+	var res string
+	err := db.QueryRowContext(ctx, fmt.Sprintf("EXPLAIN /* pmm-agent */ FORMAT=JSON %s", e.query)).Scan(&res)
+	return []byte(res), err
 }

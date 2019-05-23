@@ -18,40 +18,72 @@ package actions
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
-	_ "github.com/go-sql-driver/mysql"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func TestMysqlExplainActionRun(t *testing.T) {
-	id := "/action_id/6a479303-5081-46d0-baa0-87d6248c987b"
-	dsn := "pmm-agent:pmm-agent-password@tcp(127.0.0.1:3306)/information_schema"
-	q := "SELECT * FROM information_schema.GLOBAL_STATUS"
+func TestMySQLExplain(t *testing.T) {
+	const query = "SELECT * FROM `city`"
 
-	exp := NewMySQLExplainAction(id, dsn, q, ExplainFormatDefault)
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
+	t.Run("Default", func(t *testing.T) {
+		t.Parallel()
 
-	out, err := exp.Run(ctx)
-	require.NoError(t, err)
-	assert.NotEmpty(t, out)
-	t.Log(string(out))
+		dsn := "root:root-password@tcp(127.0.0.1:3306)/world"
+		a := NewMySQLExplainAction("", dsn, query, ExplainFormatDefault)
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+
+		b, err := a.Run(ctx)
+		require.NoError(t, err)
+		actual := strings.TrimSpace(string(b))
+		expected := strings.TrimSpace(`
+id |select_type |table |type |possible_keys |key  |key_len |ref  |rows |Extra
+1  |SIMPLE      |city  |ALL  |NULL          |NULL |NULL    |NULL |2    |NULL
+	`)
+		assert.Equal(t, expected, actual)
+	})
+
+	t.Run("JSON", func(t *testing.T) {
+		t.Parallel()
+
+		dsn := "root:root-password@tcp(127.0.0.1:3306)/world"
+		a := NewMySQLExplainAction("", dsn, query, ExplainFormatJSON)
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+
+		b, err := a.Run(ctx)
+		require.NoError(t, err)
+		actual := strings.TrimSpace(string(b))
+		expected := strings.TrimSpace(`
+{
+  "query_block": {
+    "select_id": 1,
+    "table": {
+      "table_name": "city",
+      "access_type": "ALL",
+      "rows": 2,
+      "filtered": 100
+    }
+  }
 }
+	`)
+		assert.Equal(t, expected, actual)
+	})
 
-func TestMysqlExplainActionRunJson(t *testing.T) {
-	id := "/action_id/6a479303-5081-46d0-baa0-87d6248c987b"
-	dsn := "pmm-agent:pmm-agent-password@tcp(127.0.0.1:3306)/information_schema"
-	q := "SELECT * FROM information_schema.GLOBAL_STATUS"
+	t.Run("Error", func(t *testing.T) {
+		t.Parallel()
 
-	exp := NewMySQLExplainAction(id, dsn, q, ExplainFormatJSON)
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
+		dsn := "pmm-agent:pmm-agent-wrong-password@tcp(127.0.0.1:3306)/world"
+		a := NewMySQLExplainAction("", dsn, query, ExplainFormatDefault)
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
 
-	out, err := exp.Run(ctx)
-	require.NoError(t, err)
-	assert.NotEmpty(t, out)
-	t.Log(string(out))
+		_, err := a.Run(ctx)
+		require.Error(t, err)
+		assert.Regexp(t, `Error 1045: Access denied for user 'pmm-agent'@'.+' \(using password: YES\)`, err.Error())
+	})
 }

@@ -18,14 +18,6 @@
   revision = "fcb4a6205bdc6ce526f359ae5eae5fb6ded53916"
 
 [[projects]]
-  digest = "1:a26f8da48b22e6176c1c6a2459904bb30bd0c49ada04b2963c2c3a203e81a620"
-  name = "github.com/Masterminds/semver"
-  packages = ["."]
-  pruneopts = "NUT"
-  revision = "c7af12943936e8c39859482e61f0574c2fd7fc75"
-  version = "v1.4.2"
-
-[[projects]]
   digest = "1:0a111edd8693fd977f42a0c4f199a0efb13c20aec9da99ad8830c7bb6a87e8d6"
   name = "github.com/PuerkitoBio/purell"
   packages = ["."]
@@ -681,7 +673,6 @@
   input-imports = [
     "github.com/AlekSi/pointer",
     "github.com/BurntSushi/go-sumtype",
-    "github.com/Masterminds/semver",
     "github.com/davecgh/go-spew/spew",
     "github.com/fatih/structs",
     "github.com/go-openapi/runtime",
