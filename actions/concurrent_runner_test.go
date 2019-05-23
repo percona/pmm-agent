@@ -36,8 +36,9 @@ func TestConcurrentRunnerRun(t *testing.T) {
 
 	expected := []string{"test\n", "test2\n"}
 	for i := 0; i < 2; i++ {
-		a := <-cr.Results()
-		assert.Contains(t, expected, string(a.Output))
+		if r, ok := <-cr.Results(); ok {
+			assert.Contains(t, expected, string(r.Output))
+		}
 	}
 }
 
@@ -55,9 +56,10 @@ func TestConcurrentRunnerTimeout(t *testing.T) {
 	expected := []string{"signal: killed", "signal: killed"}
 	expectedOut := []string{"", ""}
 	for i := 0; i < 2; i++ {
-		r := <-cr.Results()
-		assert.Contains(t, expected, r.Error.Error())
-		assert.Contains(t, expectedOut, string(r.Output))
+		if r, ok := <-cr.Results(); ok {
+			assert.Contains(t, expected, r.Error.Error())
+			assert.Contains(t, expectedOut, string(r.Output))
+		}
 	}
 
 	assert.NotContains(t, cr.actionsCancel, a1.ID())
@@ -83,9 +85,10 @@ func TestConcurrentRunnerStop(t *testing.T) {
 	expected := []string{"signal: killed", "signal: killed"}
 	expectedOut := []string{"", ""}
 	for i := 0; i < 2; i++ {
-		r := <-cr.Results()
-		assert.Contains(t, expected, r.Error.Error())
-		assert.Contains(t, expectedOut, string(r.Output))
+		if r, ok := <-cr.Results(); ok {
+			assert.Contains(t, expected, r.Error.Error())
+			assert.Contains(t, expectedOut, string(r.Output))
+		}
 	}
 
 	assert.NotContains(t, cr.actionsCancel, a1.ID())
@@ -108,9 +111,10 @@ func TestConcurrentRunnerCancel(t *testing.T) {
 	expected := []string{"context canceled", "context canceled"}
 	expectedOut := []string{"", ""}
 	for i := 0; i < 2; i++ {
-		r := <-cr.Results()
-		assert.Contains(t, expected, r.Error.Error())
-		assert.Contains(t, expectedOut, string(r.Output))
+		if r, ok := <-cr.Results(); ok {
+			assert.Contains(t, expected, r.Error.Error())
+			assert.Contains(t, expectedOut, string(r.Output))
+		}
 	}
 
 	assert.NotContains(t, cr.actionsCancel, a1.ID())
@@ -118,7 +122,6 @@ func TestConcurrentRunnerCancel(t *testing.T) {
 }
 
 func TestConcurrentRunnerCancelEmpty(t *testing.T) {
-	t.Skip("https://jira.percona.com/browse/PMM-4112")
 	t.Parallel()
 
 	ctx, cancel := context.WithCancel(context.Background())

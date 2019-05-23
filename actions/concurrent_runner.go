@@ -68,8 +68,10 @@ func NewConcurrentRunner(ctx context.Context, timeout time.Duration) *Concurrent
 	}
 
 	// let all actions finish and send their results before closing it
+	r.runningActions.Add(1) // This call synchronize first increment with Wait().
 	go func() {
 		<-ctx.Done()
+		r.runningActions.Done() // This call decrement counter to prevent be deadlock.
 		r.runningActions.Wait()
 		r.l.Infof("Done.")
 		close(r.results)
@@ -85,15 +87,6 @@ func (r *ConcurrentRunner) Start(a Action) {
 		return
 	}
 
-	// FIXME There is a data race. Add must not be called concurrently with Wait, but it can be:
-	// 0. no actions are running, WaitGroup has 0
-	// 1. Start is called
-	// 2. ctx is canceled on this line
-	// 3. Wait is called in the goroutine above
-	// 4. Add is called below
-	// 5. Add panics with "sync: WaitGroup misuse: Add called concurrently with Wait"
-	// See skipped test (run it in a loop with race detector).
-	// https://jira.percona.com/browse/PMM-4112
 	r.runningActions.Add(1)
 	actionID, actionType := a.ID(), a.Type()
 	ctx, cancel := context.WithTimeout(r.ctx, r.timeout)
