@@ -47,22 +47,6 @@ func (ns *nullString) String() string {
 	return string(*ns)
 }
 
-//go:generate reform
-
-//reform:mysql_explain
-type mysqlExplain struct {
-	ID           *nullString `reform:"id"`
-	SelectType   *nullString `reform:"select_type"`
-	Table        *nullString `reform:"table"`
-	Type         *nullString `reform:"type"`
-	PossibleKeys *nullString `reform:"possible_keys"`
-	Key          *nullString `reform:"key"`
-	KeyKen       *nullString `reform:"key_len"`
-	Ref          *nullString `reform:"ref"`
-	Rows         *nullString `reform:"rows"`
-	Extra        *nullString `reform:"Extra"`
-}
-
 type mysqlExplainAction struct {
 	id     string
 	dsn    string
@@ -99,7 +83,7 @@ func (e *mysqlExplainAction) Run(ctx context.Context) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer db.Close()
+	defer db.Close() //nolint:errcheck
 
 	switch e.format {
 	case ExplainFormatDefault:
@@ -118,22 +102,32 @@ func (e *mysqlExplainAction) explain(ctx context.Context, db *sql.DB) ([]byte, e
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close() // nolint:errcheck
+	defer rows.Close() //nolint:errcheck
+
+	columns, err := rows.Columns()
+	if err != nil {
+		return nil, err
+	}
 
 	var buf bytes.Buffer
 	w := tabwriter.NewWriter(&buf, 0, 0, 1, ' ', tabwriter.Debug)
-	w.Write([]byte(strings.Join(mysqlExplainView.Columns(), "\t"))) // nolint:errcheck
+	w.Write([]byte(strings.Join(columns, "\t"))) //nolint:errcheck
 	for rows.Next() {
-		var str mysqlExplain
-		if err = rows.Scan(str.Pointers()...); err != nil {
+		dest := make([]interface{}, len(columns))
+		for i := range dest {
+			var ns *nullString
+			dest[i] = &ns
+		}
+		if err = rows.Scan(dest...); err != nil {
 			return nil, err
 		}
 
 		row := "\n"
-		for _, d := range str.Values() {
-			row += d.(*nullString).String() + "\t"
+		for _, d := range dest {
+			ns := *d.(**nullString)
+			row += ns.String() + "\t"
 		}
-		w.Write([]byte(row)) // nolint:errcheck
+		w.Write([]byte(row)) //nolint:errcheck
 	}
 
 	if err = w.Flush(); err != nil {
