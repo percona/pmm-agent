@@ -114,14 +114,15 @@ func TestClient(t *testing.T) {
 
 	t.Run("WithServer", func(t *testing.T) {
 		t.Run("Normal", func(t *testing.T) {
-			serverMD := &agentpb.AgentServerMetadata{
+			serverMD := &agentpb.ServerConnectMetadata{
 				ServerVersion: t.Name(),
 			}
 
 			connect := func(stream agentpb.Agent_ConnectServer) error {
-				md := agentpb.GetAgentConnectMetadata(stream.Context())
-				assert.Equal(t, agentpb.AgentConnectMetadata{ID: "agent_id"}, md)
-				err := agentpb.SendAgentServerMetadata(stream, serverMD)
+				md, err := agentpb.ReceiveAgentConnectMetadata(stream)
+				require.NoError(t, err)
+				assert.Equal(t, &agentpb.AgentConnectMetadata{ID: "agent_id"}, md)
+				err = agentpb.SendServerConnectMetadata(stream, serverMD)
 				require.NoError(t, err)
 
 				msg, err := stream.Recv()
@@ -155,7 +156,7 @@ func TestClient(t *testing.T) {
 			client.withoutTLS = true
 			err := client.Run(context.Background())
 			assert.NoError(t, err)
-			assert.Equal(t, serverMD, client.GetAgentServerMetadata())
+			assert.Equal(t, serverMD, client.GetServerConnectMetadata())
 		})
 
 		t.Run("NoManaged", func(t *testing.T) {

@@ -347,8 +347,8 @@
   version = "0.5.2"
 
 [[projects]]
-  branch = "PMM-2.0"
-  digest = "1:9983e38e728016409ad0c79d6d794427a77ce0e2fa819b643e7885b7ae871b76"
+  branch = "PMM-4087-expose-metrics"
+  digest = "1:4c23491f16e5b3298a10cf6e52e27277381ed4787cb8c9843751d0b788608615"
   name = "github.com/percona/pmm"
   packages = [
     "api/agentlocalpb",
@@ -369,7 +369,7 @@
     "version",
   ]
   pruneopts = "NUT"
-  revision = "fd3475eea304ec6b07c50e8e130521e006cf3e8e"
+  revision = "f101516d5f7748d61e021a412c9744d63605ed66"
 
 [[projects]]
   digest = "1:14715f705ff5dfe0ffd6571d7d201dd8e921030f8070321a79380d8ca4ec1a24"
