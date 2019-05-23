@@ -394,7 +394,7 @@ func dial(dialCtx context.Context, cfg *config.Config, withoutTLS bool, l *logru
 	md, err := agentpb.GetAgentServerMetadata(stream)
 	l.Debugf("Received server metadata: %+v. Error: %v.", md, err)
 	if (err == nil) && (md == agentpb.AgentServerMetadata{}) {
-		// https://jira.percona.com/browse/PMM-4076
+		// FIXME https://jira.percona.com/browse/PMM-4076
 		err = errors.New("empty")
 	}
 	if err != nil {
