@@ -24,9 +24,9 @@ import (
 
 	_ "github.com/go-sql-driver/mysql" // register SQL driver
 	_ "github.com/lib/pq"              // register SQL driver
-	"github.com/percona/pmgo"
 	"github.com/percona/pmm/api/agentpb"
 	"github.com/percona/pmm/api/inventorypb"
+	"gopkg.in/mgo.v2"
 )
 
 // ConnectionChecker is a struct to check connection to services.
@@ -53,8 +53,7 @@ func (c *ConnectionChecker) Check(msg *agentpb.CheckConnectionRequest) error {
 }
 
 func (c *ConnectionChecker) checkMongoDBConnection(dsn string) error {
-	dialer := pmgo.NewDialer()
-	session, err := dialer.DialWithTimeout(dsn, time.Second) // TODO make timeout configurable
+	session, err := mgo.DialWithTimeout(dsn, time.Second) // TODO make timeout configurable
 	if err != nil {
 		return err
 	}
