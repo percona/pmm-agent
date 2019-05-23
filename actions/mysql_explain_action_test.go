@@ -31,7 +31,7 @@ import (
 
 func TestMySQLExplain(t *testing.T) {
 	db := tests.OpenTestMySQL(t)
-	defer db.Close()
+	defer db.Close() //nolint:errcheck
 	mySQLVersion := tests.MySQLVersion(t, db)
 
 	const query = "SELECT * FROM `city`"
