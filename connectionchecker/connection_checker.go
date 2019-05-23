@@ -19,9 +19,10 @@ package connectionchecker
 import (
 	"database/sql"
 	"fmt"
+	"time"
 
-	_ "github.com/go-sql-driver/mysql"
-	_ "github.com/lib/pq"
+	_ "github.com/go-sql-driver/mysql" // register SQL driver
+	_ "github.com/lib/pq"              // register SQL driver
 	"github.com/percona/pmgo"
 	"github.com/percona/pmm/api/agentpb"
 	"github.com/percona/pmm/api/inventorypb"
@@ -52,22 +53,22 @@ func (c *ConnectionChecker) Check(msg *agentpb.CheckConnectionRequest) error {
 
 func (c *ConnectionChecker) checkMongoDBConnection(dsn string) error {
 	dialer := pmgo.NewDialer()
-	session, err := dialer.Dial(dsn)
+	session, err := dialer.DialWithTimeout(dsn, time.Second) // TODO make timeout configurable
 	if err != nil {
 		return err
 	}
 	defer session.Close()
-	return nil
+
+	return session.Ping()
 }
 
-func (c *ConnectionChecker) checkSQLConnection(dbType string, dsn string) error {
-	db, err := sql.Open(dbType, dsn)
+func (c *ConnectionChecker) checkSQLConnection(driver string, dsn string) error {
+	db, err := sql.Open(driver, dsn)
 	if err != nil {
 		return err
 	}
-	_, err = db.Exec(`SELECT 'pmm-agent'`)
-	if err != nil {
-		return err
-	}
-	return nil
+	defer db.Close() //nolint:errcheck
+
+	var res string
+	return db.QueryRow(`SELECT 'pmm-agent'`).Scan(&res)
 }

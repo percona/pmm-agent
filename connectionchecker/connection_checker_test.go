@@ -21,68 +21,71 @@ import (
 
 	"github.com/percona/pmm/api/agentpb"
 	"github.com/percona/pmm/api/inventorypb"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestConnectionChecker_Check(t *testing.T) {
 	tests := []struct {
-		name    string
-		msg     *agentpb.CheckConnectionRequest
-		wantErr bool
+		name     string
+		msg      *agentpb.CheckConnectionRequest
+		expected string
 	}{
 		{
-			name: "mysql",
+			name: "MySQL",
 			msg: &agentpb.CheckConnectionRequest{
 				Dsn:  "root:root-password@tcp(127.0.0.1:3306)/?clientFoundRows=true&parseTime=true&timeout=1s",
 				Type: inventorypb.ServiceType_MYSQL_SERVICE,
 			},
-			wantErr: false,
 		},
 		{
-			name: "mysql wrong params",
+			name: "MySQL wrong params",
 			msg: &agentpb.CheckConnectionRequest{
 				Dsn:  "pmm-agent:pmm-agent-wrong-password@tcp(127.0.0.1:3306)/?clientFoundRows=true&parseTime=true&timeout=1s",
 				Type: inventorypb.ServiceType_MYSQL_SERVICE,
 			},
-			wantErr: true,
+			expected: `Error 1045: Access denied for user 'pmm-agent'@'.+' \(using password: YES\)`,
 		},
 		{
-			name: "postgres",
+			name: "PostgreSQL",
 			msg: &agentpb.CheckConnectionRequest{
 				Dsn:  "postgres://pmm-agent:pmm-agent-password@127.0.0.1:5432/postgres?connect_timeout=1&sslmode=disable",
 				Type: inventorypb.ServiceType_POSTGRESQL_SERVICE,
 			},
-			wantErr: false,
 		},
 		{
-			name: "postgres wrong params",
+			name: "PostgreSQL wrong params",
 			msg: &agentpb.CheckConnectionRequest{
 				Dsn:  "postgres://pmm-agent:pmm-agent-wrong-password@127.0.0.1:5432/postgres?connect_timeout=1&sslmode=disable",
 				Type: inventorypb.ServiceType_POSTGRESQL_SERVICE,
 			},
-			wantErr: true,
+			expected: `pq: password authentication failed for user "pmm-agent"`,
 		},
 		{
-			name: "postgres",
+			name: "MongoDB",
 			msg: &agentpb.CheckConnectionRequest{
 				Dsn:  "mongodb://pmm-agent:root-password@127.0.0.1:27017/admin",
 				Type: inventorypb.ServiceType_MONGODB_SERVICE,
 			},
-			wantErr: false,
 		},
 		{
-			name: "postgres wrong params",
+			name: "MongoDB wrong params",
 			msg: &agentpb.CheckConnectionRequest{
 				Dsn:  "mongodb://pmm-agent:root-password-wrong@127.0.0.1:27017/admin",
 				Type: inventorypb.ServiceType_MONGODB_SERVICE,
 			},
-			wantErr: true,
+			expected: `server returned error on SASL authentication step: Authentication failed.`,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c := &ConnectionChecker{}
-			if err := c.Check(tt.msg); (err != nil) != tt.wantErr {
-				t.Errorf("ConnectionChecker.Check() error = %v, wantErr %v", err, tt.wantErr)
+			c := New()
+			err := c.Check(tt.msg)
+			if tt.expected == "" {
+				assert.NoError(t, err)
+			} else {
+				require.Error(t, err)
+				assert.Regexp(t, tt.expected, err.Error())
 			}
 		})
 	}
