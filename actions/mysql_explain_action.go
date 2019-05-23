@@ -25,17 +25,8 @@ import (
 	"text/tabwriter"
 
 	_ "github.com/go-sql-driver/mysql" // register SQL driver
+	"github.com/percona/pmm/api/agentpb"
 	"github.com/pkg/errors"
-)
-
-// MysqlExplainOutputFormat explain output format.
-type MysqlExplainOutputFormat int32
-
-var (
-	// ExplainFormatDefault default (table) explain format.
-	ExplainFormatDefault MysqlExplainOutputFormat = 1
-	// ExplainFormatJSON json explain format.
-	ExplainFormatJSON MysqlExplainOutputFormat = 2
 )
 
 type nullString string
@@ -49,19 +40,15 @@ func (ns *nullString) String() string {
 
 type mysqlExplainAction struct {
 	id     string
-	dsn    string
-	query  string
-	format MysqlExplainOutputFormat
+	params *agentpb.StartActionRequest_MySQLExplainParams
 }
 
 // NewMySQLExplainAction creates MySQL Explain Action.
 // This is an Action that can run `EXPLAIN` command on MySQL service with given DSN.
-func NewMySQLExplainAction(id, dsn, query string, format MysqlExplainOutputFormat) Action {
+func NewMySQLExplainAction(id string, params *agentpb.StartActionRequest_MySQLExplainParams) Action {
 	return &mysqlExplainAction{
 		id:     id,
-		dsn:    dsn,
-		query:  query,
-		format: format,
+		params: params,
 	}
 }
 
@@ -79,26 +66,26 @@ func (e *mysqlExplainAction) Type() string {
 func (e *mysqlExplainAction) Run(ctx context.Context) ([]byte, error) {
 	// TODO use ctx for connection
 
-	db, err := sql.Open("mysql", e.dsn)
+	db, err := sql.Open("mysql", e.params.Dsn)
 	if err != nil {
 		return nil, err
 	}
 	defer db.Close() //nolint:errcheck
 
-	switch e.format {
-	case ExplainFormatDefault:
+	switch e.params.OutputFormat {
+	case agentpb.MysqlExplainOutputFormat_MYSQL_EXPLAIN_OUTPUT_FORMAT_DEFAULT:
 		return e.explain(ctx, db)
-	case ExplainFormatJSON:
+	case agentpb.MysqlExplainOutputFormat_MYSQL_EXPLAIN_OUTPUT_FORMAT_JSON:
 		return e.explainJSON(ctx, db)
 	default:
-		return nil, errors.New("unsupported output format")
+		return nil, errors.Errorf("unsupported output format %s", e.params.OutputFormat)
 	}
 }
 
 func (e *mysqlExplainAction) sealed() {}
 
 func (e *mysqlExplainAction) explain(ctx context.Context, db *sql.DB) ([]byte, error) {
-	rows, err := db.QueryContext(ctx, fmt.Sprintf("EXPLAIN /* pmm-agent */ %s", e.query))
+	rows, err := db.QueryContext(ctx, fmt.Sprintf("EXPLAIN /* pmm-agent */ %s", e.params.Query))
 	if err != nil {
 		return nil, err
 	}
@@ -138,6 +125,6 @@ func (e *mysqlExplainAction) explain(ctx context.Context, db *sql.DB) ([]byte, e
 
 func (e *mysqlExplainAction) explainJSON(ctx context.Context, db *sql.DB) ([]byte, error) {
 	var res string
-	err := db.QueryRowContext(ctx, fmt.Sprintf("EXPLAIN /* pmm-agent */ FORMAT=JSON %s", e.query)).Scan(&res)
+	err := db.QueryRowContext(ctx, fmt.Sprintf("EXPLAIN /* pmm-agent */ FORMAT=JSON %s", e.params.Query)).Scan(&res)
 	return []byte(res), err
 }

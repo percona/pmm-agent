@@ -26,6 +26,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/percona/pmm-agent/utils/tests"
+	"github.com/percona/pmm/api/agentpb"
 )
 
 func TestMySQLExplain(t *testing.T) {
@@ -38,8 +39,12 @@ func TestMySQLExplain(t *testing.T) {
 	t.Run("Default", func(t *testing.T) {
 		t.Parallel()
 
-		dsn := "root:root-password@tcp(127.0.0.1:3306)/world"
-		a := NewMySQLExplainAction("", dsn, query, ExplainFormatDefault)
+		params := &agentpb.StartActionRequest_MySQLExplainParams{
+			Dsn:          "root:root-password@tcp(127.0.0.1:3306)/world",
+			Query:        query,
+			OutputFormat: agentpb.MysqlExplainOutputFormat_MYSQL_EXPLAIN_OUTPUT_FORMAT_DEFAULT,
+		}
+		a := NewMySQLExplainAction("", params)
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 		defer cancel()
 
@@ -70,8 +75,12 @@ id |select_type |table |partitions |type |possible_keys |key  |key_len |ref  |ro
 	t.Run("JSON", func(t *testing.T) {
 		t.Parallel()
 
-		dsn := "root:root-password@tcp(127.0.0.1:3306)/world"
-		a := NewMySQLExplainAction("", dsn, query, ExplainFormatJSON)
+		params := &agentpb.StartActionRequest_MySQLExplainParams{
+			Dsn:          "root:root-password@tcp(127.0.0.1:3306)/world",
+			Query:        query,
+			OutputFormat: agentpb.MysqlExplainOutputFormat_MYSQL_EXPLAIN_OUTPUT_FORMAT_JSON,
+		}
+		a := NewMySQLExplainAction("", params)
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 		defer cancel()
 
@@ -168,8 +177,11 @@ id |select_type |table |partitions |type |possible_keys |key  |key_len |ref  |ro
 	t.Run("Error", func(t *testing.T) {
 		t.Parallel()
 
-		dsn := "pmm-agent:pmm-agent-wrong-password@tcp(127.0.0.1:3306)/world"
-		a := NewMySQLExplainAction("", dsn, query, ExplainFormatDefault)
+		params := &agentpb.StartActionRequest_MySQLExplainParams{
+			Dsn:          "pmm-agent:pmm-agent-wrong-password@tcp(127.0.0.1:3306)/world",
+			OutputFormat: agentpb.MysqlExplainOutputFormat_MYSQL_EXPLAIN_OUTPUT_FORMAT_DEFAULT,
+		}
+		a := NewMySQLExplainAction("", params)
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 		defer cancel()
 
