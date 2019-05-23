@@ -159,6 +159,8 @@ func TestClient(t *testing.T) {
 		})
 
 		t.Run("NoManaged", func(t *testing.T) {
+			t.Skip("FIXME https://jira.percona.com/browse/PMM-4076")
+
 			ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
 			defer cancel()
 

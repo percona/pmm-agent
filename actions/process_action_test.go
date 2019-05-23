@@ -25,7 +25,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestRunShellAction(t *testing.T) {
+func TestProcessActionRun(t *testing.T) {
+	t.Parallel()
+
 	// setup
 	id := "/action_id/6a479303-5081-46d0-baa0-87d6248c987b"
 	cmd := "echo"
@@ -43,7 +45,9 @@ func TestRunShellAction(t *testing.T) {
 	assert.Equal(t, cmd, p.Type())
 }
 
-func TestRunActionAndCancel(t *testing.T) {
+func TestProcessActionRunAndCancel(t *testing.T) {
+	t.Parallel()
+
 	// setup
 	p := NewProcessAction("/action_id/14b2422d-32ec-44fb-9019-8b70e3cc8a3a", "sleep", []string{"10"})
 

@@ -14,21 +14,16 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-// Package actions provides Actions implementations and runner.
-package actions
+package agentlocal
 
 import (
-	"context"
+	"github.com/percona/pmm/api/agentlocalpb"
 )
 
-// Action describes an abstract thing that can be run by a client and return some output.
-type Action interface {
-	// ID returns an Action ID.
-	ID() string
-	// Type returns an Action type. Used for logging.
-	Type() string
-	// Run runs an Action and returns output and error.
-	Run(ctx context.Context) ([]byte, error)
+//go:generate mockery -name=supervisor -case=snake -inpkg -testonly
 
-	sealed()
+// supervisor is a subset of methods of supervisor.Supervisor used by this package.
+// We use it instead of real type for testing and to avoid dependency cycle.
+type supervisor interface {
+	AgentsList() []*agentlocalpb.AgentInfo
 }
