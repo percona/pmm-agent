@@ -57,10 +57,6 @@ func (c *ConnectionChecker) checkMongoDBConnection(dsn string) error {
 		return err
 	}
 	defer session.Close()
-	err = session.Ping()
-	if err != nil {
-		return err
-	}
 	return nil
 }
 
