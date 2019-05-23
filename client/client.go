@@ -294,7 +294,12 @@ func (c *Client) processChannelRequests() {
 
 			case managementpb.ActionType_MYSQL_EXPLAIN:
 				a := actions.NewMySQLExplainAction(p.ActionId, p.GetMysqlExplainParams())
-				c.runner.Start(a)
+				aRes, err := c.runner.Start(a)
+				if err == nil {
+					awg.Add(1)
+					go c.sendActionResultRequest(aRes, &awg)
+				}
+
 				responsePayload = new(agentpb.StartActionResponse)
 
 			case managementpb.ActionType_ACTION_TYPE_INVALID:
