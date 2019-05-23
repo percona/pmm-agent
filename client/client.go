@@ -196,8 +196,8 @@ func (c *Client) Done() <-chan struct{} {
 // sendActionResultRequest sends ActionResult to pmm-managed.
 // This call is BLOCKING, so run it with `go` keyword.
 // WaitGroup used to wait when function ended.
-func (c *Client) sendActionResultRequest(in <-chan *actions.ActionResult, wg *sync.WaitGroup) {
-	defer wg.Done()
+func (c *Client) sendActionResultRequest(in <-chan *actions.ActionResult, done func()) {
+	defer done()
 	result, ok := <-in
 	if !ok || result == nil {
 		return
@@ -277,7 +277,7 @@ func (c *Client) processChannelRequests() {
 				aRes, err := c.runner.Start(a)
 				if err == nil {
 					awg.Add(1)
-					go c.sendActionResultRequest(aRes, &awg)
+					go c.sendActionResultRequest(aRes, awg.Done)
 				}
 				responsePayload = new(agentpb.StartActionResponse)
 
@@ -287,7 +287,7 @@ func (c *Client) processChannelRequests() {
 				aRes, err := c.runner.Start(a)
 				if err == nil {
 					awg.Add(1)
-					go c.sendActionResultRequest(aRes, &awg)
+					go c.sendActionResultRequest(aRes, awg.Done)
 				}
 
 				responsePayload = new(agentpb.StartActionResponse)
@@ -297,7 +297,7 @@ func (c *Client) processChannelRequests() {
 				aRes, err := c.runner.Start(a)
 				if err == nil {
 					awg.Add(1)
-					go c.sendActionResultRequest(aRes, &awg)
+					go c.sendActionResultRequest(aRes, awg.Done)
 				}
 
 				responsePayload = new(agentpb.StartActionResponse)
