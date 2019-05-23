@@ -20,12 +20,10 @@ import (
 	"github.com/percona/pmm/api/agentpb"
 )
 
-//go:generate mockery -name=supervisor -case=snake -inpkg -testonly
+//go:generate mockery -name=connectionChecker -case=snake -inpkg -testonly
 
-// supervisor is a subset of methods of supervisor.Supervisor used by this package.
+// connectionChecker is a subset of methods of connectionchecker.ConnectionChecker used by this package.
 // We use it instead of real type for testing and to avoid dependency cycle.
-type supervisor interface {
-	Changes() <-chan agentpb.StateChangedRequest
-	QANRequests() <-chan agentpb.QANCollectRequest
-	SetState(*agentpb.SetStateRequest)
+type connectionChecker interface {
+	Check(msg *agentpb.CheckConnectionRequest) error
 }

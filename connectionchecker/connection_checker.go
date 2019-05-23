@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
+// Package connectionchecker provides database connection checkers.
 package connectionchecker
 
 import (
@@ -28,13 +29,13 @@ import (
 	"github.com/percona/pmm/api/inventorypb"
 )
 
-// New creates ConnectionChecker.
-func New() *ConnectionChecker {
-	return &ConnectionChecker{}
-}
-
 // ConnectionChecker is a struct to check connection to services.
 type ConnectionChecker struct {
+}
+
+// New creates new ConnectionChecker.
+func New() *ConnectionChecker {
+	return &ConnectionChecker{}
 }
 
 // Check checks connection to a service.
