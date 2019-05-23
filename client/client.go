@@ -81,7 +81,7 @@ func New(cfg *config.Config, supervisor supervisor, connectionChecker connection
 		l:                 logrus.WithField("component", "client"),
 		backoff:           backoff.New(backoffMinDelay, backoffMaxDelay),
 		done:              make(chan struct{}),
-		dialTimeout: 	   dialTimeout,
+		dialTimeout:       dialTimeout,
 	}
 }
 
