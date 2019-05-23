@@ -29,15 +29,6 @@ import (
 	"github.com/pkg/errors"
 )
 
-type nullString string
-
-func (ns *nullString) String() string {
-	if ns == nil {
-		return "NULL"
-	}
-	return string(*ns)
-}
-
 type mysqlExplainAction struct {
 	id     string
 	params *agentpb.StartActionRequest_MySQLExplainParams
@@ -64,7 +55,8 @@ func (e *mysqlExplainAction) Type() string {
 
 // Run runs an Action and returns output and error.
 func (e *mysqlExplainAction) Run(ctx context.Context) ([]byte, error) {
-	// TODO use ctx for connection
+	// TODO Use sql.OpenDB with ctx when https://github.com/go-sql-driver/mysql/issues/671 is released
+	// (likely in version 1.5.0).
 
 	db, err := sql.Open("mysql", e.params.Dsn)
 	if err != nil {
@@ -74,7 +66,7 @@ func (e *mysqlExplainAction) Run(ctx context.Context) ([]byte, error) {
 
 	switch e.params.OutputFormat {
 	case agentpb.MysqlExplainOutputFormat_MYSQL_EXPLAIN_OUTPUT_FORMAT_DEFAULT:
-		return e.explain(ctx, db)
+		return e.explainDefault(ctx, db)
 	case agentpb.MysqlExplainOutputFormat_MYSQL_EXPLAIN_OUTPUT_FORMAT_JSON:
 		return e.explainJSON(ctx, db)
 	default:
@@ -84,7 +76,7 @@ func (e *mysqlExplainAction) Run(ctx context.Context) ([]byte, error) {
 
 func (e *mysqlExplainAction) sealed() {}
 
-func (e *mysqlExplainAction) explain(ctx context.Context, db *sql.DB) ([]byte, error) {
+func (e *mysqlExplainAction) explainDefault(ctx context.Context, db *sql.DB) ([]byte, error) {
 	rows, err := db.QueryContext(ctx, fmt.Sprintf("EXPLAIN /* pmm-agent */ %s", e.params.Query))
 	if err != nil {
 		return nil, err
@@ -102,8 +94,8 @@ func (e *mysqlExplainAction) explain(ctx context.Context, db *sql.DB) ([]byte, e
 	for rows.Next() {
 		dest := make([]interface{}, len(columns))
 		for i := range dest {
-			var ns *nullString
-			dest[i] = &ns
+			var sp *string
+			dest[i] = &sp
 		}
 		if err = rows.Scan(dest...); err != nil {
 			return nil, err
@@ -111,10 +103,16 @@ func (e *mysqlExplainAction) explain(ctx context.Context, db *sql.DB) ([]byte, e
 
 		row := "\n"
 		for _, d := range dest {
-			ns := *d.(**nullString)
-			row += ns.String() + "\t"
+			v := "NULL"
+			if sp := *d.(**string); sp != nil {
+				v = *sp
+			}
+			row += v + "\t"
 		}
 		w.Write([]byte(row)) //nolint:errcheck
+	}
+	if err = rows.Err(); err != nil {
+		return nil, err
 	}
 
 	if err = w.Flush(); err != nil {
