@@ -14,18 +14,21 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
+// Package ports provides reserved ports registry.
 package ports
 
 import (
 	"fmt"
 	"net"
 	"sync"
+
+	"github.com/pkg/errors"
 )
 
 var (
-	errNoFreePort      = fmt.Errorf("no free port")
-	errPortBusy        = fmt.Errorf("port busy")
-	errPortNotReserved = fmt.Errorf("port not reserved")
+	errNoFreePort      = errors.New("no free port")
+	errPortBusy        = errors.New("port busy")
+	errPortNotReserved = errors.New("port not reserved")
 )
 
 // Registry keeps track of reserved ports.
@@ -37,6 +40,7 @@ type Registry struct {
 	reserved map[uint16]struct{}
 }
 
+// NewRegistry creates new registry with some pre-reserved ports.
 func NewRegistry(min, max uint16, reserved []uint16) *Registry {
 	if min > max {
 		panic(fmt.Sprintf("min port (%d) > max port (%d)", min, max))
