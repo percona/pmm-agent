@@ -274,7 +274,7 @@ func (s *Server) runJSONServer(ctx context.Context, grpcAddress string) {
 	}
 
 	mux := http.NewServeMux()
-	mux.Handle("/debug/metrics", metricsHandler(s.client, l))
+	mux.Handle("/debug/metrics", metricsHandler(s.supervisor, s.client, l))
 	mux.Handle("/debug/", http.DefaultServeMux)
 	mux.Handle("/debug", debugPageHandler)
 	mux.Handle("/", proxyMux)

@@ -18,6 +18,7 @@ package agentlocal
 
 import (
 	"github.com/percona/pmm/api/agentlocalpb"
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 //go:generate mockery -name=supervisor -case=snake -inpkg -testonly
@@ -26,4 +27,6 @@ import (
 // We use it instead of real type for testing and to avoid dependency cycle.
 type supervisor interface {
 	AgentsList() []*agentlocalpb.AgentInfo
+	Describe(chan<- *prometheus.Desc)
+	Collect(chan<- prometheus.Metric)
 }

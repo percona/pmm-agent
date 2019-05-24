@@ -24,10 +24,11 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-func metricsHandler(client client, l *logrus.Entry) http.Handler {
+func metricsHandler(supervisor supervisor, client client, l *logrus.Entry) http.Handler {
 	registry := prometheus.NewRegistry()
 	registry.MustRegister(prometheus.NewProcessCollector(prometheus.ProcessCollectorOpts{}))
 	registry.MustRegister(prometheus.NewGoCollector())
+	registry.MustRegister(supervisor)
 	registry.MustRegister(client)
 
 	return promhttp.InstrumentMetricHandler(registry, promhttp.HandlerFor(registry, promhttp.HandlerOpts{

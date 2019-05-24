@@ -28,8 +28,8 @@ import (
 // client is a subset of methods of client.Client used by this package.
 // We use it instead of real type for testing and to avoid dependency cycle.
 type client interface {
+	GetNetworkInformation() (latency, clockDrift time.Duration, err error)
 	GetServerConnectMetadata() *agentpb.ServerConnectMetadata
 	Describe(chan<- *prometheus.Desc)
 	Collect(chan<- prometheus.Metric)
-	GetNetworkInformation() (latency, clockDrift time.Duration, err error)
 }

@@ -36,6 +36,7 @@ import (
 	"github.com/percona/pmm/api/agentpb"
 	"github.com/percona/pmm/api/inventorypb"
 	"github.com/pkg/errors"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sirupsen/logrus"
 
 	"github.com/percona/pmm-agent/agents/builtin/mongodb"
@@ -611,3 +612,20 @@ func (s *Supervisor) stopAll() {
 	close(s.qanRequests)
 	close(s.changes)
 }
+
+// Describe implements "unchecked" prometheus.Collector.
+func (s *Supervisor) Describe(chan<- *prometheus.Desc) {
+	// Sending no descriptor at all marks the Collector as “unchecked”,
+	// i.e. no checks will be performed at registration time, and the
+	// Collector may yield any Metric it sees fit in its Collect method.
+}
+
+// Collect implements "unchecked" prometheus.Collector.
+func (s *Supervisor) Collect(ch chan<- prometheus.Metric) {
+	// TODO
+}
+
+// check interface
+var (
+	_ prometheus.Collector = (*Supervisor)(nil)
+)

@@ -22,6 +22,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sirupsen/logrus"
 )
 
@@ -141,4 +142,9 @@ func (r *ConcurrentRunner) Stop(id string) {
 	if cancel, ok := r.actionsCancel[id]; ok {
 		cancel()
 	}
+}
+
+// Collect implements "unchecked" prometheus.Collector.
+func (r *ConcurrentRunner) Collect(ch chan<- prometheus.Metric) {
+	// TODO
 }

@@ -294,19 +294,8 @@ func (c *Channel) publish(id uint32, resp agentpb.ServerResponsePayload) {
 	ch <- resp
 }
 
-// Describe implements prometheus.Collector.
-func (c *Channel) Describe(ch chan<- *prometheus.Desc) {
-	c.mRecv.Describe(ch)
-	c.mSend.Describe(ch)
-}
-
-// Collect implement prometheus.Collector.
+// Collect implements "unchecked" prometheus.Collector.
 func (c *Channel) Collect(ch chan<- prometheus.Metric) {
 	c.mRecv.Collect(ch)
 	c.mSend.Collect(ch)
 }
-
-// check interfaces
-var (
-	_ prometheus.Collector = (*Channel)(nil)
-)

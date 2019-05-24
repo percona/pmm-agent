@@ -63,9 +63,8 @@ type Client struct {
 	dialTimeout time.Duration
 	withoutTLS  bool
 
-	runner *actions.ConcurrentRunner
-
 	rw      sync.RWMutex
+	runner  *actions.ConcurrentRunner
 	md      *agentpb.ServerConnectMetadata
 	channel *channel.Channel
 }
@@ -95,7 +94,9 @@ func New(cfg *config.Config, supervisor supervisor, connectionChecker connection
 func (c *Client) Run(ctx context.Context) error {
 	c.l.Info("Starting...")
 
+	c.rw.Lock()
 	c.runner = actions.NewConcurrentRunner(ctx, 0)
+	c.rw.Unlock()
 
 	// do nothing until ctx is canceled if config misses critical info
 	var missing string
@@ -488,8 +489,13 @@ func (c *Client) Describe(chan<- *prometheus.Desc) {
 // Collect implements "unchecked" prometheus.Collector.
 func (c *Client) Collect(ch chan<- prometheus.Metric) {
 	c.rw.RLock()
+	runner := c.runner
 	channel := c.channel
 	c.rw.RUnlock()
+
+	if runner != nil {
+		runner.Collect(ch)
+	}
 
 	desc := prometheus.NewDesc("pmm_agent_connected", "Has value 1 if two-way communication channel is established.", nil, nil)
 	if channel != nil {

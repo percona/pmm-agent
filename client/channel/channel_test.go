@@ -140,19 +140,6 @@ pmm_agent_channel_messages_received_total 50
 pmm_agent_channel_messages_sent_total 50
 `), "\n")
 	assert.Equal(t, expectedMetrics, helpers.Format(metrics))
-
-	// check that descriptions match metrics: same number, same order
-	descCh := make(chan *prometheus.Desc)
-	go func() {
-		channel.Describe(descCh)
-		close(descCh)
-	}()
-	var i int
-	for d := range descCh {
-		assert.Equal(t, metrics[i].Desc(), d)
-		i++
-	}
-	assert.Len(t, metrics, i)
 }
 
 func TestServerRequest(t *testing.T) {
