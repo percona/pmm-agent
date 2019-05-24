@@ -36,8 +36,6 @@ import (
 	"github.com/percona/pmm/api/agentlocalpb"
 	"github.com/percona/pmm/api/agentpb"
 	"github.com/pkg/errors"
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	channelz "google.golang.org/grpc/channelz/service"
@@ -233,7 +231,7 @@ func (s *Server) runJSONServer(ctx context.Context, grpcAddress string) {
 	l.Infof("Starting local API server on http://%s/ ...", address)
 
 	handlers := []string{
-		"/debug/metrics",  // by metricsHandler below
+		"/debug/metrics",  // by metricsHandler
 		"/debug/vars",     // by expvar
 		"/debug/requests", // by golang.org/x/net/trace imported by google.golang.org/grpc
 		"/debug/events",   // by golang.org/x/net/trace imported by google.golang.org/grpc
@@ -260,15 +258,6 @@ func (s *Server) runJSONServer(ctx context.Context, grpcAddress string) {
 		l.Panic(err)
 	}
 
-	registry := prometheus.NewRegistry()
-	registry.MustRegister(prometheus.NewProcessCollector(prometheus.ProcessCollectorOpts{}))
-	registry.MustRegister(prometheus.NewGoCollector())
-	registry.MustRegister(s.client)
-	metricsHandler := promhttp.InstrumentMetricHandler(registry, promhttp.HandlerFor(registry, promhttp.HandlerOpts{
-		ErrorLog:      l,
-		ErrorHandling: promhttp.ContinueOnError,
-	}))
-
 	debugPageHandler := http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
 		if _, err := rw.Write(debugPage.Bytes()); err != nil {
 			l.Warn(err)
@@ -285,7 +274,7 @@ func (s *Server) runJSONServer(ctx context.Context, grpcAddress string) {
 	}
 
 	mux := http.NewServeMux()
-	mux.Handle("/debug/metrics", metricsHandler)
+	mux.Handle("/debug/metrics", metricsHandler(s.client, l))
 	mux.Handle("/debug/", http.DefaultServeMux)
 	mux.Handle("/debug", debugPageHandler)
 	mux.Handle("/", proxyMux)

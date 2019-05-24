@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-package supervisor
+package ports
 
 import (
 	"net"
@@ -26,7 +26,7 @@ import (
 
 func TestRegistry(t *testing.T) {
 	// 65000 is marked as reserved, 65001 is busy, 65002 is free
-	r := newPortsRegistry(65000, 65002, []uint16{65000})
+	r := NewRegistry(65000, 65002, []uint16{65000})
 	l1, err := net.Listen("tcp", "127.0.0.1:65001")
 	require.NoError(t, err)
 	defer l1.Close() //nolint:errcheck
@@ -71,7 +71,7 @@ func TestRegistry(t *testing.T) {
 }
 
 func TestPreferNewPort(t *testing.T) {
-	r := newPortsRegistry(65000, 65002, nil)
+	r := NewRegistry(65000, 65002, nil)
 
 	p, err := r.Reserve()
 	assert.NoError(t, err)
@@ -94,7 +94,7 @@ func TestPreferNewPort(t *testing.T) {
 }
 
 func TestSinglePort(t *testing.T) {
-	r := newPortsRegistry(65000, 65000, nil)
+	r := NewRegistry(65000, 65000, nil)
 
 	p, err := r.Reserve()
 	assert.NoError(t, err)

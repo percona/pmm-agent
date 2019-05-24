@@ -44,13 +44,14 @@ import (
 	"github.com/percona/pmm-agent/agents/builtin/noop"
 	"github.com/percona/pmm-agent/agents/process"
 	"github.com/percona/pmm-agent/config"
+	"github.com/percona/pmm-agent/utils/ports"
 )
 
 // Supervisor manages all Agents, both processes and built-in.
 type Supervisor struct {
 	ctx           context.Context
 	paths         *config.Paths
-	portsRegistry *portsRegistry
+	portsRegistry *ports.Registry
 	changes       chan agentpb.StateChangedRequest
 	qanRequests   chan agentpb.QANCollectRequest
 	l             *logrus.Entry
@@ -83,11 +84,11 @@ type builtinAgentInfo struct {
 // Supervisor is gracefully stopped when context passed to NewSupervisor is canceled.
 // Changes of Agent statuses are reported via Changes() channel which must be read until it is closed.
 // QAN data is sent to QANRequests() channel which must be read until it is closed.
-func NewSupervisor(ctx context.Context, paths *config.Paths, ports *config.Ports) *Supervisor {
+func NewSupervisor(ctx context.Context, paths *config.Paths, cfgPorts *config.Ports) *Supervisor {
 	supervisor := &Supervisor{
 		ctx:           ctx,
 		paths:         paths,
-		portsRegistry: newPortsRegistry(ports.Min, ports.Max, nil),
+		portsRegistry: ports.NewRegistry(cfgPorts.Min, cfgPorts.Max, nil),
 		changes:       make(chan agentpb.StateChangedRequest, 10),
 		qanRequests:   make(chan agentpb.QANCollectRequest, 10),
 		l:             logrus.WithField("component", "supervisor"),

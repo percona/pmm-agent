@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-package supervisor
+package ports
 
 import (
 	"fmt"
@@ -28,8 +28,8 @@ var (
 	errPortNotReserved = fmt.Errorf("port not reserved")
 )
 
-// portsRegistry keeps track of reserved ports.
-type portsRegistry struct {
+// Registry keeps track of reserved ports.
+type Registry struct {
 	m        sync.Mutex
 	min      uint16
 	max      uint16
@@ -37,12 +37,12 @@ type portsRegistry struct {
 	reserved map[uint16]struct{}
 }
 
-func newPortsRegistry(min, max uint16, reserved []uint16) *portsRegistry {
+func NewRegistry(min, max uint16, reserved []uint16) *Registry {
 	if min > max {
 		panic(fmt.Sprintf("min port (%d) > max port (%d)", min, max))
 	}
 
-	r := &portsRegistry{
+	r := &Registry{
 		min:      min,
 		max:      max,
 		last:     min - 1,
@@ -58,7 +58,7 @@ func newPortsRegistry(min, max uint16, reserved []uint16) *portsRegistry {
 // Reserve reserves next free port.
 // It tries to reuse ports as little as possible to avoid erroneous Prometheus scrapes
 // to the different exporter type when Prometheus configuration is being reloaded.
-func (r *portsRegistry) Reserve() (uint16, error) {
+func (r *Registry) Reserve() (uint16, error) {
 	r.m.Lock()
 	defer r.m.Unlock()
 
@@ -86,7 +86,7 @@ func (r *portsRegistry) Reserve() (uint16, error) {
 }
 
 // Release releases port.
-func (r *portsRegistry) Release(port uint16) error {
+func (r *Registry) Release(port uint16) error {
 	r.m.Lock()
 	defer r.m.Unlock()
 
