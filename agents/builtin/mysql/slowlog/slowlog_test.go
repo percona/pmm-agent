@@ -53,8 +53,6 @@ func TestSlowLog(t *testing.T) {
 	getDataFromFile(t, "slowlog_fixture.json", &parsingResult)
 
 	actualBuckets := makeBuckets(agentID, parsingResult, ts)
-	// blob, _ := json.MarshalIndent(actualBuckets, "", "\t")
-	// ioutil.WriteFile("slowlog_expected.json", blob, 0644)
 
 	expectedBuckets := []*qanpb.MetricsBucket{}
 	getDataFromFile(t, "slowlog_expected.json", &expectedBuckets)
