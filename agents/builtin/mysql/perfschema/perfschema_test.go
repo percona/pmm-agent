@@ -264,10 +264,28 @@ func TestPerfSchema(t *testing.T) {
 			"SELECT * FROM `city`": "9c799bdb2460f79b3423b77cd10403da",
 		}
 
-	case "8.0-oracle", "8.0-percona":
+	case "8.0-oracle", "8.0-percona": // Percona switched to upstream's implementation
 		digests = map[string]string{
 			"SELECT `sleep` (?)":   "0b1b1c39d4ee2dda7df2a532d0a23406d86bd34e2cd7f22e3f7e9dedadff9b69",
 			"SELECT * FROM `city`": "950bdc225cf73c9096ba499351ed4376f4526abad3d8ceabc168b6b28cfc9eab",
+		}
+
+	case "10.2-mariadb":
+		digests = map[string]string{
+			"SELECT `sleep` (?)":   "e58c348e4947db23b7f3ad30b7ed184a",
+			"SELECT * FROM `city`": "e0f47172152e8750d070a854e607123f",
+		}
+
+	case "10.3-mariadb":
+		digests = map[string]string{
+			"SELECT `sleep` (?)":   "af50128de9089f71d749eda5ba3d02cd",
+			"SELECT * FROM `city`": "2153d686f335a2ca39f3aca05bf9709a",
+		}
+
+	case "10.4-mariadb":
+		digests = map[string]string{
+			"SELECT `sleep` (?)":   "84a33aa2dff8b023bfd9c28247516e55",
+			"SELECT * FROM `city`": "639b3ffc239a110c57ade746773952ab",
 		}
 
 	default:

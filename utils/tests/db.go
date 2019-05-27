@@ -72,6 +72,7 @@ type MySQLVendor string
 const (
 	OracleMySQL  MySQLVendor = "oracle"
 	PerconaMySQL MySQLVendor = "percona"
+	MariaDBMySQL MySQLVendor = "mariadb"
 )
 
 // MySQLVersion returns MAJOR.MINOR MySQL version (e.g. "5.6", "8.0", etc.) and vendor.
@@ -81,7 +82,7 @@ func MySQLVersion(tb testing.TB, db *sql.DB) (string, MySQLVendor) {
 	var varName, version string
 	err := db.QueryRow(`SHOW GLOBAL VARIABLES WHERE Variable_name = 'version'`).Scan(&varName, &version)
 	require.NoError(tb, err)
-	mm := regexp.MustCompile(`^\d\.\d`).FindString(version)
+	mm := regexp.MustCompile(`^\d+\.\d+`).FindString(version)
 
 	var comment string
 	err = db.QueryRow(`SHOW GLOBAL VARIABLES WHERE Variable_name = 'version_comment'`).Scan(&varName, &comment)
@@ -90,6 +91,8 @@ func MySQLVersion(tb testing.TB, db *sql.DB) (string, MySQLVendor) {
 	switch {
 	case strings.Contains(comment, "Percona"):
 		vendor = PerconaMySQL
+	case strings.Contains(comment, "mariadb"):
+		vendor = MariaDBMySQL
 	default:
 		vendor = OracleMySQL
 	}
