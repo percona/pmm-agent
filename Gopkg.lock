@@ -313,8 +313,8 @@
   version = "v0.2.2"
 
 [[projects]]
-  branch = "PMM-2.0"
-  digest = "1:f8a2c897ac095fcf4767f11b98b42e3639fbcfd5d644742d120ce377e926a151"
+  branch = "PMM-3898-slowlog-cleanup"
+  digest = "1:e0c4efed70f78ec78d9f09b414b381301d6fdb0ac6ffd51e79acff05d50c50f2"
   name = "github.com/percona/go-mysql"
   packages = [
     "event",
@@ -323,7 +323,7 @@
     "query",
   ]
   pruneopts = "NUT"
-  revision = "a7705a60b657bfd4b07854cf57ad4dbcb2920524"
+  revision = "fb9d3daac5a138eb6164a47e0fdde7b08b05875d"
 
 [[projects]]
   branch = "3.0"

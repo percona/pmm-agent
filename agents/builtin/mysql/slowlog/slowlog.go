@@ -117,6 +117,7 @@ func (m *SlowLog) Run(ctx context.Context) {
 	}
 	if m.l.Logger.GetLevel() == logrus.TraceLevel {
 		opts.Debug = true
+		opts.Debugf = m.l.WithField("component", "go-mysql").Tracef
 	}
 
 	ticker := time.NewTicker(1 * querySummaries)
