@@ -20,6 +20,7 @@ import (
 	"bufio"
 	"os"
 	"path"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -36,7 +37,7 @@ var opt = log.Options{
 }
 
 func parseSlowLog(t *testing.T, filename string, o log.Options) []log.Event {
-	file, err := os.Open(path.Join(sample, "/", filename))
+	file, err := os.Open(filepath.Join(sample, filename)) //nolint:gosec
 	require.NoError(t, err)
 	defer func() {
 		assert.NoError(t, file.Close())

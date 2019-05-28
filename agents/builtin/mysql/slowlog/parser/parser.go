@@ -111,7 +111,6 @@ func (p *SlowLogParser) EventChan() <-chan *log.Event {
 func (p *SlowLogParser) Stop() {
 	p.logf("stopping")
 	p.stopChan <- true
-	return
 }
 
 // Start starts the parser. Events are sent to the unbuffered event channel.
@@ -203,7 +202,8 @@ func (p *SlowLogParser) parseHeader(line string) {
 	}
 	p.headerLines++
 
-	if strings.HasPrefix(line, "# Time") {
+	switch {
+	case strings.HasPrefix(line, "# Time"):
 		p.logf("time")
 		m := timeRe.FindStringSubmatch(line)
 		if len(m) == 2 {
@@ -222,7 +222,8 @@ func (p *SlowLogParser) parseHeader(line string) {
 			p.event.User = m[1]
 			p.event.Host = m[2]
 		}
-	} else if strings.HasPrefix(line, "# User") {
+
+	case strings.HasPrefix(line, "# User"):
 		p.logf("user")
 		m := userRe.FindStringSubmatch(line)
 		if len(m) < 3 {
@@ -230,9 +231,11 @@ func (p *SlowLogParser) parseHeader(line string) {
 		}
 		p.event.User = m[1]
 		p.event.Host = m[2]
-	} else if strings.HasPrefix(line, "# admin") {
+
+	case strings.HasPrefix(line, "# admin"):
 		p.parseAdmin(line)
-	} else {
+
+	default:
 		p.logf("metrics")
 		submatch := schema.FindStringSubmatch(line)
 		if len(submatch) == 2 {
@@ -241,26 +244,32 @@ func (p *SlowLogParser) parseHeader(line string) {
 
 		m := metricsRe.FindAllStringSubmatch(line, -1)
 		for _, smv := range m {
+			switch {
 			// [String, Metric, Value], e.g. ["Query_time: 2", "Query_time", "2"]
-			if strings.HasSuffix(smv[1], "_time") || strings.HasSuffix(smv[1], "_wait") {
+			case strings.HasSuffix(smv[1], "_time") || strings.HasSuffix(smv[1], "_wait"):
 				// microsecond value
 				val, _ := strconv.ParseFloat(smv[2], 64)
 				p.event.TimeMetrics[smv[1]] = val
-			} else if smv[2] == "Yes" || smv[2] == "No" {
+
+			case smv[2] == "Yes" || smv[2] == "No":
 				// boolean value
 				if smv[2] == "Yes" {
 					p.event.BoolMetrics[smv[1]] = true
 				} else {
 					p.event.BoolMetrics[smv[1]] = false
 				}
-			} else if smv[1] == "Schema" {
+
+			case smv[1] == "Schema":
 				p.event.Db = smv[2]
-			} else if smv[1] == "Log_slow_rate_type" {
+
+			case smv[1] == "Log_slow_rate_type":
 				p.event.RateType = smv[2]
-			} else if smv[1] == "Log_slow_rate_limit" {
+
+			case smv[1] == "Log_slow_rate_limit":
 				val, _ := strconv.ParseUint(smv[2], 10, 64)
 				p.event.RateLimit = uint(val)
-			} else {
+
+			default:
 				// integer value
 				val, _ := strconv.ParseUint(smv[2], 10, 64)
 				p.event.NumberMetrics[smv[1]] = val
