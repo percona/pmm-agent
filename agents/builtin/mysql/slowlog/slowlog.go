@@ -26,16 +26,16 @@ import (
 
 	_ "github.com/go-sql-driver/mysql" // register SQL driver
 	"github.com/percona/go-mysql/event"
+	slowlog "github.com/percona/go-mysql/log"
+	"github.com/percona/go-mysql/query"
+	"github.com/percona/pmm/api/inventorypb"
+	"github.com/percona/pmm/api/qanpb"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"gopkg.in/reform.v1"
 	"gopkg.in/reform.v1/dialects/mysql"
 
-	slowlog "github.com/percona/go-mysql/log"
-	parser "github.com/percona/go-mysql/log/slow"
-	"github.com/percona/go-mysql/query"
-	"github.com/percona/pmm/api/inventorypb"
-	"github.com/percona/pmm/api/qanpb"
+	"github.com/percona/pmm-agent/agents/builtin/mysql/slowlog/parser"
 )
 
 const (

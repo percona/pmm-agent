@@ -313,17 +313,16 @@
   version = "v0.2.2"
 
 [[projects]]
-  branch = "PMM-3898-slowlog-cleanup"
-  digest = "1:e0c4efed70f78ec78d9f09b414b381301d6fdb0ac6ffd51e79acff05d50c50f2"
+  branch = "PMM-2.0"
+  digest = "1:7ec3bfaaeba60412e084a13c33e581339646ed9dfa749d08454585c9bb3744dd"
   name = "github.com/percona/go-mysql"
   packages = [
     "event",
     "log",
-    "log/slow",
     "query",
   ]
   pruneopts = "NUT"
-  revision = "fb9d3daac5a138eb6164a47e0fdde7b08b05875d"
+  revision = "eae71f25e1122be614529e03129b9c1e772dea1c"
 
 [[projects]]
   branch = "3.0"
@@ -685,7 +684,6 @@
     "github.com/percona/exporter_shared/helpers",
     "github.com/percona/go-mysql/event",
     "github.com/percona/go-mysql/log",
-    "github.com/percona/go-mysql/log/slow",
     "github.com/percona/go-mysql/query",
     "github.com/percona/percona-toolkit/src/go/mongolib/fingerprinter",
     "github.com/percona/percona-toolkit/src/go/mongolib/proto",
