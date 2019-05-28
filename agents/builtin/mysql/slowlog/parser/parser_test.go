@@ -17,6 +17,7 @@
 package parser
 
 import (
+	"bufio"
 	"os"
 	"path"
 	"testing"
@@ -37,10 +38,16 @@ var opt = log.Options{
 func parseSlowLog(t *testing.T, filename string, o log.Options) []log.Event {
 	file, err := os.Open(path.Join(sample, "/", filename))
 	require.NoError(t, err)
-	p := NewSlowLogParser(file, o)
-	require.NoError(t, err)
+	defer func() {
+		assert.NoError(t, file.Close())
+	}()
+
+	p := NewSlowLogParser(bufio.NewReader(file), o)
+	go func() {
+		require.NoError(t, p.Start())
+	}()
+
 	got := []log.Event{}
-	go p.Start()
 	for e := range p.EventChan() {
 		got = append(got, *e)
 	}
@@ -1296,35 +1303,6 @@ func TestParserSlowLog014(t *testing.T) {
 	assert.EqualValues(t, expect, got)
 }
 
-// Correct event offsets when parsing starts/resumes at an offset.
-func TestParserSlowLog001StartOffset(t *testing.T) {
-	opt := opt
-	opt.StartOffset = 358
-	// 358 is the first byte of the second (of 2) events.
-	got := parseSlowLog(t, "slow001.log", opt)
-	expect := []log.Event{
-		{
-			Ts:        time.Date(2007, 10, 15, 21, 45, 10, 0, time.UTC),
-			Query:     `select sleep(2) from test.n`,
-			User:      "root",
-			Host:      "localhost",
-			Db:        "sakila",
-			Offset:    358,
-			OffsetEnd: 524,
-			TimeMetrics: map[string]float64{
-				"Query_time": 2,
-				"Lock_time":  0,
-			},
-			NumberMetrics: map[string]uint64{
-				"Rows_sent":     1,
-				"Rows_examined": 0,
-			},
-			BoolMetrics: map[string]bool{},
-		},
-	}
-	assert.EqualValues(t, expect, got)
-}
-
 // Line > bufio.MaxScanTokenSize = 64KiB
 // https://jira.percona.com/browse/PCT-552
 func TestParserSlowLog015(t *testing.T) {
@@ -1719,7 +1697,11 @@ func TestParseSlow023A(t *testing.T) {
 
 	file, err := os.Open(path.Join(sample, "/", filename))
 	require.NoError(t, err)
-	p := NewSlowLogParser(file, o)
+	defer func() {
+		assert.NoError(t, file.Close())
+	}()
+
+	p := NewSlowLogParser(bufio.NewReader(file), o)
 	go p.Start()
 	lastQuery := ""
 	for e := range p.EventChan() {

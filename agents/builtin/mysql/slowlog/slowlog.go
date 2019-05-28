@@ -18,6 +18,7 @@
 package slowlog
 
 import (
+	"bufio"
 	"context"
 	"database/sql"
 	"os"
@@ -261,7 +262,7 @@ func parseSlowLog(filename string, o slowlog.Options, l *logrus.Entry) (*parser.
 		return nil, nil
 	}
 
-	p := parser.NewSlowLogParser(file, o)
+	p := parser.NewSlowLogParser(bufio.NewReader(file), o)
 	go func() {
 		if err = p.Start(); err != nil {
 			l.Errorf("Failed to start slowlog parser: %s.", err)

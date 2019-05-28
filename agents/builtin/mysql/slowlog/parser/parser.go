@@ -22,7 +22,6 @@ import (
 	"fmt"
 	"io"
 	stdlog "log"
-	"os"
 	"regexp"
 	"strconv"
 	"strings"
@@ -46,8 +45,8 @@ var (
 
 // A SlowLogParser parses a MySQL slow log. It implements the LogParser interface.
 type SlowLogParser struct {
-	file *os.File
-	opt  log.Options
+	r   *bufio.Reader
+	opt log.Options
 	// --
 	stopChan    chan bool
 	eventChan   chan *log.Event
@@ -62,15 +61,19 @@ type SlowLogParser struct {
 	event       *log.Event
 }
 
-// NewSlowLogParser returns a new SlowLogParser that reads from the open file.
-func NewSlowLogParser(file *os.File, opt log.Options) *SlowLogParser {
+// NewSlowLogParser returns a new SlowLogParser that reads from the given reader.
+func NewSlowLogParser(r *bufio.Reader, opt log.Options) *SlowLogParser {
+	if opt.StartOffset != 0 {
+		panic("StartOffset is not supported")
+	}
+
 	if opt.DefaultLocation == nil {
 		// Old MySQL format assumes time is taken from SYSTEM.
 		opt.DefaultLocation = time.Local
 	}
 	p := &SlowLogParser{
-		file: file,
-		opt:  opt,
+		r:   r,
+		opt: opt,
 		// --
 		stopChan:    make(chan bool, 1),
 		eventChan:   make(chan *log.Event),
@@ -79,7 +82,7 @@ func NewSlowLogParser(file *os.File, opt log.Options) *SlowLogParser {
 		headerLines: 0,
 		queryLines:  0,
 		lineOffset:  0,
-		bytesRead:   opt.StartOffset,
+		bytesRead:   0,
 		event:       log.NewEvent(),
 	}
 	return p
@@ -113,21 +116,9 @@ func (p *SlowLogParser) Stop() {
 
 // Start starts the parser. Events are sent to the unbuffered event channel.
 // Parsing stops on EOF, error, or call to Stop. The event channel is closed
-// when parsing stops. The file is not closed.
+// when parsing stops.
 func (p *SlowLogParser) Start() error {
-	p.logf("parsing %q", p.file.Name())
-
-	// Seek to the offset, if any.
-	// @todo error if start off > file size
-	if p.opt.StartOffset > 0 {
-		if _, err := p.file.Seek(int64(p.opt.StartOffset), os.SEEK_SET); err != nil {
-			return err
-		}
-	}
-
 	defer close(p.eventChan)
-
-	r := bufio.NewReader(p.file)
 
 SCANNER_LOOP:
 	for !p.stopped {
@@ -138,7 +129,8 @@ SCANNER_LOOP:
 		default:
 		}
 
-		line, err := r.ReadString('\n')
+		// bufio.Reader is used instead of bufio.Scanner because the later can't recover from EOF
+		line, err := p.r.ReadString('\n')
 		if err != nil {
 			if err != io.EOF {
 				return err
