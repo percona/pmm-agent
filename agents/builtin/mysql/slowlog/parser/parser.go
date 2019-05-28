@@ -163,14 +163,17 @@ SCANNER_LOOP:
 		// Remove \n.
 		line = line[0 : lineLen-1]
 
-		if p.inHeader {
+		switch {
+		case p.inHeader:
 			p.parseHeader(line)
-		} else if p.inQuery {
+		case p.inQuery:
 			p.parseQuery(line)
-		} else if headerRe.MatchString(line) {
+		case headerRe.MatchString(line):
 			p.inHeader = true
 			p.inQuery = false
 			p.parseHeader(line)
+		default:
+			p.logf("unhandled line: %q", line)
 		}
 	}
 
@@ -272,7 +275,9 @@ func (p *SlowLogParser) parseQuery(line string) {
 	if strings.HasPrefix(line, "# admin") {
 		p.parseAdmin(line)
 		return
-	} else if headerRe.MatchString(line) {
+	}
+
+	if headerRe.MatchString(line) {
 		p.logf("next event")
 		p.inHeader = true
 		p.inQuery = false
@@ -283,7 +288,8 @@ func (p *SlowLogParser) parseQuery(line string) {
 	}
 
 	isUse := useRe.FindString(line)
-	if p.queryLines == 0 && isUse != "" {
+	switch {
+	case p.queryLines == 0 && isUse != "":
 		p.logf("use db")
 		db := strings.TrimPrefix(line, isUse)
 		db = strings.TrimRight(db, ";")
@@ -295,10 +301,12 @@ func (p *SlowLogParser) parseQuery(line string) {
 		// In case we are on a group of lines like in test23, lines 27~28, the
 		// query will be "use dbnameb" since the user executed a use command
 		p.event.Query = line
-	} else if setRe.MatchString(line) {
+
+	case setRe.MatchString(line):
 		p.logf("set var")
 		// @todo ignore or use these lines?
-	} else {
+
+	default:
 		p.logf("query")
 		if p.queryLines > 0 {
 			p.event.Query += "\n" + line
@@ -321,10 +329,11 @@ func (p *SlowLogParser) parseAdmin(line string) {
 		p.logf("not filtered")
 		p.endOffset = p.bytesRead
 		p.sendEvent(false, false)
-	} else {
-		p.inHeader = false
-		p.inQuery = false
+		return
 	}
+
+	p.inHeader = false
+	p.inQuery = false
 }
 
 func (p *SlowLogParser) sendEvent(inHeader bool, inQuery bool) {
