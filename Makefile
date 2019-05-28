@@ -61,7 +61,7 @@ test-cover:                     ## Run tests and collect per-package coverage in
 test-crosscover:                ## Run tests and collect cross-package coverage information.
 	go test $(TEST_FLAGS) -coverprofile=crosscover.out -covermode=count -coverpkg=./... ./...
 
-bench:
+bench:                          ## Run benchmarks.
 	go test -bench=. -benchtime=1s -count=3 -cpu=1 -failfast github.com/percona/pmm-agent/agents/builtin/mysql/slowlog/parser | tee slowlog_parser_new.bench
 	benchstat slowlog_parser_old.bench slowlog_parser_new.bench
 

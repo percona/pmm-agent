@@ -47,7 +47,7 @@ var (
 type SlowLogParser struct {
 	r   *bufio.Reader
 	opt log.Options
-	// --
+
 	stopChan    chan bool
 	eventChan   chan *log.Event
 	inHeader    bool
@@ -74,7 +74,7 @@ func NewSlowLogParser(r *bufio.Reader, opt log.Options) *SlowLogParser {
 	p := &SlowLogParser{
 		r:   r,
 		opt: opt,
-		// --
+
 		stopChan:    make(chan bool, 1),
 		eventChan:   make(chan *log.Event),
 		inHeader:    false,
@@ -184,8 +184,6 @@ SCANNER_LOOP:
 	p.logf("done")
 	return nil
 }
-
-// --------------------------------------------------------------------------
 
 func (p *SlowLogParser) parseHeader(line string) {
 	p.logf("header")
