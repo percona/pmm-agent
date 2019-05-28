@@ -36,8 +36,9 @@ func Fuzz(data []byte) int {
 		done <- p.Start()
 	}()
 
-	for range p.EventChan() {
+	for p.Parse() != nil {
 	}
+
 	err := <-done
 	if err == nil {
 		return 1

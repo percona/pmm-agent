@@ -100,10 +100,9 @@ func (p *SlowLogParser) logf(format string, v ...interface{}) {
 	stdlog.Printf(format, v...)
 }
 
-// EventChan returns the unbuffered event channel on which the caller can
-// receive events.
-func (p *SlowLogParser) EventChan() <-chan *log.Event {
-	return p.eventChan
+// Parse returns next parsed event, or nil, when parsing is done.
+func (p *SlowLogParser) Parse() *log.Event {
+	return <-p.eventChan
 }
 
 // Stop stops the parser before parsing the next event or while blocked on

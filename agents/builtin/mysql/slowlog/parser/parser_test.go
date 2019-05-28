@@ -46,11 +46,15 @@ func parseSlowLog(t *testing.T, filepath string, opt log.Options) []log.Event {
 		require.NoError(t, p.Start())
 	}()
 
-	got := []log.Event{}
-	for e := range p.EventChan() {
-		got = append(got, *e)
+	res := []log.Event{}
+	for {
+		e := p.Parse()
+		if e == nil {
+			break
+		}
+		res = append(res, *e)
 	}
-	return got
+	return res
 }
 
 func TestParserGolden(t *testing.T) {
@@ -145,7 +149,11 @@ func TestParserSpecial(t *testing.T) {
 		}()
 
 		lastQuery := ""
-		for e := range p.EventChan() {
+		for {
+			e := p.Parse()
+			if e == nil {
+				break
+			}
 			if e.Query == "" {
 				t.Errorf("Empty query at offset: %d. Last valid query: %s\n", e.Offset, lastQuery)
 			} else {

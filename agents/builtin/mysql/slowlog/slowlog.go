@@ -27,7 +27,7 @@ import (
 
 	_ "github.com/go-sql-driver/mysql" // register SQL driver
 	"github.com/percona/go-mysql/event"
-	slowlog "github.com/percona/go-mysql/log"
+	"github.com/percona/go-mysql/log"
 	"github.com/percona/go-mysql/query"
 	"github.com/percona/pmm/api/inventorypb"
 	"github.com/percona/pmm/api/qanpb"
@@ -109,7 +109,7 @@ func (m *SlowLog) Run(ctx context.Context) {
 	}
 	fileSize := uint64(stat.Size())
 
-	opts := slowlog.Options{
+	opts := log.Options{
 		StartOffset: fileSize,
 		FilterAdminCommand: map[string]bool{
 			"Binlog Dump":      true,
@@ -133,7 +133,17 @@ func (m *SlowLog) Run(ctx context.Context) {
 			m.l.Warn(err)
 		}
 	}()
-	logEvent := slowLogParser.EventChan()
+
+	logEvent := make(chan *log.Event)
+	go func() {
+		e := slowLogParser.Parse()
+		if e == nil {
+			close(logEvent)
+			return
+		}
+		logEvent <- e
+	}()
+
 	aggregator := event.NewAggregator(true, 0, outlierTime)
 
 	var running bool
@@ -205,7 +215,17 @@ func (m *SlowLog) Run(ctx context.Context) {
 			if slowLogParser == nil {
 				return
 			}
-			logEvent = slowLogParser.EventChan()
+
+			logEvent = make(chan *log.Event)
+			go func() {
+				e := slowLogParser.Parse()
+				if e == nil {
+					close(logEvent)
+					return
+				}
+				logEvent <- e
+			}()
+
 			aggregator = event.NewAggregator(true, 0, outlierTime)
 
 			buckets := makeBuckets(m.agentID, res, time.Now())
@@ -255,7 +275,7 @@ func (m *SlowLog) getSlowLogFilePath() (string, float64, error) {
 }
 
 // parseSlowLog create new slow log parser.
-func parseSlowLog(filename string, o slowlog.Options, l *logrus.Entry) (*parser.SlowLogParser, *os.File) {
+func parseSlowLog(filename string, o log.Options, l *logrus.Entry) (*parser.SlowLogParser, *os.File) {
 	file, err := os.Open(filename) //nolint:gosec
 	if err != nil {
 		l.Errorf("Failed to open slowlog file %q: %s.", filename, err)

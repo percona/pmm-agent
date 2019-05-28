@@ -66,7 +66,7 @@ func benchmarkFile(b *testing.B, name string) {
 			go func() {
 				done <- p.Start()
 			}()
-			for range p.EventChan() {
+			for p.Parse() != nil {
 			}
 			assert.NoError(b, <-done)
 		}
