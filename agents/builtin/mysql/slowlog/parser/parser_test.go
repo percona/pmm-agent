@@ -34,8 +34,8 @@ import (
 
 var updateF = flag.Bool("update", false, "update golden .json files")
 
-func parseSlowLog(t *testing.T, filename string, opt log.Options) []log.Event {
-	f, err := os.Open(filepath.Join("testdata", filename)) //nolint:gosec
+func parseSlowLog(t *testing.T, filepath string, opt log.Options) []log.Event {
+	f, err := os.Open(filepath) //nolint:gosec
 	require.NoError(t, err)
 	defer func() {
 		assert.NoError(t, f.Close())
@@ -54,17 +54,17 @@ func parseSlowLog(t *testing.T, filename string, opt log.Options) []log.Event {
 }
 
 func TestParserGolden(t *testing.T) {
-	files, err := filepath.Glob(filepath.FromSlash("./testdata/slow*.log"))
+	files, err := filepath.Glob(filepath.FromSlash("./testdata/*.log"))
 	require.NoError(t, err)
-	for _, f := range files {
-		name := strings.TrimSuffix(filepath.Base(f), ".log")
+	for _, file := range files {
+		file := file
+		goldenFile := strings.TrimSuffix(file, ".log") + ".json"
+		name := strings.TrimSuffix(filepath.Base(file), ".log")
 		t.Run(name, func(t *testing.T) {
 			opt := log.Options{
 				DefaultLocation: time.UTC,
 			}
-			actual := parseSlowLog(t, name+".log", opt)
-
-			goldenFile := filepath.FromSlash("./testdata/" + name + ".json")
+			actual := parseSlowLog(t, file, opt)
 
 			if *updateF {
 				b, err := json.MarshalIndent(actual, "", "  ")
@@ -94,7 +94,7 @@ func TestParserSpecial(t *testing.T) {
 				"Quit": true,
 			},
 		}
-		actual := parseSlowLog(t, "slow009.log", opt)
+		actual := parseSlowLog(t, filepath.Join("testdata", "slow009.log"), opt)
 		expect := []log.Event{{
 			Query:     "Refresh",
 			Db:        "",
