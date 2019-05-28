@@ -3,6 +3,7 @@
 /bin/
 cover.out
 crosscover.out
+*.bench
 
 backoff.png
 pmm-agent-dev.yaml

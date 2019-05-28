@@ -486,6 +486,19 @@
 
 [[projects]]
   branch = "master"
+  digest = "1:66bced6bace487f27ecd451ba37a2cb4d143fe6816124fa2d3c9d2f6de332ecc"
+  name = "golang.org/x/perf"
+  packages = [
+    "benchstat",
+    "cmd/benchstat",
+    "internal/stats",
+    "storage/benchfmt",
+  ]
+  pruneopts = "NUT"
+  revision = "6835260b7148966b8510e0165e066287164de4cb"
+
+[[projects]]
+  branch = "master"
   digest = "1:4b90c07c5ae97866c3c318a1aed0d356c4b3333afa0b427561d93611a6ab9b83"
   name = "golang.org/x/sys"
   packages = ["unix"]
@@ -708,6 +721,7 @@
     "github.com/stretchr/testify/mock",
     "github.com/stretchr/testify/require",
     "github.com/vektra/mockery/cmd/mockery",
+    "golang.org/x/perf/cmd/benchstat",
     "golang.org/x/sys/unix",
     "golang.org/x/tools/cmd/goimports",
     "google.golang.org/grpc",
