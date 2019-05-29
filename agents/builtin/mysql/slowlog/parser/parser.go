@@ -44,7 +44,7 @@ var (
 
 // A SlowLogParser parses a MySQL slow log.
 type SlowLogParser struct {
-	r    reader
+	r    Reader
 	opts log.Options
 
 	stopErr  error
@@ -62,7 +62,7 @@ type SlowLogParser struct {
 }
 
 // NewSlowLogParser returns a new SlowLogParser that reads from the given reader.
-func NewSlowLogParser(r reader, opts log.Options) *SlowLogParser {
+func NewSlowLogParser(r Reader, opts log.Options) *SlowLogParser {
 	if opts.StartOffset != 0 {
 		panic("StartOffset is not supported")
 	}

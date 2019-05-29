@@ -30,8 +30,6 @@ import (
 	"github.com/percona/pmm/api/qanpb"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
-	"gopkg.in/reform.v1"
-	"gopkg.in/reform.v1/dialects/mysql"
 
 	"github.com/percona/pmm-agent/agents/builtin/mysql/slowlog/parser"
 )
@@ -42,7 +40,7 @@ const (
 
 // SlowLog extracts performance data from MySQL slow log.
 type SlowLog struct {
-	db      *reform.DB
+	dsn     string
 	agentID string
 	l       *logrus.Entry
 	changes chan Change
@@ -60,42 +58,28 @@ type Change struct {
 	Request *qanpb.CollectRequest
 }
 
-// New creates new MySQL QAN service.
+// New creates new SlowLog QAN service.
 func New(params *Params, l *logrus.Entry) (*SlowLog, error) {
-	sqlDB, err := sql.Open("mysql", params.DSN)
-	if err != nil {
-		return nil, err
-	}
-	sqlDB.SetMaxIdleConns(1)
-	sqlDB.SetMaxOpenConns(1)
-	sqlDB.SetConnMaxLifetime(0)
-	db := reform.NewDB(sqlDB, mysql.Dialect, reform.NewPrintfLogger(l.Tracef))
-
-	return newMySQL(db, params.AgentID, l), nil
-}
-
-func newMySQL(db *reform.DB, agentID string, l *logrus.Entry) *SlowLog {
 	return &SlowLog{
-		db:      db,
-		agentID: agentID,
+		dsn:     params.DSN,
+		agentID: params.AgentID,
 		l:       l,
 		changes: make(chan Change, 10),
-	}
+	}, nil
 }
 
 // Run extracts performance data and sends it to the channel until ctx is canceled.
-func (m *SlowLog) Run(ctx context.Context) {
+func (s *SlowLog) Run(ctx context.Context) {
 	defer func() {
-		m.db.DBInterface().(*sql.DB).Close() //nolint:errcheck
-		m.changes <- Change{Status: inventorypb.AgentStatus_DONE}
-		close(m.changes)
+		s.changes <- Change{Status: inventorypb.AgentStatus_DONE}
+		close(s.changes)
 	}()
 
-	m.changes <- Change{Status: inventorypb.AgentStatus_STARTING}
+	s.changes <- Change{Status: inventorypb.AgentStatus_STARTING}
 
-	slowLogFilePath, outlierTime, err := m.getSlowLogFilePath()
+	slowLogFilePath, outlierTime, err := s.getSlowLogFilePath()
 	if err != nil {
-		m.l.Errorf("cannot get getSlowLogFilePath: %s", err)
+		s.l.Errorf("cannot get getSlowLogFilePath: %s", err)
 		return
 	}
 
@@ -105,16 +89,16 @@ func (m *SlowLog) Run(ctx context.Context) {
 			"Binlog Dump GTID": true,
 		},
 	}
-	if m.l.Logger.GetLevel() == logrus.TraceLevel {
+	if s.l.Logger.GetLevel() == logrus.TraceLevel {
 		opts.Debug = true
-		opts.Debugf = m.l.WithField("component", "go-mysql").Tracef
+		opts.Debugf = s.l.WithField("component", "go-mysql").Tracef
 	}
 
 	ticker := time.NewTicker(1 * querySummaries)
 
-	reader, err := parser.NewContinuousReader(slowLogFilePath)
+	reader, err := parser.NewContinuousFileReader(slowLogFilePath)
 	if err != nil {
-		m.l.Errorf("Failed to start reader: %s.", err)
+		s.l.Errorf("Failed to start reader: %s.", err)
 		return
 	}
 
@@ -134,20 +118,20 @@ func (m *SlowLog) Run(ctx context.Context) {
 
 	defer func() {
 		if err := parser.Err(); err != nil {
-			m.l.Warnf("Parser error: %s.", err)
+			s.l.Warnf("Parser error: %s.", err)
 		}
 	}()
 
 	aggregator := event.NewAggregator(true, 0, outlierTime)
 	ctxDone := ctx.Done()
-	m.changes <- Change{Status: inventorypb.AgentStatus_RUNNING}
+	s.changes <- Change{Status: inventorypb.AgentStatus_RUNNING}
 
 	for {
 		select {
 		case <-ctxDone:
-			m.changes <- Change{Status: inventorypb.AgentStatus_STOPPING}
+			s.changes <- Change{Status: inventorypb.AgentStatus_STOPPING}
 			err = reader.Close()
-			m.l.Infof("Context canceled with %s. Reader closed with %s.", ctx.Err(), err)
+			s.l.Infof("Context canceled with %s. Reader closed with %s.", ctx.Err(), err)
 			ctxDone = nil
 
 		case e, ok := <-events:
@@ -155,27 +139,33 @@ func (m *SlowLog) Run(ctx context.Context) {
 				return
 			}
 
-			m.l.Tracef("Parsed slowlog event: %+v.", e)
+			s.l.Tracef("Parsed slowlog event: %+v.", e)
 			fingerprint := query.Fingerprint(e.Query)
 			digest := query.Id(fingerprint)
 			aggregator.AddEvent(e, digest, e.User, e.Host, e.Db, e.Server, fingerprint)
 
 		case <-ticker.C:
-			m.l.Debug("Aggregating slowlog events.")
+			s.l.Debug("Aggregating slowlog events.")
 			res := aggregator.Finalize()
 			aggregator = event.NewAggregator(true, 0, outlierTime)
 
-			buckets := makeBuckets(m.agentID, res, time.Now())
-			m.l.Debugf("Made %d buckets out of %d classes.", len(buckets), len(res.Class))
-			m.changes <- Change{Request: &qanpb.CollectRequest{MetricsBucket: buckets}}
+			buckets := makeBuckets(s.agentID, res, time.Now())
+			s.l.Debugf("Made %d buckets out of %d classes.", len(buckets), len(res.Class))
+			s.changes <- Change{Request: &qanpb.CollectRequest{MetricsBucket: buckets}}
 		}
 	}
 }
 
 // getSlowLogFilePath get path to MySQL slow log and check correct config.
-func (m *SlowLog) getSlowLogFilePath() (string, float64, error) {
+func (s *SlowLog) getSlowLogFilePath() (string, float64, error) {
+	db, err := sql.Open("mysql", s.dsn)
+	if err != nil {
+		return "", 0, errors.Wrap(err, "cannot open database connection")
+	}
+	defer db.Close()
+
 	var path string
-	row := m.db.QueryRow("SELECT @@slow_query_log_file")
+	row := db.QueryRow("SELECT @@slow_query_log_file")
 	if err := row.Scan(&path); err != nil {
 		return "", 0, errors.Wrap(err, "cannot select @@slow_query_log_file")
 	}
@@ -187,22 +177,22 @@ func (m *SlowLog) getSlowLogFilePath() (string, float64, error) {
 	// are optional and just help troubleshooting.
 
 	var enabled int
-	row = m.db.QueryRow("SELECT @@slow_query_log")
+	row = db.QueryRow("SELECT @@slow_query_log")
 	if err := row.Scan(&enabled); err != nil {
-		m.l.Warnf("Cannot SELECT @@slow_query_log: %s.", err)
+		s.l.Warnf("Cannot SELECT @@slow_query_log: %s.", err)
 	}
 	if enabled != 1 {
-		m.l.Warnf("@@slow_query_log is off: %v.", enabled)
+		s.l.Warnf("@@slow_query_log is off: %v.", enabled)
 	}
 
 	var outlierTime float64
-	row = m.db.QueryRow("SELECT @@slow_query_log_always_write_time")
+	row = db.QueryRow("SELECT @@slow_query_log_always_write_time")
 	if err := row.Scan(&outlierTime); err != nil {
-		m.l.Warnf("Cannot SELECT @@slow_query_log_always_write_time: %s.", err)
+		s.l.Warnf("Cannot SELECT @@slow_query_log_always_write_time: %s.", err)
 	}
 
 	d := time.Duration(outlierTime * float64(time.Second))
-	m.l.Debugf("path: %q, enabled: %v, outlierTime: %v (%s)", path, enabled, outlierTime, d)
+	s.l.Debugf("path: %q, enabled: %v, outlierTime: %v (%s)", path, enabled, outlierTime, d)
 	return path, outlierTime, nil
 }
 
@@ -465,6 +455,6 @@ func makeBuckets(agentID string, res event.Result, ts time.Time) []*qanpb.Metric
 }
 
 // Changes returns channel that should be read until it is closed.
-func (m *SlowLog) Changes() <-chan Change {
-	return m.changes
+func (s *SlowLog) Changes() <-chan Change {
+	return s.changes
 }
