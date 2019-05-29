@@ -18,11 +18,8 @@
 package slowlog
 
 import (
-	"bufio"
 	"context"
 	"database/sql"
-	"os"
-	"path/filepath"
 	"time"
 
 	_ "github.com/go-sql-driver/mysql" // register SQL driver
@@ -102,15 +99,7 @@ func (m *SlowLog) Run(ctx context.Context) {
 		return
 	}
 
-	stat, err := os.Stat(slowLogFilePath)
-	if err != nil {
-		m.l.Errorf("cannot get stat of slowlog (%s): %s", slowLogFilePath, err)
-		return
-	}
-	fileSize := uint64(stat.Size())
-
 	opts := log.Options{
-		StartOffset: fileSize,
 		FilterAdminCommand: map[string]bool{
 			"Binlog Dump":      true,
 			"Binlog Dump GTID": true,
@@ -123,117 +112,61 @@ func (m *SlowLog) Run(ctx context.Context) {
 
 	ticker := time.NewTicker(1 * querySummaries)
 
-	slowLogParser, slowLogFileDescriptor := parseSlowLog(slowLogFilePath, opts, m.l)
-	if slowLogParser == nil {
+	reader, err := parser.NewContinuousReader(slowLogFilePath)
+	if err != nil {
+		m.l.Errorf("Failed to start reader: %s.", err)
 		return
 	}
-	defer func() {
-		slowLogParser.Stop()
-		if err = slowLogFileDescriptor.Close(); err != nil {
-			m.l.Warn(err)
+
+	parser := parser.NewSlowLogParser(reader, opts)
+	go parser.Run()
+	events := make(chan *log.Event, 1000) // TODO
+	go func() {
+		for {
+			event := parser.Parse()
+			if event == nil {
+				close(events)
+				return
+			}
+			events <- event
 		}
 	}()
 
-	logEvent := make(chan *log.Event)
-	go func() {
-		e := slowLogParser.Parse()
-		if e == nil {
-			close(logEvent)
-			return
+	defer func() {
+		if err := parser.Err(); err != nil {
+			m.l.Warnf("Parser error: %s.", err)
 		}
-		logEvent <- e
 	}()
 
 	aggregator := event.NewAggregator(true, 0, outlierTime)
+	ctxDone := ctx.Done()
+	m.changes <- Change{Status: inventorypb.AgentStatus_RUNNING}
 
-	var running bool
 	for {
 		select {
-		case <-ctx.Done():
+		case <-ctxDone:
 			m.changes <- Change{Status: inventorypb.AgentStatus_STOPPING}
-			m.l.Infof("Context canceled.")
-			return
+			err = reader.Close()
+			m.l.Infof("Context canceled with %s. Reader closed with %s.", ctx.Err(), err)
+			ctxDone = nil
 
-		case e, ok := <-logEvent:
+		case e, ok := <-events:
 			if !ok {
-				// That should not be possible according to SlowLogParser docs, but we see it.
-				// Disable that case until new logEvent is created in the other case.
-				// FIXME https://jira.percona.com/browse/PMM-3898
-				m.l.Infof("Events channel is closed.")
-				running = false
-				m.changes <- Change{Status: inventorypb.AgentStatus_WAITING}
-				logEvent = nil
-				continue
+				return
 			}
 
-			m.l.Debugf("Parsed slowlog event: %+v.", e)
-			if e == nil {
-				// FIXME Is it possible?
-				// https://jira.percona.com/browse/PMM-3898
-				continue
-			}
-
-			if !running {
-				running = true
-				m.changes <- Change{Status: inventorypb.AgentStatus_RUNNING}
-			}
-
+			m.l.Tracef("Parsed slowlog event: %+v.", e)
 			fingerprint := query.Fingerprint(e.Query)
 			digest := query.Id(fingerprint)
-			opts.StartOffset = e.OffsetEnd
 			aggregator.AddEvent(e, digest, e.User, e.Host, e.Db, e.Server, fingerprint)
 
 		case <-ticker.C:
-			m.l.Debugln("Aggregating slowlog events.")
+			m.l.Debug("Aggregating slowlog events.")
 			res := aggregator.Finalize()
-
-			// Check if MySQL SlowLog config is changed and slowlog rotated.
-			newStat, err := os.Stat(slowLogFilePath)
-			if err != nil {
-				m.l.Errorf("cannot get stat of slowlog (%s): %s", slowLogFilePath, err)
-				return
-			}
-			// In case of rotatation a slowlog file, set a new offset to parse the new slow log file.
-			if !os.SameFile(stat, newStat) {
-				// Start from beginning of new file.
-				opts.StartOffset = uint64(0)
-				m.l.Infof("File changed. Start from beginning of new file %s.", slowLogFilePath)
-				// use new slowlog stat as current.
-				stat = newStat
-			}
-
-			if !running {
-				m.changes <- Change{Status: inventorypb.AgentStatus_STARTING}
-			}
-
-			// Prepare fresh parser and aggregator for next iteration.
-			slowLogParser.Stop()
-			if err = slowLogFileDescriptor.Close(); err != nil {
-				m.l.Warn(err)
-			}
-			slowLogParser, slowLogFileDescriptor = parseSlowLog(slowLogFilePath, opts, m.l)
-			if slowLogParser == nil {
-				return
-			}
-
-			logEvent = make(chan *log.Event)
-			go func() {
-				e := slowLogParser.Parse()
-				if e == nil {
-					close(logEvent)
-					return
-				}
-				logEvent <- e
-			}()
-
 			aggregator = event.NewAggregator(true, 0, outlierTime)
 
 			buckets := makeBuckets(m.agentID, res, time.Now())
-			lenBuckets := len(buckets)
-			if lenBuckets == 0 {
-				continue
-			}
-			m.l.Debugf("Collected %d buckets.", lenBuckets)
+			m.l.Debugf("Made %d buckets out of %d classes.", len(buckets), len(res.Class))
 			m.changes <- Change{Request: &qanpb.CollectRequest{MetricsBucket: buckets}}
 		}
 	}
@@ -241,59 +174,42 @@ func (m *SlowLog) Run(ctx context.Context) {
 
 // getSlowLogFilePath get path to MySQL slow log and check correct config.
 func (m *SlowLog) getSlowLogFilePath() (string, float64, error) {
-	var slowLogFilePath string
+	var path string
 	row := m.db.QueryRow("SELECT @@slow_query_log_file")
-	if err := row.Scan(&slowLogFilePath); err != nil {
+	if err := row.Scan(&path); err != nil {
 		return "", 0, errors.Wrap(err, "cannot select @@slow_query_log_file")
 	}
-	if slowLogFilePath == "" {
+	if path == "" {
 		return "", 0, errors.New("cannot parse slowlog: @@slow_query_log_file is empty")
 	}
 
 	// Only @@slow_query_log is required, the rest global variables selected here
 	// are optional and just help troubleshooting.
 
-	var isSlowQueryLogON int
+	var enabled int
 	row = m.db.QueryRow("SELECT @@slow_query_log")
-	if err := row.Scan(&isSlowQueryLogON); err != nil {
-		m.l.Warnf("cannot select @@slow_query_log: %s", err)
+	if err := row.Scan(&enabled); err != nil {
+		m.l.Warnf("Cannot SELECT @@slow_query_log: %s.", err)
 	}
-	if isSlowQueryLogON != 1 {
-		m.l.Warnf("@@slow_query_log is off: %v", isSlowQueryLogON)
+	if enabled != 1 {
+		m.l.Warnf("@@slow_query_log is off: %v.", enabled)
 	}
 
-	// Select @@slow_query_log_always_write_time if this version of MySQL has it.
 	var outlierTime float64
 	row = m.db.QueryRow("SELECT @@slow_query_log_always_write_time")
 	if err := row.Scan(&outlierTime); err != nil {
-		m.l.Warnf("cannot select @@slow_query_log_always_write_time: %s", err)
+		m.l.Warnf("Cannot SELECT @@slow_query_log_always_write_time: %s.", err)
 	}
 
-	slowLogFilePath = filepath.Clean(slowLogFilePath)
-	m.l.Debugf("slowLogFilePath: %q, isSlowQueryLogON: %v, outlierTime: %v", slowLogFilePath, isSlowQueryLogON, outlierTime)
-	return slowLogFilePath, outlierTime, nil
-}
-
-// parseSlowLog create new slow log parser.
-func parseSlowLog(filename string, o log.Options, l *logrus.Entry) (*parser.SlowLogParser, *os.File) {
-	file, err := os.Open(filename) //nolint:gosec
-	if err != nil {
-		l.Errorf("Failed to open slowlog file %q: %s.", filename, err)
-		return nil, nil
-	}
-
-	p := parser.NewSlowLogParser(bufio.NewReader(file), o)
-	go func() {
-		if err = p.Start(); err != nil {
-			l.Errorf("Failed to start slowlog parser: %s.", err)
-		}
-	}()
-	return p, file
+	d := time.Duration(outlierTime * float64(time.Second))
+	m.l.Debugf("path: %q, enabled: %v, outlierTime: %v (%s)", path, enabled, outlierTime, d)
+	return path, outlierTime, nil
 }
 
 // makeBuckets is a pure function for easier testing.
 func makeBuckets(agentID string, res event.Result, ts time.Time) []*qanpb.MetricsBucket {
-	buckets := []*qanpb.MetricsBucket{}
+	buckets := make([]*qanpb.MetricsBucket, 0, len(res.Class))
+
 	for _, v := range res.Class {
 		mb := &qanpb.MetricsBucket{
 			Queryid:             v.Id,
@@ -544,6 +460,7 @@ func makeBuckets(agentID string, res event.Result, ts time.Time) []*qanpb.Metric
 
 		buckets = append(buckets, mb)
 	}
+
 	return buckets
 }
 

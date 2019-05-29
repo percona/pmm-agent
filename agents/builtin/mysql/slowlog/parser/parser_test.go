@@ -17,12 +17,10 @@
 package parser
 
 import (
-	"bufio"
 	"encoding/json"
 	"flag"
 	"io"
 	"io/ioutil"
-	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -35,14 +33,14 @@ import (
 
 var updateF = flag.Bool("update", false, "update golden .json files")
 
-func parseSlowLog(t *testing.T, filepath string, opt log.Options) []log.Event {
-	f, err := os.Open(filepath) //nolint:gosec
+func parseSlowLog(t *testing.T, filepath string, opts log.Options) []log.Event {
+	r, err := NewSimpleReader(filepath)
 	require.NoError(t, err)
 	defer func() {
-		assert.NoError(t, f.Close())
+		assert.NoError(t, r.Close())
 	}()
 
-	p := NewSlowLogParser(bufio.NewReader(f), opt)
+	p := NewSlowLogParser(r, opts)
 	go p.Run()
 
 	res := []log.Event{}
@@ -64,10 +62,10 @@ func TestParserGolden(t *testing.T) {
 		goldenFile := strings.TrimSuffix(file, ".log") + ".json"
 		name := strings.TrimSuffix(filepath.Base(file), ".log")
 		t.Run(name, func(t *testing.T) {
-			opt := log.Options{
+			opts := log.Options{
 				DefaultLocation: time.UTC,
 			}
-			actual := parseSlowLog(t, file, opt)
+			actual := parseSlowLog(t, file, opts)
 
 			if *updateF {
 				b, err := json.MarshalIndent(actual, "", "  ")
@@ -91,13 +89,13 @@ func TestParserGolden(t *testing.T) {
 
 func TestParserSpecial(t *testing.T) {
 	t.Run("slow009/FilterAdminCommands", func(t *testing.T) {
-		opt := log.Options{
+		opts := log.Options{
 			DefaultLocation: time.UTC,
 			FilterAdminCommand: map[string]bool{
 				"Quit": true,
 			},
 		}
-		actual := parseSlowLog(t, filepath.Join("testdata", "slow009.log"), opt)
+		actual := parseSlowLog(t, filepath.Join("testdata", "slow009.log"), opts)
 		expect := []log.Event{{
 			Query:     "Refresh",
 			Db:        "",
@@ -133,16 +131,16 @@ func TestParserSpecial(t *testing.T) {
 	})
 
 	t.Run("slow023", func(t *testing.T) {
-		f, err := os.Open(filepath.Join("testdata", "slow023.log"))
+		r, err := NewSimpleReader(filepath.Join("testdata", "slow023.log"))
 		require.NoError(t, err)
 		defer func() {
-			assert.NoError(t, f.Close())
+			assert.NoError(t, r.Close())
 		}()
 
-		opt := log.Options{
+		opts := log.Options{
 			DefaultLocation: time.UTC,
 		}
-		p := NewSlowLogParser(bufio.NewReader(f), opt)
+		p := NewSlowLogParser(r, opts)
 		go p.Run()
 
 		lastQuery := ""

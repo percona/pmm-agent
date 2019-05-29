@@ -18,7 +18,6 @@
 package parser
 
 import (
-	"bufio"
 	"fmt"
 	stdlog "log"
 	"regexp"
@@ -45,8 +44,8 @@ var (
 
 // A SlowLogParser parses a MySQL slow log.
 type SlowLogParser struct {
-	r   *bufio.Reader
-	opt log.Options
+	r    reader
+	opts log.Options
 
 	stopErr  error
 	stopOnce sync.Once
@@ -63,18 +62,18 @@ type SlowLogParser struct {
 }
 
 // NewSlowLogParser returns a new SlowLogParser that reads from the given reader.
-func NewSlowLogParser(r *bufio.Reader, opt log.Options) *SlowLogParser {
-	if opt.StartOffset != 0 {
+func NewSlowLogParser(r reader, opts log.Options) *SlowLogParser {
+	if opts.StartOffset != 0 {
 		panic("StartOffset is not supported")
 	}
 
-	if opt.DefaultLocation == nil {
+	if opts.DefaultLocation == nil {
 		// Old MySQL format assumes time is taken from SYSTEM.
-		opt.DefaultLocation = time.Local
+		opts.DefaultLocation = time.Local
 	}
 	p := &SlowLogParser{
-		r:   r,
-		opt: opt,
+		r:    r,
+		opts: opts,
 
 		eventChan:   make(chan *log.Event),
 		inHeader:    false,
@@ -90,11 +89,11 @@ func NewSlowLogParser(r *bufio.Reader, opt log.Options) *SlowLogParser {
 
 // logf logs with configured logger.
 func (p *SlowLogParser) logf(format string, v ...interface{}) {
-	if !p.opt.Debug {
+	if !p.opts.Debug {
 		return
 	}
-	if p.opt.Debugf != nil {
-		p.opt.Debugf(format, v...)
+	if p.opts.Debugf != nil {
+		p.opts.Debugf(format, v...)
 		return
 	}
 	stdlog.Printf(format, v...)
@@ -111,7 +110,7 @@ func (p *SlowLogParser) Err() error {
 	return p.stopErr
 }
 
-// Run parses events until ctx is canceled, next line can't be read, or some other error happened.
+// Run parses events reader's NextLine() method returns error.
 // Caller should call Parse() until nil is returned, then inspect Err().
 func (p *SlowLogParser) Run() {
 	defer func() {
@@ -125,8 +124,7 @@ func (p *SlowLogParser) Run() {
 	}()
 
 	for {
-		// bufio.Reader is used instead of bufio.Scanner because the later can't recover from EOF
-		line, err := p.r.ReadString('\n')
+		line, err := p.r.NextLine()
 		if err != nil {
 			p.stopOnce.Do(func() {
 				p.stopErr = err
@@ -194,11 +192,11 @@ func (p *SlowLogParser) parseHeader(line string) {
 		p.logf("time")
 		m := timeRe.FindStringSubmatch(line)
 		if len(m) == 2 {
-			p.event.Ts, _ = time.ParseInLocation("060102 15:04:05", m[1], p.opt.DefaultLocation)
+			p.event.Ts, _ = time.ParseInLocation("060102 15:04:05", m[1], p.opts.DefaultLocation)
 		} else {
 			m = timeNewRe.FindStringSubmatch(line)
 			if len(m) == 2 {
-				p.event.Ts, _ = time.ParseInLocation(time.RFC3339Nano, m[1], p.opt.DefaultLocation)
+				p.event.Ts, _ = time.ParseInLocation(time.RFC3339Nano, m[1], p.opts.DefaultLocation)
 			} else {
 				return
 			}
@@ -321,7 +319,7 @@ func (p *SlowLogParser) parseAdmin(line string) {
 	p.event.Query = strings.TrimSuffix(p.event.Query, ";") // makes FilterAdminCommand work
 
 	// admin commands should be the last line of the event.
-	if filtered := p.opt.FilterAdminCommand[p.event.Query]; !filtered {
+	if filtered := p.opts.FilterAdminCommand[p.event.Query]; !filtered {
 		p.logf("not filtered")
 		p.endOffset = p.bytesRead
 		p.sendEvent(false, false)

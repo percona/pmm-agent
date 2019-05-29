@@ -28,8 +28,29 @@ import (
 	"github.com/percona/go-mysql/log"
 )
 
+type bytesReader struct {
+	r *bufio.Reader
+}
+
+func newBytesReader(b []byte) (*bytesReader, error) {
+	return &bytesReader{
+		r: bufio.NewReader(bytes.NewReader(b)),
+	}, nil
+}
+
+func (r *bytesReader) NextLine() (string, error) {
+	return r.r.ReadString('\n')
+}
+
+func (r *bytesReader) Close() error {
+	panic("not reached")
+}
+
 func Fuzz(data []byte) int {
-	r := bufio.NewReader(bytes.NewReader(data))
+	r, err := newBytesReader(data)
+	if err != nil {
+		panic(err)
+	}
 	p := NewSlowLogParser(r, log.Options{})
 
 	go p.Run()

@@ -17,7 +17,6 @@
 package parser
 
 import (
-	"bufio"
 	"io"
 	"os"
 	"path/filepath"
@@ -39,15 +38,10 @@ func BenchmarkParser(b *testing.B) {
 func benchmarkFile(b *testing.B, name string) {
 	b.Helper()
 
-	f, err := os.Open(name) //nolint:gosec
+	s, err := os.Stat(name)
 	require.NoError(b, err)
-	defer func() {
-		require.NoError(b, f.Close())
-	}()
 
 	b.Run(name, func(b *testing.B) {
-		s, err := f.Stat()
-		require.NoError(b, err)
 		b.SetBytes(s.Size())
 		b.ReportAllocs()
 		b.ResetTimer()
@@ -55,10 +49,8 @@ func benchmarkFile(b *testing.B, name string) {
 		for i := 0; i < b.N; i++ {
 			b.StopTimer()
 
-			_, err = f.Seek(0, io.SeekStart)
+			r, err := NewSimpleReader(name)
 			assert.NoError(b, err)
-			r := bufio.NewReader(f)
-
 			p := NewSlowLogParser(r, log.Options{})
 
 			b.StartTimer()
@@ -70,6 +62,7 @@ func benchmarkFile(b *testing.B, name string) {
 			b.StopTimer()
 
 			assert.Equal(b, io.EOF, p.Err())
+			assert.NoError(b, r.Close())
 		}
 	})
 }
