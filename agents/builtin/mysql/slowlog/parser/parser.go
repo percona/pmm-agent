@@ -20,11 +20,11 @@ package parser
 import (
 	"bufio"
 	"fmt"
-	"io"
 	stdlog "log"
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/percona/go-mysql/log"
@@ -43,12 +43,14 @@ var (
 	useRe     = regexp.MustCompile(`^(?i)use `)
 )
 
-// A SlowLogParser parses a MySQL slow log. It implements the LogParser interface.
+// A SlowLogParser parses a MySQL slow log.
 type SlowLogParser struct {
 	r   *bufio.Reader
 	opt log.Options
 
-	stopChan    chan bool
+	stopErr  error
+	stopOnce sync.Once
+
 	eventChan   chan *log.Event
 	inHeader    bool
 	inQuery     bool
@@ -57,7 +59,6 @@ type SlowLogParser struct {
 	bytesRead   uint64
 	lineOffset  uint64
 	endOffset   uint64
-	stopped     bool
 	event       *log.Event
 }
 
@@ -75,7 +76,6 @@ func NewSlowLogParser(r *bufio.Reader, opt log.Options) *SlowLogParser {
 		r:   r,
 		opt: opt,
 
-		stopChan:    make(chan bool, 1),
 		eventChan:   make(chan *log.Event),
 		inHeader:    false,
 		inQuery:     false,
@@ -105,35 +105,33 @@ func (p *SlowLogParser) Parse() *log.Event {
 	return <-p.eventChan
 }
 
-// Stop stops the parser before parsing the next event or while blocked on
-// sending the current event to the event channel.
-func (p *SlowLogParser) Stop() {
-	p.logf("stopping")
-	p.stopChan <- true
+// Err returns a reason why parsing stop.
+// It must be called only after Parse() returned nil.
+func (p *SlowLogParser) Err() error {
+	return p.stopErr
 }
 
-// Start starts the parser. Events are sent to the unbuffered event channel.
-// Parsing stops on EOF, error, or call to Stop. The event channel is closed
-// when parsing stops.
-func (p *SlowLogParser) Start() error {
-	defer close(p.eventChan)
-
-SCANNER_LOOP:
-	for !p.stopped {
-		select {
-		case <-p.stopChan:
-			p.stopped = true
-			break SCANNER_LOOP
-		default:
+// Run parses events until ctx is canceled, next line can't be read, or some other error happened.
+// Caller should call Parse() until nil is returned, then inspect Err().
+func (p *SlowLogParser) Run() {
+	defer func() {
+		if p.queryLines > 0 {
+			p.endOffset = p.bytesRead
+			p.sendEvent(false, false)
 		}
 
+		p.logf("done")
+		close(p.eventChan)
+	}()
+
+	for {
 		// bufio.Reader is used instead of bufio.Scanner because the later can't recover from EOF
 		line, err := p.r.ReadString('\n')
 		if err != nil {
-			if err != io.EOF {
-				return err
-			}
-			break SCANNER_LOOP
+			p.stopOnce.Do(func() {
+				p.stopErr = err
+			})
+			return
 		}
 
 		lineLen := uint64(len(line))
@@ -174,14 +172,6 @@ SCANNER_LOOP:
 			p.logf("unhandled line: %q", line)
 		}
 	}
-
-	if !p.stopped && p.queryLines > 0 {
-		p.endOffset = p.bytesRead
-		p.sendEvent(false, false)
-	}
-
-	p.logf("done")
-	return nil
 }
 
 func (p *SlowLogParser) parseHeader(line string) {
@@ -368,10 +358,5 @@ func (p *SlowLogParser) sendEvent(inHeader bool, inQuery bool) {
 	p.event.Db = strings.TrimSuffix(p.event.Db, ";\n")
 	p.event.Query = strings.TrimSuffix(p.event.Query, ";")
 
-	// Send the event.  This will block.
-	select {
-	case p.eventChan <- p.event:
-	case <-p.stopChan:
-		p.stopped = true
-	}
+	p.eventChan <- p.event
 }

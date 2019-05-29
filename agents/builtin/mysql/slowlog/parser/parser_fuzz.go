@@ -23,6 +23,7 @@ package parser
 import (
 	"bufio"
 	"bytes"
+	"io"
 
 	"github.com/percona/go-mysql/log"
 )
@@ -31,16 +32,12 @@ func Fuzz(data []byte) int {
 	r := bufio.NewReader(bytes.NewReader(data))
 	p := NewSlowLogParser(r, log.Options{})
 
-	done := make(chan error)
-	go func() {
-		done <- p.Start()
-	}()
+	go p.Run()
 
 	for p.Parse() != nil {
 	}
 
-	err := <-done
-	if err == nil {
+	if p.Err() == io.EOF {
 		return 1
 	}
 	return 0

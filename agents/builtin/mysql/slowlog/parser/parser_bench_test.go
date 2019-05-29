@@ -58,17 +58,18 @@ func benchmarkFile(b *testing.B, name string) {
 			_, err = f.Seek(0, io.SeekStart)
 			assert.NoError(b, err)
 			r := bufio.NewReader(f)
+
 			p := NewSlowLogParser(r, log.Options{})
-			done := make(chan error)
 
 			b.StartTimer()
 
-			go func() {
-				done <- p.Start()
-			}()
+			go p.Run()
 			for p.Parse() != nil {
 			}
-			assert.NoError(b, <-done)
+
+			b.StopTimer()
+
+			assert.Equal(b, io.EOF, p.Err())
 		}
 	})
 }

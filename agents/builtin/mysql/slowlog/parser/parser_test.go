@@ -20,6 +20,7 @@ import (
 	"bufio"
 	"encoding/json"
 	"flag"
+	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -42,19 +43,17 @@ func parseSlowLog(t *testing.T, filepath string, opt log.Options) []log.Event {
 	}()
 
 	p := NewSlowLogParser(bufio.NewReader(f), opt)
-	go func() {
-		require.NoError(t, p.Start())
-	}()
+	go p.Run()
 
 	res := []log.Event{}
 	for {
 		e := p.Parse()
 		if e == nil {
-			break
+			require.Equal(t, io.EOF, p.Err())
+			return res
 		}
 		res = append(res, *e)
 	}
-	return res
 }
 
 func TestParserGolden(t *testing.T) {
@@ -144,15 +143,14 @@ func TestParserSpecial(t *testing.T) {
 			DefaultLocation: time.UTC,
 		}
 		p := NewSlowLogParser(bufio.NewReader(f), opt)
-		go func() {
-			require.NoError(t, p.Start())
-		}()
+		go p.Run()
 
 		lastQuery := ""
 		for {
 			e := p.Parse()
 			if e == nil {
-				break
+				require.Equal(t, io.EOF, p.Err())
+				return
 			}
 			if e.Query == "" {
 				t.Errorf("Empty query at offset: %d. Last valid query: %s\n", e.Offset, lastQuery)
