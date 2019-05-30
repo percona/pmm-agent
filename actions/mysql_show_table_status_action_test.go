@@ -34,8 +34,6 @@ func TestShowTableStatus(t *testing.T) {
 	defer db.Close() //nolint:errcheck
 	tests.MySQLVersion(t, db)
 
-	const query = "SELECT * FROM `city`"
-
 	t.Run("Default", func(t *testing.T) {
 		t.Parallel()
 

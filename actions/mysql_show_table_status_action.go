@@ -68,7 +68,7 @@ func (e *mysqlShowTableStatusAction) Run(ctx context.Context) ([]byte, error) {
 	}
 
 	status := &showTableStatus{}
-	err = db.QueryRowContext(ctx, fmt.Sprintf("SHOW TABLE STATUS FROM %s WHERE Name='%s'", cfg.DBName, e.params.Table)).Scan(
+	err = db.QueryRowContext(ctx, fmt.Sprintf("SHOW TABLE STATUS FROM %s WHERE Name='%s'", cfg.DBName, e.params.Table)).Scan( //nolint:gosec
 		&status.Name,
 		&status.Engine,
 		&status.Version,

@@ -62,7 +62,7 @@ func (e *mysqlShowCreateTableAction) Run(ctx context.Context) ([]byte, error) {
 	}
 	defer db.Close() //nolint:errcheck
 
-	err = db.QueryRowContext(ctx, fmt.Sprintf("SHOW CREATE TABLE /* pmm-agent */ %s", e.params.Table)).Scan(&tableName, &tableDef)
+	err = db.QueryRowContext(ctx, fmt.Sprintf("SHOW CREATE TABLE /* pmm-agent */ %s", e.params.Table)).Scan(&tableName, &tableDef) //nolint:gosec
 	if err != nil {
 		return nil, err
 	}
