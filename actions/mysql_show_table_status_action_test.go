@@ -52,7 +52,7 @@ func TestShowTableStatus(t *testing.T) {
 
 		actual := strings.TrimSpace(string(b))
 		t.Log(actual)
-		assert.Regexp(t, expected, actual)
+		assert.Contains(t, actual, expected)
 	})
 
 	t.Run("Error", func(t *testing.T) {
@@ -68,6 +68,6 @@ func TestShowTableStatus(t *testing.T) {
 
 		_, err := a.Run(ctx)
 		require.Error(t, err)
-		assert.Regexp(t, `Error 1045: Access denied for user 'pmm-agent'@'.+' \(using password: YES\)`, err.Error())
+		assert.Contains(t, err.Error(), `Error 1045: Access denied for user`)
 	})
 }

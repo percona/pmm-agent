@@ -51,7 +51,7 @@ func TestShowCreateTable(t *testing.T) {
 		expected := strings.TrimSpace("CREATE TABLE `city`")
 
 		actual := strings.TrimSpace(string(b))
-		assert.Regexp(t, expected, actual)
+		assert.Contains(t, actual, expected)
 	})
 
 	t.Run("Error", func(t *testing.T) {
@@ -67,6 +67,6 @@ func TestShowCreateTable(t *testing.T) {
 
 		_, err := a.Run(ctx)
 		require.Error(t, err)
-		assert.Regexp(t, `Error 1045: Access denied for user 'pmm-agent'@'.+' \(using password: YES\)`, err.Error())
+		assert.Contains(t, err.Error(), `Error 1045: Access denied for user`)
 	})
 }

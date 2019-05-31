@@ -22,8 +22,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/go-sql-driver/mysql"
-	_ "github.com/go-sql-driver/mysql" // register SQL driver
+	"github.com/go-sql-driver/mysql" // register SQL driver
 	"github.com/percona/pmm/api/agentpb"
 )
 
@@ -78,6 +77,7 @@ func (e *mysqlShowTableStatusAction) Run(ctx context.Context) ([]byte, error) {
 		return nil, err
 	}
 
+	// As different DBMS have different number of columns, we need scan values like this.
 	all := make([][]interface{}, 0)
 	for rows.Next() {
 		dest := make([]interface{}, len(columns))
@@ -91,6 +91,17 @@ func (e *mysqlShowTableStatusAction) Run(ctx context.Context) ([]byte, error) {
 		all = append(all, dest)
 	}
 
+	// Here we convert mysql rows, for making array of objects in JSON.
+	// From slice of slices :
+	// [
+	// 		["row1value1","row1value2","row1value3"],
+	// 		["row2value1","row2value1","row2value1"]
+	// ]
+	// To slice of maps:
+	//  [
+	// 		{"column1":"row1value1","column2":"row1value2", "column3":"row1value3"},
+	// 		{"column1":"row2value1","column2":"row2value1", "column3":"row2value1"}
+	// 	]
 	data := make([]map[string]interface{}, 0)
 	for _, r := range all {
 		m := make(map[string]interface{})
