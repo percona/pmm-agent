@@ -67,7 +67,7 @@ func (e *mysqlShowTableStatusAction) Run(ctx context.Context) ([]byte, error) {
 		return nil, err
 	}
 
-	rows, err := db.QueryContext(ctx, fmt.Sprintf("SHOW TABLE STATUS FROM %s WHERE Name='%s'", cfg.DBName, e.params.Table))
+	rows, err := db.QueryContext(ctx, fmt.Sprintf("SHOW TABLE STATUS /* pmm-agent */ FROM %s WHERE Name='%s'", cfg.DBName, e.params.Table)) //nolint:gosec
 	if err != nil {
 		return nil, err
 	}
