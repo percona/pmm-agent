@@ -67,32 +67,40 @@ func (e *mysqlShowTableStatusAction) Run(ctx context.Context) ([]byte, error) {
 		return nil, err
 	}
 
-	status := &showTableStatus{}
-	err = db.QueryRowContext(ctx, fmt.Sprintf("SHOW TABLE STATUS FROM %s WHERE Name='%s'", cfg.DBName, e.params.Table)).Scan( //nolint:gosec
-		&status.Name,
-		&status.Engine,
-		&status.Version,
-		&status.RowFormat,
-		&status.Rows,
-		&status.AvgRowLength,
-		&status.DataLength,
-		&status.MaxDataLength,
-		&status.IndexLength,
-		&status.DataFree,
-		&status.AutoIncrement,
-		&status.CreateTime,
-		&status.UpdateTime,
-		&status.CheckTime,
-		&status.Collation,
-		&status.Checksum,
-		&status.CreateOptions,
-		&status.Comment,
-	)
+	rows, err := db.QueryContext(ctx, fmt.Sprintf("SHOW TABLE STATUS FROM %s WHERE Name='%s'", cfg.DBName, e.params.Table))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close() //nolint:errcheck
+
+	columns, err := rows.Columns()
 	if err != nil {
 		return nil, err
 	}
 
-	out, err := json.Marshal(status)
+	all := make([][]interface{}, 0)
+	for rows.Next() {
+		dest := make([]interface{}, len(columns))
+		for i := range dest {
+			var sp *string
+			dest[i] = &sp
+		}
+		if err = rows.Scan(dest...); err != nil {
+			return nil, err
+		}
+		all = append(all, dest)
+	}
+
+	data := make([]map[string]interface{}, 0)
+	for _, r := range all {
+		m := make(map[string]interface{})
+		for i, c := range columns {
+			m[c] = r[i]
+		}
+		data = append(data, m)
+	}
+
+	out, err := json.Marshal(data)
 	if err != nil {
 		return nil, err
 	}
@@ -101,24 +109,3 @@ func (e *mysqlShowTableStatusAction) Run(ctx context.Context) ([]byte, error) {
 }
 
 func (e *mysqlShowTableStatusAction) sealed() {}
-
-type showTableStatus struct {
-	Name          string         `json:"name"`
-	Engine        string         `json:"engine"`
-	Version       string         `json:"version"`
-	RowFormat     string         `json:"row_format"`
-	Rows          sql.NullInt64  `json:"rows"`
-	AvgRowLength  sql.NullInt64  `json:"avg_row_length"`
-	DataLength    sql.NullInt64  `json:"data_length"`
-	MaxDataLength sql.NullInt64  `json:"max_data_length"`
-	IndexLength   sql.NullInt64  `json:"index_length"`
-	DataFree      sql.NullInt64  `json:"data_free"`
-	AutoIncrement sql.NullInt64  `json:"auto_increment"`
-	CreateTime    mysql.NullTime `json:"create_time"`
-	UpdateTime    mysql.NullTime `json:"update_time"`
-	CheckTime     mysql.NullTime `json:"check_time"`
-	Collation     sql.NullString `json:"collation"`
-	Checksum      sql.NullString `json:"checksum"`
-	CreateOptions sql.NullString `json:"create_options"`
-	Comment       sql.NullString `json:"comment"`
-}

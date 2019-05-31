@@ -48,9 +48,10 @@ func TestShowTableStatus(t *testing.T) {
 		b, err := a.Run(ctx)
 		require.NoError(t, err)
 
-		expected := strings.TrimSpace(`"name":"city"`)
+		expected := strings.TrimSpace(`"Name":"city"`)
 
 		actual := strings.TrimSpace(string(b))
+		t.Log(actual)
 		assert.Regexp(t, expected, actual)
 	})
 
