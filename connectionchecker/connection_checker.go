@@ -41,12 +41,13 @@ func New() *ConnectionChecker {
 // Check checks connection to a service.
 func (c *ConnectionChecker) Check(msg *agentpb.CheckConnectionRequest) error {
 	switch msg.Type {
-	case inventorypb.ServiceType_MYSQL_SERVICE:
+	case inventorypb.ServiceType_MYSQL_SERVICE, inventorypb.ServiceType_PROXYSQL_SERVICE:
 		return c.checkSQLConnection("mysql", msg.Dsn)
 	case inventorypb.ServiceType_POSTGRESQL_SERVICE:
 		return c.checkSQLConnection("postgres", msg.Dsn)
 	case inventorypb.ServiceType_MONGODB_SERVICE:
 		return c.checkMongoDBConnection(msg.Dsn)
+		return c.checkSQLConnection("proxysql", msg.Dsn)
 	default:
 		panic(fmt.Sprintf("unhandled service type: %v", msg.Type))
 	}
