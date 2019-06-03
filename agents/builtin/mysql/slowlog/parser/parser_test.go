@@ -34,7 +34,7 @@ import (
 var updateF = flag.Bool("update", false, "update golden .json files")
 
 func parseSlowLog(t *testing.T, filepath string, opts log.Options) []log.Event {
-	r, err := NewSimpleReader(filepath)
+	r, err := NewSimpleFileReader(filepath)
 	require.NoError(t, err)
 	defer func() {
 		assert.NoError(t, r.Close())
@@ -131,7 +131,7 @@ func TestParserSpecial(t *testing.T) {
 	})
 
 	t.Run("slow023", func(t *testing.T) {
-		r, err := NewSimpleReader(filepath.Join("testdata", "slow023.log"))
+		r, err := NewSimpleFileReader(filepath.Join("testdata", "slow023.log"))
 		require.NoError(t, err)
 		defer func() {
 			assert.NoError(t, r.Close())

@@ -46,6 +46,10 @@ func (r *bytesReader) Close() error {
 	panic("not reached")
 }
 
+func (r *bytesReader) Metrics() *ReaderMetrics {
+	panic("not reached")
+}
+
 func Fuzz(data []byte) int {
 	r, err := newBytesReader(data)
 	if err != nil {
