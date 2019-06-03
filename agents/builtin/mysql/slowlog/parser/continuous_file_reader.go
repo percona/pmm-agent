@@ -25,6 +25,8 @@ import (
 	"time"
 )
 
+const readerBufSize = 16 * 1024
+
 type ContinuousFileReader struct {
 	filename string
 	l        Logger
@@ -34,6 +36,8 @@ type ContinuousFileReader struct {
 	closed bool
 	f      *os.File
 	r      *bufio.Reader
+
+	sleep time.Duration // for testing only
 }
 
 func NewContinuousFileReader(filename string, l Logger) (*ContinuousFileReader, error) {
@@ -42,60 +46,56 @@ func NewContinuousFileReader(filename string, l Logger) (*ContinuousFileReader, 
 		return nil, err
 	}
 
-	r := &ContinuousFileReader{
+	if _, err = f.Seek(0, io.SeekEnd); err != nil {
+		l.Errorf("Failed to seek %q to the end: %s.", err)
+	}
+
+	return &ContinuousFileReader{
 		filename: filename,
 		l:        l,
 		f:        f,
-		r:        bufio.NewReader(f),
-	}
-
-	for err == nil {
-		_, err = r.readLine()
-	}
-
-	return r, nil
+		r:        bufio.NewReaderSize(f, readerBufSize),
+		sleep:    time.Second,
+	}, nil
 }
 
 // NextLine implements Reader interface.
 func (r *ContinuousFileReader) NextLine() (string, error) {
+	r.m.Lock()
+	defer r.m.Unlock()
+
+	var line string
 	for {
-		r.m.Lock()
-		l, err := r.readLine()
-		r.m.Unlock()
+		l, err := r.r.ReadString('\n')
+		r.l.Tracef("ReadLine: %q %v", l, err)
+		line += l
 
-		r.l.Tracef("readLine: %q %v", l, err)
-		if l != "" || err != nil {
-			return l, err
-		}
+		switch {
+		case err == nil:
+			// Full line successfully read - return it.
+			return line, nil
 
-		r.m.Lock()
-		needReset := r.needReset()
-		if needReset {
-			r.reset()
-		}
-		r.m.Unlock()
+		case r.closed:
+			// If file is closed, err would be os.PathError{"read", filename, os.ErrClosed}.
+			// Return io.EOF instead.
+			return line, io.EOF
 
-		if !needReset {
-			time.Sleep(time.Second)
+		case err != io.EOF:
+			// Return unexpected error as is.
+			return line, err
+
+		default:
+			// err is io.EOF, but reader is not closed - reset or sleep.
+			needReset := r.needReset()
+			if needReset {
+				r.reset()
+			} else {
+				r.m.Unlock()
+				time.Sleep(r.sleep)
+				r.m.Lock()
+			}
 		}
 	}
-}
-
-func (r *ContinuousFileReader) readLine() (string, error) {
-	// TODO there?
-	if r.closed {
-		return "", io.EOF
-	}
-
-	l, err := r.r.ReadString('\n')
-	if err == io.EOF {
-		if l != "" {
-			// FIXME handle this
-			panic("partial read: " + l)
-		}
-		err = nil
-	}
-	return l, err
 }
 
 func (r *ContinuousFileReader) needReset() bool {
@@ -108,7 +108,7 @@ func (r *ContinuousFileReader) needReset() bool {
 		r.l.Errorf("%s", err)
 	}
 	if !os.SameFile(oldFI, newFI) {
-		r.l.Infof("File changed, resetting.")
+		r.l.Infof("File renamed, resetting.")
 		return true
 	}
 
@@ -139,7 +139,7 @@ func (r *ContinuousFileReader) reset() {
 	}
 
 	r.f = f
-	r.r = bufio.NewReader(f)
+	r.r = bufio.NewReaderSize(f, readerBufSize)
 }
 
 // Close implements Reader interface.
@@ -158,14 +158,21 @@ func (r *ContinuousFileReader) Metrics() *ReaderMetrics {
 	defer r.m.Unlock()
 
 	var m ReaderMetrics
+
 	fi, err := r.f.Stat()
-	if err == nil {
-		m.InputSize = fi.Size()
+	if err != nil {
+		r.l.Errorf("%s", err)
+		return nil
 	}
+	m.InputSize = fi.Size()
+
 	pos, err := r.f.Seek(0, io.SeekCurrent)
-	if err == nil {
-		m.InputPos = pos
+	if err != nil {
+		r.l.Errorf("%s", err)
+		return nil
 	}
+	m.InputPos = pos
+
 	return &m
 }
 
