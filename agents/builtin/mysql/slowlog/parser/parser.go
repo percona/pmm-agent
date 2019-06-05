@@ -18,12 +18,10 @@
 package parser
 
 import (
-	"fmt"
 	stdlog "log"
 	"regexp"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/percona/go-mysql/log"
@@ -47,9 +45,7 @@ type SlowLogParser struct {
 	r    Reader
 	opts log.Options
 
-	stopErr  error
-	stopOnce sync.Once
-
+	stopErr     error
 	eventChan   chan *log.Event
 	inHeader    bool
 	inQuery     bool
@@ -110,7 +106,7 @@ func (p *SlowLogParser) Err() error {
 	return p.stopErr
 }
 
-// Run parses events reader's NextLine() method returns error.
+// Run parses events until reader's NextLine() method returns error.
 // Caller should call Parse() until nil is returned, then inspect Err().
 func (p *SlowLogParser) Run() {
 	defer func() {
@@ -126,9 +122,7 @@ func (p *SlowLogParser) Run() {
 	for {
 		line, err := p.r.NextLine()
 		if err != nil {
-			p.stopOnce.Do(func() {
-				p.stopErr = err
-			})
+			p.stopErr = err
 			return
 		}
 
@@ -345,10 +339,8 @@ func (p *SlowLogParser) sendEvent(inHeader bool, inQuery bool) {
 	}()
 
 	if _, ok := p.event.TimeMetrics["Query_time"]; !ok {
-		if p.headerLines == 0 {
-			panic(fmt.Sprintf("No Query_time in event at %d: %#v", p.lineOffset, p.event))
-		}
 		// Started parsing in header after Query_time.  Throw away event.
+		p.logf("No Query_time in event at %d: %#v", p.lineOffset, p.event)
 		return
 	}
 
