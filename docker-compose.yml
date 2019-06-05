@@ -10,6 +10,7 @@ services:
   mysql:
     image: ${MYSQL_IMAGE:-percona:5.7}
     container_name: pmm-agent_mysql
+    command: --performance-schema
     ports:
       - 127.0.0.1:3306:3306
     environment:
@@ -26,14 +27,14 @@ services:
     ports:
       - 127.0.0.1:27017:27017
     environment:
-      - MONGO_INITDB_ROOT_USERNAME=pmm-agent
+      - MONGO_INITDB_ROOT_USERNAME=root
       - MONGO_INITDB_ROOT_PASSWORD=root-password
 
   postgres:
     image: ${POSTGRES_IMAGE:-postgres:11}
     container_name: pmm-agent_postgres
     ports:
-      - 127.0.0.1:5432:5432
+      - 127.0.0.1:15432:5432
     environment:
       - POSTGRES_USER=pmm-agent
       - POSTGRES_PASSWORD=pmm-agent-password
