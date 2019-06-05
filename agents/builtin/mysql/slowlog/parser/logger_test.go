@@ -6,11 +6,6 @@ type testLogger struct {
 	t testing.TB
 }
 
-func (tl *testLogger) Errorf(format string, v ...interface{}) {
-	tl.t.Helper()
-	tl.t.Logf("ERROR: "+format, v...)
-}
-
 func (tl *testLogger) Warnf(format string, v ...interface{}) {
 	tl.t.Helper()
 	tl.t.Logf("WARN : "+format, v...)

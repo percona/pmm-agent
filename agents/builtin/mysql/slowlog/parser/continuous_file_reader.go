@@ -27,6 +27,7 @@ import (
 
 const readerBufSize = 16 * 1024
 
+// ContinuousFileReader reads lines from the single file across renames, truncations and symlink changes.
 type ContinuousFileReader struct {
 	filename string
 	l        Logger
@@ -40,6 +41,7 @@ type ContinuousFileReader struct {
 	sleep time.Duration // for testing only
 }
 
+// NewContinuousFileReader creates new ContinuousFileReader.
 func NewContinuousFileReader(filename string, l Logger) (*ContinuousFileReader, error) {
 	f, err := os.Open(filename) //nolint:gosec
 	if err != nil {
@@ -47,7 +49,7 @@ func NewContinuousFileReader(filename string, l Logger) (*ContinuousFileReader, 
 	}
 
 	if _, err = f.Seek(0, io.SeekEnd); err != nil {
-		l.Errorf("Failed to seek %q to the end: %s.", err)
+		l.Warnf("Failed to seek file to the end: %s.", err)
 	}
 
 	return &ContinuousFileReader{
@@ -77,7 +79,7 @@ func (r *ContinuousFileReader) NextLine() (string, error) {
 
 		case r.closed:
 			// If file is closed, err would be os.PathError{"read", filename, os.ErrClosed}.
-			// Return io.EOF instead.
+			// Return simple io.EOF instead.
 			return line, io.EOF
 
 		case err != io.EOF:
@@ -85,10 +87,10 @@ func (r *ContinuousFileReader) NextLine() (string, error) {
 			return line, err
 
 		default:
-			// err is io.EOF, but reader is not closed - reset or sleep.
-			needReset := r.needReset()
-			if needReset {
-				r.reset()
+			// err is io.EOF, but reader is not closed - reopen or sleep.
+			needsReopen := r.needsReopen()
+			if needsReopen {
+				r.reopen()
 			} else {
 				r.m.Unlock()
 				time.Sleep(r.sleep)
@@ -98,14 +100,17 @@ func (r *ContinuousFileReader) NextLine() (string, error) {
 	}
 }
 
-func (r *ContinuousFileReader) needReset() bool {
+// needsReopen returns true if file is renamed or truncated, and should be reopened.
+func (r *ContinuousFileReader) needsReopen() bool {
 	oldFI, err := r.f.Stat()
 	if err != nil {
-		r.l.Errorf("%s", err)
+		r.l.Warnf("Failed to stat old file: %s.", err)
+		return false
 	}
-	newFI, err := os.Stat(r.filename)
+	newFI, err := os.Stat(r.filename) // follows symlink
 	if err != nil {
-		r.l.Errorf("%s", err)
+		r.l.Warnf("Failed to stat new file: %s.", err)
+		return false
 	}
 	if !os.SameFile(oldFI, newFI) {
 		r.l.Infof("File renamed, resetting.")
@@ -113,26 +118,29 @@ func (r *ContinuousFileReader) needReset() bool {
 	}
 
 	oldPos, err := r.f.Seek(0, io.SeekCurrent)
-	r.l.Tracef("Old file pos: %d, %v.", oldPos, err)
-	if oldPos > newFI.Size() {
-		r.l.Infof("File truncated, resetting.")
+	if err != nil {
+		r.l.Warnf("Failed to check file position: %s.", err)
+		return false
+	}
+	newSize := newFI.Size()
+	if oldPos > newSize {
+		r.l.Infof("File truncated (old position %d, new file size %d), resetting.", oldPos, newSize)
 		return true
 	}
 
-	// TODO handle symlinks
-
-	r.l.Tracef("File not changed.")
+	r.l.Debugf("No need to reset: same file, old position %d, new file size %d.", oldPos, newSize)
 	return false
 }
 
-func (r *ContinuousFileReader) reset() {
+// reopen reopens slowlog file.
+func (r *ContinuousFileReader) reopen() {
 	if err := r.f.Close(); err != nil {
-		r.l.Warnf("Failed to close %s: %s.", r.f.Name(), err)
+		r.l.Warnf("Failed to close file: %s.", r.f.Name(), err)
 	}
 
 	f, err := os.Open(r.filename)
 	if err != nil {
-		r.l.Errorf("Failed to open %s: %s. Closing reader.", r.filename, err)
+		r.l.Warnf("Failed to open file: %s. Closing reader.", r.filename, err)
 		r.r = bufio.NewReader(bytes.NewReader(nil))
 		r.closed = true
 		return
@@ -161,14 +169,14 @@ func (r *ContinuousFileReader) Metrics() *ReaderMetrics {
 
 	fi, err := r.f.Stat()
 	if err != nil {
-		r.l.Errorf("%s", err)
+		r.l.Warnf("Failed to stat file: %s.", err)
 		return nil
 	}
 	m.InputSize = fi.Size()
 
 	pos, err := r.f.Seek(0, io.SeekCurrent)
 	if err != nil {
-		r.l.Errorf("%s", err)
+		r.l.Warnf("Failed to check file position: %s.", err)
 		return nil
 	}
 	m.InputPos = pos
