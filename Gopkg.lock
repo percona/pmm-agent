@@ -347,8 +347,8 @@
   version = "0.5.2"
 
 [[projects]]
-  branch = "PMM-4087-expose-metrics"
-  digest = "1:4c23491f16e5b3298a10cf6e52e27277381ed4787cb8c9843751d0b788608615"
+  branch = "PMM-2.0"
+  digest = "1:f6363888f953aeec6fe2540aa13e87783304984c1e2addc0844b9a535836005d"
   name = "github.com/percona/pmm"
   packages = [
     "api/agentlocalpb",
@@ -363,13 +363,14 @@
     "api/managementpb/json/client/my_sql",
     "api/managementpb/json/client/node",
     "api/managementpb/json/client/postgre_sql",
+    "api/managementpb/json/client/proxy_sql",
     "api/managementpb/json/client/service",
     "api/qanpb",
     "nodeinfo",
     "version",
   ]
   pruneopts = "NUT"
-  revision = "f101516d5f7748d61e021a412c9744d63605ed66"
+  revision = "96b72c5638d01d985b9c0aeac75a537bbf7c5393"
 
 [[projects]]
   digest = "1:14715f705ff5dfe0ffd6571d7d201dd8e921030f8070321a79380d8ca4ec1a24"
