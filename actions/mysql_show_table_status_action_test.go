@@ -51,8 +51,13 @@ func TestShowTableStatus(t *testing.T) {
 		var actual map[string]interface{}
 		err = json.Unmarshal(b, &actual)
 		require.NoError(t, err)
-		assert.Equal(t, "4080", actual["Auto_increment"])
+		assert.Equal(t, 4080.0, actual["Auto_increment"])
 		assert.Equal(t, "city", actual["Name"])
+		assert.Equal(t, "", actual["Comment"])
+		assert.Equal(t, nil, actual["Update_time"])
+		assert.Equal(t, nil, actual["Checksum"])
+		assert.Equal(t, nil, actual["Check_time"])
+		assert.Equal(t, nil, actual["Update_time"])
 	})
 
 	t.Run("Error", func(t *testing.T) {

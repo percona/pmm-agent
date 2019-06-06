@@ -78,10 +78,11 @@ func (e *mysqlShowTableStatusAction) Run(ctx context.Context) ([]byte, error) {
 		}
 		return nil, errors.Errorf("failed to get first row: %v", rows.Err())
 	}
+
 	dest := make([]interface{}, len(columns))
 	for i := range dest {
-		var sp *string
-		dest[i] = &sp
+		var ei interface{}
+		dest[i] = &ei
 	}
 	if err = rows.Scan(dest...); err != nil {
 		return nil, err
@@ -92,6 +93,16 @@ func (e *mysqlShowTableStatusAction) Run(ctx context.Context) ([]byte, error) {
 	}
 	if err = rows.Err(); err != nil {
 		return nil, err
+	}
+
+	// Each dest element is an *interface{} (&ei above) which can be nil for NULL values, or contain some typed data.
+	// Convert []byte to string to prevent json.Marshal from encode it as base64 string.
+	for i, d := range dest {
+		if eip, ok := d.(*interface{}); ok && eip != nil {
+			if b, ok := (*eip).([]byte); ok {
+				dest[i] = string(b)
+			}
+		}
 	}
 
 	res := make(map[string]interface{}, len(columns))
