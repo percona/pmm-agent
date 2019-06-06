@@ -32,7 +32,7 @@ import (
 func TestShowCreateTable(t *testing.T) {
 	db := tests.OpenTestMySQL(t)
 	defer db.Close() //nolint:errcheck
-	tests.MySQLVersion(t, db)
+	_, mySQLVendor := tests.MySQLVersion(t, db)
 
 	t.Run("Default", func(t *testing.T) {
 		t.Parallel()
@@ -48,25 +48,51 @@ func TestShowCreateTable(t *testing.T) {
 		b, err := a.Run(ctx)
 		require.NoError(t, err)
 
-		expected := strings.TrimSpace("CREATE TABLE `city`")
+		var expected string
+		switch mySQLVendor {
+		case tests.MariaDBMySQL:
+			expected = strings.TrimSpace(`
+CREATE TABLE "city" (
+  "ID" int(11) NOT NULL AUTO_INCREMENT,
+  "Name" char(35) NOT NULL DEFAULT '',
+  "CountryCode" char(3) NOT NULL DEFAULT '',
+  "District" char(20) NOT NULL DEFAULT '',
+  "Population" int(11) NOT NULL DEFAULT 0,
+  PRIMARY KEY ("ID"),
+  KEY "CountryCode" ("CountryCode"),
+  CONSTRAINT "city_ibfk_1" FOREIGN KEY ("CountryCode") REFERENCES "country" ("Code")
+) ENGINE=InnoDB AUTO_INCREMENT=4080 DEFAULT CHARSET=latin1
+			`)
+		default:
+			expected = strings.TrimSpace(`
+CREATE TABLE "city" (
+  "ID" int(11) NOT NULL AUTO_INCREMENT,
+  "Name" char(35) NOT NULL DEFAULT '',
+  "CountryCode" char(3) NOT NULL DEFAULT '',
+  "District" char(20) NOT NULL DEFAULT '',
+  "Population" int(11) NOT NULL DEFAULT '0',
+  PRIMARY KEY ("ID"),
+  KEY "CountryCode" ("CountryCode"),
+  CONSTRAINT "city_ibfk_1" FOREIGN KEY ("CountryCode") REFERENCES "country" ("Code")
+) ENGINE=InnoDB AUTO_INCREMENT=4080 DEFAULT CHARSET=latin1
+			`)
+		}
 
-		actual := strings.TrimSpace(string(b))
-		assert.Contains(t, actual, expected)
+		assert.Equal(t, expected, string(b))
 	})
 
 	t.Run("Error", func(t *testing.T) {
 		t.Parallel()
 
 		params := &agentpb.StartActionRequest_MySQLShowCreateTableParams{
-			Dsn:   "pmm-agent:pmm-agent-wrong-password@tcp(127.0.0.1:3306)/world",
-			Table: "unknown",
+			Dsn:   "root:root-password@tcp(127.0.0.1:3306)/world",
+			Table: "no_such_table",
 		}
 		a := NewMySQLShowCreateTableAction("", params)
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 		defer cancel()
 
 		_, err := a.Run(ctx)
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), `Error 1045: Access denied for user`)
+		assert.EqualError(t, err, "Error 1146: Table 'world.no_such_table' doesn't exist")
 	})
 }

@@ -53,8 +53,6 @@ func (e *mysqlShowCreateTableAction) Type() string {
 func (e *mysqlShowCreateTableAction) Run(ctx context.Context) ([]byte, error) {
 	// TODO Use sql.OpenDB with ctx when https://github.com/go-sql-driver/mysql/issues/671 is released
 	// (likely in version 1.5.0).
-	var tableName string
-	var tableDef string
 
 	db, err := sql.Open("mysql", e.params.Dsn)
 	if err != nil {
@@ -62,11 +60,11 @@ func (e *mysqlShowCreateTableAction) Run(ctx context.Context) ([]byte, error) {
 	}
 	defer db.Close() //nolint:errcheck
 
-	err = db.QueryRowContext(ctx, fmt.Sprintf("SHOW CREATE TABLE /* pmm-agent */ %s", e.params.Table)).Scan(&tableName, &tableDef) //nolint:gosec
-	if err != nil {
+	var tableName, tableDef string
+	row := db.QueryRowContext(ctx, fmt.Sprintf("SHOW /* pmm-agent */ CREATE TABLE %#q", e.params.Table))
+	if err = row.Scan(&tableName, &tableDef); err != nil {
 		return nil, err
 	}
-
 	return []byte(tableDef), nil
 }
 
