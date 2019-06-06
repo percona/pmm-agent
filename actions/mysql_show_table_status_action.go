@@ -20,10 +20,10 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
-	"fmt"
 
-	"github.com/go-sql-driver/mysql" // register SQL driver
+	_ "github.com/go-sql-driver/mysql" // register SQL driver
 	"github.com/percona/pmm/api/agentpb"
+	"github.com/pkg/errors"
 )
 
 type mysqlShowTableStatusAction struct {
@@ -61,12 +61,7 @@ func (e *mysqlShowTableStatusAction) Run(ctx context.Context) ([]byte, error) {
 	}
 	defer db.Close() //nolint:errcheck
 
-	cfg, err := mysql.ParseDSN(e.params.Dsn)
-	if err != nil {
-		return nil, err
-	}
-
-	rows, err := db.QueryContext(ctx, fmt.Sprintf("SHOW TABLE STATUS /* pmm-agent */ FROM %s WHERE Name='%s'", cfg.DBName, e.params.Table)) //nolint:gosec
+	rows, err := db.QueryContext(ctx, "SHOW /* pmm-agent */ TABLE STATUS WHERE Name = ?", e.params.Table)
 	if err != nil {
 		return nil, err
 	}
@@ -77,46 +72,33 @@ func (e *mysqlShowTableStatusAction) Run(ctx context.Context) ([]byte, error) {
 		return nil, err
 	}
 
-	// As different DBMS have different number of columns, we need scan values like this.
-	all := make([][]interface{}, 0)
-	for rows.Next() {
-		dest := make([]interface{}, len(columns))
-		for i := range dest {
-			var sp *string
-			dest[i] = &sp
+	if !rows.Next() {
+		if rows.Err() == nil {
+			return nil, errors.Errorf("table %q not found", e.params.Table)
 		}
-		if err = rows.Scan(dest...); err != nil {
-			return nil, err
-		}
-		all = append(all, dest)
+		return nil, errors.Errorf("failed to get first row: %v", rows.Err())
 	}
-
-	// Here we convert mysql rows, for making array of objects in JSON.
-	// From slice of slices :
-	// [
-	// 		["row1value1","row1value2","row1value3"],
-	// 		["row2value1","row2value1","row2value1"]
-	// ]
-	// To slice of maps:
-	//  [
-	// 		{"column1":"row1value1","column2":"row1value2", "column3":"row1value3"},
-	// 		{"column1":"row2value1","column2":"row2value1", "column3":"row2value1"}
-	// 	]
-	data := make([]map[string]interface{}, 0)
-	for _, r := range all {
-		m := make(map[string]interface{})
-		for i, c := range columns {
-			m[c] = r[i]
-		}
-		data = append(data, m)
+	dest := make([]interface{}, len(columns))
+	for i := range dest {
+		var sp *string
+		dest[i] = &sp
 	}
-
-	out, err := json.Marshal(data)
-	if err != nil {
+	if err = rows.Scan(dest...); err != nil {
 		return nil, err
 	}
 
-	return out, nil
+	if rows.Next() {
+		return nil, errors.Errorf("unexpected second row")
+	}
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+
+	res := make(map[string]interface{}, len(columns))
+	for i, col := range columns {
+		res[col] = dest[i]
+	}
+	return json.Marshal(res)
 }
 
 func (e *mysqlShowTableStatusAction) sealed() {}

@@ -51,6 +51,7 @@ func TestShowCreateTable(t *testing.T) {
 		var expected string
 		switch mySQLVendor {
 		case tests.MariaDBMySQL:
+			// `DEFAULT 0` for Population
 			expected = strings.TrimSpace(`
 CREATE TABLE "city" (
   "ID" int(11) NOT NULL AUTO_INCREMENT,
@@ -64,6 +65,7 @@ CREATE TABLE "city" (
 ) ENGINE=InnoDB AUTO_INCREMENT=4080 DEFAULT CHARSET=latin1
 			`)
 		default:
+			// `DEFAULT '0'` for Population
 			expected = strings.TrimSpace(`
 CREATE TABLE "city" (
   "ID" int(11) NOT NULL AUTO_INCREMENT,

@@ -18,7 +18,7 @@ package actions
 
 import (
 	"context"
-	"strings"
+	"encoding/json"
 	"testing"
 	"time"
 
@@ -32,7 +32,6 @@ import (
 func TestShowTableStatus(t *testing.T) {
 	db := tests.OpenTestMySQL(t)
 	defer db.Close() //nolint:errcheck
-	tests.MySQLVersion(t, db)
 
 	t.Run("Default", func(t *testing.T) {
 		t.Parallel()
@@ -47,27 +46,27 @@ func TestShowTableStatus(t *testing.T) {
 
 		b, err := a.Run(ctx)
 		require.NoError(t, err)
+		t.Logf("Full JSON:\n%s", b)
 
-		expected := strings.TrimSpace(`"Name":"city"`)
-
-		actual := strings.TrimSpace(string(b))
-		t.Log(actual)
-		assert.Contains(t, actual, expected)
+		var actual map[string]interface{}
+		err = json.Unmarshal(b, &actual)
+		require.NoError(t, err)
+		assert.Equal(t, "4080", actual["Auto_increment"])
+		assert.Equal(t, "city", actual["Name"])
 	})
 
 	t.Run("Error", func(t *testing.T) {
 		t.Parallel()
 
 		params := &agentpb.StartActionRequest_MySQLShowTableStatusParams{
-			Dsn:   "pmm-agent:pmm-agent-wrong-password@tcp(127.0.0.1:3306)/world",
-			Table: "unknown",
+			Dsn:   "root:root-password@tcp(127.0.0.1:3306)/world",
+			Table: "no_such_table",
 		}
 		a := NewMySQLShowTableStatusAction("", params)
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 		defer cancel()
 
 		_, err := a.Run(ctx)
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), `Error 1045: Access denied for user`)
+		assert.EqualError(t, err, `table "no_such_table" not found`)
 	})
 }
