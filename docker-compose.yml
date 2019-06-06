@@ -11,6 +11,7 @@ services:
     image: ${MYSQL_IMAGE:-percona:5.7}
     container_name: pmm-agent_mysql
     command: >
+      --sql-mode="ANSI_QUOTES"
       --performance-schema --innodb_monitor_enable=all
       --slow_query_log --slow_query_log_file=/slowlogs/slow.log --long_query_time=0
     ports:
