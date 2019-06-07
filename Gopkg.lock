@@ -346,7 +346,7 @@
   version = "0.5.2"
 
 [[projects]]
-  branch = "PMM-3891-unified-labels"
+  branch = "PMM-2.0"
   digest = "1:4cb7d6e79bad2acaa7753165db6c3e971c4cbb2f0c3e607deeb3d3492512524f"
   name = "github.com/percona/pmm"
   packages = [
@@ -369,7 +369,7 @@
     "version",
   ]
   pruneopts = "NUT"
-  revision = "700d0fc324cbd4fa5dc2e9527e9fd00fee6c6e99"
+  revision = "e6803cfc7c08a552185b92815f83082cd269fd54"
 
 [[projects]]
   digest = "1:14715f705ff5dfe0ffd6571d7d201dd8e921030f8070321a79380d8ca4ec1a24"
