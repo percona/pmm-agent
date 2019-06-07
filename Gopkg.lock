@@ -346,8 +346,8 @@
   version = "0.5.2"
 
 [[projects]]
-  branch = "PMM-2.0"
-  digest = "1:4cb7d6e79bad2acaa7753165db6c3e971c4cbb2f0c3e607deeb3d3492512524f"
+  branch = "PMM-4151-show-index-action"
+  digest = "1:ee460ba9348a431d506f215067907eb71ad00c0d3abb6c70d32d58a9435943c2"
   name = "github.com/percona/pmm"
   packages = [
     "api/agentlocalpb",
@@ -369,7 +369,7 @@
     "version",
   ]
   pruneopts = "NUT"
-  revision = "e6803cfc7c08a552185b92815f83082cd269fd54"
+  revision = "e81114fa7df0b0d4e17b3cc5a0d5296609cb3a6b"
 
 [[projects]]
   digest = "1:14715f705ff5dfe0ffd6571d7d201dd8e921030f8070321a79380d8ca4ec1a24"
@@ -708,7 +708,6 @@
     "github.com/percona/pmm/api/agentlocalpb/json/client/agent_local",
     "github.com/percona/pmm/api/agentpb",
     "github.com/percona/pmm/api/inventorypb",
-    "github.com/percona/pmm/api/managementpb",
     "github.com/percona/pmm/api/managementpb/json/client",
     "github.com/percona/pmm/api/managementpb/json/client/node",
     "github.com/percona/pmm/api/qanpb",
