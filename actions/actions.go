@@ -19,6 +19,8 @@ package actions
 
 import (
 	"context"
+	"database/sql"
+	"encoding/json"
 )
 
 // Action describes an abstract thing that can be run by a client and return some output.
@@ -31,4 +33,62 @@ type Action interface {
 	Run(ctx context.Context) ([]byte, error)
 
 	sealed()
+}
+
+func convertRows(rows *sql.Rows) (columns []string, dataRows [][]interface{}, err error) {
+	defer func() {
+		// overwrite err with e only if err does not already contains (more interesting) error
+		if e := rows.Close(); err == nil {
+			err = e
+		}
+	}()
+
+	columns, err = rows.Columns()
+	if err != nil {
+		return
+	}
+
+	for rows.Next() {
+		dest := make([]interface{}, len(columns))
+		for i := range dest {
+			var ei interface{}
+			dest[i] = &ei
+		}
+		if err = rows.Scan(dest...); err != nil {
+			return
+
+		}
+
+		// Each dest element is an *interface{} (&ei above) which can be nil for NULL values, or contain some typed data.
+		// Convert []byte to string to prevent json.Marshal from encode it as base64 string.
+		for i, d := range dest {
+			if eip, ok := d.(*interface{}); ok && eip != nil {
+				if b, ok := (*eip).([]byte); ok {
+					dest[i] = string(b)
+				}
+			}
+		}
+
+		dataRows = append(dataRows, dest)
+	}
+	err = rows.Err()
+	return //nolint:nakedret
+}
+
+func jsonRows(columns []string, dataRows [][]interface{}) ([]byte, error) {
+	res := make([][]interface{}, len(dataRows)+1)
+
+	res[0] = make([]interface{}, len(columns))
+	for i, col := range columns {
+		res[0][i] = col
+	}
+
+	for i, row := range dataRows {
+		res[i+1] = make([]interface{}, len(columns))
+		for j, data := range row {
+			res[i+1][j] = data
+		}
+	}
+
+	return json.Marshal(res)
 }

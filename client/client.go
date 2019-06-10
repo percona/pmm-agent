@@ -65,7 +65,7 @@ type Client struct {
 	runner *actions.ConcurrentRunner
 
 	rw      sync.RWMutex
-	md      *agentpb.AgentServerMetadata
+	md      *agentpb.ServerConnectMetadata
 	channel *channel.Channel
 }
 
@@ -327,7 +327,7 @@ type dialResult struct {
 	conn         *grpc.ClientConn
 	streamCancel context.CancelFunc
 	channel      *channel.Channel
-	md           *agentpb.AgentServerMetadata
+	md           *agentpb.ServerConnectMetadata
 }
 
 // dial tries to connect to the server once.
@@ -408,10 +408,6 @@ func dial(dialCtx context.Context, cfg *config.Config, withoutTLS bool, l *logru
 
 	md, err := agentpb.ReceiveServerConnectMetadata(stream)
 	l.Debugf("Received server metadata: %+v. Error: %v.", md, err)
-	if (err == nil) && (*md == agentpb.ServerConnectMetadata{}) {
-		// FIXME https://jira.percona.com/browse/PMM-4076
-		err = errors.New("empty")
-	}
 	if err != nil {
 		msg := err.Error()
 
@@ -479,8 +475,8 @@ func (c *Client) GetNetworkInformation() (latency, clockDrift time.Duration, err
 	return
 }
 
-// GetAgentServerMetadata returns current server's metadata, or nil.
-func (c *Client) GetAgentServerMetadata() *agentpb.AgentServerMetadata {
+// GetServerConnectMetadata returns current server's metadata, or nil.
+func (c *Client) GetServerConnectMetadata() *agentpb.ServerConnectMetadata {
 	c.rw.RLock()
 	md := c.md
 	c.rw.RUnlock()

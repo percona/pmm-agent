@@ -18,6 +18,8 @@ package actions
 
 import (
 	"context"
+	"database/sql"
+	"fmt"
 
 	_ "github.com/go-sql-driver/mysql" // register SQL driver
 	"github.com/percona/pmm/api/agentpb"
@@ -49,7 +51,25 @@ func (e *mysqlShowIndexAction) Type() string {
 
 // Run runs an Action and returns output and error.
 func (e *mysqlShowIndexAction) Run(ctx context.Context) ([]byte, error) {
-	panic("TODO")
+	// TODO Use sql.OpenDB with ctx when https://github.com/go-sql-driver/mysql/issues/671 is released
+	// (likely in version 1.5.0).
+
+	db, err := sql.Open("mysql", e.params.Dsn)
+	if err != nil {
+		return nil, err
+	}
+	defer db.Close() //nolint:errcheck
+
+	rows, err := db.QueryContext(ctx, fmt.Sprintf("SHOW /* pmm-agent */ INDEX IN %#q", e.params.Table))
+	if err != nil {
+		return nil, err
+	}
+
+	columns, dataRows, err := convertRows(rows)
+	if err != nil {
+		return nil, err
+	}
+	return jsonRows(columns, dataRows)
 }
 
 func (e *mysqlShowIndexAction) sealed() {}
