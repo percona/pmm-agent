@@ -88,9 +88,8 @@ func (e *mysqlExplainAction) explainDefault(ctx context.Context, conn *sql.Conn)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close() //nolint:errcheck
 
-	columns, err := rows.Columns()
+	columns, dataRows, err := readRows(rows)
 	if err != nil {
 		return nil, err
 	}
@@ -98,30 +97,17 @@ func (e *mysqlExplainAction) explainDefault(ctx context.Context, conn *sql.Conn)
 	var buf bytes.Buffer
 	w := tabwriter.NewWriter(&buf, 0, 0, 1, ' ', tabwriter.Debug)
 	w.Write([]byte(strings.Join(columns, "\t"))) //nolint:errcheck
-	for rows.Next() {
-		dest := make([]interface{}, len(columns))
-		for i := range dest {
-			var sp *string
-			dest[i] = &sp
-		}
-		if err = rows.Scan(dest...); err != nil {
-			return nil, err
-		}
-
+	for _, dataRow := range dataRows {
 		row := "\n"
-		for _, d := range dest {
+		for _, d := range dataRow {
 			v := "NULL"
-			if sp := *d.(**string); sp != nil {
-				v = *sp
+			if d != nil {
+				v = fmt.Sprint(d)
 			}
 			row += v + "\t"
 		}
 		w.Write([]byte(row)) //nolint:errcheck
 	}
-	if err = rows.Err(); err != nil {
-		return nil, err
-	}
-
 	if err = w.Flush(); err != nil {
 		return nil, err
 	}

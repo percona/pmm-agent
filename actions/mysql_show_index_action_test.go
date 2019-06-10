@@ -49,57 +49,39 @@ func TestShowIndex(t *testing.T) {
 		require.NoError(t, err)
 		t.Logf("Full JSON:\n%s", b)
 
-		_, _ = mySQLVersion, mySQLVendor // TODO
-
 		var actual [][]interface{}
 		err = json.Unmarshal(b, &actual)
 		require.NoError(t, err)
 		require.Len(t, actual, 3)
-		assert.Equal(t, []interface{}{
-			"Table",
-			"Non_unique",
-			"Key_name",
-			"Seq_in_index",
-			"Column_name",
-			"Collation",
-			"Cardinality",
-			"Sub_part",
-			"Packed",
-			"Null",
-			"Index_type",
-			"Comment",
-			"Index_comment",
-		}, actual[0])
-		assert.Equal(t, []interface{}{
-			"city",
-			"0",
-			"PRIMARY",
-			"1",
-			"ID",
-			"A",
-			"2",
-			nil,
-			nil,
-			"",
-			"BTREE",
-			"",
-			"",
-		}, actual[1])
-		assert.Equal(t, []interface{}{
-			"city",
-			"1",
-			"CountryCode",
-			"1",
-			"CountryCode",
-			"A",
-			"1",
-			nil,
-			nil,
-			"",
-			"BTREE",
-			"",
-			"",
-		}, actual[2])
+
+		switch {
+		case mySQLVersion == "5.6" || mySQLVendor == tests.MariaDBMySQL:
+			assert.Equal(t, []interface{}{
+				"Table", "Non_unique", "Key_name", "Seq_in_index", "Column_name", "Collation", "Cardinality",
+				"Sub_part", "Packed", "Null", "Index_type", "Comment", "Index_comment",
+			}, actual[0])
+			assert.Equal(t, []interface{}{"city", "0", "PRIMARY", "1", "ID", "A", "2", nil, nil, "", "BTREE", "", ""}, actual[1])
+			assert.Equal(t, []interface{}{"city", "1", "CountryCode", "1", "CountryCode", "A", "2", nil, nil, "", "BTREE", "", ""}, actual[2])
+
+		case mySQLVersion == "5.7":
+			assert.Equal(t, []interface{}{
+				"Table", "Non_unique", "Key_name", "Seq_in_index", "Column_name", "Collation", "Cardinality",
+				"Sub_part", "Packed", "Null", "Index_type", "Comment", "Index_comment",
+			}, actual[0])
+			assert.Equal(t, []interface{}{"city", "0", "PRIMARY", "1", "ID", "A", "2", nil, nil, "", "BTREE", "", ""}, actual[1])
+			assert.Equal(t, []interface{}{"city", "1", "CountryCode", "1", "CountryCode", "A", "1", nil, nil, "", "BTREE", "", ""}, actual[2])
+
+		case mySQLVersion == "8.0":
+			assert.Equal(t, []interface{}{
+				"Table", "Non_unique", "Key_name", "Seq_in_index", "Column_name", "Collation", "Cardinality",
+				"Sub_part", "Packed", "Null", "Index_type", "Comment", "Index_comment", "Visible", "Expression",
+			}, actual[0])
+			assert.Equal(t, []interface{}{"city", "0", "PRIMARY", "1", "ID", "A", "2", nil, nil, "", "BTREE", "", "", "YES", nil}, actual[1])
+			assert.Equal(t, []interface{}{"city", "1", "CountryCode", "1", "CountryCode", "A", "1", nil, nil, "", "BTREE", "", "", "YES", nil}, actual[2])
+
+		default:
+			t.Fatal("Unhandled version.")
+		}
 	})
 
 	t.Run("Error", func(t *testing.T) {

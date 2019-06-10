@@ -65,7 +65,7 @@ func (e *mysqlShowIndexAction) Run(ctx context.Context) ([]byte, error) {
 		return nil, err
 	}
 
-	columns, dataRows, err := convertRows(rows)
+	columns, dataRows, err := readRows(rows)
 	if err != nil {
 		return nil, err
 	}

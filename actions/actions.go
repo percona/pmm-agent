@@ -35,7 +35,8 @@ type Action interface {
 	sealed()
 }
 
-func convertRows(rows *sql.Rows) (columns []string, dataRows [][]interface{}, err error) {
+// readRows reads and closes given *sql.Rows, returning columns, data rows, and first encountered error.
+func readRows(rows *sql.Rows) (columns []string, dataRows [][]interface{}, err error) {
 	defer func() {
 		// overwrite err with e only if err does not already contains (more interesting) error
 		if e := rows.Close(); err == nil {
@@ -56,11 +57,11 @@ func convertRows(rows *sql.Rows) (columns []string, dataRows [][]interface{}, er
 		}
 		if err = rows.Scan(dest...); err != nil {
 			return
-
 		}
 
 		// Each dest element is an *interface{} (&ei above) which can be nil for NULL values, or contain some typed data.
-		// Convert []byte to string to prevent json.Marshal from encode it as base64 string.
+		// As a special case, convert []byte values to strings. That does not change semantics of this function,
+		// but prevents json.Marshal (at jsonRows) from encoding them as base64 strings.
 		for i, d := range dest {
 			if eip, ok := d.(*interface{}); ok && eip != nil {
 				if b, ok := (*eip).([]byte); ok {
@@ -75,6 +76,12 @@ func convertRows(rows *sql.Rows) (columns []string, dataRows [][]interface{}, er
 	return //nolint:nakedret
 }
 
+// jsonRows converts input to JSON array:
+// [
+//   ["column 1", "columnt 2", …],
+//   ["value 1", 2, …]
+//   …
+// ]
 func jsonRows(columns []string, dataRows [][]interface{}) ([]byte, error) {
 	res := make([][]interface{}, len(dataRows)+1)
 
@@ -85,9 +92,7 @@ func jsonRows(columns []string, dataRows [][]interface{}) ([]byte, error) {
 
 	for i, row := range dataRows {
 		res[i+1] = make([]interface{}, len(columns))
-		for j, data := range row {
-			res[i+1][j] = data
-		}
+		copy(res[i+1], row)
 	}
 
 	return json.Marshal(res)
