@@ -53,21 +53,25 @@ func TestMySQLExplain(t *testing.T) {
 		require.NoError(t, err)
 
 		var expected string
-		switch mySQLVersion {
-		case "5.6":
+		switch {
+		case mySQLVendor == tests.MariaDBMySQL:
 			expected = strings.TrimSpace(`
 id |select_type |table |type |possible_keys |key  |key_len |ref  |rows |Extra
-1  |SIMPLE      |city  |ALL  |NULL          |NULL |NULL    |NULL |\d+  |NULL
+1  |SIMPLE      |city  |ALL  |NULL          |NULL |NULL    |NULL |2    |
+			`)
+		case mySQLVersion == "5.6":
+			expected = strings.TrimSpace(`
+id |select_type |table |type |possible_keys |key  |key_len |ref  |rows |Extra
+1  |SIMPLE      |city  |ALL  |NULL          |NULL |NULL    |NULL |2    |NULL
 			`)
 		default:
 			expected = strings.TrimSpace(`
 id |select_type |table |partitions |type |possible_keys |key  |key_len |ref  |rows |filtered |Extra
-1  |SIMPLE      |city  |NULL       |ALL  |NULL          |NULL |NULL    |NULL |\d+  |100.00   |NULL
+1  |SIMPLE      |city  |NULL       |ALL  |NULL          |NULL |NULL    |NULL |2    |100.00   |NULL
 			`)
 		}
-
 		actual := strings.TrimSpace(string(b))
-		assert.Regexp(t, expected, actual)
+		assert.Equal(t, expected, actual)
 	})
 
 	t.Run("JSON", func(t *testing.T) {
@@ -130,8 +134,15 @@ id |select_type |table |partitions |type |possible_keys |key  |key_len |ref  |ro
 		require.NoError(t, err)
 		require.Len(t, actual, 2)
 
-		switch mySQLVersion {
-		case "5.6":
+		switch {
+		case mySQLVendor == tests.MariaDBMySQL:
+			assert.Equal(t, []interface{}{
+				"id", "select_type", "table",
+				"type", "possible_keys", "key", "key_len", "ref", "rows", "Extra",
+			}, actual[0])
+			assert.Equal(t, []interface{}{"1", "SIMPLE", "city", "ALL", nil, nil, nil, nil, "2", ""}, actual[1])
+
+		case mySQLVersion == "5.6":
 			assert.Equal(t, []interface{}{
 				"id", "select_type", "table",
 				"type", "possible_keys", "key", "key_len", "ref", "rows", "Extra",

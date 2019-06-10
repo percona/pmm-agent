@@ -59,14 +59,15 @@ func readRows(rows *sql.Rows) (columns []string, dataRows [][]interface{}, err e
 			return
 		}
 
-		// Each dest element is an *interface{} (&ei above) which can be nil for NULL values, or contain some typed data.
+		// Each dest element is an *interface{} (&ei above) which always contain some typed data
+		// (in particular, it can contain typed nil). Dereference it for easier manipulations by the caller.
 		// As a special case, convert []byte values to strings. That does not change semantics of this function,
 		// but prevents json.Marshal (at jsonRows) from encoding them as base64 strings.
 		for i, d := range dest {
-			if eip, ok := d.(*interface{}); ok && eip != nil {
-				if b, ok := (*eip).([]byte); ok {
-					dest[i] = string(b)
-				}
+			ei := *(d.(*interface{}))
+			dest[i] = ei
+			if b, ok := (ei).([]byte); ok {
+				dest[i] = string(b)
 			}
 		}
 
