@@ -76,6 +76,8 @@ func (e *mysqlExplainAction) Run(ctx context.Context) ([]byte, error) {
 		return e.explainDefault(ctx, conn)
 	case agentpb.MysqlExplainOutputFormat_MYSQL_EXPLAIN_OUTPUT_FORMAT_JSON:
 		return e.explainJSON(ctx, conn)
+	case agentpb.MysqlExplainOutputFormat_MYSQL_EXPLAIN_OUTPUT_FORMAT_TRADITIONAL_JSON:
+		return e.explainTraditionalJSON(ctx, conn)
 	default:
 		return nil, errors.Errorf("unsupported output format %s", e.params.OutputFormat)
 	}
@@ -150,4 +152,17 @@ func (e *mysqlExplainAction) explainJSON(ctx context.Context, conn *sql.Conn) ([
 
 	m["warnings"] = warnings
 	return json.Marshal(m)
+}
+
+func (e *mysqlExplainAction) explainTraditionalJSON(ctx context.Context, conn *sql.Conn) ([]byte, error) {
+	rows, err := conn.QueryContext(ctx, fmt.Sprintf("EXPLAIN /* pmm-agent */ %s", e.params.Query))
+	if err != nil {
+		return nil, err
+	}
+
+	columns, dataRows, err := readRows(rows)
+	if err != nil {
+		return nil, err
+	}
+	return jsonRows(columns, dataRows)
 }

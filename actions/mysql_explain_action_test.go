@@ -109,6 +109,44 @@ id |select_type |table |partitions |type |possible_keys |key  |key_len |ref  |ro
 		}
 	})
 
+	t.Run("TraditionalJSON", func(t *testing.T) {
+		t.Parallel()
+
+		params := &agentpb.StartActionRequest_MySQLExplainParams{
+			Dsn:          "root:root-password@tcp(127.0.0.1:3306)/world",
+			Query:        query,
+			OutputFormat: agentpb.MysqlExplainOutputFormat_MYSQL_EXPLAIN_OUTPUT_FORMAT_TRADITIONAL_JSON,
+		}
+		a := NewMySQLExplainAction("", params)
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+
+		b, err := a.Run(ctx)
+		require.NoError(t, err)
+		t.Logf("Full JSON:\n%s", b)
+
+		var actual [][]interface{}
+		err = json.Unmarshal(b, &actual)
+		require.NoError(t, err)
+		require.Len(t, actual, 2)
+
+		switch mySQLVersion {
+		case "5.6":
+			assert.Equal(t, []interface{}{
+				"id", "select_type", "table",
+				"type", "possible_keys", "key", "key_len", "ref", "rows", "Extra",
+			}, actual[0])
+			assert.Equal(t, []interface{}{"1", "SIMPLE", "city", "ALL", nil, nil, nil, nil, "2", nil}, actual[1])
+
+		default:
+			assert.Equal(t, []interface{}{
+				"id", "select_type", "table", "partitions",
+				"type", "possible_keys", "key", "key_len", "ref", "rows", "filtered", "Extra",
+			}, actual[0])
+			assert.Equal(t, []interface{}{"1", "SIMPLE", "city", nil, "ALL", nil, nil, nil, nil, "2", "100.00", nil}, actual[1])
+		}
+	})
+
 	t.Run("Error", func(t *testing.T) {
 		t.Parallel()
 
