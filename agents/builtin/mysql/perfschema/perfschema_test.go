@@ -210,6 +210,12 @@ func filter(mb []*qanpb.MetricsBucket) []*qanpb.MetricsBucket {
 	res := make([]*qanpb.MetricsBucket, 0, len(mb))
 	for _, b := range mb {
 		switch {
+		// actions tests, MySQLVersion helper
+		case strings.HasPrefix(b.Fingerprint, "SHOW "):
+			continue
+		case strings.HasPrefix(b.Fingerprint, "EXPLAIN "):
+			continue
+
 		case strings.HasPrefix(b.Fingerprint, "SELECT @@`skip_networking`"):
 			continue
 
