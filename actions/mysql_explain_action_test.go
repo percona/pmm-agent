@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/percona/pmm/api/agentpb"
+	"github.com/stretchr/objx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -35,7 +36,10 @@ func TestMySQLExplain(t *testing.T) {
 	defer db.Close() //nolint:errcheck
 	mySQLVersion, mySQLVendor := tests.MySQLVersion(t, db)
 
-	const query = "SELECT * FROM `city`"
+	_, err := db.Exec("ANALYZE TABLE city")
+	require.NoError(t, err)
+
+	const query = "SELECT * FROM city ORDER BY Population"
 
 	t.Run("Default", func(t *testing.T) {
 		t.Parallel()
@@ -54,20 +58,15 @@ func TestMySQLExplain(t *testing.T) {
 
 		var expected string
 		switch {
-		case mySQLVendor == tests.MariaDBMySQL:
+		case mySQLVersion == "5.6" || mySQLVendor == tests.MariaDBMySQL:
 			expected = strings.TrimSpace(`
 id |select_type |table |type |possible_keys |key  |key_len |ref  |rows |Extra
-1  |SIMPLE      |city  |ALL  |NULL          |NULL |NULL    |NULL |2    |
-			`)
-		case mySQLVersion == "5.6":
-			expected = strings.TrimSpace(`
-id |select_type |table |type |possible_keys |key  |key_len |ref  |rows |Extra
-1  |SIMPLE      |city  |ALL  |NULL          |NULL |NULL    |NULL |2    |NULL
+1  |SIMPLE      |city  |ALL  |NULL          |NULL |NULL    |NULL |4188 |Using filesort
 			`)
 		default:
 			expected = strings.TrimSpace(`
 id |select_type |table |partitions |type |possible_keys |key  |key_len |ref  |rows |filtered |Extra
-1  |SIMPLE      |city  |NULL       |ALL  |NULL          |NULL |NULL    |NULL |2    |100.00   |NULL
+1  |SIMPLE      |city  |NULL       |ALL  |NULL          |NULL |NULL    |NULL |4188 |100.00   |Using filesort
 			`)
 		}
 		actual := strings.TrimSpace(string(b))
@@ -89,27 +88,30 @@ id |select_type |table |partitions |type |possible_keys |key  |key_len |ref  |ro
 		b, err := a.Run(ctx)
 		require.NoError(t, err)
 		t.Logf("Full JSON:\n%s", b)
-
-		var actual map[string]interface{}
-		err = json.Unmarshal(b, &actual)
+		m, err := objx.FromJSON(string(b))
 		require.NoError(t, err)
 
-		queryBlock := actual["query_block"].(map[string]interface{})
-		assert.Equal(t, 1.0, queryBlock["select_id"])
+		assert.Equal(t, 1.0, m.Get("query_block.select_id").Float64())
 
-		actualTable := queryBlock["table"].(map[string]interface{})
-		assert.Equal(t, "city", actualTable["table_name"])
+		var table map[string]interface{}
+		switch mySQLVendor {
+		case tests.MariaDBMySQL:
+			table = m.Get("query_block.read_sorted_file.filesort.table").MSI()
+		default:
+			table = m.Get("query_block.ordering_operation.table").MSI()
+		}
+
+		require.NotNil(t, table)
+		assert.Equal(t, "city", table["table_name"])
 		if mySQLVersion != "5.6" && mySQLVendor != tests.MariaDBMySQL {
-			assert.Equal(t, []interface{}{"ID", "Name", "CountryCode", "District", "Population"}, actualTable["used_columns"])
+			assert.Equal(t, []interface{}{"ID", "Name", "CountryCode", "District", "Population"}, table["used_columns"])
 		}
 
 		if mySQLVendor != tests.MariaDBMySQL {
-			require.Len(t, actual["warnings"], 1)
-			warnings := actual["warnings"].([]interface{})
-			warning0 := warnings[0].(map[string]interface{})
-			assert.Equal(t, 1003.0, warning0["Code"])
-			assert.Equal(t, "Note", warning0["Level"])
-			assert.Contains(t, warning0["Message"], "/* select#1 */")
+			require.Len(t, m.Get("warnings").InterSlice(), 1)
+			assert.Equal(t, 1003.0, m.Get("warnings[0].Code").Float64())
+			assert.Equal(t, "Note", m.Get("warnings[0].Level").String())
+			assert.Contains(t, m.Get("warnings[0].Message").String(), "/* select#1 */")
 		}
 	})
 
@@ -135,26 +137,18 @@ id |select_type |table |partitions |type |possible_keys |key  |key_len |ref  |ro
 		require.Len(t, actual, 2)
 
 		switch {
-		case mySQLVendor == tests.MariaDBMySQL:
+		case mySQLVersion == "5.6" || mySQLVendor == tests.MariaDBMySQL:
 			assert.Equal(t, []interface{}{
 				"id", "select_type", "table",
 				"type", "possible_keys", "key", "key_len", "ref", "rows", "Extra",
 			}, actual[0])
-			assert.Equal(t, []interface{}{"1", "SIMPLE", "city", "ALL", nil, nil, nil, nil, "2", ""}, actual[1])
-
-		case mySQLVersion == "5.6":
-			assert.Equal(t, []interface{}{
-				"id", "select_type", "table",
-				"type", "possible_keys", "key", "key_len", "ref", "rows", "Extra",
-			}, actual[0])
-			assert.Equal(t, []interface{}{"1", "SIMPLE", "city", "ALL", nil, nil, nil, nil, "2", nil}, actual[1])
-
+			assert.Equal(t, []interface{}{"1", "SIMPLE", "city", "ALL", nil, nil, nil, nil, "4188", "Using filesort"}, actual[1])
 		default:
 			assert.Equal(t, []interface{}{
 				"id", "select_type", "table", "partitions",
 				"type", "possible_keys", "key", "key_len", "ref", "rows", "filtered", "Extra",
 			}, actual[0])
-			assert.Equal(t, []interface{}{"1", "SIMPLE", "city", nil, "ALL", nil, nil, nil, nil, "2", "100.00", nil}, actual[1])
+			assert.Equal(t, []interface{}{"1", "SIMPLE", "city", nil, "ALL", nil, nil, nil, nil, "4188", "100.00", "Using filesort"}, actual[1])
 		}
 	})
 

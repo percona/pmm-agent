@@ -213,7 +213,13 @@ func filter(mb []*qanpb.MetricsBucket) []*qanpb.MetricsBucket {
 		// actions tests, MySQLVersion helper
 		case strings.HasPrefix(b.Fingerprint, "SHOW "):
 			continue
+		case strings.HasPrefix(b.Fingerprint, "ANALYZE "):
+			continue
 		case strings.HasPrefix(b.Fingerprint, "EXPLAIN "):
+			continue
+
+		// slowlog tests
+		case strings.HasPrefix(b.Fingerprint, "SELECT @@`slow_query_"):
 			continue
 
 		case strings.HasPrefix(b.Fingerprint, "SELECT @@`skip_networking`"):

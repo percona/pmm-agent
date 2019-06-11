@@ -34,6 +34,9 @@ func TestShowIndex(t *testing.T) {
 	defer db.Close() //nolint:errcheck
 	mySQLVersion, mySQLVendor := tests.MySQLVersion(t, db)
 
+	_, err := db.Exec("ANALYZE TABLE city")
+	require.NoError(t, err)
+
 	t.Run("Default", func(t *testing.T) {
 		t.Parallel()
 
@@ -60,24 +63,24 @@ func TestShowIndex(t *testing.T) {
 				"Table", "Non_unique", "Key_name", "Seq_in_index", "Column_name", "Collation", "Cardinality",
 				"Sub_part", "Packed", "Null", "Index_type", "Comment", "Index_comment",
 			}, actual[0])
-			assert.Equal(t, []interface{}{"city", "0", "PRIMARY", "1", "ID", "A", "2", nil, nil, "", "BTREE", "", ""}, actual[1])
-			assert.Equal(t, []interface{}{"city", "1", "CountryCode", "1", "CountryCode", "A", "2", nil, nil, "", "BTREE", "", ""}, actual[2])
+			assert.Equal(t, []interface{}{"city", "0", "PRIMARY", "1", "ID", "A", "4188", nil, nil, "", "BTREE", "", ""}, actual[1])
+			assert.Equal(t, []interface{}{"city", "1", "CountryCode", "1", "CountryCode", "A", "465", nil, nil, "", "BTREE", "", ""}, actual[2])
 
 		case mySQLVersion == "5.7":
 			assert.Equal(t, []interface{}{
 				"Table", "Non_unique", "Key_name", "Seq_in_index", "Column_name", "Collation", "Cardinality",
 				"Sub_part", "Packed", "Null", "Index_type", "Comment", "Index_comment",
 			}, actual[0])
-			assert.Equal(t, []interface{}{"city", "0", "PRIMARY", "1", "ID", "A", "2", nil, nil, "", "BTREE", "", ""}, actual[1])
-			assert.Equal(t, []interface{}{"city", "1", "CountryCode", "1", "CountryCode", "A", "1", nil, nil, "", "BTREE", "", ""}, actual[2])
+			assert.Equal(t, []interface{}{"city", "0", "PRIMARY", "1", "ID", "A", "4188", nil, nil, "", "BTREE", "", ""}, actual[1])
+			assert.Equal(t, []interface{}{"city", "1", "CountryCode", "1", "CountryCode", "A", "232", nil, nil, "", "BTREE", "", ""}, actual[2])
 
 		case mySQLVersion == "8.0":
 			assert.Equal(t, []interface{}{
 				"Table", "Non_unique", "Key_name", "Seq_in_index", "Column_name", "Collation", "Cardinality",
 				"Sub_part", "Packed", "Null", "Index_type", "Comment", "Index_comment", "Visible", "Expression",
 			}, actual[0])
-			assert.Equal(t, []interface{}{"city", "0", "PRIMARY", "1", "ID", "A", "2", nil, nil, "", "BTREE", "", "", "YES", nil}, actual[1])
-			assert.Equal(t, []interface{}{"city", "1", "CountryCode", "1", "CountryCode", "A", "1", nil, nil, "", "BTREE", "", "", "YES", nil}, actual[2])
+			assert.Equal(t, []interface{}{"city", "0", "PRIMARY", "1", "ID", "A", "4188", nil, nil, "", "BTREE", "", "", "YES", nil}, actual[1])
+			assert.Equal(t, []interface{}{"city", "1", "CountryCode", "1", "CountryCode", "A", "232", nil, nil, "", "BTREE", "", "", "YES", nil}, actual[2])
 
 		default:
 			t.Fatal("Unhandled version.")
