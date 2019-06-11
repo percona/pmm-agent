@@ -313,7 +313,7 @@
   version = "v0.2.2"
 
 [[projects]]
-  branch = "PMM-3694-errors"
+  branch = "PMM-2.0"
   digest = "1:46331a66e20bcbb7fffef86a430c6cbd4f9b8c5a78de2eaca6e3165a2738b4f5"
   name = "github.com/percona/go-mysql"
   packages = [
@@ -322,7 +322,7 @@
     "query",
   ]
   pruneopts = "NUT"
-  revision = "b307901584958c415e9adf8b869bf9ec6adc5ef9"
+  revision = "26901809c968142fc55bffa04dd6f74e850406f6"
 
 [[projects]]
   branch = "3.0"
@@ -347,7 +347,7 @@
 
 [[projects]]
   branch = "PMM-2.0"
-  digest = "1:f6363888f953aeec6fe2540aa13e87783304984c1e2addc0844b9a535836005d"
+  digest = "1:da5317d971879e23e561a2ab6967ddf2aeb3e7ab8591dad245320394e41df498"
   name = "github.com/percona/pmm"
   packages = [
     "api/agentlocalpb",
@@ -369,7 +369,7 @@
     "version",
   ]
   pruneopts = "NUT"
-  revision = "96b72c5638d01d985b9c0aeac75a537bbf7c5393"
+  revision = "29c366b6a9836683591125e2b1dbf1cab7559331"
 
 [[projects]]
   digest = "1:14715f705ff5dfe0ffd6571d7d201dd8e921030f8070321a79380d8ca4ec1a24"
