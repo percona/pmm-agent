@@ -287,20 +287,22 @@ func makeBuckets(agentID string, res event.Result, periodStart time.Time, period
 
 	for _, v := range res.Class {
 		mb := &qanpb.MetricsBucket{
-			Queryid:             v.Id,
-			Fingerprint:         v.Fingerprint,
-			DDatabase:           "",
-			DSchema:             v.Db,
-			DUsername:           v.User,
-			DClientHost:         v.Host,
-			AgentId:             agentID,
-			MetricsSource:       qanpb.MetricsSource_MYSQL_SLOWLOG,
-			PeriodStartUnixSecs: uint32(periodStart.Unix()),
-			PeriodLengthSecs:    periodLengthSecs,
-			Example:             v.Example.Query,
-			ExampleFormat:       qanpb.ExampleFormat_EXAMPLE,
-			ExampleType:         qanpb.ExampleType_RANDOM,
-			NumQueries:          float32(v.TotalQueries),
+			Queryid:              v.Id,
+			Fingerprint:          v.Fingerprint,
+			DDatabase:            "",
+			DSchema:              v.Db,
+			DUsername:            v.User,
+			DClientHost:          v.Host,
+			AgentId:              agentID,
+			MetricsSource:        qanpb.MetricsSource_MYSQL_SLOWLOG,
+			PeriodStartUnixSecs:  uint32(periodStart.Unix()),
+			PeriodLengthSecs:     periodLengthSecs,
+			Example:              v.Example.Query,
+			ExampleFormat:        qanpb.ExampleFormat_EXAMPLE,
+			ExampleType:          qanpb.ExampleType_RANDOM,
+			NumQueries:           float32(v.TotalQueries),
+			Errors:               errListsToMap(v.ErrorsCode, v.ErrorsCount),
+			NumQueriesWithErrors: v.NumQueriesWithErrors,
 		}
 
 		// If key has suffix _time or _wait than field is TimeMetrics.
@@ -542,4 +544,12 @@ func makeBuckets(agentID string, res event.Result, periodStart time.Time, period
 // Changes returns channel that should be read until it is closed.
 func (s *SlowLog) Changes() <-chan Change {
 	return s.changes
+}
+
+func errListsToMap(k, v []uint64) map[uint64]uint64 {
+	m := map[uint64]uint64{}
+	for i, e := range k {
+		m[e] = v[i]
+	}
+	return m
 }
