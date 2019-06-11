@@ -19,7 +19,6 @@ package actions
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 
 	_ "github.com/go-sql-driver/mysql" // register SQL driver
 	"github.com/percona/pmm/api/agentpb"
@@ -47,7 +46,7 @@ func (e *mysqlShowTableStatusAction) ID() string {
 
 // Type returns an Action type.
 func (e *mysqlShowTableStatusAction) Type() string {
-	return "mysql-table-status"
+	return "mysql-show-table-status"
 }
 
 // Run runs an Action and returns output and error.
@@ -65,51 +64,15 @@ func (e *mysqlShowTableStatusAction) Run(ctx context.Context) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close() //nolint:errcheck
 
-	columns, err := rows.Columns()
+	columns, dataRows, err := readRows(rows)
 	if err != nil {
 		return nil, err
 	}
-
-	if !rows.Next() {
-		if rows.Err() == nil {
-			return nil, errors.Errorf("table %q not found", e.params.Table)
-		}
-		return nil, errors.Errorf("failed to get first row: %v", rows.Err())
+	if len(dataRows) == 0 {
+		return nil, errors.Errorf("table %q not found", e.params.Table)
 	}
-
-	dest := make([]interface{}, len(columns))
-	for i := range dest {
-		var ei interface{}
-		dest[i] = &ei
-	}
-	if err = rows.Scan(dest...); err != nil {
-		return nil, err
-	}
-
-	if rows.Next() {
-		return nil, errors.Errorf("unexpected second row")
-	}
-	if err = rows.Err(); err != nil {
-		return nil, err
-	}
-
-	// Each dest element is an *interface{} (&ei above) which can be nil for NULL values, or contain some typed data.
-	// Convert []byte to string to prevent json.Marshal from encode it as base64 string.
-	for i, d := range dest {
-		if eip, ok := d.(*interface{}); ok && eip != nil {
-			if b, ok := (*eip).([]byte); ok {
-				dest[i] = string(b)
-			}
-		}
-	}
-
-	res := make(map[string]interface{}, len(columns))
-	for i, col := range columns {
-		res[col] = dest[i]
-	}
-	return json.Marshal(res)
+	return jsonRows(columns, dataRows)
 }
 
 func (e *mysqlShowTableStatusAction) sealed() {}
