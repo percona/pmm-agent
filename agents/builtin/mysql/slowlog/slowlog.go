@@ -173,6 +173,7 @@ func (s *SlowLog) getSlowLogInfo(ctx context.Context) (*slowLogInfo, error) {
 	// Only @@slow_query_log_file is required, the rest global variables selected here
 	// are optional and just help troubleshooting.
 
+	// warn about disabled slowlog
 	var enabled int
 	row = db.QueryRowContext(ctx, "SELECT @@slow_query_log")
 	if err := row.Scan(&enabled); err != nil {
@@ -182,10 +183,11 @@ func (s *SlowLog) getSlowLogInfo(ctx context.Context) (*slowLogInfo, error) {
 		s.l.Warnf("@@slow_query_log is off: %v.", enabled)
 	}
 
+	// slow_query_log_always_write_time is Percona-specific, use debug level, not warning
 	var outlierTime float64
 	row = db.QueryRowContext(ctx, "SELECT @@slow_query_log_always_write_time")
 	if err := row.Scan(&outlierTime); err != nil {
-		s.l.Warnf("Cannot SELECT @@slow_query_log_always_write_time: %s.", err)
+		s.l.Debugf("Cannot SELECT @@slow_query_log_always_write_time: %s.", err)
 	}
 
 	return &slowLogInfo{
