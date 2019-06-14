@@ -30,6 +30,7 @@ import (
 )
 
 func TestShowCreateTable(t *testing.T) {
+	dsn := tests.GetTestMySQLDSN(t)
 	db := tests.OpenTestMySQL(t)
 	defer db.Close() //nolint:errcheck
 	_, mySQLVendor := tests.MySQLVersion(t, db)
@@ -38,7 +39,7 @@ func TestShowCreateTable(t *testing.T) {
 		t.Parallel()
 
 		params := &agentpb.StartActionRequest_MySQLShowCreateTableParams{
-			Dsn:   "root:root-password@tcp(127.0.0.1:3306)/world",
+			Dsn:   dsn,
 			Table: "city",
 		}
 		a := NewMySQLShowCreateTableAction("", params)
@@ -87,7 +88,7 @@ CREATE TABLE "city" (
 		t.Parallel()
 
 		params := &agentpb.StartActionRequest_MySQLShowCreateTableParams{
-			Dsn:   "root:root-password@tcp(127.0.0.1:3306)/world",
+			Dsn:   dsn,
 			Table: "no_such_table",
 		}
 		a := NewMySQLShowCreateTableAction("", params)
@@ -96,5 +97,27 @@ CREATE TABLE "city" (
 
 		_, err := a.Run(ctx)
 		assert.EqualError(t, err, "Error 1146: Table 'world.no_such_table' doesn't exist")
+	})
+
+	t.Run("LittleBobbyTables", func(t *testing.T) {
+		t.Run("Drop", func(t *testing.T) {
+			t.Parallel()
+			params := &agentpb.StartActionRequest_MySQLShowCreateTableParams{
+				Dsn:   dsn,
+				Table: `city"; DROP TABLE city; --`,
+			}
+			a := NewMySQLShowCreateTableAction("", params)
+			ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+			defer cancel()
+
+			_, err := a.Run(ctx)
+			expected := "Error 1146: Table 'world.city\"; DROP TABLE city; --' doesn't exist"
+			assert.EqualError(t, err, expected)
+
+			var count int
+			err = db.QueryRow("SELECT COUNT(*) FROM city").Scan(&count)
+			require.NoError(t, err)
+			assert.Equal(t, 4079, count)
+		})
 	})
 }

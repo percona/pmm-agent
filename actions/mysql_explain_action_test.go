@@ -170,6 +170,13 @@ id |select_type |table |partitions |type |possible_keys |key  |key_len |ref  |ro
 	})
 
 	t.Run("LittleBobbyTables", func(t *testing.T) {
+		checkCity := func(t *testing.T) {
+			var count int
+			err = db.QueryRow("SELECT COUNT(*) FROM city").Scan(&count)
+			require.NoError(t, err)
+			assert.Equal(t, 4079, count)
+		}
+
 		t.Run("Drop", func(t *testing.T) {
 			t.Parallel()
 
@@ -186,6 +193,7 @@ id |select_type |table |partitions |type |possible_keys |key  |key_len |ref  |ro
 			expected := "Error 1064: You have an error in your SQL syntax; check the manual that corresponds " +
 				"to your MySQL server version for the right syntax to use near 'DROP TABLE city; --' at line 1"
 			assert.EqualError(t, err, expected)
+			checkCity(t)
 		})
 
 		t.Run("Delete", func(t *testing.T) {
@@ -202,12 +210,7 @@ id |select_type |table |partitions |type |possible_keys |key  |key_len |ref  |ro
 
 			_, err := a.Run(ctx)
 			require.NoError(t, err)
-
-			// check that data is not actually deleted
-			var count int
-			err = db.QueryRow("SELECT COUNT(*) FROM city").Scan(&count)
-			require.NoError(t, err)
-			assert.Equal(t, 4079, count)
+			checkCity(t)
 		})
 	})
 }
