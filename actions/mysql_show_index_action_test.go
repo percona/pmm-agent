@@ -30,6 +30,8 @@ import (
 )
 
 func TestShowIndex(t *testing.T) {
+	t.Parallel()
+
 	dsn := tests.GetTestMySQLDSN(t)
 	db := tests.OpenTestMySQL(t)
 	defer db.Close() //nolint:errcheck
@@ -39,8 +41,6 @@ func TestShowIndex(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("Default", func(t *testing.T) {
-		t.Parallel()
-
 		params := &agentpb.StartActionRequest_MySQLShowIndexParams{
 			Dsn:   dsn,
 			Table: "city",
@@ -89,8 +89,6 @@ func TestShowIndex(t *testing.T) {
 	})
 
 	t.Run("Error", func(t *testing.T) {
-		t.Parallel()
-
 		params := &agentpb.StartActionRequest_MySQLShowIndexParams{
 			Dsn:   dsn,
 			Table: "no_such_table",
@@ -104,8 +102,6 @@ func TestShowIndex(t *testing.T) {
 	})
 
 	t.Run("LittleBobbyTables", func(t *testing.T) {
-		t.Parallel()
-
 		params := &agentpb.StartActionRequest_MySQLShowIndexParams{
 			Dsn:   dsn,
 			Table: `city"; DROP TABLE city; --`,
@@ -118,9 +114,9 @@ func TestShowIndex(t *testing.T) {
 		expected := "Error 1146: Table 'world.city\"; DROP TABLE city; --' doesn't exist"
 		assert.EqualError(t, err, expected)
 
-		// var count int
-		// err = db.QueryRow("SELECT /* actions tests */ COUNT(*) FROM city").Scan(&count)
-		// require.NoError(t, err)
-		// assert.Equal(t, 4079, count)
+		var count int
+		err = db.QueryRow("SELECT COUNT(*) FROM city").Scan(&count)
+		require.NoError(t, err)
+		assert.Equal(t, 4079, count)
 	})
 }

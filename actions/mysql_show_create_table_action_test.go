@@ -30,14 +30,14 @@ import (
 )
 
 func TestShowCreateTable(t *testing.T) {
+	t.Parallel()
+
 	dsn := tests.GetTestMySQLDSN(t)
 	db := tests.OpenTestMySQL(t)
 	defer db.Close() //nolint:errcheck
 	_, mySQLVendor := tests.MySQLVersion(t, db)
 
 	t.Run("Default", func(t *testing.T) {
-		t.Parallel()
-
 		params := &agentpb.StartActionRequest_MySQLShowCreateTableParams{
 			Dsn:   dsn,
 			Table: "city",
@@ -85,8 +85,6 @@ CREATE TABLE "city" (
 	})
 
 	t.Run("Error", func(t *testing.T) {
-		t.Parallel()
-
 		params := &agentpb.StartActionRequest_MySQLShowCreateTableParams{
 			Dsn:   dsn,
 			Table: "no_such_table",
@@ -100,8 +98,6 @@ CREATE TABLE "city" (
 	})
 
 	t.Run("LittleBobbyTables", func(t *testing.T) {
-		t.Parallel()
-
 		params := &agentpb.StartActionRequest_MySQLShowCreateTableParams{
 			Dsn:   dsn,
 			Table: `city"; DROP TABLE city; --`,
@@ -114,9 +110,9 @@ CREATE TABLE "city" (
 		expected := "Error 1146: Table 'world.city\"; DROP TABLE city; --' doesn't exist"
 		assert.EqualError(t, err, expected)
 
-		// var count int
-		// err = db.QueryRow("SELECT /* actions tests */ COUNT(*) FROM city").Scan(&count)
-		// require.NoError(t, err)
-		// assert.Equal(t, 4079, count)
+		var count int
+		err = db.QueryRow("SELECT COUNT(*) FROM city").Scan(&count)
+		require.NoError(t, err)
+		assert.Equal(t, 4079, count)
 	})
 }

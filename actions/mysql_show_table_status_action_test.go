@@ -30,6 +30,8 @@ import (
 )
 
 func TestShowTableStatus(t *testing.T) {
+	t.Parallel()
+
 	dsn := tests.GetTestMySQLDSN(t)
 	db := tests.OpenTestMySQL(t)
 	defer db.Close() //nolint:errcheck
@@ -39,8 +41,6 @@ func TestShowTableStatus(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("Default", func(t *testing.T) {
-		t.Parallel()
-
 		params := &agentpb.StartActionRequest_MySQLShowTableStatusParams{
 			Dsn:   dsn,
 			Table: "city",
@@ -105,8 +105,6 @@ func TestShowTableStatus(t *testing.T) {
 	})
 
 	t.Run("Error", func(t *testing.T) {
-		t.Parallel()
-
 		params := &agentpb.StartActionRequest_MySQLShowTableStatusParams{
 			Dsn:   dsn,
 			Table: "no_such_table",
@@ -120,10 +118,6 @@ func TestShowTableStatus(t *testing.T) {
 	})
 
 	t.Run("LittleBobbyTables", func(t *testing.T) {
-		t.Skip()
-
-		t.Parallel()
-
 		params := &agentpb.StartActionRequest_MySQLShowTableStatusParams{
 			Dsn:   dsn,
 			Table: `city"; DROP TABLE city; --`,
@@ -133,13 +127,11 @@ func TestShowTableStatus(t *testing.T) {
 		defer cancel()
 
 		_, err := a.Run(ctx)
-		expected := "Error 1064: You have an error in your SQL syntax; check the manual that corresponds " +
-			"to your MySQL server version for the right syntax to use near 'DROP TABLE city; --' at line 1"
-		assert.EqualError(t, err, expected)
+		assert.EqualError(t, err, `table "city\"; DROP TABLE city; --" not found`)
 
-		// var count int
-		// err = db.QueryRow("SELECT /* actions tests */ COUNT(*) FROM city").Scan(&count)
-		// require.NoError(t, err)
-		// assert.Equal(t, 4079, count)
+		var count int
+		err = db.QueryRow("SELECT COUNT(*) FROM city").Scan(&count)
+		require.NoError(t, err)
+		assert.Equal(t, 4079, count)
 	})
 }
