@@ -30,6 +30,7 @@ import (
 )
 
 func TestShowTableStatus(t *testing.T) {
+	dsn := tests.GetTestMySQLDSN(t)
 	db := tests.OpenTestMySQL(t)
 	defer db.Close() //nolint:errcheck
 	mySQLVersion, _ := tests.MySQLVersion(t, db)
@@ -41,7 +42,7 @@ func TestShowTableStatus(t *testing.T) {
 		t.Parallel()
 
 		params := &agentpb.StartActionRequest_MySQLShowTableStatusParams{
-			Dsn:   "root:root-password@tcp(127.0.0.1:3306)/world",
+			Dsn:   dsn,
 			Table: "city",
 		}
 		a := NewMySQLShowTableStatusAction("", params)
@@ -107,7 +108,7 @@ func TestShowTableStatus(t *testing.T) {
 		t.Parallel()
 
 		params := &agentpb.StartActionRequest_MySQLShowTableStatusParams{
-			Dsn:   "root:root-password@tcp(127.0.0.1:3306)/world",
+			Dsn:   dsn,
 			Table: "no_such_table",
 		}
 		a := NewMySQLShowTableStatusAction("", params)
@@ -116,5 +117,29 @@ func TestShowTableStatus(t *testing.T) {
 
 		_, err := a.Run(ctx)
 		assert.EqualError(t, err, `table "no_such_table" not found`)
+	})
+
+	t.Run("LittleBobbyTables", func(t *testing.T) {
+		t.Skip()
+
+		t.Parallel()
+
+		params := &agentpb.StartActionRequest_MySQLShowTableStatusParams{
+			Dsn:   dsn,
+			Table: `city"; DROP TABLE city; --`,
+		}
+		a := NewMySQLShowTableStatusAction("", params)
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+
+		_, err := a.Run(ctx)
+		expected := "Error 1064: You have an error in your SQL syntax; check the manual that corresponds " +
+			"to your MySQL server version for the right syntax to use near 'DROP TABLE city; --' at line 1"
+		assert.EqualError(t, err, expected)
+
+		// var count int
+		// err = db.QueryRow("SELECT /* actions tests */ COUNT(*) FROM city").Scan(&count)
+		// require.NoError(t, err)
+		// assert.Equal(t, 4079, count)
 	})
 }

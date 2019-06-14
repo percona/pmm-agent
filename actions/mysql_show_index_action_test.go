@@ -30,6 +30,7 @@ import (
 )
 
 func TestShowIndex(t *testing.T) {
+	dsn := tests.GetTestMySQLDSN(t)
 	db := tests.OpenTestMySQL(t)
 	defer db.Close() //nolint:errcheck
 	mySQLVersion, mySQLVendor := tests.MySQLVersion(t, db)
@@ -41,7 +42,7 @@ func TestShowIndex(t *testing.T) {
 		t.Parallel()
 
 		params := &agentpb.StartActionRequest_MySQLShowIndexParams{
-			Dsn:   "root:root-password@tcp(127.0.0.1:3306)/world",
+			Dsn:   dsn,
 			Table: "city",
 		}
 		a := NewMySQLShowIndexAction("", params)
@@ -91,7 +92,7 @@ func TestShowIndex(t *testing.T) {
 		t.Parallel()
 
 		params := &agentpb.StartActionRequest_MySQLShowIndexParams{
-			Dsn:   "root:root-password@tcp(127.0.0.1:3306)/world",
+			Dsn:   dsn,
 			Table: "no_such_table",
 		}
 		a := NewMySQLShowIndexAction("", params)
@@ -100,5 +101,26 @@ func TestShowIndex(t *testing.T) {
 
 		_, err := a.Run(ctx)
 		assert.EqualError(t, err, `Error 1146: Table 'world.no_such_table' doesn't exist`)
+	})
+
+	t.Run("LittleBobbyTables", func(t *testing.T) {
+		t.Parallel()
+
+		params := &agentpb.StartActionRequest_MySQLShowIndexParams{
+			Dsn:   dsn,
+			Table: `city"; DROP TABLE city; --`,
+		}
+		a := NewMySQLShowIndexAction("", params)
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+
+		_, err := a.Run(ctx)
+		expected := "Error 1146: Table 'world.city\"; DROP TABLE city; --' doesn't exist"
+		assert.EqualError(t, err, expected)
+
+		// var count int
+		// err = db.QueryRow("SELECT /* actions tests */ COUNT(*) FROM city").Scan(&count)
+		// require.NoError(t, err)
+		// assert.Equal(t, 4079, count)
 	})
 }
