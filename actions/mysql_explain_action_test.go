@@ -32,6 +32,7 @@ import (
 )
 
 func TestMySQLExplain(t *testing.T) {
+	dsn := tests.GetTestMySQLDSN(t)
 	db := tests.OpenTestMySQL(t)
 	defer db.Close() //nolint:errcheck
 	mySQLVersion, mySQLVendor := tests.MySQLVersion(t, db)
@@ -45,7 +46,7 @@ func TestMySQLExplain(t *testing.T) {
 		t.Parallel()
 
 		params := &agentpb.StartActionRequest_MySQLExplainParams{
-			Dsn:          "root:root-password@tcp(127.0.0.1:3306)/world",
+			Dsn:          dsn,
 			Query:        query,
 			OutputFormat: agentpb.MysqlExplainOutputFormat_MYSQL_EXPLAIN_OUTPUT_FORMAT_DEFAULT,
 		}
@@ -77,7 +78,7 @@ id |select_type |table |partitions |type |possible_keys |key  |key_len |ref  |ro
 		t.Parallel()
 
 		params := &agentpb.StartActionRequest_MySQLExplainParams{
-			Dsn:          "root:root-password@tcp(127.0.0.1:3306)/world",
+			Dsn:          dsn,
 			Query:        query,
 			OutputFormat: agentpb.MysqlExplainOutputFormat_MYSQL_EXPLAIN_OUTPUT_FORMAT_JSON,
 		}
@@ -119,7 +120,7 @@ id |select_type |table |partitions |type |possible_keys |key  |key_len |ref  |ro
 		t.Parallel()
 
 		params := &agentpb.StartActionRequest_MySQLExplainParams{
-			Dsn:          "root:root-password@tcp(127.0.0.1:3306)/world",
+			Dsn:          dsn,
 			Query:        query,
 			OutputFormat: agentpb.MysqlExplainOutputFormat_MYSQL_EXPLAIN_OUTPUT_FORMAT_TRADITIONAL_JSON,
 		}
@@ -166,5 +167,47 @@ id |select_type |table |partitions |type |possible_keys |key  |key_len |ref  |ro
 		_, err := a.Run(ctx)
 		require.Error(t, err)
 		assert.Regexp(t, `Error 1045: Access denied for user 'pmm-agent'@'.+' \(using password: YES\)`, err.Error())
+	})
+
+	t.Run("LittleBobbyTables", func(t *testing.T) {
+		t.Run("Drop", func(t *testing.T) {
+			t.Parallel()
+
+			params := &agentpb.StartActionRequest_MySQLExplainParams{
+				Dsn:          dsn,
+				Query:        `SELECT 1; DROP TABLE city; --`,
+				OutputFormat: agentpb.MysqlExplainOutputFormat_MYSQL_EXPLAIN_OUTPUT_FORMAT_DEFAULT,
+			}
+			a := NewMySQLExplainAction("", params)
+			ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+			defer cancel()
+
+			_, err := a.Run(ctx)
+			expected := "Error 1064: You have an error in your SQL syntax; check the manual that corresponds " +
+				"to your MySQL server version for the right syntax to use near 'DROP TABLE city; --' at line 1"
+			assert.EqualError(t, err, expected)
+		})
+
+		t.Run("Delete", func(t *testing.T) {
+			t.Parallel()
+
+			params := &agentpb.StartActionRequest_MySQLExplainParams{
+				Dsn:          dsn,
+				Query:        `DELETE FROM city`,
+				OutputFormat: agentpb.MysqlExplainOutputFormat_MYSQL_EXPLAIN_OUTPUT_FORMAT_DEFAULT,
+			}
+			a := NewMySQLExplainAction("", params)
+			ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+			defer cancel()
+
+			_, err := a.Run(ctx)
+			require.NoError(t, err)
+
+			// check that data is not actually deleted
+			var count int
+			err = db.QueryRow("SELECT COUNT(*) FROM city").Scan(&count)
+			require.NoError(t, err)
+			assert.Equal(t, 4079, count)
+		})
 	})
 }
