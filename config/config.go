@@ -252,7 +252,10 @@ func Application(cfg *Config) (*kingpin.Application, *string) {
 	}
 
 	nodeTypeKeys := []string{"generic", "container"}
-	nodeTypeDefault := nodeTypeKeys[0]
+	nodeTypeDefault := "generic"
+	if nodeinfo.Container {
+		nodeTypeDefault = "container"
+	}
 	nodeTypeHelp := fmt.Sprintf("Node type, one of: %s (default: %s)", strings.Join(nodeTypeKeys, ", "), nodeTypeDefault)
 	setupCmd.Arg("node-type", nodeTypeHelp).Default(nodeTypeDefault).EnumVar(&cfg.Setup.NodeType, nodeTypeKeys...)
 
