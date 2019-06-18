@@ -188,7 +188,7 @@ func (p *profiler) Stop() error {
 	p.sender.Stop()
 
 	// close the session; do it after goroutine is closed
-	p.client.Disconnect(context.TODO())
+	p.client.Disconnect(context.TODO()) //nolint:errcheck
 
 	// set state to "not running"
 	p.running = false
@@ -230,7 +230,8 @@ func signalReady(ready *sync.Cond) {
 }
 
 func createSession(dsn string) (*mongo.Client, error) {
-	ctx, _ := context.WithTimeout(context.Background(), MgoTimeoutDialInfo)
+	ctx, cancel := context.WithTimeout(context.Background(), MgoTimeoutDialInfo)
+	defer cancel()
 	opts := options.Client().
 		ApplyURI(dsn).
 		SetDirect(true).

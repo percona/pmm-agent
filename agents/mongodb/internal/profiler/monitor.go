@@ -28,6 +28,7 @@ import (
 	"github.com/percona/pmm-agent/agents/mongodb/internal/profiler/parser"
 )
 
+// NewMonitor creates new monitor.
 func NewMonitor(client *mongo.Client, dbName string, aggregator *aggregator.Aggregator, logger *logrus.Entry) *monitor {
 	return &monitor{
 		client:     client,

@@ -210,7 +210,6 @@ func start(wg *sync.WaitGroup, client *mongo.Client, dbName string, docsChan cha
 }
 
 func connectAndCollect(client *mongo.Client, dbName string, docsChan chan<- proto.SystemProfile, doneChan <-chan struct{}, stats *stats, ready *sync.Cond, logger *logrus.Entry) { //nolint: lll
-
 	collection := client.Database(dbName).Collection("system.profile")
 	query := createQuery(dbName)
 	cursor, err := createIterator(collection, query)
@@ -218,7 +217,7 @@ func connectAndCollect(client *mongo.Client, dbName string, docsChan chan<- prot
 		logger.Error(err)
 		return
 	}
-	defer cursor.Close(context.TODO())
+	defer cursor.Close(context.TODO()) //nolint:errcheck
 
 	stats.IteratorCreated = time.Now().UTC().Format("2006-01-02 15:04:05")
 	stats.IteratorCounter += 1
@@ -240,8 +239,8 @@ func connectAndCollect(client *mongo.Client, dbName string, docsChan chan<- prot
 			e := cursor.Decode(&doc)
 			if e != nil {
 				logger.Error(e)
-				stats.IteratorErrCounter += 1
-				stats.IteratorErrLast = err.Error()
+				stats.IteratorErrCounter++
+				stats.IteratorErrLast = e.Error()
 				continue
 			}
 
@@ -267,14 +266,14 @@ func connectAndCollect(client *mongo.Client, dbName string, docsChan chan<- prot
 			}
 		}
 		if err := cursor.Err(); err != nil {
-			stats.IteratorErrCounter += 1
+			stats.IteratorErrCounter++
 			stats.IteratorErrLast = err.Error()
 			return
 		}
 
 		// If Next() is false it means iterator is no longer valid
 		// and the query needs to be restarted.
-		stats.IteratorRestartCounter += 1
+		stats.IteratorRestartCounter++
 		return
 	}
 }
