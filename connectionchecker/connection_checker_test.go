@@ -74,7 +74,7 @@ func TestConnectionChecker_Check(t *testing.T) {
 				Dsn:  "mongodb://root:root-password-wrong@127.0.0.1:27017/admin",
 				Type: inventorypb.ServiceType_MONGODB_SERVICE,
 			},
-			expected: `server returned error on SASL authentication step: Authentication failed.`,
+			expected: `Authentication failed.`,
 		},
 	}
 	for _, tt := range tests {

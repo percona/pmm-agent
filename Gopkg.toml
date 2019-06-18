@@ -51,3 +51,7 @@ required = [
   name = "gopkg.in/alecthomas/kingpin.v2"
   branch = "v2.2.6-no-dots"
   source = "https://github.com/Percona-Lab/kingpin.git"
+
+[[constraint]]
+  name = "go.mongodb.org/mongo-driver"
+  version = "~1.0.0"
