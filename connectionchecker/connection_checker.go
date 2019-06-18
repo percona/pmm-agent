@@ -61,7 +61,7 @@ func (c *ConnectionChecker) checkMongoDBConnection(dsn string) error {
 		return err
 	}
 
-	defer client.Disconnect(ctx)
+	defer client.Disconnect(ctx) //nolint:errcheck
 
 	return client.Ping(ctx, nil)
 }
