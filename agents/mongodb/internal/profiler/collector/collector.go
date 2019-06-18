@@ -35,6 +35,7 @@ const (
 	MgoTimeoutTail = 1 * time.Second
 )
 
+// New creates new Collector
 func New(client *mongo.Client, dbName string, logger *logrus.Entry) *Collector {
 	return &Collector{
 		client: client,

@@ -31,6 +31,7 @@ import (
 	"github.com/percona/pmm-agent/agents/mongodb/internal/profiler/sender"
 )
 
+// New creates new Profiler
 func New(mongoDSN string, logger *logrus.Entry, w sender.Writer, agentID string) *profiler {
 	return &profiler{
 		mongoDSN: mongoDSN,
