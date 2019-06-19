@@ -21,6 +21,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/percona/pmm-agent/agents/builtin/postgres/pgstatsstatements"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -463,6 +464,36 @@ func (s *Supervisor) startBuiltin(agentID string, builtinAgent *agentpb.SetState
 						AgentId: agentID,
 						Status:  change.Status,
 					}
+				} else {
+					s.qanRequests <- agentpb.QANCollectRequest{
+						Message: change.Request,
+					}
+				}
+			}
+			close(done)
+		}()
+
+	case agentpb.Type_QAN_POSTGRESQL_PGSTATEMENTS_AGENT:
+		params := &pgstatsstatements.Params{
+			DSN:     builtinAgent.Dsn,
+			AgentID: agentID,
+		}
+		agent, err := pgstatsstatements.New(params, l)
+		if err != nil {
+			cancel()
+			return err
+		}
+
+		go pprof.Do(ctx, pprof.Labels("agentID", agentID, "type", agentType), agent.Run)
+
+		go func() {
+			for change := range agent.Changes() {
+				if change.Status != inventorypb.AgentStatus_AGENT_STATUS_INVALID {
+					s.changes <- agentpb.StateChangedRequest{
+						AgentId: agentID,
+						Status:  change.Status,
+					}
+					s.storeLastStatus(agentID, change.Status)
 				} else {
 					s.qanRequests <- agentpb.QANCollectRequest{
 						Message: change.Request,

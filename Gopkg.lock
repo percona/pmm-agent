@@ -346,8 +346,8 @@
   version = "0.5.2"
 
 [[projects]]
-  branch = "PMM-2.0"
-  digest = "1:dd54337cc2cc11f4c6c21f27b61a5c5d81efb0f275200c992168a015744cb715"
+  branch = "PMM-4176-qan-for-postgresql"
+  digest = "1:8826fd932ba48edf462a1c7ac955c5dc603055f692e71da20a2874f63d4e2e99"
   name = "github.com/percona/pmm"
   packages = [
     "api/agentlocalpb",
@@ -368,7 +368,7 @@
     "version",
   ]
   pruneopts = "NUT"
-  revision = "3b769b4ca86e69a42e60fd8434526388c387f6d3"
+  revision = "03fe539274e19f2994514e11263eb6ab0deb6b2b"
 
 [[projects]]
   digest = "1:14715f705ff5dfe0ffd6571d7d201dd8e921030f8070321a79380d8ca4ec1a24"
@@ -737,6 +737,7 @@
     "gopkg.in/mgo.v2/bson",
     "gopkg.in/reform.v1",
     "gopkg.in/reform.v1/dialects/mysql",
+    "gopkg.in/reform.v1/dialects/postgresql",
     "gopkg.in/reform.v1/parse",
     "gopkg.in/reform.v1/reform",
     "gopkg.in/yaml.v2",
