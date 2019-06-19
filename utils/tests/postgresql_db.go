@@ -92,7 +92,7 @@ func PostgreSQLVersion(tb testing.TB, db *sql.DB) (string, PostgreSQLVendor) {
 	tb.Helper()
 	var databaseVersion string
 
-	err  := db.QueryRow("SELECT version()").Scan(&databaseVersion)
+	err := db.QueryRow("SELECT version()").Scan(&databaseVersion)
 	require.NoError(tb, err)
 
 	engineVersion, engine := engineAndVersionFromPlainText(databaseVersion)

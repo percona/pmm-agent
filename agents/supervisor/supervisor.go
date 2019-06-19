@@ -21,7 +21,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/percona/pmm-agent/agents/builtin/postgres/pgstatsstatements"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -43,6 +42,7 @@ import (
 	"github.com/percona/pmm-agent/agents/mysql/perfschema"
 	"github.com/percona/pmm-agent/agents/mysql/slowlog"
 	"github.com/percona/pmm-agent/agents/noop"
+	"github.com/percona/pmm-agent/agents/postgres/pgstatsstatements"
 	"github.com/percona/pmm-agent/agents/process"
 	"github.com/percona/pmm-agent/config"
 )
