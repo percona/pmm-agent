@@ -237,7 +237,7 @@ func filter(mb []*qanpb.MetricsBucket) []*qanpb.MetricsBucket {
 	return res
 }
 
-func TestPerfSchema(t *testing.T) {
+func TestPGStatStatementsQAN(t *testing.T) {
 	sqlDB := tests.OpenTestPostgreSQL(t)
 	defer sqlDB.Close() //nolint:errcheck
 	db := reform.NewDB(sqlDB, postgresql.Dialect, reform.NewPrintfLogger(t.Logf))
@@ -249,12 +249,27 @@ func TestPerfSchema(t *testing.T) {
 	require.NoError(t, err)
 	logTable(t, structs)
 
-	mySQLVersion, mySQLVendor := tests.PostgreSQLVersion(t, sqlDB)
+	engineVersionMajor, engineVersionMinor, engine := tests.PostgreSQLVersion(t, sqlDB)
 	var digests map[string]string // digest_text/fingerprint to digest/query_id
-	switch fmt.Sprintf("%s-%s", mySQLVersion, mySQLVendor) {
-	case "11.3-PostgreSQL":
+	switch fmt.Sprintf("%s-%s", engineVersionMajor, engine) {
+	case "11-PostgreSQL":
 		digests = map[string]string{
 			"SELECT * FROM city": "-6046499049124467328",
+		}
+	case "9-PostgreSQL":
+		switch engineVersionMinor {
+		case "4":
+			digests = map[string]string{
+				"SELECT * FROM city": "2500439221",
+			}
+		case "5", "6":
+			digests = map[string]string{
+				"SELECT * FROM city": "3778117319",
+			}
+		}
+	case "10-PostgreSQL":
+		digests = map[string]string{
+			"SELECT * FROM city": "952213449",
 		}
 
 	default:
@@ -275,7 +290,12 @@ func TestPerfSchema(t *testing.T) {
 		buckets = filter(buckets)
 		require.Len(t, buckets, 3)
 
-		actual := buckets[0]
+		var actual *qanpb.MetricsBucket
+		for _, v := range buckets {
+			if v.Fingerprint == "SELECT * FROM city" {
+				actual = v
+			}
+		}
 		assert.InDelta(t, 0, actual.MQueryTimeSum, 0.09)
 		//assert.InDelta(t, 0, actual.MLockTimeSum, 0.09)
 		expected := &qanpb.MetricsBucket{

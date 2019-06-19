@@ -165,7 +165,7 @@ func (v *pgStatStatementsViewType) Name() string {
 
 // Columns returns a new slice of column names for that view or table in SQL database.
 func (v *pgStatStatementsViewType) Columns() []string {
-	return []string{"userid", "dbid", "queryid", "query", "calls", "total_time", "min_time", "max_time", "mean_time", "stddev_time", "rows", "shared_blks_hit", "shared_blks_read", "shared_blks_dirtied", "shared_blks_written", "local_blks_hit", "local_blks_read", "local_blks_dirtied", "local_blks_written", "temp_blks_read", "temp_blks_written", "blk_read_time", "blk_write_time"}
+	return []string{"userid", "dbid", "queryid", "query", "calls", "total_time", "rows", "shared_blks_hit", "shared_blks_read", "shared_blks_dirtied", "shared_blks_written", "local_blks_hit", "local_blks_read", "local_blks_dirtied", "local_blks_written", "temp_blks_read", "temp_blks_written", "blk_read_time", "blk_write_time"}
 }
 
 // NewStruct makes a new struct for that view or table.
@@ -175,36 +175,32 @@ func (v *pgStatStatementsViewType) NewStruct() reform.Struct {
 
 // pgStatStatementsView represents pg_stat_statements view or table in SQL database.
 var pgStatStatementsView = &pgStatStatementsViewType{
-	s: parse.StructInfo{Type: "pgStatStatements", SQLSchema: "", SQLName: "pg_stat_statements", Fields: []parse.FieldInfo{{Name: "Userid", Type: "[]uint8", Column: "userid"}, {Name: "Dbid", Type: "[]uint8", Column: "dbid"}, {Name: "Queryid", Type: "*int64", Column: "queryid"}, {Name: "Query", Type: "*string", Column: "query"}, {Name: "Calls", Type: "*int64", Column: "calls"}, {Name: "TotalTime", Type: "*float64", Column: "total_time"}, {Name: "MinTime", Type: "*float64", Column: "min_time"}, {Name: "MaxTime", Type: "*float64", Column: "max_time"}, {Name: "MeanTime", Type: "*float64", Column: "mean_time"}, {Name: "StddevTime", Type: "*float64", Column: "stddev_time"}, {Name: "Rows", Type: "*int64", Column: "rows"}, {Name: "SharedBlksHit", Type: "*int64", Column: "shared_blks_hit"}, {Name: "SharedBlksRead", Type: "*int64", Column: "shared_blks_read"}, {Name: "SharedBlksDirtied", Type: "*int64", Column: "shared_blks_dirtied"}, {Name: "SharedBlksWritten", Type: "*int64", Column: "shared_blks_written"}, {Name: "LocalBlksHit", Type: "*int64", Column: "local_blks_hit"}, {Name: "LocalBlksRead", Type: "*int64", Column: "local_blks_read"}, {Name: "LocalBlksDirtied", Type: "*int64", Column: "local_blks_dirtied"}, {Name: "LocalBlksWritten", Type: "*int64", Column: "local_blks_written"}, {Name: "TempBlksRead", Type: "*int64", Column: "temp_blks_read"}, {Name: "TempBlksWritten", Type: "*int64", Column: "temp_blks_written"}, {Name: "BlkReadTime", Type: "*float64", Column: "blk_read_time"}, {Name: "BlkWriteTime", Type: "*float64", Column: "blk_write_time"}}, PKFieldIndex: -1},
+	s: parse.StructInfo{Type: "pgStatStatements", SQLSchema: "", SQLName: "pg_stat_statements", Fields: []parse.FieldInfo{{Name: "Userid", Type: "[]uint8", Column: "userid"}, {Name: "Dbid", Type: "[]uint8", Column: "dbid"}, {Name: "Queryid", Type: "*int64", Column: "queryid"}, {Name: "Query", Type: "*string", Column: "query"}, {Name: "Calls", Type: "*int64", Column: "calls"}, {Name: "TotalTime", Type: "*float64", Column: "total_time"}, {Name: "Rows", Type: "*int64", Column: "rows"}, {Name: "SharedBlksHit", Type: "*int64", Column: "shared_blks_hit"}, {Name: "SharedBlksRead", Type: "*int64", Column: "shared_blks_read"}, {Name: "SharedBlksDirtied", Type: "*int64", Column: "shared_blks_dirtied"}, {Name: "SharedBlksWritten", Type: "*int64", Column: "shared_blks_written"}, {Name: "LocalBlksHit", Type: "*int64", Column: "local_blks_hit"}, {Name: "LocalBlksRead", Type: "*int64", Column: "local_blks_read"}, {Name: "LocalBlksDirtied", Type: "*int64", Column: "local_blks_dirtied"}, {Name: "LocalBlksWritten", Type: "*int64", Column: "local_blks_written"}, {Name: "TempBlksRead", Type: "*int64", Column: "temp_blks_read"}, {Name: "TempBlksWritten", Type: "*int64", Column: "temp_blks_written"}, {Name: "BlkReadTime", Type: "*float64", Column: "blk_read_time"}, {Name: "BlkWriteTime", Type: "*float64", Column: "blk_write_time"}}, PKFieldIndex: -1},
 	z: new(pgStatStatements).Values(),
 }
 
 // String returns a string representation of this struct or record.
 func (s pgStatStatements) String() string {
-	res := make([]string, 23)
+	res := make([]string, 19)
 	res[0] = "Userid: " + reform.Inspect(s.Userid, true)
 	res[1] = "Dbid: " + reform.Inspect(s.Dbid, true)
 	res[2] = "Queryid: " + reform.Inspect(s.Queryid, true)
 	res[3] = "Query: " + reform.Inspect(s.Query, true)
 	res[4] = "Calls: " + reform.Inspect(s.Calls, true)
 	res[5] = "TotalTime: " + reform.Inspect(s.TotalTime, true)
-	res[6] = "MinTime: " + reform.Inspect(s.MinTime, true)
-	res[7] = "MaxTime: " + reform.Inspect(s.MaxTime, true)
-	res[8] = "MeanTime: " + reform.Inspect(s.MeanTime, true)
-	res[9] = "StddevTime: " + reform.Inspect(s.StddevTime, true)
-	res[10] = "Rows: " + reform.Inspect(s.Rows, true)
-	res[11] = "SharedBlksHit: " + reform.Inspect(s.SharedBlksHit, true)
-	res[12] = "SharedBlksRead: " + reform.Inspect(s.SharedBlksRead, true)
-	res[13] = "SharedBlksDirtied: " + reform.Inspect(s.SharedBlksDirtied, true)
-	res[14] = "SharedBlksWritten: " + reform.Inspect(s.SharedBlksWritten, true)
-	res[15] = "LocalBlksHit: " + reform.Inspect(s.LocalBlksHit, true)
-	res[16] = "LocalBlksRead: " + reform.Inspect(s.LocalBlksRead, true)
-	res[17] = "LocalBlksDirtied: " + reform.Inspect(s.LocalBlksDirtied, true)
-	res[18] = "LocalBlksWritten: " + reform.Inspect(s.LocalBlksWritten, true)
-	res[19] = "TempBlksRead: " + reform.Inspect(s.TempBlksRead, true)
-	res[20] = "TempBlksWritten: " + reform.Inspect(s.TempBlksWritten, true)
-	res[21] = "BlkReadTime: " + reform.Inspect(s.BlkReadTime, true)
-	res[22] = "BlkWriteTime: " + reform.Inspect(s.BlkWriteTime, true)
+	res[6] = "Rows: " + reform.Inspect(s.Rows, true)
+	res[7] = "SharedBlksHit: " + reform.Inspect(s.SharedBlksHit, true)
+	res[8] = "SharedBlksRead: " + reform.Inspect(s.SharedBlksRead, true)
+	res[9] = "SharedBlksDirtied: " + reform.Inspect(s.SharedBlksDirtied, true)
+	res[10] = "SharedBlksWritten: " + reform.Inspect(s.SharedBlksWritten, true)
+	res[11] = "LocalBlksHit: " + reform.Inspect(s.LocalBlksHit, true)
+	res[12] = "LocalBlksRead: " + reform.Inspect(s.LocalBlksRead, true)
+	res[13] = "LocalBlksDirtied: " + reform.Inspect(s.LocalBlksDirtied, true)
+	res[14] = "LocalBlksWritten: " + reform.Inspect(s.LocalBlksWritten, true)
+	res[15] = "TempBlksRead: " + reform.Inspect(s.TempBlksRead, true)
+	res[16] = "TempBlksWritten: " + reform.Inspect(s.TempBlksWritten, true)
+	res[17] = "BlkReadTime: " + reform.Inspect(s.BlkReadTime, true)
+	res[18] = "BlkWriteTime: " + reform.Inspect(s.BlkWriteTime, true)
 	return strings.Join(res, ", ")
 }
 
@@ -218,10 +214,6 @@ func (s *pgStatStatements) Values() []interface{} {
 		s.Query,
 		s.Calls,
 		s.TotalTime,
-		s.MinTime,
-		s.MaxTime,
-		s.MeanTime,
-		s.StddevTime,
 		s.Rows,
 		s.SharedBlksHit,
 		s.SharedBlksRead,
@@ -248,10 +240,6 @@ func (s *pgStatStatements) Pointers() []interface{} {
 		&s.Query,
 		&s.Calls,
 		&s.TotalTime,
-		&s.MinTime,
-		&s.MaxTime,
-		&s.MeanTime,
-		&s.StddevTime,
 		&s.Rows,
 		&s.SharedBlksHit,
 		&s.SharedBlksRead,

@@ -31,7 +31,7 @@ import (
 
 // regexps to extract version numbers from the `SELECT version()` output
 var (
-	postgresDBRegexp  = regexp.MustCompile(`PostgreSQL ([\d\.]+)`)
+	postgresDBRegexp  = regexp.MustCompile(`PostgreSQL (\d+)\.+(\d+)`)
 	cockroachDBRegexp = regexp.MustCompile(`CockroachDB CCL (v[\d\.]+)`)
 )
 
@@ -88,29 +88,29 @@ const (
 )
 
 // PostgreSQLVersion returns MAJOR.MINOR PostgreSQL version (e.g. "9.5", "10.0", etc.) and vendor.
-func PostgreSQLVersion(tb testing.TB, db *sql.DB) (string, PostgreSQLVendor) {
+func PostgreSQLVersion(tb testing.TB, db *sql.DB) (engineVersionMajor string, engineVersionMinor string, engine PostgreSQLVendor) {
 	tb.Helper()
 	var databaseVersion string
 
 	err := db.QueryRow("SELECT version()").Scan(&databaseVersion)
 	require.NoError(tb, err)
 
-	engineVersion, engine := engineAndVersionFromPlainText(databaseVersion)
+	engineVersionMajor, engineVersionMinor, engine = engineAndVersionFromPlainText(databaseVersion)
 	//tb.Logf("version = %q (mm = %q), version_comment = %q (vendor = %q)", version, mm, comment, "postgres")
-	return engineVersion, engine
+	return
 }
-func engineAndVersionFromPlainText(databaseVersion string) (string, PostgreSQLVendor) {
-	var engine PostgreSQLVendor
-	var engineVersion string
+func engineAndVersionFromPlainText(databaseVersion string) (engineVersionMajor string, engineVersionMinor string, engine PostgreSQLVendor) {
 	switch {
 	case postgresDBRegexp.MatchString(databaseVersion):
 		engine = PostgreSQL
 		submatch := postgresDBRegexp.FindStringSubmatch(databaseVersion)
-		engineVersion = submatch[1]
+		engineVersionMajor = submatch[1]
+		engineVersionMinor = submatch[2]
 	case cockroachDBRegexp.MatchString(databaseVersion):
 		engine = CockroachDB
 		submatch := cockroachDBRegexp.FindStringSubmatch(databaseVersion)
-		engineVersion = submatch[1]
+		engineVersionMajor = submatch[1]
+		engineVersionMinor = submatch[2]
 	}
-	return engineVersion, engine
+	return
 }
