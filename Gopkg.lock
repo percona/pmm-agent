@@ -249,6 +249,18 @@
   version = "v1.0.2"
 
 [[projects]]
+  digest = "1:fc75904c22aeaf308b2e8e70a0f7f42d8297d6f1e5fdea610f8fc6e244e084af"
+  name = "github.com/lfittl/pg_query_go"
+  packages = [
+    ".",
+    "nodes",
+    "parser",
+  ]
+  pruneopts = "T"
+  revision = "dfcaf527490fbd116d6fed73380bc2c338db2362"
+  version = "v1.0.0"
+
+[[projects]]
   digest = "1:3493089e5754b1471b97e783de2fb38f5bd4b68728d09046ec4a1e7e6ec48574"
   name = "github.com/lib/pq"
   packages = [
@@ -694,6 +706,7 @@
     "github.com/golang/protobuf/proto",
     "github.com/golang/protobuf/ptypes",
     "github.com/grpc-ecosystem/grpc-gateway/runtime",
+    "github.com/lfittl/pg_query_go",
     "github.com/lib/pq",
     "github.com/percona/exporter_shared/helpers",
     "github.com/percona/go-mysql/event",
