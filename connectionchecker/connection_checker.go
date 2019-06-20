@@ -18,6 +18,7 @@
 package connectionchecker
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"time"
@@ -28,7 +29,6 @@ import (
 	"github.com/percona/pmm/api/inventorypb"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
-	"golang.org/x/net/context"
 )
 
 // ConnectionChecker is a struct to check connection to services.
