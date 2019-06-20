@@ -55,7 +55,9 @@ func (c *ConnectionChecker) Check(msg *agentpb.CheckConnectionRequest) error {
 }
 
 func (c *ConnectionChecker) checkMongoDBConnection(dsn string) error {
-	ctx, _ := context.WithTimeout(context.Background(), time.Second) // TODO make timeout configurable
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second) // TODO make timeout configurable
+	defer cancel()
+
 	client, err := mongo.Connect(ctx, options.Client().ApplyURI(dsn))
 	if err != nil {
 		return err
