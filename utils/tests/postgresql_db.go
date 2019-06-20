@@ -31,7 +31,7 @@ import (
 
 // regexps to extract version numbers from the `SELECT version()` output
 var (
-	postgresDBRegexp  = regexp.MustCompile(`PostgreSQL ([\d\.]+)\.\d`)
+	postgresDBRegexp = regexp.MustCompile(`PostgreSQL ([\d\.]+)\.\d`)
 )
 
 // GetTestPostgreSQLDSN returns DNS for PostgreSQL test database.
@@ -76,9 +76,6 @@ func OpenTestPostgreSQL(tb testing.TB) *sql.DB {
 	require.NoError(tb, err)
 	return db
 }
-
-// PostgreSQLVendor represents PostgreSQL vendor (PostgreSQL, CockroachDB).
-type PostgreSQLVendor string
 
 // PostgreSQLVersion returns MAJOR.MINOR PostgreSQL version (e.g. "9.5", "10.0", etc.).
 func PostgreSQLVersion(tb testing.TB, db *sql.DB) (engineVersion string) {
