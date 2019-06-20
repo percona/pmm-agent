@@ -31,7 +31,7 @@ import (
 
 // regexps to extract version numbers from the `SELECT version()` output
 var (
-	postgresDBRegexp  = regexp.MustCompile(`PostgreSQL (\d+)\.+(\d+)`)
+	postgresDBRegexp  = regexp.MustCompile(`PostgreSQL ([\d\.]+)\.\d`)
 )
 
 // GetTestPostgreSQLDSN returns DNS for PostgreSQL test database.
@@ -81,23 +81,22 @@ func OpenTestPostgreSQL(tb testing.TB) *sql.DB {
 type PostgreSQLVendor string
 
 // PostgreSQLVersion returns MAJOR.MINOR PostgreSQL version (e.g. "9.5", "10.0", etc.).
-func PostgreSQLVersion(tb testing.TB, db *sql.DB) (engineVersionMajor string, engineVersionMinor string) {
+func PostgreSQLVersion(tb testing.TB, db *sql.DB) (engineVersion string) {
 	tb.Helper()
 	var databaseVersion string
 
 	err := db.QueryRow("SELECT version()").Scan(&databaseVersion)
 	require.NoError(tb, err)
 
-	engineVersionMajor, engineVersionMinor = engineAndVersionFromPlainText(databaseVersion)
+	engineVersion = engineAndVersionFromPlainText(databaseVersion)
 	//tb.Logf("version = %q (mm = %q), version_comment = %q (vendor = %q)", version, mm, comment, "postgres")
 	return
 }
-func engineAndVersionFromPlainText(databaseVersion string) (engineVersionMajor string, engineVersionMinor string) {
+func engineAndVersionFromPlainText(databaseVersion string) (engineVersion string) {
 	switch {
 	case postgresDBRegexp.MatchString(databaseVersion):
 		submatch := postgresDBRegexp.FindStringSubmatch(databaseVersion)
-		engineVersionMajor = submatch[1]
-		engineVersionMinor = submatch[2]
+		engineVersion = submatch[1]
 	}
 	return
 }

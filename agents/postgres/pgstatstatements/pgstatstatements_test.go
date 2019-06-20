@@ -76,27 +76,24 @@ func TestPGStatStatementsQAN(t *testing.T) {
 	require.NoError(t, err)
 	tests.LogTable(t, structs)
 
-	engineVersionMajor, engineVersionMinor := tests.PostgreSQLVersion(t, sqlDB)
+	engineVersion := tests.PostgreSQLVersion(t, sqlDB)
 	var digests map[string]string // digest_text/fingerprint to digest/query_id
-	switch engineVersionMajor {
-	case "11":
+	switch engineVersion {
+	case "9.4":
 		digests = map[string]string{
-			"SELECT * FROM city": "-6046499049124467328",
+			"SELECT * FROM city": "2500439221",
 		}
-	case "9":
-		switch engineVersionMinor {
-		case "4":
-			digests = map[string]string{
-				"SELECT * FROM city": "2500439221",
-			}
-		case "5", "6":
-			digests = map[string]string{
-				"SELECT * FROM city": "3778117319",
-			}
+	case "9.5", "9.6":
+		digests = map[string]string{
+			"SELECT * FROM city": "3778117319",
 		}
 	case "10":
 		digests = map[string]string{
 			"SELECT * FROM city": "952213449",
+		}
+	case "11":
+		digests = map[string]string{
+			"SELECT * FROM city": "-6046499049124467328",
 		}
 
 	default:
