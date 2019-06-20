@@ -35,7 +35,7 @@ const (
 	MgoTimeoutTail = 1 * time.Second
 )
 
-// New creates new Collector
+// New creates new Collector.
 func New(client *mongo.Client, dbName string, logger *logrus.Entry) *Collector {
 	return &Collector{
 		client: client,
@@ -137,18 +137,18 @@ func (self *Collector) Status() map[string]string {
 	}
 
 	s := self.status.Map()
-	s["profile"] = getProfile(self.client, self.dbName)
+	s["profile"] = getProfile(context.TODO(), self.client, self.dbName)
 
 	return s
 }
 
-func getProfile(client *mongo.Client, dbName string) string {
+func getProfile(ctx context.Context, client *mongo.Client, dbName string) string {
 	result := struct {
 		Was       int
 		Slowms    int
 		Ratelimit int
 	}{}
-	err := client.Database(dbName).RunCommand(context.TODO(), bson.M{"profile": -1}).Decode(&result)
+	err := client.Database(dbName).RunCommand(ctx, bson.M{"profile": -1}).Decode(&result)
 	if err != nil {
 		return fmt.Sprintf("%s", err)
 	}
@@ -184,6 +184,7 @@ func start(wg *sync.WaitGroup, client *mongo.Client, dbName string, docsChan cha
 	for {
 		// make a connection and collect data
 		connectAndCollect(
+			context.TODO(),
 			client,
 			dbName,
 			docsChan,
@@ -210,15 +211,16 @@ func start(wg *sync.WaitGroup, client *mongo.Client, dbName string, docsChan cha
 	}
 }
 
-func connectAndCollect(client *mongo.Client, dbName string, docsChan chan<- proto.SystemProfile, doneChan <-chan struct{}, stats *stats, ready *sync.Cond, logger *logrus.Entry) { //nolint: lll
+func connectAndCollect(ctx context.Context, client *mongo.Client, dbName string, docsChan chan<- proto.SystemProfile, doneChan <-chan struct{}, stats *stats, ready *sync.Cond, logger *logrus.Entry) { //nolint: lll
 	collection := client.Database(dbName).Collection("system.profile")
 	query := createQuery(dbName)
-	cursor, err := createIterator(collection, query)
+	cursor, err := createIterator(ctx, collection, query)
 	if err != nil {
 		logger.Error(err)
 		return
 	}
-	defer cursor.Close(context.TODO()) //nolint:errcheck
+	// do not cancel cursor closing when ctx is canceled
+	defer cursor.Close(context.Background()) //nolint:errcheck
 
 	stats.IteratorCreated = time.Now().UTC().Format("2006-01-02 15:04:05")
 	stats.IteratorCounter += 1
@@ -236,7 +238,7 @@ func connectAndCollect(client *mongo.Client, dbName string, docsChan chan<- prot
 		}
 
 		doc := proto.SystemProfile{}
-		for cursor.Next(context.TODO()) {
+		for cursor.Next(ctx) {
 			e := cursor.Decode(&doc)
 			if e != nil {
 				logger.Error(e)
@@ -286,9 +288,9 @@ func createQuery(dbName string) bson.M {
 	}
 }
 
-func createIterator(collection *mongo.Collection, query bson.M) (*mongo.Cursor, error) {
+func createIterator(ctx context.Context, collection *mongo.Collection, query bson.M) (*mongo.Cursor, error) {
 	opts := options.Find().SetSort("$natural").SetCursorType(options.Tailable)
-	return collection.Find(context.TODO(), query, opts)
+	return collection.Find(ctx, query, opts)
 }
 
 func signalReady(ready *sync.Cond) {
