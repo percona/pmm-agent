@@ -14,8 +14,8 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-// Package pgstatsstatements runs built-in QAN Agent for PostgreSQL pg stats statements.
-package pgstatsstatements
+// Package pgstatstatements runs built-in QAN Agent for PostgreSQL pg stats statements.
+package pgstatstatements
 
 import (
 	"context"
@@ -35,17 +35,17 @@ import (
 )
 
 const (
-	retainSummaries = 25 * time.Hour // make it work for daily queries
-	querySummaries  = time.Minute
+	retainStatStatements = 25 * time.Hour // make it work for daily queries
+	queryStatStatements  = time.Minute
 )
 
 // PGStatStatementsQAN QAN services connects to PostgreSQL and extracts stats.
 type PGStatStatementsQAN struct {
-	db           *reform.DB
-	agentID      string
-	l            *logrus.Entry
-	changes      chan Change
-	summaryCache *summaryCache
+	db             *reform.DB
+	agentID        string
+	l              *logrus.Entry
+	changes        chan Change
+	statementCache *statStatementCache
 }
 
 // Params represent Agent parameters.
@@ -71,16 +71,16 @@ func New(params *Params, l *logrus.Entry) (*PGStatStatementsQAN, error) {
 	sqlDB.SetConnMaxLifetime(0)
 	db := reform.NewDB(sqlDB, postgresql.Dialect, reform.NewPrintfLogger(l.Tracef))
 
-	return newPgStatsStatementsQAN(db, params.AgentID, l), nil
+	return newPgStatStatementsQAN(db, params.AgentID, l), nil
 }
 
-func newPgStatsStatementsQAN(db *reform.DB, agentID string, l *logrus.Entry) *PGStatStatementsQAN {
+func newPgStatStatementsQAN(db *reform.DB, agentID string, l *logrus.Entry) *PGStatStatementsQAN {
 	return &PGStatStatementsQAN{
-		db:           db,
-		agentID:      agentID,
-		l:            l,
-		changes:      make(chan Change, 10),
-		summaryCache: newSummaryCache(retainSummaries),
+		db:             db,
+		agentID:        agentID,
+		l:              l,
+		changes:        make(chan Change, 10),
+		statementCache: newStatStatementCache(retainStatStatements),
 	}
 }
 
@@ -92,12 +92,12 @@ func (m *PGStatStatementsQAN) Run(ctx context.Context) {
 		close(m.changes)
 	}()
 
-	// add current summaries to cache so they are not send as new on first iteration with incorrect timestamps
+	// add current stat statements to cache so they are not send as new on first iteration with incorrect timestamps
 	var running bool
 	m.changes <- Change{Status: inventorypb.AgentStatus_STARTING}
-	if s, err := getSummaries(m.db.Querier); err == nil {
-		m.summaryCache.refresh(s)
-		m.l.Debugf("Got %d initial summaries.", len(s))
+	if s, err := getStatStatements(m.db.Querier); err == nil {
+		m.statementCache.refresh(s)
+		m.l.Debugf("Got %d initial stat statements.", len(s))
 		running = true
 		m.changes <- Change{Status: inventorypb.AgentStatus_RUNNING}
 	} else {
@@ -105,9 +105,9 @@ func (m *PGStatStatementsQAN) Run(ctx context.Context) {
 		m.changes <- Change{Status: inventorypb.AgentStatus_WAITING}
 	}
 
-	// query pg_stats_statements every minute at 00 seconds
+	// query pg_stat_statements every minute at 00 seconds
 	start := time.Now()
-	wait := start.Truncate(querySummaries).Add(querySummaries).Sub(start)
+	wait := start.Truncate(queryStatStatements).Add(queryStatStatements).Sub(start)
 	m.l.Debugf("Scheduling next collection in %s at %s.", wait, start.Add(wait).Format("15:04:05"))
 	t := time.NewTimer(wait)
 	defer t.Stop()
@@ -128,7 +128,7 @@ func (m *PGStatStatementsQAN) Run(ctx context.Context) {
 			buckets, err := m.getNewBuckets(start, lengthS)
 
 			start = time.Now()
-			wait = start.Truncate(querySummaries).Add(querySummaries).Sub(start)
+			wait = start.Truncate(queryStatStatements).Add(queryStatStatements).Sub(start)
 			m.l.Debugf("Scheduling next collection in %s at %s.", wait, start.Add(wait).Format("15:04:05"))
 			t.Reset(wait)
 
@@ -150,19 +150,19 @@ func (m *PGStatStatementsQAN) Run(ctx context.Context) {
 }
 
 func (m *PGStatStatementsQAN) getNewBuckets(periodStart time.Time, periodLengthSecs uint32) ([]*qanpb.MetricsBucket, error) {
-	current, err := getSummaries(m.db.Querier)
+	current, err := getStatStatements(m.db.Querier)
 	if err != nil {
 		return nil, err
 	}
-	prev := m.summaryCache.get()
+	prev := m.statementCache.get()
 
 	buckets := makeBuckets(m.db.Querier, current, prev, m.l)
 	startS := uint32(periodStart.Unix())
-	m.l.Debugf("Made %d buckets out of %d summaries in %s+%d interval.",
+	m.l.Debugf("Made %d buckets out of %d stat statements in %s+%d interval.",
 		len(buckets), len(current), periodStart.Format("15:04:05"), periodLengthSecs)
 
 	// merge prev and current in cache
-	m.summaryCache.refresh(current)
+	m.statementCache.refresh(current)
 
 	// add agent_id, timestamps, and examples from history cache
 	for i, b := range buckets {
@@ -176,71 +176,71 @@ func (m *PGStatStatementsQAN) getNewBuckets(periodStart time.Time, periodLengthS
 	return buckets, nil
 }
 
-// makeBuckets uses current state of pg_stats_statements table and accumulated previous state
+// makeBuckets uses current state of pg_stat_statements table and accumulated previous state
 // to make metrics buckets.
 //
 // makeBuckets is a pure function for easier testing.
 func makeBuckets(q *reform.Querier, current, prev map[string]*pgStatStatements, l *logrus.Entry) []*qanpb.MetricsBucket {
 	res := make([]*qanpb.MetricsBucket, 0, len(current))
 
-	for queryID, currentESS := range current {
+	for queryID, currentPSS := range current {
 		prevPSS := prev[queryID]
 		if prevPSS == nil {
 			prevPSS = new(pgStatStatements)
 		}
-		count := float32(pointer.GetInt64(currentESS.Calls) - pointer.GetInt64(prevPSS.Calls))
+		count := float32(pointer.GetInt64(currentPSS.Calls) - pointer.GetInt64(prevPSS.Calls))
 		switch {
 		case count == 0:
 			// TODO
-			// Another way how this is possible is if pg_stats_statements was truncated,
+			// Another way how this is possible is if pg_stat_statements was truncated,
 			// and then the same number of queries were made.
 			// Currently, we can't differentiate between those situations.
 			// We probably could by using first_seen/last_seen columns.
-			l.Debugf("Skipped due to the same number of queries: %s.", currentESS)
+			l.Debugf("Skipped due to the same number of queries: %s.", currentPSS)
 			continue
 		case count < 0:
-			l.Debugf("Truncate detected. Treating as a new query: %s.", currentESS)
+			l.Debugf("Truncate detected. Treating as a new query: %s.", currentPSS)
 			prevPSS = new(pgStatStatements)
-			count = float32(pointer.GetInt64(currentESS.Calls))
+			count = float32(pointer.GetInt64(currentPSS.Calls))
 		case pointer.GetInt64(prevPSS.Calls) == 0:
-			l.Debugf("New query: %s.", currentESS)
+			l.Debugf("New query: %s.", currentPSS)
 		default:
-			l.Debugf("Normal query: %s.", currentESS)
+			l.Debugf("Normal query: %s.", currentPSS)
 		}
-		pgStatDatabase := &pgStatDatabase{Datid: currentESS.Dbid}
-		err := q.FindOneTo(pgStatDatabase, "datid", currentESS.Dbid)
+		pgStatDatabase := &pgStatDatabase{DatID: currentPSS.DbID}
+		err := q.FindOneTo(pgStatDatabase, "datid", currentPSS.DbID)
 		if err != nil {
-			l.Debugf("Can't get db name for db: %s. %s", currentESS.Dbid, err)
+			l.Debugf("Can't get db name for db: %d. %s", currentPSS.DbID, err)
 		}
-		pgUser := &pgUser{UserId: currentESS.Userid}
-		err = q.FindOneTo(pgStatDatabase, "datid", currentESS.Dbid)
+		pgUser := &pgUser{UserID: currentPSS.UserID}
+		err = q.FindOneTo(pgStatDatabase, "datid", currentPSS.DbID)
 		if err != nil {
-			l.Debugf("Can't get username name for user: %s. %s", currentESS.Dbid, err)
+			l.Debugf("Can't get username name for user: %d. %s", currentPSS.DbID, err)
 		}
 
 		mb := &qanpb.MetricsBucket{
-			Schema:      pointer.GetString(pgStatDatabase.Datname),
-			Username:    pointer.GetString(pgUser.Username),
-			Queryid:     strconv.FormatInt(*currentESS.Queryid, 10),
-			Fingerprint: *currentESS.Query,
+			Schema:      pointer.GetString(pgStatDatabase.DatName),
+			Username:    pointer.GetString(pgUser.UserName),
+			Queryid:     strconv.FormatInt(*currentPSS.QueryID, 10),
+			Fingerprint: *currentPSS.Query,
 			NumQueries:  count,
-			//NumQueriesWithErrors:   float32(currentESS.SumErrors - prevPSS.SumErrors),
-			//NumQueriesWithWarnings: float32(currentESS.SumWarnings - prevPSS.SumWarnings),
+			//NumQueriesWithErrors:   float32(currentPSS.SumErrors - prevPSS.SumErrors),
+			//NumQueriesWithWarnings: float32(currentPSS.SumWarnings - prevPSS.SumWarnings),
 			AgentType: inventorypb.AgentType_QAN_POSTGRESQL_PGSTATEMENTS_AGENT,
 		}
 
 		for _, p := range []struct {
-			value float32  // result value: currentESS.SumXXX-prevPSS.SumXXX
+			value float32  // result value: currentPSS.SumXXX-prevPSS.SumXXX
 			sum   *float32 // MetricsBucket.XXXSum field to write value
 			cnt   *float32 // MetricsBucket.XXXCnt field to write count
 		}{
 			// convert milliseconds to seconds
-			{float32(pointer.GetFloat64(currentESS.TotalTime)-pointer.GetFloat64(prevPSS.TotalTime)) / 1000, &mb.MQueryTimeSum, &mb.MQueryTimeCnt},
-			//{float32(currentESS.SumLockTime-prevPSS.SumLockTime) / 1e12, &mb.MLockTimeSum, &mb.MLockTimeCnt},
+			{float32(pointer.GetFloat64(currentPSS.TotalTime)-pointer.GetFloat64(prevPSS.TotalTime)) / 1000, &mb.MQueryTimeSum, &mb.MQueryTimeCnt},
+			//{float32(currentPSS.SumLockTime-prevPSS.SumLockTime) / 1e12, &mb.MLockTimeSum, &mb.MLockTimeCnt},
 
-			//{float32(currentESS.SumRowsAffected - prevPSS.SumRowsAffected), &mb.MRowsAffectedSum, &mb.MRowsAffectedCnt},
-			{float32(pointer.GetInt64(currentESS.Rows) - pointer.GetInt64(prevPSS.Rows)), &mb.MRowsSentSum, &mb.MRowsSentCnt},
-			//{float32(currentESS.SumRowsExamined - prevPSS.SumRowsExamined), &mb.MRowsExaminedSum, &mb.MRowsExaminedCnt},
+			//{float32(currentPSS.SumRowsAffected - prevPSS.SumRowsAffected), &mb.MRowsAffectedSum, &mb.MRowsAffectedCnt},
+			{float32(pointer.GetInt64(currentPSS.Rows) - pointer.GetInt64(prevPSS.Rows)), &mb.MRowsSentSum, &mb.MRowsSentCnt},
+			//{float32(currentPSS.SumRowsExamined - prevPSS.SumRowsExamined), &mb.MRowsExaminedSum, &mb.MRowsExaminedCnt},
 		} {
 			if p.value != 0 {
 				*p.sum = p.value

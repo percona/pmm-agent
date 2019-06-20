@@ -14,30 +14,30 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-package pgstatsstatements
+package pgstatstatements
 
 //go:generate reform
 
 // pgStatDatabase represents a row in pg_stat_database view.
 //reform:pg_catalog.pg_stat_database
 type pgStatDatabase struct {
-	Datid   []byte  `reform:"datid"` // FIXME unhandled database type "oid"
-	Datname *string `reform:"datname"`
+	DatID   int64   `reform:"datid"` // FIXME unhandled database type "oid"
+	DatName *string `reform:"datname"`
 }
 
 // pgUser represents a row in pg_user view.
 //reform:pg_catalog.pg_user
 type pgUser struct {
-	UserId   []byte  `reform:"usesysid"` // FIXME unhandled database type "oid"
-	Username *string `reform:"usename"`
+	UserID   int64   `reform:"usesysid"` // FIXME unhandled database type "oid"
+	UserName *string `reform:"usename"`
 }
 
 // pgStatStatements represents a row in pg_stat_statements view.
 //reform:pg_stat_statements
 type pgStatStatements struct {
-	Userid    []byte   `reform:"userid"` // FIXME unhandled database type "oid"
-	Dbid      []byte   `reform:"dbid"`   // FIXME unhandled database type "oid"
-	Queryid   *int64   `reform:"queryid"`
+	UserID    int64    `reform:"userid"` // FIXME unhandled database type "oid"
+	DbID      int64    `reform:"dbid"`   // FIXME unhandled database type "oid"
+	QueryID   *int64   `reform:"queryid"`
 	Query     *string  `reform:"query"`
 	Calls     *int64   `reform:"calls"`
 	TotalTime *float64 `reform:"total_time"`

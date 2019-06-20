@@ -42,7 +42,7 @@ import (
 	"github.com/percona/pmm-agent/agents/mysql/perfschema"
 	"github.com/percona/pmm-agent/agents/mysql/slowlog"
 	"github.com/percona/pmm-agent/agents/noop"
-	"github.com/percona/pmm-agent/agents/postgres/pgstatsstatements"
+	"github.com/percona/pmm-agent/agents/postgres/pgstatstatements"
 	"github.com/percona/pmm-agent/agents/process"
 	"github.com/percona/pmm-agent/config"
 )
@@ -474,11 +474,11 @@ func (s *Supervisor) startBuiltin(agentID string, builtinAgent *agentpb.SetState
 		}()
 
 	case agentpb.Type_QAN_POSTGRESQL_PGSTATEMENTS_AGENT:
-		params := &pgstatsstatements.Params{
+		params := &pgstatstatements.Params{
 			DSN:     builtinAgent.Dsn,
 			AgentID: agentID,
 		}
-		agent, err := pgstatsstatements.New(params, l)
+		agent, err := pgstatstatements.New(params, l)
 		if err != nil {
 			cancel()
 			return err

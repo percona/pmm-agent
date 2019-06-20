@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-package pgstatsstatements
+package pgstatstatements
 
 import (
 	"strconv"
@@ -25,24 +25,24 @@ import (
 	"gopkg.in/reform.v1"
 )
 
-func getSummaries(q *reform.Querier) (map[string]*pgStatStatements, error) {
+func getStatStatements(q *reform.Querier) (map[string]*pgStatStatements, error) {
 	structs, err := q.SelectAllFrom(pgStatStatementsView, "WHERE queryid IS NOT NULL AND query IS NOT NULL")
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to query events_statements_summary_by_digest")
+		return nil, errors.Wrap(err, "failed to query pg_stat_statements")
 	}
 
 	res := make(map[string]*pgStatStatements, len(structs))
 	for _, str := range structs {
 		ess := str.(*pgStatStatements)
 
-		res[strconv.FormatInt(*ess.Queryid, 10)] = ess
+		res[strconv.FormatInt(*ess.QueryID, 10)] = ess
 	}
 	return res, nil
 }
 
-// summaryCache provides cached access to performance_schema.events_statements_summary_by_digest.
+// statStatementCache provides cached access to pg_stat_statements.
 // It retains data longer than this table.
-type summaryCache struct {
+type statStatementCache struct {
 	retain time.Duration
 
 	rw    sync.RWMutex
@@ -50,9 +50,9 @@ type summaryCache struct {
 	added map[string]time.Time
 }
 
-// newSummaryCache creates new summaryCache.
-func newSummaryCache(retain time.Duration) *summaryCache {
-	return &summaryCache{
+// newStatStatementCache creates new statStatementCache.
+func newStatStatementCache(retain time.Duration) *statStatementCache {
+	return &statStatementCache{
 		retain: retain,
 		items:  make(map[string]*pgStatStatements),
 		added:  make(map[string]time.Time),
@@ -60,7 +60,7 @@ func newSummaryCache(retain time.Duration) *summaryCache {
 }
 
 // get returns all current items.
-func (c *summaryCache) get() map[string]*pgStatStatements {
+func (c *statStatementCache) get() map[string]*pgStatStatements {
 	c.rw.RLock()
 	defer c.rw.RUnlock()
 
@@ -72,7 +72,7 @@ func (c *summaryCache) get() map[string]*pgStatStatements {
 }
 
 // refresh removes expired items in cache, then adds current items.
-func (c *summaryCache) refresh(current map[string]*pgStatStatements) {
+func (c *statStatementCache) refresh(current map[string]*pgStatStatements) {
 	c.rw.Lock()
 	defer c.rw.Unlock()
 
