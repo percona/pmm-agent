@@ -176,7 +176,7 @@ func (m *PGStatStatementsQAN) getNewBuckets(periodStart time.Time, periodLengthS
 // to make metrics buckets.
 //
 // makeBuckets is a pure function for easier testing.
-func makeBuckets(q *reform.Querier, current, prev map[string]*pgStatStatements, l *logrus.Entry) []*qanpb.MetricsBucket {
+func makeBuckets(q *reform.Querier, current, prev map[int64]*pgStatStatements, l *logrus.Entry) []*qanpb.MetricsBucket {
 	res := make([]*qanpb.MetricsBucket, 0, len(current))
 
 	for queryID, currentPSS := range current {

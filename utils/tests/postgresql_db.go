@@ -77,23 +77,15 @@ func OpenTestPostgreSQL(tb testing.TB) *sql.DB {
 	return db
 }
 
-// PostgreSQLVersion returns MAJOR.MINOR PostgreSQL version (e.g. "9.5", "10.0", etc.).
-func PostgreSQLVersion(tb testing.TB, db *sql.DB) (engineVersion string) {
+// PostgreSQLVersion returns major PostgreSQL version (e.g. "9.6", "10", etc.).
+func PostgreSQLVersion(tb testing.TB, db *sql.DB) string {
 	tb.Helper()
-	var databaseVersion string
 
-	err := db.QueryRow("SELECT version()").Scan(&databaseVersion)
+	var version string
+	err := db.QueryRow("SELECT version()").Scan(&version)
 	require.NoError(tb, err)
 
-	engineVersion = engineAndVersionFromPlainText(databaseVersion)
-	//tb.Logf("version = %q (mm = %q), version_comment = %q (vendor = %q)", version, mm, comment, "postgres")
-	return
-}
-func engineAndVersionFromPlainText(databaseVersion string) (engineVersion string) {
-	switch {
-	case postgresDBRegexp.MatchString(databaseVersion):
-		submatch := postgresDBRegexp.FindStringSubmatch(databaseVersion)
-		engineVersion = submatch[1]
-	}
-	return
+	m := postgresDBRegexp.FindStringSubmatch(version)[1]
+	tb.Logf("version = %q (m = %q)", version, m)
+	return m
 }

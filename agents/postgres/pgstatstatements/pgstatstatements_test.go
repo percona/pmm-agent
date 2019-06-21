@@ -99,7 +99,7 @@ func TestPGStatStatementsQAN(t *testing.T) {
 	default:
 		t.Log("Unhandled version, assuming dummy digests.")
 		digests = map[string]string{
-			"SELECT * FROM city": "-6046499049124467328",
+			"SELECT * FROM city": "TODO-star",
 		}
 	}
 
