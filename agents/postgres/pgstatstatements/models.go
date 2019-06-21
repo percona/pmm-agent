@@ -21,22 +21,22 @@ package pgstatstatements
 // pgStatDatabase represents a row in pg_stat_database view.
 //reform:pg_catalog.pg_stat_database
 type pgStatDatabase struct {
-	DatID   int64   `reform:"datid"` // FIXME unhandled database type "oid"
+	DatID   int64   `reform:"datid"`
 	DatName *string `reform:"datname"`
 }
 
 // pgUser represents a row in pg_user view.
 //reform:pg_catalog.pg_user
 type pgUser struct {
-	UserID   int64   `reform:"usesysid"` // FIXME unhandled database type "oid"
+	UserID   int64   `reform:"usesysid"`
 	UserName *string `reform:"usename"`
 }
 
 // pgStatStatements represents a row in pg_stat_statements view.
 //reform:pg_stat_statements
 type pgStatStatements struct {
-	UserID    int64    `reform:"userid"` // FIXME unhandled database type "oid"
-	DbID      int64    `reform:"dbid"`   // FIXME unhandled database type "oid"
+	UserID    int64    `reform:"userid"`
+	DBID      int64    `reform:"dbid"`
 	QueryID   *int64   `reform:"queryid"`
 	Query     *string  `reform:"query"`
 	Calls     *int64   `reform:"calls"`

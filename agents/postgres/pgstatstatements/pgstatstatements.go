@@ -207,15 +207,15 @@ func makeBuckets(q *reform.Querier, current, prev map[string]*pgStatStatements, 
 		default:
 			l.Debugf("Normal query: %s.", currentPSS)
 		}
-		pgStatDatabase := &pgStatDatabase{DatID: currentPSS.DbID}
-		err := q.FindOneTo(pgStatDatabase, "datid", currentPSS.DbID)
+		pgStatDatabase := &pgStatDatabase{DatID: currentPSS.DBID}
+		err := q.FindOneTo(pgStatDatabase, "datid", currentPSS.DBID)
 		if err != nil {
-			l.Debugf("Can't get db name for db: %d. %s", currentPSS.DbID, err)
+			l.Debugf("Can't get db name for db: %d. %s", currentPSS.DBID, err)
 		}
 		pgUser := &pgUser{UserID: currentPSS.UserID}
-		err = q.FindOneTo(pgStatDatabase, "datid", currentPSS.DbID)
+		err = q.FindOneTo(pgStatDatabase, "datid", currentPSS.DBID)
 		if err != nil {
-			l.Debugf("Can't get username name for user: %d. %s", currentPSS.DbID, err)
+			l.Debugf("Can't get username name for user: %d. %s", currentPSS.DBID, err)
 		}
 
 		mb := &qanpb.MetricsBucket{
