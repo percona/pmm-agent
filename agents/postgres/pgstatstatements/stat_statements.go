@@ -33,9 +33,8 @@ func getStatStatements(q *reform.Querier) (map[string]*pgStatStatements, error) 
 
 	res := make(map[string]*pgStatStatements, len(structs))
 	for _, str := range structs {
-		ess := str.(*pgStatStatements)
-
-		res[strconv.FormatInt(*ess.QueryID, 10)] = ess
+		pss := str.(*pgStatStatements)
+		res[strconv.FormatInt(*pss.QueryID, 10)] = pss
 	}
 	return res, nil
 }
