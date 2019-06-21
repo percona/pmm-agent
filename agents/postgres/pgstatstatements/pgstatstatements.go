@@ -160,7 +160,7 @@ func (m *PGStatStatementsQAN) getNewBuckets(periodStart time.Time, periodLengthS
 	// merge prev and current in cache
 	m.statementCache.refresh(current)
 
-	// add agent_id, timestamps, and examples from history cache
+	// add agent_id and timestamps
 	for i, b := range buckets {
 		b.AgentId = m.agentID
 		b.PeriodStartUnixSecs = startS
