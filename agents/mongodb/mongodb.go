@@ -25,6 +25,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"go.mongodb.org/mongo-driver/x/network/connstring"
 
+	"github.com/percona/pmm-agent/agents"
 	"github.com/percona/pmm-agent/agents/mongodb/internal/profiler"
 	"github.com/percona/pmm-agent/agents/mongodb/internal/report"
 )
@@ -44,11 +45,8 @@ type Params struct {
 	AgentID string
 }
 
-// Change represents Agent status change _or_ QAN collect request.
-type Change struct {
-	Status  inventorypb.AgentStatus
-	Request *qanpb.CollectRequest
-}
+// FIXME Replace this alias, replace with agents.Change.
+type Change = agents.Change
 
 // New creates new MongoDB QAN service.
 func New(params *Params, l *logrus.Entry) (*MongoDB, error) {

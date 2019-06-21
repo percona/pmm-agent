@@ -93,7 +93,7 @@ type Ports struct {
 	Max uint16 `yaml:"max"`
 }
 
-// Setup contains `pmm-agent setup` flag values.
+// Setup contains `pmm-agent setup` flag and argument values.
 // It is never stored in configuration file.
 type Setup struct {
 	NodeType      string
@@ -108,7 +108,8 @@ type Setup struct {
 	// TODO CustomLabels  string
 	Address string
 
-	Force bool
+	Force            bool
+	SkipRegistration bool
 }
 
 // Config represents pmm-agent's configuration.
@@ -277,6 +278,7 @@ func Application(cfg *Config) (*kingpin.Application, *string) {
 	// TODO setupCmd.Flag("custom-labels", "Custom user-assigned labels").StringVar(&cfg.Setup.CustomLabels)
 
 	setupCmd.Flag("force", "Remove Node with that name with all dependent Services and Agents if one exist").BoolVar(&cfg.Setup.Force)
+	setupCmd.Flag("skip-registration", "Skip registration on PMM Server").BoolVar(&cfg.Setup.SkipRegistration)
 
 	return app, configFileF
 }
