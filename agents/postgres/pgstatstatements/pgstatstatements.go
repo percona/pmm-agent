@@ -32,6 +32,8 @@ import (
 	"github.com/sirupsen/logrus"
 	"gopkg.in/reform.v1"
 	"gopkg.in/reform.v1/dialects/postgresql"
+
+	"github.com/percona/pmm-agent/agents"
 )
 
 const (
@@ -44,7 +46,7 @@ type PGStatStatementsQAN struct {
 	db             *reform.DB
 	agentID        string
 	l              *logrus.Entry
-	changes        chan Change
+	changes        chan agents.Change
 	statementCache *statStatementCache
 }
 
@@ -52,12 +54,6 @@ type PGStatStatementsQAN struct {
 type Params struct {
 	DSN     string
 	AgentID string
-}
-
-// Change represents Agent status change _or_ QAN collect request.
-type Change struct {
-	Status  inventorypb.AgentStatus
-	Request *qanpb.CollectRequest
 }
 
 // New creates new PGStatStatementsQAN QAN service.
@@ -79,7 +75,7 @@ func newPgStatStatementsQAN(db *reform.DB, agentID string, l *logrus.Entry) *PGS
 		db:             db,
 		agentID:        agentID,
 		l:              l,
-		changes:        make(chan Change, 10),
+		changes:        make(chan agents.Change, 10),
 		statementCache: newStatStatementCache(retainStatStatements),
 	}
 }
@@ -88,21 +84,21 @@ func newPgStatStatementsQAN(db *reform.DB, agentID string, l *logrus.Entry) *PGS
 func (m *PGStatStatementsQAN) Run(ctx context.Context) {
 	defer func() {
 		m.db.DBInterface().(*sql.DB).Close() //nolint:errcheck
-		m.changes <- Change{Status: inventorypb.AgentStatus_DONE}
+		m.changes <- agents.Change{Status: inventorypb.AgentStatus_DONE}
 		close(m.changes)
 	}()
 
 	// add current stat statements to cache so they are not send as new on first iteration with incorrect timestamps
 	var running bool
-	m.changes <- Change{Status: inventorypb.AgentStatus_STARTING}
+	m.changes <- agents.Change{Status: inventorypb.AgentStatus_STARTING}
 	if s, err := getStatStatements(m.db.Querier); err == nil {
 		m.statementCache.refresh(s)
 		m.l.Debugf("Got %d initial stat statements.", len(s))
 		running = true
-		m.changes <- Change{Status: inventorypb.AgentStatus_RUNNING}
+		m.changes <- agents.Change{Status: inventorypb.AgentStatus_RUNNING}
 	} else {
 		m.l.Error(err)
-		m.changes <- Change{Status: inventorypb.AgentStatus_WAITING}
+		m.changes <- agents.Change{Status: inventorypb.AgentStatus_WAITING}
 	}
 
 	// query pg_stat_statements every minute at 00 seconds
@@ -115,13 +111,13 @@ func (m *PGStatStatementsQAN) Run(ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():
-			m.changes <- Change{Status: inventorypb.AgentStatus_STOPPING}
+			m.changes <- agents.Change{Status: inventorypb.AgentStatus_STOPPING}
 			m.l.Infof("Context canceled.")
 			return
 
 		case <-t.C:
 			if !running {
-				m.changes <- Change{Status: inventorypb.AgentStatus_STARTING}
+				m.changes <- agents.Change{Status: inventorypb.AgentStatus_STARTING}
 			}
 
 			lengthS := uint32(math.Round(wait.Seconds())) // round 59.9s/60.1s to 60s
@@ -135,16 +131,16 @@ func (m *PGStatStatementsQAN) Run(ctx context.Context) {
 			if err != nil {
 				m.l.Error(err)
 				running = false
-				m.changes <- Change{Status: inventorypb.AgentStatus_WAITING}
+				m.changes <- agents.Change{Status: inventorypb.AgentStatus_WAITING}
 				continue
 			}
 
 			if !running {
 				running = true
-				m.changes <- Change{Status: inventorypb.AgentStatus_RUNNING}
+				m.changes <- agents.Change{Status: inventorypb.AgentStatus_RUNNING}
 			}
 
-			m.changes <- Change{Request: &qanpb.CollectRequest{MetricsBucket: buckets}}
+			m.changes <- agents.Change{Request: &qanpb.CollectRequest{MetricsBucket: buckets}}
 		}
 	}
 }
@@ -254,6 +250,6 @@ func makeBuckets(q *reform.Querier, current, prev map[string]*pgStatStatements, 
 }
 
 // Changes returns channel that should be read until it is closed.
-func (m *PGStatStatementsQAN) Changes() <-chan Change {
+func (m *PGStatStatementsQAN) Changes() <-chan agents.Change {
 	return m.changes
 }

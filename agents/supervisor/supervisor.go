@@ -38,6 +38,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 
+	"github.com/percona/pmm-agent/agents"
 	"github.com/percona/pmm-agent/agents/mongodb"
 	"github.com/percona/pmm-agent/agents/mysql/perfschema"
 	"github.com/percona/pmm-agent/agents/mysql/slowlog"
@@ -378,69 +379,23 @@ func (s *Supervisor) startBuiltin(agentID string, builtinAgent *agentpb.SetState
 		"type":      agentType,
 	})
 
-	// TODO use common interface for built-in Agents once MongoDB profiler is merged
-
 	done := make(chan struct{})
+	var agent agents.BuiltinAgent
+	var err error
 	switch builtinAgent.Type {
 	case agentpb.Type_QAN_MYSQL_PERFSCHEMA_AGENT:
 		params := &perfschema.Params{
 			DSN:     builtinAgent.Dsn,
 			AgentID: agentID,
 		}
-		agent, err := perfschema.New(params, l)
-		if err != nil {
-			cancel()
-			return err
-		}
-
-		go pprof.Do(ctx, pprof.Labels("agentID", agentID, "type", agentType), agent.Run)
-
-		go func() {
-			for change := range agent.Changes() {
-				if change.Status != inventorypb.AgentStatus_AGENT_STATUS_INVALID {
-					s.storeLastStatus(agentID, change.Status)
-					s.changes <- agentpb.StateChangedRequest{
-						AgentId: agentID,
-						Status:  change.Status,
-					}
-				} else {
-					s.qanRequests <- agentpb.QANCollectRequest{
-						Message: change.Request,
-					}
-				}
-			}
-			close(done)
-		}()
+		agent, err = perfschema.New(params, l)
 
 	case agentpb.Type_QAN_MONGODB_PROFILER_AGENT:
 		params := &mongodb.Params{
 			DSN:     builtinAgent.Dsn,
 			AgentID: agentID,
 		}
-		m, err := mongodb.New(params, l)
-		if err != nil {
-			cancel()
-			return err
-		}
-
-		go pprof.Do(ctx, pprof.Labels("agentID", agentID, "type", agentType), m.Run)
-
-		go func() {
-			for change := range m.Changes() {
-				if change.Status != inventorypb.AgentStatus_AGENT_STATUS_INVALID {
-					s.storeLastStatus(agentID, change.Status)
-					s.changes <- agentpb.StateChangedRequest{
-						AgentId: agentID,
-						Status:  change.Status,
-					}
-				} else {
-					s.qanRequests <- agentpb.QANCollectRequest{
-						Message: change.Request,
-					}
-				}
-			}
-			close(done)
-		}()
+		agent, err = mongodb.New(params, l)
 
 	case agentpb.Type_QAN_MYSQL_SLOWLOG_AGENT:
 		params := &slowlog.Params{
@@ -448,87 +403,46 @@ func (s *Supervisor) startBuiltin(agentID string, builtinAgent *agentpb.SetState
 			AgentID:           agentID,
 			SlowLogFilePrefix: s.paths.SlowLogFilePrefix,
 		}
-		agent, err := slowlog.New(params, l)
-		if err != nil {
-			cancel()
-			return err
-		}
-
-		go pprof.Do(ctx, pprof.Labels("agentID", agentID, "type", agentType), agent.Run)
-
-		go func() {
-			for change := range agent.Changes() {
-				if change.Status != inventorypb.AgentStatus_AGENT_STATUS_INVALID {
-					s.storeLastStatus(agentID, change.Status)
-					s.changes <- agentpb.StateChangedRequest{
-						AgentId: agentID,
-						Status:  change.Status,
-					}
-				} else {
-					s.qanRequests <- agentpb.QANCollectRequest{
-						Message: change.Request,
-					}
-				}
-			}
-			close(done)
-		}()
+		agent, err = slowlog.New(params, l)
 
 	case agentpb.Type_QAN_POSTGRESQL_PGSTATEMENTS_AGENT:
 		params := &pgstatstatements.Params{
 			DSN:     builtinAgent.Dsn,
 			AgentID: agentID,
 		}
-		agent, err := pgstatstatements.New(params, l)
-		if err != nil {
-			cancel()
-			return err
-		}
-
-		go pprof.Do(ctx, pprof.Labels("agentID", agentID, "type", agentType), agent.Run)
-
-		go func() {
-			for change := range agent.Changes() {
-				if change.Status != inventorypb.AgentStatus_AGENT_STATUS_INVALID {
-					s.changes <- agentpb.StateChangedRequest{
-						AgentId: agentID,
-						Status:  change.Status,
-					}
-					s.storeLastStatus(agentID, change.Status)
-				} else {
-					s.qanRequests <- agentpb.QANCollectRequest{
-						Message: change.Request,
-					}
-				}
-			}
-			close(done)
-		}()
+		agent, err = pgstatstatements.New(params, l)
 
 	case type_TEST_NOOP:
-		agent := noop.New()
-
-		go pprof.Do(ctx, pprof.Labels("agentID", agentID, "type", agentType), agent.Run)
-
-		go func() {
-			for change := range agent.Changes() {
-				if change.Status != inventorypb.AgentStatus_AGENT_STATUS_INVALID {
-					s.storeLastStatus(agentID, change.Status)
-					s.changes <- agentpb.StateChangedRequest{
-						AgentId: agentID,
-						Status:  change.Status,
-					}
-				} else {
-					s.qanRequests <- agentpb.QANCollectRequest{
-						Message: change.Request,
-					}
-				}
-			}
-			close(done)
-		}()
+		agent = noop.New()
 
 	default:
-		cancel()
-		return errors.Errorf("unhandled agent type %[1]s (%[1]d).", builtinAgent.Type)
+		err = errors.Errorf("unhandled agent type %[1]s (%[1]d).", builtinAgent.Type)
 	}
+
+	if err != nil {
+		cancel()
+		return err
+	}
+
+	go pprof.Do(ctx, pprof.Labels("agentID", agentID, "type", agentType), agent.Run)
+
+	go func() {
+		for change := range agent.Changes() {
+			if change.Status != inventorypb.AgentStatus_AGENT_STATUS_INVALID {
+				s.storeLastStatus(agentID, change.Status)
+				s.changes <- agentpb.StateChangedRequest{
+					AgentId: agentID,
+					Status:  change.Status,
+				}
+			}
+			if change.Request != nil {
+				s.qanRequests <- agentpb.QANCollectRequest{
+					Message: change.Request,
+				}
+			}
+		}
+		close(done)
+	}()
 
 	s.builtinAgents[agentID] = &builtinAgentInfo{
 		cancel:         cancel,
