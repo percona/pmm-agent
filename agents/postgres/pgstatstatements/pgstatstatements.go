@@ -195,7 +195,6 @@ func makeBuckets(q *reform.Querier, current, prev map[string]*pgStatStatements, 
 			// Another way how this is possible is if pg_stat_statements was truncated,
 			// and then the same number of queries were made.
 			// Currently, we can't differentiate between those situations.
-			// We probably could by using first_seen/last_seen columns.
 			l.Debugf("Skipped due to the same number of queries: %s.", currentPSS)
 			continue
 		case count < 0:
