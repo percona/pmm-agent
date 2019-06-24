@@ -25,8 +25,8 @@ import (
 	"time"
 
 	"github.com/AlekSi/pointer"
-	_ "github.com/lfittl/pg_query_go" // just to test build
-	_ "github.com/lib/pq"             // register SQL driver
+	// TODO "github.com/lfittl/pg_query_go"
+	_ "github.com/lib/pq" // register SQL driver
 	"github.com/percona/pmm/api/inventorypb"
 	"github.com/percona/pmm/api/qanpb"
 	"github.com/sirupsen/logrus"
