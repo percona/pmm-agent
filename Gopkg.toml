@@ -19,6 +19,11 @@ required = [
   go-tests = true
   unused-packages = true
 
+[[prune.project]]
+    name = "github.com/lfittl/pg_query_go"
+    non-go = false
+    unused-packages = false
+
 # TODO switch to tags before PMM 2.0 release
 [[constraint]]
   name = "github.com/percona/pmm"
@@ -45,3 +50,9 @@ required = [
 [[constraint]]
   name = "github.com/percona/percona-toolkit"
   branch = "3.0"
+
+# https://jira.percona.com/browse/PMM-4081
+[[constraint]]
+  name = "gopkg.in/alecthomas/kingpin.v2"
+  branch = "v2.2.6-no-dots"
+  source = "https://github.com/Percona-Lab/kingpin.git"

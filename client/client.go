@@ -200,16 +200,11 @@ func (c *Client) Done() <-chan struct{} {
 
 func (c *Client) processActionResults() {
 	for result := range c.runner.Results() {
-		var errMessage string
-		if result.Error != nil {
-			errMessage = result.Error.Error()
-		}
-
 		resp := c.channel.SendRequest(&agentpb.ActionResultRequest{
 			ActionId: result.ID,
 			Output:   result.Output,
 			Done:     true,
-			Error:    errMessage,
+			Error:    result.Error,
 		})
 		if resp == nil {
 			c.l.Warn("Failed to send ActionResult request.")
@@ -407,6 +402,7 @@ func dial(dialCtx context.Context, cfg *config.Config, withoutTLS bool, l *logru
 	// We need to exchange metadata and one pair of messages (ping/pong)
 	// to ensure that pmm-managed is alive and that Agent ID is valid.
 
+	// TODO https://jira.percona.com/browse/PMM-4076
 	md, err := agentpb.ReceiveServerConnectMetadata(stream)
 	l.Debugf("Received server metadata: %+v. Error: %v.", md, err)
 	if err != nil {

@@ -19,7 +19,7 @@ LD_FLAGS = -ldflags " \
 			"
 
 release:                        ## Build pmm-agent release binary.
-	env CGO_ENABLED=0 go build -v $(LD_FLAGS) -o $(PMM_RELEASE_PATH)/pmm-agent
+	env CGO_ENABLED=1 go build -v $(LD_FLAGS) -o $(PMM_RELEASE_PATH)/pmm-agent
 
 init:                           ## Installs tools to $GOPATH/bin (which is expected to be in $PATH).
 	curl https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(GOPATH)/bin
@@ -62,7 +62,7 @@ test-crosscover:                ## Run tests and collect cross-package coverage 
 	go test $(TEST_FLAGS) -coverprofile=crosscover.out -covermode=count -coverpkg=./... ./...
 
 bench:                          ## Run benchmarks.
-	go test -bench=. -benchtime=1s -count=3 -cpu=1 -failfast github.com/percona/pmm-agent/agents/builtin/mysql/slowlog/parser | tee slowlog_parser_new.bench
+	go test -bench=. -benchtime=1s -count=3 -cpu=1 -failfast github.com/percona/pmm-agent/agents/mysql/slowlog/parser | tee slowlog_parser_new.bench
 	benchstat slowlog_parser_old.bench slowlog_parser_new.bench
 
 check:                          ## Run required checkers and linters.
