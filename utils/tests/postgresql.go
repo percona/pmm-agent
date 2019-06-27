@@ -23,7 +23,6 @@ import (
 	"regexp"
 	"strconv"
 	"testing"
-	"time"
 
 	_ "github.com/lib/pq" // register SQL driver
 	"github.com/stretchr/testify/require"
@@ -60,20 +59,14 @@ func OpenTestPostgreSQL(tb testing.TB) *sql.DB {
 	tb.Helper()
 
 	db, err := sql.Open("postgres", GetTestPostgreSQLDSN(tb))
-	if err == nil {
-		db.SetMaxIdleConns(10)
-		db.SetMaxOpenConns(10)
-		db.SetConnMaxLifetime(0)
-
-		// Wait until PostgreSQL is running up to 30 seconds.
-		for i := 0; i < 30; i++ {
-			if err = db.Ping(); err == nil {
-				break
-			}
-			time.Sleep(time.Second)
-		}
-	}
 	require.NoError(tb, err)
+
+	db.SetMaxIdleConns(10)
+	db.SetMaxOpenConns(10)
+	db.SetConnMaxLifetime(0)
+
+	waitForFixtures(tb, db)
+
 	return db
 }
 

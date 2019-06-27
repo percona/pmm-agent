@@ -21,7 +21,6 @@ import (
 	"regexp"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/go-sql-driver/mysql"
 	"github.com/stretchr/testify/require"
@@ -57,20 +56,13 @@ func OpenTestMySQL(tb testing.TB) *sql.DB {
 	tb.Helper()
 
 	db, err := sql.Open("mysql", GetTestMySQLDSN(tb))
-	if err == nil {
-		db.SetMaxIdleConns(10)
-		db.SetMaxOpenConns(10)
-		db.SetConnMaxLifetime(0)
-
-		// Wait until MySQL is running up to 30 seconds.
-		for i := 0; i < 30; i++ {
-			if err = db.Ping(); err == nil {
-				break
-			}
-			time.Sleep(time.Second)
-		}
-	}
 	require.NoError(tb, err)
+
+	db.SetMaxIdleConns(10)
+	db.SetMaxOpenConns(10)
+	db.SetConnMaxLifetime(0)
+
+	waitForFixtures(tb, db)
 
 	// to make Actions tests more stable
 	_, err = db.Exec(`ANALYZE TABLE city`)

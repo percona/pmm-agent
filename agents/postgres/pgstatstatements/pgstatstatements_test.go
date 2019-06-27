@@ -41,7 +41,7 @@ func assertBucketsEqual(t *testing.T, expected, actual *qanpb.MetricsBucket) boo
 func setup(t *testing.T, db *reform.DB) *PGStatStatementsQAN {
 	t.Helper()
 
-	_, err := db.Exec(`SELECT pg_stat_statements_reset()`)
+	_, err := db.Exec("SELECT pg_stat_statements_reset()")
 	require.NoError(t, err)
 
 	return newPgStatStatementsQAN(db, "agent_id", logrus.WithField("test", t.Name()))
@@ -69,6 +69,9 @@ func TestPGStatStatementsQAN(t *testing.T) {
 	defer sqlDB.Close() //nolint:errcheck
 	db := reform.NewDB(sqlDB, postgresql.Dialect, reform.NewPrintfLogger(t.Logf))
 
+	_, err := db.Exec("CREATE EXTENSION IF NOT EXISTS pg_stat_statements SCHEMA public")
+	require.NoError(t, err)
+
 	structs, err := db.SelectAllFrom(pgStatDatabaseView, "")
 	require.NoError(t, err)
 	tests.LogTable(t, structs)
@@ -81,19 +84,19 @@ func TestPGStatStatementsQAN(t *testing.T) {
 	switch engineVersion {
 	case "9.4":
 		digests = map[string]string{
-			"SELECT * FROM city": "2500439221",
+			"SELECT * FROM city": "3239586867",
 		}
 	case "9.5", "9.6":
 		digests = map[string]string{
-			"SELECT * FROM city": "3778117319",
+			"SELECT * FROM city": "3994135135",
 		}
 	case "10":
 		digests = map[string]string{
-			"SELECT * FROM city": "952213449",
+			"SELECT * FROM city": "2229807896",
 		}
 	case "11":
 		digests = map[string]string{
-			"SELECT * FROM city": "-6046499049124467328",
+			"SELECT * FROM city": "-4056421706168012289",
 		}
 
 	default:
