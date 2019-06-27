@@ -184,6 +184,9 @@ func filter(mb []*qanpb.MetricsBucket) []*qanpb.MetricsBucket {
 		case strings.HasPrefix(b.Fingerprint, "EXPLAIN "):
 			continue
 
+		case strings.HasPrefix(b.Fingerprint, "SELECT `id` FROM `city` LIMIT "):
+			continue
+
 		// slowlog tests
 		case strings.HasPrefix(b.Fingerprint, "SELECT @@`slow_query_"):
 			continue

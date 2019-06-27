@@ -56,6 +56,8 @@ func filter(mb []*qanpb.MetricsBucket) []*qanpb.MetricsBucket {
 			continue
 		case strings.HasPrefix(b.Fingerprint, "SELECT pg_stat_statements_reset()"):
 			continue
+		case strings.HasPrefix(b.Fingerprint, "SELECT `id` FROM `city` LIMIT "):
+			continue
 
 		default:
 			res = append(res, b)
