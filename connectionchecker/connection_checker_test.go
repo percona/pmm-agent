@@ -92,7 +92,7 @@ func TestConnectionChecker(t *testing.T) {
 				Dsn:  "mongodb://root:root-password-wrong@127.0.0.1:27017/admin?connectTimeoutMS=1000",
 				Type: inventorypb.ServiceType_MONGODB_SERVICE,
 			},
-			expected: `auth error: sasl conversation error: unable to authenticate using mechanism "SCRAM-SHA-256": ` +
+			expected: `auth error: sasl conversation error: unable to authenticate using mechanism "SCRAM-SHA-(1|256)": ` +
 				`\(AuthenticationFailed\) Authentication failed.`,
 		}, {
 			name: "MongoDB timeout",
