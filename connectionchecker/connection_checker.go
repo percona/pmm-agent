@@ -18,57 +18,83 @@
 package connectionchecker
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"time"
 
 	_ "github.com/go-sql-driver/mysql" // register SQL driver
-	_ "github.com/lib/pq"              // register SQL driver
+	"github.com/golang/protobuf/ptypes"
+	"github.com/lib/pq"
 	"github.com/percona/pmm/api/agentpb"
 	"github.com/percona/pmm/api/inventorypb"
-	"gopkg.in/mgo.v2"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 // ConnectionChecker is a struct to check connection to services.
 type ConnectionChecker struct {
+	ctx context.Context
 }
 
 // New creates new ConnectionChecker.
-func New() *ConnectionChecker {
-	return &ConnectionChecker{}
+func New(ctx context.Context) *ConnectionChecker {
+	return &ConnectionChecker{
+		ctx: ctx,
+	}
 }
 
-// Check checks connection to a service.
+// Check checks connection to a service. It returns context cancelation/timeout or driver errors as is.
 func (c *ConnectionChecker) Check(msg *agentpb.CheckConnectionRequest) error {
+	timeout, _ := ptypes.Duration(msg.Timeout)
+	if timeout == 0 {
+		timeout = 3 * time.Second
+	}
+
+	ctx, cancel := context.WithTimeout(c.ctx, timeout)
+	defer cancel()
+
 	switch msg.Type {
 	case inventorypb.ServiceType_MYSQL_SERVICE, inventorypb.ServiceType_PROXYSQL_SERVICE:
-		return c.checkSQLConnection("mysql", msg.Dsn)
+		// TODO Use sql.OpenDB with ctx when https://github.com/go-sql-driver/mysql/issues/671 is released
+		// (likely in version 1.5.0).
+
+		db, err := sql.Open("mysql", msg.Dsn)
+		if err != nil {
+			return err
+		}
+		return checkSQLConnection(ctx, db)
+
 	case inventorypb.ServiceType_POSTGRESQL_SERVICE:
-		return c.checkSQLConnection("postgres", msg.Dsn)
+		c, err := pq.NewConnector(msg.Dsn)
+		if err != nil {
+			return err
+		}
+		db := sql.OpenDB(c)
+		return checkSQLConnection(ctx, db)
+
 	case inventorypb.ServiceType_MONGODB_SERVICE:
-		return c.checkMongoDBConnection(msg.Dsn)
+		return checkMongoDBConnection(ctx, msg.Dsn)
+
 	default:
 		panic(fmt.Sprintf("unhandled service type: %v", msg.Type))
 	}
 }
 
-func (c *ConnectionChecker) checkMongoDBConnection(dsn string) error {
-	session, err := mgo.DialWithTimeout(dsn, time.Second) // TODO make timeout configurable
+func checkMongoDBConnection(ctx context.Context, dsn string) error {
+	client, err := mongo.Connect(ctx, options.Client().ApplyURI(dsn))
 	if err != nil {
 		return err
 	}
-	defer session.Close()
 
-	return session.Ping()
+	defer client.Disconnect(ctx) //nolint:errcheck
+
+	return client.Ping(ctx, nil)
 }
 
-func (c *ConnectionChecker) checkSQLConnection(driver string, dsn string) error {
-	db, err := sql.Open(driver, dsn)
-	if err != nil {
-		return err
-	}
+func checkSQLConnection(ctx context.Context, db *sql.DB) error {
 	defer db.Close() //nolint:errcheck
 
 	var res string
-	return db.QueryRow(`SELECT 'pmm-agent'`).Scan(&res)
+	return db.QueryRowContext(ctx, `SELECT 'pmm-agent'`).Scan(&res)
 }
