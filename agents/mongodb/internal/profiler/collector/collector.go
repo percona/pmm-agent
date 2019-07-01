@@ -289,7 +289,7 @@ func createQuery(dbName string) bson.M {
 }
 
 func createIterator(ctx context.Context, collection *mongo.Collection, query bson.M) (*mongo.Cursor, error) {
-	opts := options.Find().SetSort("$natural").SetCursorType(options.Tailable)
+	opts := options.Find().SetSort(bson.M{"$natural": 1}).SetCursorType(options.Tailable)
 	return collection.Find(ctx, query, opts)
 }
 
