@@ -236,9 +236,8 @@ func connectAndCollect(ctx context.Context, client *mongo.Client, dbName string,
 		default:
 			// just continue if not
 		}
-
-		doc := proto.SystemProfile{}
 		for cursor.Next(ctx) {
+			doc := proto.SystemProfile{}
 			e := cursor.Decode(&doc)
 			if e != nil {
 				logger.Error(e)
