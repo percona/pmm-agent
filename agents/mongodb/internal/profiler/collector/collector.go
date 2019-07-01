@@ -180,7 +180,7 @@ func start(wg *sync.WaitGroup, client *mongo.Client, dbName string, docsChan cha
 	// signal WaitGroup when goroutine finished
 	defer wg.Done()
 
-	timeoutCtx, cancel := context.WithTimeout(context.TODO(), time.Second*5)
+	timeoutCtx, cancel := context.WithTimeout(context.TODO(), 5*time.Second)
 	defer cancel()
 	firstTry := true
 	for {
