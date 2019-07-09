@@ -81,27 +81,6 @@ func TestSlowLog(t *testing.T) {
 	defer db.Close() //nolint:errcheck
 	_, vendor := tests.MySQLVersion(t, db)
 
-	t.Run("getSlowLogInfo", func(t *testing.T) {
-		t.Parallel()
-
-		params := &Params{
-			DSN: tests.GetTestMySQLDSN(t),
-		}
-		s, err := New(params, logrus.WithField("test", t.Name()))
-		require.NoError(t, err)
-
-		expected := &slowLogInfo{
-			path: "/slowlogs/slow.log",
-		}
-		if vendor == tests.PerconaMySQL {
-			expected.outlierTime = 10
-		}
-
-		actual, err := s.getSlowLogInfo(context.Background())
-		require.NoError(t, err)
-		assert.Equal(t, expected, actual)
-	})
-
 	t.Run("Normal", func(t *testing.T) {
 		t.Parallel()
 
@@ -114,8 +93,21 @@ func TestSlowLog(t *testing.T) {
 		s, err := New(params, logrus.WithField("test", t.Name()))
 		require.NoError(t, err)
 
+		expectedInfo := &slowLogInfo{
+			path: "/slowlogs/slow.log",
+		}
+		if vendor == tests.PerconaMySQL {
+			expectedInfo.outlierTime = 10
+		}
+
+		actualInfo, err := s.getSlowLogInfo(context.Background())
+		require.NoError(t, err)
+		assert.Equal(t, expectedInfo, actualInfo)
+
+		_, err = os.Stat(filepath.Join(params.SlowLogFilePrefix, "/slowlogs/slow.log"))
+		require.NoError(t, err)
+
 		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-		defer cancel()
 		go s.Run(ctx)
 
 		expected := []agents.Change{
@@ -123,11 +115,16 @@ func TestSlowLog(t *testing.T) {
 			{Status: inventorypb.AgentStatus_RUNNING},
 			{Status: inventorypb.AgentStatus_WAITING},
 		}
-		var actual []agents.Change
-		for change := range s.Changes() {
-			actual = append(actual, change)
+		actual := []agents.Change{
+			<-s.Changes(),
+			<-s.Changes(),
+			<-s.Changes(),
 		}
-		assert.Equal(t, expected, actual[:len(expected)])
+		assert.Equal(t, expected, actual)
+
+		cancel()
+		for range s.Changes() {
+		}
 	})
 
 	t.Run("NoFile", func(t *testing.T) {
@@ -139,8 +136,22 @@ func TestSlowLog(t *testing.T) {
 		s, err := New(params, logrus.WithField("test", t.Name()))
 		require.NoError(t, err)
 
+		expectedInfo := &slowLogInfo{
+			path: "/slowlogs/slow.log",
+		}
+		if vendor == tests.PerconaMySQL {
+			expectedInfo.outlierTime = 10
+		}
+
+		actualInfo, err := s.getSlowLogInfo(context.Background())
+		require.NoError(t, err)
+		assert.Equal(t, expectedInfo, actualInfo)
+
+		_, err = os.Stat(filepath.Join(params.SlowLogFilePrefix, "/slowlogs/slow.log"))
+		require.Error(t, err)
+		assert.True(t, os.IsNotExist(err))
+
 		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-		defer cancel()
 		go s.Run(ctx)
 
 		expected := []agents.Change{
@@ -148,10 +159,15 @@ func TestSlowLog(t *testing.T) {
 			{Status: inventorypb.AgentStatus_WAITING},
 			{Status: inventorypb.AgentStatus_STARTING},
 		}
-		var actual []agents.Change
-		for change := range s.Changes() {
-			actual = append(actual, change)
+		actual := []agents.Change{
+			<-s.Changes(),
+			<-s.Changes(),
+			<-s.Changes(),
 		}
-		assert.Equal(t, expected, actual[:len(expected)])
+		assert.Equal(t, expected, actual)
+
+		cancel()
+		for range s.Changes() {
+		}
 	})
 }
