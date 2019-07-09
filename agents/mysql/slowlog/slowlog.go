@@ -122,11 +122,12 @@ func (s *SlowLog) Run(ctx context.Context) {
 		s.changes <- agents.Change{Status: inventorypb.AgentStatus_STARTING}
 
 		// process file until fileCtx is done, or fatal processing error is encountered
+		path, outlierTime := fileInfo.path, fileInfo.outlierTime
 		fileCtx, fileCancel := context.WithCancel(ctx)
 		fileDone := make(chan error)
 		go func() {
-			s.l.Infof("Processing file %s.", fileInfo.path)
-			fileDone <- s.processFile(fileCtx, fileInfo.path, fileInfo.outlierTime)
+			s.l.Infof("Processing file %s.", path)
+			fileDone <- s.processFile(fileCtx, path, outlierTime)
 		}()
 
 		// cancel processing when new info is available, but always wait for it to finish
@@ -136,6 +137,7 @@ func (s *SlowLog) Run(ctx context.Context) {
 			fileCancel()
 			err = <-fileDone
 		case err = <-fileDone:
+			fileCancel()
 		}
 
 		s.changes <- agents.Change{Status: inventorypb.AgentStatus_WAITING}

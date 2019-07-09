@@ -20,16 +20,20 @@ import (
 	"context"
 	"encoding/json"
 	"io/ioutil"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
 	"github.com/golang/protobuf/proto"
 	"github.com/percona/go-mysql/event"
+	"github.com/percona/pmm/api/inventorypb"
 	"github.com/percona/pmm/api/qanpb"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/percona/pmm-agent/agents"
 	"github.com/percona/pmm-agent/utils/tests"
 )
 
@@ -39,17 +43,15 @@ func assertBucketsEqual(t *testing.T, expected, actual *qanpb.MetricsBucket) boo
 }
 
 func getDataFromFile(t *testing.T, filePath string, data interface{}) {
-	jsonData, err := ioutil.ReadFile(filePath)
-	if err != nil {
-		t.Errorf("cannot read data from file:%s", err.Error())
-	}
+	jsonData, err := ioutil.ReadFile(filePath) //nolint:gosec
+	require.NoError(t, err)
 	err = json.Unmarshal(jsonData, &data)
-	if err != nil {
-		t.Errorf("cannot unmarshal json:%s", err.Error())
-	}
+	require.NoError(t, err)
 }
 
-func TestSlowLog(t *testing.T) {
+func TestSlowLogMakeBuckets(t *testing.T) {
+	t.Parallel()
+
 	const agentID = "/agent_id/73ee2f92-d5aa-45f0-8b09-6d3df605fd44"
 	periodStart := time.Unix(1557137220, 0)
 
@@ -74,24 +76,84 @@ func TestSlowLog(t *testing.T) {
 	assert.Equal(t, countExpectedBuckets, countActualBuckets)
 }
 
-func TestSlowLogInfo(t *testing.T) {
+func TestSlowLog(t *testing.T) {
 	db := tests.OpenTestMySQL(t)
-	defer db.Close()
+	defer db.Close() //nolint:errcheck
 	_, vendor := tests.MySQLVersion(t, db)
 
-	expected := &slowLogInfo{
-		path: "/slowlogs/slow.log",
-	}
-	if vendor == tests.PerconaMySQL {
-		expected.outlierTime = 10
-	}
+	t.Run("getSlowLogInfo", func(t *testing.T) {
+		t.Parallel()
 
-	params := &Params{
-		DSN: tests.GetTestMySQLDSN(t),
-	}
-	s, err := New(params, logrus.WithField("test", t.Name))
-	require.NoError(t, err)
-	actual, err := s.getSlowLogInfo(context.Background())
-	require.NoError(t, err)
-	assert.Equal(t, expected, actual)
+		params := &Params{
+			DSN: tests.GetTestMySQLDSN(t),
+		}
+		s, err := New(params, logrus.WithField("test", t.Name()))
+		require.NoError(t, err)
+
+		expected := &slowLogInfo{
+			path: "/slowlogs/slow.log",
+		}
+		if vendor == tests.PerconaMySQL {
+			expected.outlierTime = 10
+		}
+
+		actual, err := s.getSlowLogInfo(context.Background())
+		require.NoError(t, err)
+		assert.Equal(t, expected, actual)
+	})
+
+	t.Run("Normal", func(t *testing.T) {
+		t.Parallel()
+
+		wd, err := os.Getwd()
+		require.NoError(t, err)
+		params := &Params{
+			DSN:               tests.GetTestMySQLDSN(t),
+			SlowLogFilePrefix: filepath.Join(wd, "..", "..", "..", "testdata"),
+		}
+		s, err := New(params, logrus.WithField("test", t.Name()))
+		require.NoError(t, err)
+
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+		go s.Run(ctx)
+
+		expected := []agents.Change{
+			{Status: inventorypb.AgentStatus_STARTING},
+			{Status: inventorypb.AgentStatus_RUNNING},
+			{Status: inventorypb.AgentStatus_WAITING},
+			{Status: inventorypb.AgentStatus_DONE},
+		}
+		var actual []agents.Change
+		for change := range s.Changes() {
+			actual = append(actual, change)
+		}
+		assert.Equal(t, expected, actual)
+		assert.Empty(t, s.Changes())
+	})
+
+	t.Run("NoFile", func(t *testing.T) {
+		t.Parallel()
+
+		params := &Params{
+			DSN: tests.GetTestMySQLDSN(t),
+		}
+		s, err := New(params, logrus.WithField("test", t.Name()))
+		require.NoError(t, err)
+
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+		go s.Run(ctx)
+
+		expected := []agents.Change{
+			{Status: inventorypb.AgentStatus_STARTING},
+			{Status: inventorypb.AgentStatus_WAITING},
+			{Status: inventorypb.AgentStatus_STARTING},
+		}
+		var actual []agents.Change
+		for change := range s.Changes() {
+			actual = append(actual, change)
+		}
+		assert.Equal(t, expected, actual[:len(expected)])
+	})
 }
