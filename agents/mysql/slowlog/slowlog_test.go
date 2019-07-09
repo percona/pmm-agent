@@ -114,7 +114,7 @@ func TestSlowLog(t *testing.T) {
 		s, err := New(params, logrus.WithField("test", t.Name()))
 		require.NoError(t, err)
 
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 		defer cancel()
 		go s.Run(ctx)
 
@@ -139,7 +139,7 @@ func TestSlowLog(t *testing.T) {
 		s, err := New(params, logrus.WithField("test", t.Name()))
 		require.NoError(t, err)
 
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 		defer cancel()
 		go s.Run(ctx)
 
