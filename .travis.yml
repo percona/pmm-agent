@@ -48,11 +48,8 @@ env:
 
 before_install:
   - touch testdata/slowlogs/slow.log
-  - chmod 766 testdata/slowlogs/slow.log
+  - chmod 666 testdata/slowlogs/slow.log
   - docker-compose up -d
-  - sleep 20
-  - docker-compose logs
-  - ls -la testdata/slowlogs/
 
 install:
   # ensure that vendor/ is in sync with code and Gopkg.toml/lock
