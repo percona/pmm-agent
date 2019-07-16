@@ -28,6 +28,8 @@ env:
     - CODECOV_ENV=MYSQL_IMAGE,MONGO_IMAGE,POSTGRES_IMAGE
 
   matrix:
+    TODO Add PostgreSQL 9.5, 9.4
+
     # upstreams
     - MYSQL_IMAGE=mysql:5.6 MONGO_IMAGE=mongo:3.4 POSTGRES_IMAGE=postgres:9.6
     - MYSQL_IMAGE=mysql:5.7 MONGO_IMAGE=mongo:3.6 POSTGRES_IMAGE=postgres:10

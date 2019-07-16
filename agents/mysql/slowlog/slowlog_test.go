@@ -25,7 +25,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang/protobuf/proto"
 	"github.com/percona/go-mysql/event"
 	"github.com/percona/pmm/api/inventorypb"
 	"github.com/percona/pmm/api/qanpb"
@@ -36,11 +35,6 @@ import (
 	"github.com/percona/pmm-agent/agents"
 	"github.com/percona/pmm-agent/utils/tests"
 )
-
-func assertBucketsEqual(t *testing.T, expected, actual *qanpb.MetricsBucket) bool {
-	t.Helper()
-	return assert.Equal(t, proto.MarshalTextString(expected), proto.MarshalTextString(actual))
-}
 
 func getDataFromFile(t *testing.T, filePath string, data interface{}) {
 	jsonData, err := ioutil.ReadFile(filePath) //nolint:gosec
@@ -68,7 +62,7 @@ func TestSlowLogMakeBuckets(t *testing.T) {
 	for _, actualBucket := range actualBuckets {
 		for _, expectedBucket := range expectedBuckets {
 			if actualBucket.Queryid == expectedBucket.Queryid {
-				assertBucketsEqual(t, expectedBucket, actualBucket)
+				tests.AssertBucketsEqual(t, expectedBucket, actualBucket)
 				countExpectedBuckets++
 			}
 		}

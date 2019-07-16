@@ -23,7 +23,6 @@ import (
 	"time"
 
 	"github.com/AlekSi/pointer"
-	"github.com/golang/protobuf/proto"
 	"github.com/percona/pmm/api/inventorypb"
 	"github.com/percona/pmm/api/qanpb"
 	"github.com/sirupsen/logrus"
@@ -34,11 +33,6 @@ import (
 
 	"github.com/percona/pmm-agent/utils/tests"
 )
-
-func assertBucketsEqual(t *testing.T, expected, actual *qanpb.MetricsBucket) bool {
-	t.Helper()
-	return assert.Equal(t, proto.MarshalTextString(expected), proto.MarshalTextString(actual))
-}
 
 func TestPerfSchemaMakeBuckets(t *testing.T) {
 	t.Run("Normal", func(t *testing.T) {
@@ -68,7 +62,7 @@ func TestPerfSchemaMakeBuckets(t *testing.T) {
 			MRowsAffectedCnt: 5,
 			MRowsAffectedSum: 10, // 60-50
 		}
-		assertBucketsEqual(t, expected, actual[0])
+		tests.AssertBucketsEqual(t, expected, actual[0])
 	})
 
 	t.Run("New", func(t *testing.T) {
@@ -91,7 +85,7 @@ func TestPerfSchemaMakeBuckets(t *testing.T) {
 			MRowsAffectedCnt: 10,
 			MRowsAffectedSum: 50,
 		}
-		assertBucketsEqual(t, expected, actual[0])
+		tests.AssertBucketsEqual(t, expected, actual[0])
 	})
 
 	t.Run("Same", func(t *testing.T) {
@@ -156,19 +150,22 @@ func TestPerfSchemaMakeBuckets(t *testing.T) {
 			MRowsAffectedCnt: 5,
 			MRowsAffectedSum: 25,
 		}
-		assertBucketsEqual(t, expected, actual[0])
+		tests.AssertBucketsEqual(t, expected, actual[0])
 	})
 }
 
 func setup(t *testing.T, db *reform.DB) *PerfSchema {
 	t.Helper()
 
-	_, err := db.Exec("TRUNCATE performance_schema.events_statements_history")
+	truncateQuery := fmt.Sprintf("TRUNCATE /* %s */ ", queryTag) //nolint:gosec
+	_, err := db.Exec(truncateQuery + "performance_schema.events_statements_history")
 	require.NoError(t, err)
-	_, err = db.Exec("TRUNCATE performance_schema.events_statements_summary_by_digest")
+	_, err = db.Exec(truncateQuery + "performance_schema.events_statements_summary_by_digest")
 	require.NoError(t, err)
 
-	return newPerfSchema(db, "agent_id", logrus.WithField("test", t.Name()))
+	p := newPerfSchema(db.WithTag(queryTag), nil, "agent_id", logrus.WithField("test", t.Name()))
+	require.NoError(t, p.refreshHistoryCache())
+	return p
 }
 
 // filter removes buckets for queries that are not expected by tests.
@@ -176,32 +173,32 @@ func filter(mb []*qanpb.MetricsBucket) []*qanpb.MetricsBucket {
 	res := make([]*qanpb.MetricsBucket, 0, len(mb))
 	for _, b := range mb {
 		switch {
-		// actions tests, MySQLVersion helper
-		case strings.HasPrefix(b.Fingerprint, "SHOW "):
+		case strings.Contains(b.Example, "/* pmm-agent:perfschema */"):
 			continue
-		case strings.HasPrefix(b.Fingerprint, "ANALYZE "):
-			continue
-		case strings.HasPrefix(b.Fingerprint, "EXPLAIN "):
+		case strings.Contains(b.Example, "/* pmm-agent:slowlog */"):
 			continue
 
-		case strings.HasPrefix(b.Fingerprint, "SELECT `id` FROM `city` LIMIT "):
+		case strings.Contains(b.Example, "/* pmm-agent-tests:MySQLVersion */"):
 			continue
-
-		// slowlog tests
-		case strings.HasPrefix(b.Fingerprint, "SELECT @@`slow_query_"):
+		case strings.Contains(b.Example, "/* pmm-agent-tests:waitForFixtures */"):
 			continue
-
-		case strings.HasPrefix(b.Fingerprint, "SELECT @@`skip_networking`"):
-			continue
-
-		case strings.HasPrefix(b.Fingerprint, "TRUNCATE `performance_schema`"):
-			continue
-		case strings.HasPrefix(b.Fingerprint, "SELECT `performance_schema`"):
-			continue
-
-		default:
-			res = append(res, b)
 		}
+
+		switch {
+		case b.Fingerprint == "ANALYZE TABLE `city`": // OpenTestMySQL
+			continue
+		case b.Fingerprint == "SHOW GLOBAL VARIABLES WHERE `Variable_name` = ?": // MySQLVersion
+			continue
+		case b.Fingerprint == "SELECT `id` FROM `city` LIMIT ?": // waitForFixtures
+			continue
+		case b.Fingerprint == "SELECT COUNT ( * ) FROM `city`": // actions tests
+			continue
+
+		case strings.HasPrefix(b.Fingerprint, "SELECT @@`slow_query_log"): // slowlog
+			continue
+		}
+
+		res = append(res, b)
 	}
 	return res
 }
@@ -211,7 +208,8 @@ func TestPerfSchema(t *testing.T) {
 	defer sqlDB.Close() //nolint:errcheck
 	db := reform.NewDB(sqlDB, mysql.Dialect, reform.NewPrintfLogger(t.Logf))
 
-	_, err := db.Exec("UPDATE performance_schema.setup_consumers SET ENABLED='YES' WHERE NAME='events_statements_history'")
+	updateQuery := fmt.Sprintf("UPDATE /* %s */ ", queryTag) //nolint:gosec
+	_, err := db.Exec(updateQuery + "performance_schema.setup_consumers SET ENABLED='YES' WHERE NAME='events_statements_history'")
 	require.NoError(t, err, "failed to enable events_statements_history consumer")
 
 	structs, err := db.SelectAllFrom(setupConsumersView, "ORDER BY NAME")
@@ -289,7 +287,7 @@ func TestPerfSchema(t *testing.T) {
 		buckets, err := m.getNewBuckets(time.Date(2019, 4, 1, 10, 59, 0, 0, time.UTC), 60)
 		require.NoError(t, err)
 		buckets = filter(buckets)
-		require.Len(t, buckets, 1)
+		require.Len(t, buckets, 1, "%s", tests.FormatBuckets(buckets))
 
 		actual := buckets[0]
 		assert.InDelta(t, 0.1, actual.MQueryTimeSum, 0.09)
@@ -310,7 +308,7 @@ func TestPerfSchema(t *testing.T) {
 			MRowsSentSum:        1,
 		}
 		expected.Queryid = digests[expected.Fingerprint]
-		assertBucketsEqual(t, expected, actual)
+		tests.AssertBucketsEqual(t, expected, actual)
 	})
 
 	t.Run("AllCities", func(t *testing.T) {
@@ -324,7 +322,7 @@ func TestPerfSchema(t *testing.T) {
 		buckets, err := m.getNewBuckets(time.Date(2019, 4, 1, 10, 59, 0, 0, time.UTC), 60)
 		require.NoError(t, err)
 		buckets = filter(buckets)
-		require.Len(t, buckets, 1)
+		require.Len(t, buckets, 1, "%s", tests.FormatBuckets(buckets))
 
 		actual := buckets[0]
 		assert.InDelta(t, 0, actual.MQueryTimeSum, 0.09)
@@ -354,6 +352,6 @@ func TestPerfSchema(t *testing.T) {
 			MNoIndexUsedSum:     1,
 		}
 		expected.Queryid = digests[expected.Fingerprint]
-		assertBucketsEqual(t, expected, actual)
+		tests.AssertBucketsEqual(t, expected, actual)
 	})
 }

@@ -17,22 +17,26 @@
 package tests
 
 import (
-	"database/sql"
+	"strings"
 	"testing"
-	"time"
 
-	"github.com/stretchr/testify/require"
+	"github.com/golang/protobuf/proto"
+	"github.com/percona/pmm/api/qanpb"
+	"github.com/stretchr/testify/assert"
 )
 
-// waitForFixtures waits up to 30 seconds to database fixtures (test_db) to be loaded.
-func waitForFixtures(tb testing.TB, db *sql.DB) {
-	var id int
-	var err error
-	for i := 0; i < 30; i++ {
-		if err = db.QueryRow("SELECT /* pmm-agent-tests:waitForFixtures */ id FROM city LIMIT 1").Scan(&id); err == nil {
-			return
-		}
-		time.Sleep(time.Second)
+// AssertBucketsEqual asserts that two MetricsBuckets are equal while providing a good diff.
+func AssertBucketsEqual(t *testing.T, expected, actual *qanpb.MetricsBucket) bool {
+	t.Helper()
+
+	return assert.Equal(t, proto.MarshalTextString(expected), proto.MarshalTextString(actual))
+}
+
+// FormatBuckets formats MetricsBuckets to string for tests.
+func FormatBuckets(mb []*qanpb.MetricsBucket) string {
+	res := make([]string, len(mb))
+	for i, b := range mb {
+		res[i] = proto.MarshalTextString(b)
 	}
-	require.NoError(tb, err)
+	return strings.Join(res, "\n")
 }

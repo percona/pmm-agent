@@ -75,7 +75,7 @@ func PostgreSQLVersion(tb testing.TB, db *sql.DB) string {
 	tb.Helper()
 
 	var version string
-	err := db.QueryRow("SELECT version()").Scan(&version)
+	err := db.QueryRow("SELECT /* pmm-agent-tests:PostgreSQLVersion */ version()").Scan(&version)
 	require.NoError(tb, err)
 
 	m := postgresDBRegexp.FindStringSubmatch(version)[1]
