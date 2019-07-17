@@ -7,6 +7,7 @@ import (
 	pgquerynodes "github.com/lfittl/pg_query_go/nodes"
 )
 
+// Parser parses postgresql queries
 type Parser struct{}
 
 // ExtractTables extracts table names from query.
@@ -38,13 +39,13 @@ func (p *Parser) ExtractTables(query string) (tables []string, err error) {
 	return
 }
 
-func (p *Parser) extractTableNames(stmts ...pgquerynodes.Node) (tables, excludeTables []string) {
+func (p *Parser) extractTableNames(stmts ...pgquerynodes.Node) ([]string, []string) {
+	var tables, excludeTables []string
 	for _, stmt := range stmts {
 		if isNilValue(stmt) {
 			continue
 		}
-		var foundTables []string
-		var tmpExcludeTables []string
+		var foundTables, tmpExcludeTables []string
 		switch v := stmt.(type) {
 		case pgquerynodes.RawStmt:
 			return p.extractTableNames(v.Stmt)
@@ -69,8 +70,7 @@ func (p *Parser) extractTableNames(stmts ...pgquerynodes.Node) (tables, excludeT
 		case pgquerynodes.WithClause: // To exclude temporary tables
 			foundTables, tmpExcludeTables = p.extractTableNames(v.Ctes)
 			for _, item := range v.Ctes.Items {
-				switch cte := item.(type) {
-				case pgquerynodes.CommonTableExpr:
+				if cte, ok := item.(pgquerynodes.CommonTableExpr); ok {
 					tmpExcludeTables = append(tmpExcludeTables, *cte.Ctename)
 				}
 			}
@@ -88,9 +88,9 @@ func (p *Parser) extractTableNames(stmts ...pgquerynodes.Node) (tables, excludeT
 
 		default:
 			if isPointer(v) { // to avoid duplications in case of pointers
-				switch deref := reflect.ValueOf(v).Elem().Interface().(type) {
-				case pgquerynodes.Node:
-					foundTables, tmpExcludeTables = p.extractTableNames(deref)
+				dereference, ok := reflect.ValueOf(v).Elem().Interface().(pgquerynodes.Node)
+				if ok {
+					foundTables, tmpExcludeTables = p.extractTableNames(dereference)
 				}
 			}
 		}
@@ -98,7 +98,7 @@ func (p *Parser) extractTableNames(stmts ...pgquerynodes.Node) (tables, excludeT
 		excludeTables = append(excludeTables, tmpExcludeTables...)
 	}
 
-	return
+	return tables, excludeTables
 }
 
 func isNilValue(i interface{}) bool {
