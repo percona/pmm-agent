@@ -17,11 +17,11 @@
 package parser
 
 import (
-	"github.com/pkg/errors"
 	"reflect"
 
 	pgquery "github.com/lfittl/pg_query_go"
 	pgquerynodes "github.com/lfittl/pg_query_go/nodes"
+	"github.com/pkg/errors"
 )
 
 // ExtractTables extracts table names from query.
