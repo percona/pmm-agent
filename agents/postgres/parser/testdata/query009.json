@@ -1,3 +1,6 @@
-[
-  "payment"
-]
+{
+  "tables": [
+    "payment"
+  ],
+  "error": ""
+}

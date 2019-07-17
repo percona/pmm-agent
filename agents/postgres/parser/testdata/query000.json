@@ -1,3 +1,6 @@
-[
-  "cities"
-]
+{
+  "tables": [
+    "cities"
+  ],
+  "error": ""
+}

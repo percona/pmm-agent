@@ -1,4 +1,8 @@
-[
-  "orders",
-  "price_parts"
-]
+{
+  "tables": [
+    "employees_log",
+    "employees",
+    "accounts"
+  ],
+  "error": ""
+}

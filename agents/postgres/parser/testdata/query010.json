@@ -1,4 +1,7 @@
-[
-  "pg_database",
-  "pg_locks"
-]
+{
+  "tables": [
+    "pg_database",
+    "pg_locks"
+  ],
+  "error": ""
+}

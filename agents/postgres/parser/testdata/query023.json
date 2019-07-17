@@ -1,3 +1,7 @@
-[
-  "reward_members"
-]
+{
+  "tables": [
+    "employees",
+    "accounts"
+  ],
+  "error": ""
+}

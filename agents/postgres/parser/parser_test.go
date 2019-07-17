@@ -27,6 +27,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+type expectedResult struct {
+	Tables []string `json:"tables"`
+	Err    string   `json:"error"`
+}
+
 func TestExtractTables(t *testing.T) {
 	files, err := filepath.Glob(filepath.FromSlash("./testdata/*.sql"))
 	require.NoError(t, err)
@@ -37,16 +42,20 @@ func TestExtractTables(t *testing.T) {
 			b, err := ioutil.ReadFile(file) //nolint:gosec
 			require.NoError(t, err)
 			query := string(b)
-			actual, err := ExtractTables(query)
-			require.NoError(t, err)
 
 			b, err = ioutil.ReadFile(goldenFile) //nolint:gosec
 			require.NoError(t, err)
-			var expected []string
+			var expected expectedResult
 			err = json.Unmarshal(b, &expected)
 			require.NoError(t, err)
 
-			assert.Equal(t, expected, actual)
+			actual, err := ExtractTables(query)
+			assert.Equal(t, expected.Tables, actual)
+			if expected.Err != "" {
+				require.EqualError(t, err, expected.Err)
+			} else {
+				require.NoError(t, err)
+			}
 		})
 	}
 }

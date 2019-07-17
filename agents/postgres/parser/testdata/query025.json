@@ -1,4 +1,6 @@
-[
-  "tbl_scores",
-  "tbl_scores_2"
-]
+{
+  "tables": [
+    "tbl_scores"
+  ],
+  "error": ""
+}

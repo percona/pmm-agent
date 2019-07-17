@@ -1,4 +1,6 @@
-[
-  "big_orders",
-  "total_orders"
-]
+{
+  "tables": [
+    "city"
+  ],
+  "error": ""
+}

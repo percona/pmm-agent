@@ -1,5 +1,8 @@
-[
-  "city",
-  "country",
-  "countrylanguage"
-]
+{
+  "tables": [
+    "city",
+    "country",
+    "countrylanguage"
+  ],
+  "error": ""
+}

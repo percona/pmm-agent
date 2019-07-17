@@ -1,4 +1,7 @@
-[
-  "customer",
-  "payment"
-]
+{
+  "tables": [
+    "customer",
+    "payment"
+  ],
+  "error": ""
+}

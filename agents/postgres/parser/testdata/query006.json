@@ -1,4 +1,7 @@
-[
-  "credit_card_complaints",
-  "credit_card_complaints_2"
-]
+{
+  "tables": [
+    "credit_card_complaints",
+    "credit_card_complaints_2"
+  ],
+  "error": ""
+}

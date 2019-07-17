@@ -17,6 +17,7 @@
 package parser
 
 import (
+	"github.com/pkg/errors"
 	"reflect"
 
 	pgquery "github.com/lfittl/pg_query_go"
@@ -27,7 +28,7 @@ import (
 func ExtractTables(query string) (tables []string, err error) {
 	tree, err := pgquery.Parse(query)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "error on parsing sql query")
 	}
 	tables = []string{}
 	tableNames := make(map[string]bool)

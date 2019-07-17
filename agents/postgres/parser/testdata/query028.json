@@ -1,8 +1,7 @@
 {
   "tables": [
-    "order_line_details",
     "orders",
-    "order_line"
+    "price_parts"
   ],
   "error": ""
 }

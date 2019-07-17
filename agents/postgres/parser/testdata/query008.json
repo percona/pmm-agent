@@ -1,4 +1,7 @@
-[
-  "payment",
-  "fake_month"
-]
+{
+  "tables": [
+    "payment",
+    "fake_month"
+  ],
+  "error": ""
+}

@@ -1,3 +1,6 @@
-[
-  "tbl_scores"
-]
+{
+  "tables": [
+    "reward_members"
+  ],
+  "error": ""
+}
