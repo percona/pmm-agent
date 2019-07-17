@@ -1,9 +1,10 @@
 package parser
 
 import (
+	"reflect"
+
 	pgquery "github.com/lfittl/pg_query_go"
 	pgquerynodes "github.com/lfittl/pg_query_go/nodes"
-	"reflect"
 )
 
 // ExtractTables extracts table names from query.
