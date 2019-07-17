@@ -177,6 +177,8 @@ func filter(mb []*qanpb.MetricsBucket) []*qanpb.MetricsBucket {
 			continue
 		case strings.Contains(b.Example, "/* pmm-agent:slowlog */"):
 			continue
+		case strings.Contains(b.Example, "/* pmm-agent:connectionchecker */"):
+			continue
 
 		case strings.Contains(b.Example, "/* pmm-agent-tests:MySQLVersion */"):
 			continue
@@ -190,6 +192,8 @@ func filter(mb []*qanpb.MetricsBucket) []*qanpb.MetricsBucket {
 		case b.Fingerprint == "SHOW GLOBAL VARIABLES WHERE `Variable_name` = ?": // MySQLVersion
 			continue
 		case b.Fingerprint == "SELECT `id` FROM `city` LIMIT ?": // waitForFixtures
+			continue
+		case b.Fingerprint == "SELECT ID FROM `city` LIMIT ?": // waitForFixtures for MariaDB
 			continue
 		case b.Fingerprint == "SELECT COUNT ( * ) FROM `city`": // actions tests
 			continue

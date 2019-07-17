@@ -51,6 +51,8 @@ func filter(mb []*qanpb.MetricsBucket) []*qanpb.MetricsBucket {
 		switch {
 		case strings.Contains(b.Fingerprint, "/* pmm-agent:pgstatstatements */"):
 			continue
+		case strings.Contains(b.Fingerprint, "/* pmm-agent:connectionchecker */"):
+			continue
 
 		case strings.Contains(b.Fingerprint, "/* pmm-agent-tests:PostgreSQLVersion */"):
 			continue

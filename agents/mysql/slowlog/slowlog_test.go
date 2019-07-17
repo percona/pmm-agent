@@ -32,7 +32,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/percona/pmm-agent/agents"
 	"github.com/percona/pmm-agent/utils/tests"
 )
 
@@ -101,18 +100,24 @@ func TestSlowLog(t *testing.T) {
 		_, err = os.Stat(filepath.Join(params.SlowLogFilePrefix, "/slowlogs/slow.log"))
 		require.NoError(t, err)
 
-		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		go s.Run(ctx)
 
-		expected := []agents.Change{
-			{Status: inventorypb.AgentStatus_STARTING},
-			{Status: inventorypb.AgentStatus_RUNNING},
-			{Status: inventorypb.AgentStatus_WAITING},
+		// collect first 3 status changes, skip QAN data
+		var actual []inventorypb.AgentStatus
+		for c := range s.Changes() {
+			if c.Status != inventorypb.AgentStatus_AGENT_STATUS_INVALID {
+				actual = append(actual, c.Status)
+				if len(actual) == 3 {
+					break
+				}
+			}
 		}
-		actual := []agents.Change{
-			<-s.Changes(),
-			<-s.Changes(),
-			<-s.Changes(),
+
+		expected := []inventorypb.AgentStatus{
+			inventorypb.AgentStatus_STARTING,
+			inventorypb.AgentStatus_RUNNING,
+			inventorypb.AgentStatus_WAITING,
 		}
 		assert.Equal(t, expected, actual)
 
@@ -145,18 +150,24 @@ func TestSlowLog(t *testing.T) {
 		require.Error(t, err)
 		assert.True(t, os.IsNotExist(err))
 
-		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		go s.Run(ctx)
 
-		expected := []agents.Change{
-			{Status: inventorypb.AgentStatus_STARTING},
-			{Status: inventorypb.AgentStatus_WAITING},
-			{Status: inventorypb.AgentStatus_STARTING},
+		// collect first 3 status changes, skip QAN data
+		var actual []inventorypb.AgentStatus
+		for c := range s.Changes() {
+			if c.Status != inventorypb.AgentStatus_AGENT_STATUS_INVALID {
+				actual = append(actual, c.Status)
+				if len(actual) == 3 {
+					break
+				}
+			}
 		}
-		actual := []agents.Change{
-			<-s.Changes(),
-			<-s.Changes(),
-			<-s.Changes(),
+
+		expected := []inventorypb.AgentStatus{
+			inventorypb.AgentStatus_STARTING,
+			inventorypb.AgentStatus_WAITING,
+			inventorypb.AgentStatus_STARTING,
 		}
 		assert.Equal(t, expected, actual)
 
