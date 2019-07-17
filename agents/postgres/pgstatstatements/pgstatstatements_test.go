@@ -96,6 +96,10 @@ func TestPGStatStatementsQAN(t *testing.T) {
 		digests = map[string]string{
 			"SELECT /* AllCities */ * FROM city": "-4056421706168012289",
 		}
+	case "12":
+		digests = map[string]string{
+			"SELECT /* AllCities */ * FROM city": "5627444073676588515",
+		}
 
 	default:
 		t.Log("Unhandled version, assuming dummy digests.")
