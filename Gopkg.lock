@@ -788,6 +788,7 @@
     "github.com/golang/protobuf/ptypes",
     "github.com/grpc-ecosystem/grpc-gateway/runtime",
     "github.com/lfittl/pg_query_go",
+    "github.com/lfittl/pg_query_go/nodes",
     "github.com/lib/pq",
     "github.com/percona/exporter_shared/helpers",
     "github.com/percona/go-mysql/event",
