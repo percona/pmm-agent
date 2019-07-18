@@ -24,6 +24,7 @@ import (
 
 	"github.com/AlekSi/pointer"
 	"github.com/golang/protobuf/proto"
+	"github.com/percona/pmm/api/agentpb"
 	"github.com/percona/pmm/api/inventorypb"
 	"github.com/percona/pmm/api/qanpb"
 	"github.com/sirupsen/logrus"
@@ -35,7 +36,7 @@ import (
 	"github.com/percona/pmm-agent/utils/tests"
 )
 
-func assertBucketsEqual(t *testing.T, expected, actual *qanpb.MetricsBucket) bool {
+func assertBucketsEqual(t *testing.T, expected, actual *agentpb.MetricsBucket) bool {
 	t.Helper()
 	return assert.Equal(t, proto.MarshalTextString(expected), proto.MarshalTextString(actual))
 }
@@ -60,13 +61,17 @@ func TestPerfSchemaMakeBuckets(t *testing.T) {
 		}
 		actual := makeBuckets(current, prev, logrus.WithField("test", t.Name()))
 		require.Len(t, actual, 1)
-		expected := &qanpb.MetricsBucket{
-			Queryid:          "Normal",
-			Fingerprint:      "SELECT 'Normal'",
-			AgentType:        inventorypb.AgentType_QAN_MYSQL_PERFSCHEMA_AGENT,
-			NumQueries:       5,
-			MRowsAffectedCnt: 5,
-			MRowsAffectedSum: 10, // 60-50
+		expected := &agentpb.MetricsBucket{
+			Common: &agentpb.MetricsBucket_Common{
+				Queryid:     "Normal",
+				Fingerprint: "SELECT 'Normal'",
+				AgentType:   inventorypb.AgentType_QAN_MYSQL_PERFSCHEMA_AGENT,
+				NumQueries:  5,
+			},
+			Mysql: &agentpb.MetricsBucket_MySQL{
+				MRowsAffectedCnt: 5,
+				MRowsAffectedSum: 10, // 60-50
+			},
 		}
 		assertBucketsEqual(t, expected, actual[0])
 	})
@@ -83,13 +88,17 @@ func TestPerfSchemaMakeBuckets(t *testing.T) {
 		}
 		actual := makeBuckets(current, prev, logrus.WithField("test", t.Name()))
 		require.Len(t, actual, 1)
-		expected := &qanpb.MetricsBucket{
-			Queryid:          "New",
-			Fingerprint:      "SELECT 'New'",
-			AgentType:        inventorypb.AgentType_QAN_MYSQL_PERFSCHEMA_AGENT,
-			NumQueries:       10,
-			MRowsAffectedCnt: 10,
-			MRowsAffectedSum: 50,
+		expected := &agentpb.MetricsBucket{
+			Common: &agentpb.MetricsBucket_Common{
+				Queryid:     "New",
+				Fingerprint: "SELECT 'New'",
+				AgentType:   inventorypb.AgentType_QAN_MYSQL_PERFSCHEMA_AGENT,
+				NumQueries:  10,
+			},
+			Mysql: &agentpb.MetricsBucket_MySQL{
+				MRowsAffectedCnt: 10,
+				MRowsAffectedSum: 50,
+			},
 		}
 		assertBucketsEqual(t, expected, actual[0])
 	})
@@ -148,13 +157,17 @@ func TestPerfSchemaMakeBuckets(t *testing.T) {
 		}
 		actual := makeBuckets(current, prev, logrus.WithField("test", t.Name()))
 		require.Len(t, actual, 1)
-		expected := &qanpb.MetricsBucket{
-			Queryid:          "TruncateAndNew",
-			Fingerprint:      "SELECT 'TruncateAndNew'",
-			AgentType:        inventorypb.AgentType_QAN_MYSQL_PERFSCHEMA_AGENT,
-			NumQueries:       5,
-			MRowsAffectedCnt: 5,
-			MRowsAffectedSum: 25,
+		expected := &agentpb.MetricsBucket{
+			Common: &agentpb.MetricsBucket_Common{
+				Queryid:     "TruncateAndNew",
+				Fingerprint: "SELECT 'TruncateAndNew'",
+				AgentType:   inventorypb.AgentType_QAN_MYSQL_PERFSCHEMA_AGENT,
+				NumQueries:  5,
+			},
+			Mysql: &agentpb.MetricsBucket_MySQL{
+				MRowsAffectedCnt: 5,
+				MRowsAffectedSum: 25,
+			},
 		}
 		assertBucketsEqual(t, expected, actual[0])
 	})
@@ -172,28 +185,28 @@ func setup(t *testing.T, db *reform.DB) *PerfSchema {
 }
 
 // filter removes buckets for queries that are not expected by tests.
-func filter(mb []*qanpb.MetricsBucket) []*qanpb.MetricsBucket {
-	res := make([]*qanpb.MetricsBucket, 0, len(mb))
+func filter(mb []*agentpb.MetricsBucket) []*agentpb.MetricsBucket {
+	res := make([]*agentpb.MetricsBucket, 0, len(mb))
 	for _, b := range mb {
 		switch {
 		// actions tests, MySQLVersion helper
-		case strings.HasPrefix(b.Fingerprint, "SHOW "):
+		case strings.HasPrefix(b.Common.Fingerprint, "SHOW "):
 			continue
-		case strings.HasPrefix(b.Fingerprint, "ANALYZE "):
+		case strings.HasPrefix(b.Common.Fingerprint, "ANALYZE "):
 			continue
-		case strings.HasPrefix(b.Fingerprint, "EXPLAIN "):
+		case strings.HasPrefix(b.Common.Fingerprint, "EXPLAIN "):
 			continue
 
 		// slowlog tests
-		case strings.HasPrefix(b.Fingerprint, "SELECT @@`slow_query_"):
+		case strings.HasPrefix(b.Common.Fingerprint, "SELECT @@`slow_query_"):
 			continue
 
-		case strings.HasPrefix(b.Fingerprint, "SELECT @@`skip_networking`"):
+		case strings.HasPrefix(b.Common.Fingerprint, "SELECT @@`skip_networking`"):
 			continue
 
-		case strings.HasPrefix(b.Fingerprint, "TRUNCATE `performance_schema`"):
+		case strings.HasPrefix(b.Common.Fingerprint, "TRUNCATE `performance_schema`"):
 			continue
-		case strings.HasPrefix(b.Fingerprint, "SELECT `performance_schema`"):
+		case strings.HasPrefix(b.Common.Fingerprint, "SELECT `performance_schema`"):
 			continue
 
 		default:
@@ -289,24 +302,28 @@ func TestPerfSchema(t *testing.T) {
 		require.Len(t, buckets, 1)
 
 		actual := buckets[0]
-		assert.InDelta(t, 0.1, actual.MQueryTimeSum, 0.09)
-		expected := &qanpb.MetricsBucket{
-			Fingerprint:         "SELECT `sleep` (?)",
-			Schema:              "world",
-			AgentId:             "agent_id",
-			PeriodStartUnixSecs: 1554116340,
-			PeriodLengthSecs:    60,
-			AgentType:           inventorypb.AgentType_QAN_MYSQL_PERFSCHEMA_AGENT,
-			Example:             "SELECT /* Sleep */ sleep(0.1)",
-			ExampleFormat:       qanpb.ExampleFormat_EXAMPLE,
-			ExampleType:         qanpb.ExampleType_RANDOM,
-			NumQueries:          1,
-			MQueryTimeCnt:       1,
-			MQueryTimeSum:       actual.MQueryTimeSum,
-			MRowsSentCnt:        1,
-			MRowsSentSum:        1,
+		assert.InDelta(t, 0.1, actual.Common.MQueryTimeSum, 0.09)
+		expected := &agentpb.MetricsBucket{
+			Common: &agentpb.MetricsBucket_Common{
+				Fingerprint:         "SELECT `sleep` (?)",
+				Schema:              "world",
+				AgentId:             "agent_id",
+				PeriodStartUnixSecs: 1554116340,
+				PeriodLengthSecs:    60,
+				AgentType:           inventorypb.AgentType_QAN_MYSQL_PERFSCHEMA_AGENT,
+				Example:             "SELECT /* Sleep */ sleep(0.1)",
+				ExampleFormat:       qanpb.ExampleFormat_EXAMPLE,
+				ExampleType:         qanpb.ExampleType_RANDOM,
+				NumQueries:          1,
+				MQueryTimeCnt:       1,
+				MQueryTimeSum:       actual.Common.MQueryTimeSum,
+			},
+			Mysql: &agentpb.MetricsBucket_MySQL{
+				MRowsSentCnt: 1,
+				MRowsSentSum: 1,
+			},
 		}
-		expected.Queryid = digests[expected.Fingerprint]
+		expected.Common.Queryid = digests[expected.Common.Fingerprint]
 		assertBucketsEqual(t, expected, actual)
 	})
 
@@ -324,33 +341,37 @@ func TestPerfSchema(t *testing.T) {
 		require.Len(t, buckets, 1)
 
 		actual := buckets[0]
-		assert.InDelta(t, 0, actual.MQueryTimeSum, 0.09)
-		assert.InDelta(t, 0, actual.MLockTimeSum, 0.09)
-		expected := &qanpb.MetricsBucket{
-			Fingerprint:         "SELECT * FROM `city`",
-			Schema:              "world",
-			AgentId:             "agent_id",
-			PeriodStartUnixSecs: 1554116340,
-			PeriodLengthSecs:    60,
-			AgentType:           inventorypb.AgentType_QAN_MYSQL_PERFSCHEMA_AGENT,
-			Example:             "SELECT /* AllCities */ * FROM city",
-			ExampleFormat:       qanpb.ExampleFormat_EXAMPLE,
-			ExampleType:         qanpb.ExampleType_RANDOM,
-			NumQueries:          1,
-			MQueryTimeCnt:       1,
-			MQueryTimeSum:       actual.MQueryTimeSum,
-			MLockTimeCnt:        1,
-			MLockTimeSum:        actual.MLockTimeSum,
-			MRowsSentCnt:        1,
-			MRowsSentSum:        4079,
-			MRowsExaminedCnt:    1,
-			MRowsExaminedSum:    4079,
-			MFullScanCnt:        1,
-			MFullScanSum:        1,
-			MNoIndexUsedCnt:     1,
-			MNoIndexUsedSum:     1,
+		assert.InDelta(t, 0, actual.Common.MQueryTimeSum, 0.09)
+		assert.InDelta(t, 0, actual.Mysql.MLockTimeSum, 0.09)
+		expected := &agentpb.MetricsBucket{
+			Common: &agentpb.MetricsBucket_Common{
+				Fingerprint:         "SELECT * FROM `city`",
+				Schema:              "world",
+				AgentId:             "agent_id",
+				PeriodStartUnixSecs: 1554116340,
+				PeriodLengthSecs:    60,
+				AgentType:           inventorypb.AgentType_QAN_MYSQL_PERFSCHEMA_AGENT,
+				Example:             "SELECT /* AllCities */ * FROM city",
+				ExampleFormat:       qanpb.ExampleFormat_EXAMPLE,
+				ExampleType:         qanpb.ExampleType_RANDOM,
+				NumQueries:          1,
+				MQueryTimeCnt:       1,
+				MQueryTimeSum:       actual.Common.MQueryTimeSum,
+			},
+			Mysql: &agentpb.MetricsBucket_MySQL{
+				MLockTimeCnt:     1,
+				MLockTimeSum:     actual.Mysql.MLockTimeSum,
+				MRowsSentCnt:     1,
+				MRowsSentSum:     4079,
+				MRowsExaminedCnt: 1,
+				MRowsExaminedSum: 4079,
+				MFullScanCnt:     1,
+				MFullScanSum:     1,
+				MNoIndexUsedCnt:  1,
+				MNoIndexUsedSum:  1,
+			},
 		}
-		expected.Queryid = digests[expected.Fingerprint]
+		expected.Common.Queryid = digests[expected.Common.Fingerprint]
 		assertBucketsEqual(t, expected, actual)
 	})
 }

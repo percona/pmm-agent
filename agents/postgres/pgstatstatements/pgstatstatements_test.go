@@ -22,8 +22,8 @@ import (
 	"time"
 
 	"github.com/golang/protobuf/proto"
+	"github.com/percona/pmm/api/agentpb"
 	"github.com/percona/pmm/api/inventorypb"
-	"github.com/percona/pmm/api/qanpb"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -33,7 +33,7 @@ import (
 	"github.com/percona/pmm-agent/utils/tests"
 )
 
-func assertBucketsEqual(t *testing.T, expected, actual *qanpb.MetricsBucket) bool {
+func assertBucketsEqual(t *testing.T, expected, actual *agentpb.MetricsBucket) bool {
 	t.Helper()
 	return assert.Equal(t, proto.MarshalTextString(expected), proto.MarshalTextString(actual))
 }
@@ -51,19 +51,19 @@ func setup(t *testing.T, db *reform.DB) *PGStatStatementsQAN {
 }
 
 // filter removes buckets for queries that are not expected by tests.
-func filter(mb []*qanpb.MetricsBucket) []*qanpb.MetricsBucket {
-	res := make([]*qanpb.MetricsBucket, 0, len(mb))
+func filter(mb []*agentpb.MetricsBucket) []*agentpb.MetricsBucket {
+	res := make([]*agentpb.MetricsBucket, 0, len(mb))
 	for _, b := range mb {
 		switch {
-		case strings.HasPrefix(b.Fingerprint, "SELECT version()"):
+		case strings.HasPrefix(b.Common.Fingerprint, "SELECT version()"):
 			continue
-		case strings.HasPrefix(b.Fingerprint, "SELECT pg_stat_statements_reset()"):
+		case strings.HasPrefix(b.Common.Fingerprint, "SELECT pg_stat_statements_reset()"):
 			continue
-		case strings.HasPrefix(b.Fingerprint, "DISCARD ALL"):
+		case strings.HasPrefix(b.Common.Fingerprint, "DISCARD ALL"):
 			continue
-		case strings.HasPrefix(b.Fingerprint, "SELECT \"pg_catalog\""):
+		case strings.HasPrefix(b.Common.Fingerprint, "SELECT \"pg_catalog\""):
 			continue
-		case strings.HasPrefix(b.Fingerprint, "SELECT \"pg_stat_statements\""):
+		case strings.HasPrefix(b.Common.Fingerprint, "SELECT \"pg_stat_statements\""):
 			continue
 
 		default:
@@ -124,31 +124,35 @@ func TestPGStatStatementsQAN(t *testing.T) {
 		require.Len(t, buckets, 1)
 
 		actual := buckets[0]
-		assert.InDelta(t, 0, actual.MQueryTimeSum, 0.09)
-		assert.Equal(t, float32(33), actual.MSharedBlksHitSum+actual.MSharedBlksReadSum)
-		assert.InDelta(t, 1.5, actual.MSharedBlksHitCnt+actual.MSharedBlksReadCnt, 0.5)
+		assert.InDelta(t, 0, actual.Common.MQueryTimeSum, 0.09)
+		assert.Equal(t, float32(33), actual.Postgresql.MSharedBlksHitSum+actual.Postgresql.MSharedBlksReadSum)
+		assert.InDelta(t, 1.5, actual.Postgresql.MSharedBlksHitCnt+actual.Postgresql.MSharedBlksReadCnt, 0.5)
 		//assert.InDelta(t, 0, actual.MLockTimeSum, 0.09)
-		expected := &qanpb.MetricsBucket{
-			Fingerprint:         "SELECT * FROM city",
-			Schema:              "pmm-agent",
-			AgentId:             "agent_id",
-			PeriodStartUnixSecs: 1554116340,
-			PeriodLengthSecs:    60,
-			AgentType:           inventorypb.AgentType_QAN_POSTGRESQL_PGSTATEMENTS_AGENT,
-			//Example:             "SELECT /* AllCities */ * FROM city",
-			//ExampleFormat:       qanpb.ExampleFormat_EXAMPLE,
-			//ExampleType:         qanpb.ExampleType_RANDOM,
-			NumQueries:         1,
-			MQueryTimeCnt:      1,
-			MQueryTimeSum:      actual.MQueryTimeSum,
-			MSharedBlksReadCnt: actual.MSharedBlksReadCnt,
-			MSharedBlksReadSum: actual.MSharedBlksReadSum,
-			MSharedBlksHitCnt:  actual.MSharedBlksHitCnt,
-			MSharedBlksHitSum:  actual.MSharedBlksHitSum,
-			MRowsSentCnt:       1,
-			MRowsSentSum:       4079,
+		expected := &agentpb.MetricsBucket{
+			Common: &agentpb.MetricsBucket_Common{
+				Fingerprint:         "SELECT * FROM city",
+				Schema:              "pmm-agent",
+				AgentId:             "agent_id",
+				PeriodStartUnixSecs: 1554116340,
+				PeriodLengthSecs:    60,
+				AgentType:           inventorypb.AgentType_QAN_POSTGRESQL_PGSTATEMENTS_AGENT,
+				//Example:             "SELECT /* AllCities */ * FROM city",
+				//ExampleFormat:       qanpb.ExampleFormat_EXAMPLE,
+				//ExampleType:         qanpb.ExampleType_RANDOM,
+				NumQueries:    1,
+				MQueryTimeCnt: 1,
+				MQueryTimeSum: actual.Common.MQueryTimeSum,
+			},
+			Postgresql: &agentpb.MetricsBucket_PostgreSQL{
+				MSharedBlksReadCnt: actual.Postgresql.MSharedBlksReadCnt,
+				MSharedBlksReadSum: actual.Postgresql.MSharedBlksReadSum,
+				MSharedBlksHitCnt:  actual.Postgresql.MSharedBlksHitCnt,
+				MSharedBlksHitSum:  actual.Postgresql.MSharedBlksHitSum,
+				MRowsCnt:           1,
+				MRowsSum:           4079,
+			},
 		}
-		expected.Queryid = digests[expected.Fingerprint]
+		expected.Common.Queryid = digests[expected.Common.Fingerprint]
 		assertBucketsEqual(t, expected, actual)
 
 		_, err = db.Exec("SELECT * FROM city")
@@ -160,27 +164,31 @@ func TestPGStatStatementsQAN(t *testing.T) {
 		require.Len(t, buckets, 1)
 
 		actual = buckets[0]
-		assert.InDelta(t, 0, actual.MQueryTimeSum, 0.09)
+		assert.InDelta(t, 0, actual.Common.MQueryTimeSum, 0.09)
 		//assert.InDelta(t, 0, actual.MLockTimeSum, 0.09)
-		expected = &qanpb.MetricsBucket{
-			Fingerprint:         "SELECT * FROM city",
-			Schema:              "pmm-agent",
-			AgentId:             "agent_id",
-			PeriodStartUnixSecs: 1554116340,
-			PeriodLengthSecs:    60,
-			AgentType:           inventorypb.AgentType_QAN_POSTGRESQL_PGSTATEMENTS_AGENT,
-			//Example:             "SELECT /* AllCities */ * FROM city",
-			//ExampleFormat:       qanpb.ExampleFormat_EXAMPLE,
-			//ExampleType:         qanpb.ExampleType_RANDOM,
-			NumQueries:        1,
-			MQueryTimeCnt:     1,
-			MQueryTimeSum:     actual.MQueryTimeSum,
-			MSharedBlksHitCnt: 1,
-			MSharedBlksHitSum: 33,
-			MRowsSentCnt:      1,
-			MRowsSentSum:      4079,
+		expected = &agentpb.MetricsBucket{
+			Common: &agentpb.MetricsBucket_Common{
+				Fingerprint:         "SELECT * FROM city",
+				Schema:              "pmm-agent",
+				AgentId:             "agent_id",
+				PeriodStartUnixSecs: 1554116340,
+				PeriodLengthSecs:    60,
+				AgentType:           inventorypb.AgentType_QAN_POSTGRESQL_PGSTATEMENTS_AGENT,
+				//Example:             "SELECT /* AllCities */ * FROM city",
+				//ExampleFormat:       qanpb.ExampleFormat_EXAMPLE,
+				//ExampleType:         qanpb.ExampleType_RANDOM,
+				NumQueries:    1,
+				MQueryTimeCnt: 1,
+				MQueryTimeSum: actual.Common.MQueryTimeSum,
+			},
+			Postgresql: &agentpb.MetricsBucket_PostgreSQL{
+				MSharedBlksHitCnt: 1,
+				MSharedBlksHitSum: 33,
+				MRowsCnt:          1,
+				MRowsSum:          4079,
+			},
 		}
-		expected.Queryid = digests[expected.Fingerprint]
+		expected.Common.Queryid = digests[expected.Common.Fingerprint]
 		assertBucketsEqual(t, expected, actual)
 	})
 }

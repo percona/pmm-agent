@@ -20,8 +20,8 @@ package mongodb
 import (
 	"context"
 
+	"github.com/percona/pmm/api/agentpb"
 	"github.com/percona/pmm/api/inventorypb"
-	"github.com/percona/pmm/api/qanpb"
 	"github.com/sirupsen/logrus"
 	"go.mongodb.org/mongo-driver/x/network/connstring"
 
@@ -102,7 +102,7 @@ func (m *MongoDB) Changes() <-chan Change {
 
 // Write writes MetricsBuckets to pmm-managed
 func (m *MongoDB) Write(r *report.Report) error {
-	m.changes <- Change{Request: &qanpb.CollectRequest{MetricsBucket: r.Buckets}}
+	m.changes <- Change{Request: &agentpb.CollectRequest{MetricsBucket: r.Buckets}}
 	return nil
 }
 
