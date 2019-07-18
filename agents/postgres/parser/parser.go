@@ -26,6 +26,12 @@ import (
 
 // ExtractTables extracts table names from query.
 func ExtractTables(query string) (tables []string, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = errors.WithStack(r.(error))
+		}
+	}()
+
 	tree, err := pgquery.Parse(query)
 	if err != nil {
 		return nil, errors.Wrap(err, "error on parsing sql query")
