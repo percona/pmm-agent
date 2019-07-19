@@ -208,7 +208,7 @@ func makeBuckets(q *reform.Querier, current, prev map[int64]*pgStatStatements, l
 			l.Debugf("Can't get db name for db: %d. %s", currentPSS.DBID, err)
 		}
 		pgUser := &pgUser{UserID: currentPSS.UserID}
-		err = q.FindOneTo(pgStatDatabase, "datid", currentPSS.DBID)
+		err = q.FindOneTo(pgUser, "usesysid", currentPSS.UserID)
 		if err != nil {
 			l.Debugf("Can't get username name for user: %d. %s", currentPSS.DBID, err)
 		}

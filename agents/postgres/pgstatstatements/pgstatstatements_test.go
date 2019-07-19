@@ -132,6 +132,7 @@ func TestPGStatStatementsQAN(t *testing.T) {
 			Common: &agentpb.MetricsBucket_Common{
 				Fingerprint:         "SELECT * FROM city",
 				Schema:              "pmm-agent",
+				Username:            "pmm-agent",
 				AgentId:             "agent_id",
 				PeriodStartUnixSecs: 1554116340,
 				PeriodLengthSecs:    60,
@@ -170,6 +171,7 @@ func TestPGStatStatementsQAN(t *testing.T) {
 			Common: &agentpb.MetricsBucket_Common{
 				Fingerprint:         "SELECT * FROM city",
 				Schema:              "pmm-agent",
+				Username:            "pmm-agent",
 				AgentId:             "agent_id",
 				PeriodStartUnixSecs: 1554116340,
 				PeriodLengthSecs:    60,
