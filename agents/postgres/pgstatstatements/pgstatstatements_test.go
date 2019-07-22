@@ -49,12 +49,12 @@ func filter(mb []*agentpb.MetricsBucket) []*agentpb.MetricsBucket {
 	res := make([]*agentpb.MetricsBucket, 0, len(mb))
 	for _, b := range mb {
 		switch {
-		case strings.Contains(b.Fingerprint, "/* pmm-agent:pgstatstatements */"):
+		case strings.Contains(b.Common.Fingerprint, "/* pmm-agent:pgstatstatements */"):
 			continue
-		case strings.Contains(b.Fingerprint, "/* pmm-agent:connectionchecker */"):
+		case strings.Contains(b.Common.Fingerprint, "/* pmm-agent:connectionchecker */"):
 			continue
 
-		case strings.Contains(b.Fingerprint, "/* pmm-agent-tests:PostgreSQLVersion */"):
+		case strings.Contains(b.Common.Fingerprint, "/* pmm-agent-tests:PostgreSQLVersion */"):
 			continue
 
 		default:
@@ -127,7 +127,7 @@ func TestPGStatStatementsQAN(t *testing.T) {
 		assert.InDelta(t, 1.5, actual.Postgresql.MSharedBlksHitCnt+actual.Postgresql.MSharedBlksReadCnt, 0.5)
 		expected := &agentpb.MetricsBucket{
 			Common: &agentpb.MetricsBucket_Common{
-				Fingerprint:         "SELECT /* AllCities */* FROM city",
+				Fingerprint:         "SELECT /* AllCities */ * FROM city",
 				Schema:              "pmm-agent",
 				Username:            "pmm-agent",
 				AgentId:             "agent_id",
@@ -162,7 +162,7 @@ func TestPGStatStatementsQAN(t *testing.T) {
 		assert.InDelta(t, 0, actual.Common.MQueryTimeSum, 0.09)
 		expected = &agentpb.MetricsBucket{
 			Common: &agentpb.MetricsBucket_Common{
-				Fingerprint:         "SELECT /* AllCities */* FROM city",
+				Fingerprint:         "SELECT /* AllCities */ * FROM city",
 				Schema:              "pmm-agent",
 				Username:            "pmm-agent",
 				AgentId:             "agent_id",

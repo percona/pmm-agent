@@ -186,32 +186,32 @@ func filter(mb []*agentpb.MetricsBucket) []*agentpb.MetricsBucket {
 	res := make([]*agentpb.MetricsBucket, 0, len(mb))
 	for _, b := range mb {
 		switch {
-		case strings.Contains(b.Example, "/* pmm-agent:perfschema */"):
+		case strings.Contains(b.Common.Example, "/* pmm-agent:perfschema */"):
 			continue
-		case strings.Contains(b.Example, "/* pmm-agent:slowlog */"):
+		case strings.Contains(b.Common.Example, "/* pmm-agent:slowlog */"):
 			continue
-		case strings.Contains(b.Example, "/* pmm-agent:connectionchecker */"):
+		case strings.Contains(b.Common.Example, "/* pmm-agent:connectionchecker */"):
 			continue
 
-		case strings.Contains(b.Example, "/* pmm-agent-tests:MySQLVersion */"):
+		case strings.Contains(b.Common.Example, "/* pmm-agent-tests:MySQLVersion */"):
 			continue
-		case strings.Contains(b.Example, "/* pmm-agent-tests:waitForFixtures */"):
+		case strings.Contains(b.Common.Example, "/* pmm-agent-tests:waitForFixtures */"):
 			continue
 		}
 
 		switch {
-		case b.Fingerprint == "ANALYZE TABLE `city`": // OpenTestMySQL
+		case b.Common.Fingerprint == "ANALYZE TABLE `city`": // OpenTestMySQL
 			continue
-		case b.Fingerprint == "SHOW GLOBAL VARIABLES WHERE `Variable_name` = ?": // MySQLVersion
+		case b.Common.Fingerprint == "SHOW GLOBAL VARIABLES WHERE `Variable_name` = ?": // MySQLVersion
 			continue
-		case b.Fingerprint == "SELECT `id` FROM `city` LIMIT ?": // waitForFixtures
+		case b.Common.Fingerprint == "SELECT `id` FROM `city` LIMIT ?": // waitForFixtures
 			continue
-		case b.Fingerprint == "SELECT ID FROM `city` LIMIT ?": // waitForFixtures for MariaDB
+		case b.Common.Fingerprint == "SELECT ID FROM `city` LIMIT ?": // waitForFixtures for MariaDB
 			continue
-		case b.Fingerprint == "SELECT COUNT ( * ) FROM `city`": // actions tests
+		case b.Common.Fingerprint == "SELECT COUNT ( * ) FROM `city`": // actions tests
 			continue
 
-		case strings.HasPrefix(b.Fingerprint, "SELECT @@`slow_query_log"): // slowlog
+		case strings.HasPrefix(b.Common.Fingerprint, "SELECT @@`slow_query_log"): // slowlog
 			continue
 		}
 
