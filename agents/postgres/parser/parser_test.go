@@ -52,9 +52,9 @@ func TestExtractTables(t *testing.T) {
 			actual, err := ExtractTables(query)
 			assert.Equal(t, expected.Tables, actual)
 			if expected.Err != "" {
-				require.EqualError(t, err, expected.Err)
+				require.EqualError(t, err, expected.Err, "err = %+v", err)
 			} else {
-				require.NoError(t, err)
+				require.NoError(t, err, "err = %+v", err)
 			}
 		})
 	}

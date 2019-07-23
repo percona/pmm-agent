@@ -29,11 +29,8 @@ import (
 func ExtractTables(query string) (tables []string, err error) {
 	defer func() {
 		if r := recover(); r != nil {
-			panicErr, ok := r.(error)
-			if !ok {
-				panicErr = errors.New(fmt.Sprintf("%v", r))
-			}
-			err = errors.WithStack(panicErr)
+			// preserve stack
+			err = errors.WithStack(fmt.Errorf("%v", r))
 		}
 	}()
 
