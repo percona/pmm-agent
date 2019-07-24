@@ -254,7 +254,8 @@
   version = "v1.0.2"
 
 [[projects]]
-  digest = "1:fc75904c22aeaf308b2e8e70a0f7f42d8297d6f1e5fdea610f8fc6e244e084af"
+  branch = "master"
+  digest = "1:f90896eee2fdb8f6cb092c5c104c78b5fa0aac591e82a0005c22b6fd0be82311"
   name = "github.com/lfittl/pg_query_go"
   packages = [
     ".",
@@ -262,8 +263,8 @@
     "parser",
   ]
   pruneopts = "T"
-  revision = "dfcaf527490fbd116d6fed73380bc2c338db2362"
-  version = "v1.0.0"
+  revision = "3fc3af54a6f7a72c571d690855a808eeff84b0dd"
+  source = "https://github.com/Percona-Lab/pg_query_go"
 
 [[projects]]
   digest = "1:3493089e5754b1471b97e783de2fb38f5bd4b68728d09046ec4a1e7e6ec48574"
@@ -364,7 +365,7 @@
 
 [[projects]]
   branch = "PMM-4351-split-qan-protocol"
-  digest = "1:f80f5cde447952ce039be4fd1bf4abc758e72bb18d8fbf5b8202ec946e32dbb0"
+  digest = "1:5c34ff23014c72885da138b8d7040df6bb6a009cd87e25fc059bd2ef553dd3e0"
   name = "github.com/percona/pmm"
   packages = [
     "api/agentlocalpb",
@@ -385,7 +386,7 @@
     "version",
   ]
   pruneopts = "NUT"
-  revision = "923bc8e3ad3a0f1533a63febb43769f4b7d7345d"
+  revision = "fbb4558ae4bab37c9d125221edc0e4aa0d593be6"
 
 [[projects]]
   digest = "1:14715f705ff5dfe0ffd6571d7d201dd8e921030f8070321a79380d8ca4ec1a24"
@@ -788,6 +789,7 @@
     "github.com/golang/protobuf/ptypes",
     "github.com/grpc-ecosystem/grpc-gateway/runtime",
     "github.com/lfittl/pg_query_go",
+    "github.com/lfittl/pg_query_go/nodes",
     "github.com/lib/pq",
     "github.com/percona/exporter_shared/helpers",
     "github.com/percona/go-mysql/event",
