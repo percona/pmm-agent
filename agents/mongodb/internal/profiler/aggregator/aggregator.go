@@ -265,7 +265,6 @@ func (a *Aggregator) createResult() *report.Result {
 			schema = s[1]
 		}
 
-		// TODO: Add more metrics if needed... (See: https://jira.percona.com/browse/PMM-3880)
 		bucket := &agentpb.MetricsBucket{
 			Common: &agentpb.MetricsBucket_Common{
 				Queryid:             v.ID,

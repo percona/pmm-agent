@@ -279,7 +279,7 @@ func (s *SlowLog) processFile(ctx context.Context, file string, outlierTime floa
 			s.l.Debugf("Scheduling next aggregation in %s at %s.", wait, start.Add(wait).Format("15:04:05"))
 			t.Reset(wait)
 
-			s.changes <- agents.Change{Request: &agents.CollectRequest{MetricsBucket: buckets}}
+			s.changes <- agents.Change{MetricsBucket: buckets}
 		}
 	}
 }

@@ -101,7 +101,7 @@ func (m *MongoDB) Changes() <-chan Change {
 
 // Write writes MetricsBuckets to pmm-managed
 func (m *MongoDB) Write(r *report.Report) error {
-	m.changes <- Change{Request: &agents.CollectRequest{MetricsBucket: r.Buckets}}
+	m.changes <- Change{MetricsBucket: r.Buckets}
 	return nil
 }
 
