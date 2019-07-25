@@ -32,7 +32,6 @@ import (
 	"github.com/percona/go-mysql/query"
 	"github.com/percona/pmm/api/agentpb"
 	"github.com/percona/pmm/api/inventorypb"
-	"github.com/percona/pmm/api/qanpb"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 
@@ -280,7 +279,7 @@ func (s *SlowLog) processFile(ctx context.Context, file string, outlierTime floa
 			s.l.Debugf("Scheduling next aggregation in %s at %s.", wait, start.Add(wait).Format("15:04:05"))
 			t.Reset(wait)
 
-			s.changes <- agents.Change{Request: &agentpb.CollectRequest{MetricsBucket: buckets}}
+			s.changes <- agents.Change{Request: &agents.CollectRequest{MetricsBucket: buckets}}
 		}
 	}
 }
@@ -303,8 +302,8 @@ func makeBuckets(agentID string, res event.Result, periodStart time.Time, period
 				PeriodStartUnixSecs:  uint32(periodStart.Unix()),
 				PeriodLengthSecs:     periodLengthSecs,
 				Example:              v.Example.Query,
-				ExampleFormat:        qanpb.ExampleFormat_EXAMPLE,
-				ExampleType:          qanpb.ExampleType_RANDOM,
+				ExampleFormat:        agentpb.ExampleFormat_EXAMPLE,
+				ExampleType:          agentpb.ExampleType_RANDOM,
 				NumQueries:           float32(v.TotalQueries),
 				Errors:               errListsToMap(v.ErrorsCode, v.ErrorsCount),
 				NumQueriesWithErrors: v.NumQueriesWithErrors,

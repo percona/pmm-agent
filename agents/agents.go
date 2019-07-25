@@ -23,10 +23,14 @@ import (
 	"github.com/percona/pmm/api/inventorypb"
 )
 
+type CollectRequest struct {
+	MetricsBucket []*agentpb.MetricsBucket
+}
+
 // Change represents built-in Agent status change and/or QAN collect request.
 type Change struct {
 	Status  inventorypb.AgentStatus
-	Request *agentpb.CollectRequest
+	Request *CollectRequest
 }
 
 // BuiltinAgent is a common interface for all built-in Agents.

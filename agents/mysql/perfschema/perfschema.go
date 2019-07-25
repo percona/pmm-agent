@@ -28,7 +28,6 @@ import (
 	_ "github.com/go-sql-driver/mysql" // register SQL driver
 	"github.com/percona/pmm/api/agentpb"
 	"github.com/percona/pmm/api/inventorypb"
-	"github.com/percona/pmm/api/qanpb"
 	"github.com/sirupsen/logrus"
 	"gopkg.in/reform.v1"
 	"gopkg.in/reform.v1/dialects/mysql"
@@ -150,7 +149,7 @@ func (m *PerfSchema) Run(ctx context.Context) {
 				m.changes <- agents.Change{Status: inventorypb.AgentStatus_RUNNING}
 			}
 
-			m.changes <- agents.Change{Request: &agentpb.CollectRequest{MetricsBucket: buckets}}
+			m.changes <- agents.Change{Request: &agents.CollectRequest{MetricsBucket: buckets}}
 		}
 	}
 }
@@ -212,8 +211,8 @@ func (m *PerfSchema) getNewBuckets(periodStart time.Time, periodLengthSecs uint3
 
 			if esh.SQLText != nil {
 				b.Common.Example = *esh.SQLText
-				b.Common.ExampleFormat = qanpb.ExampleFormat_EXAMPLE
-				b.Common.ExampleType = qanpb.ExampleType_RANDOM
+				b.Common.ExampleFormat = agentpb.ExampleFormat_EXAMPLE
+				b.Common.ExampleType = agentpb.ExampleType_RANDOM
 			}
 		}
 

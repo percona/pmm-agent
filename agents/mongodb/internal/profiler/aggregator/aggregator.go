@@ -27,7 +27,6 @@ import (
 	mongostats "github.com/percona/percona-toolkit/src/go/mongolib/stats"
 	"github.com/percona/pmm/api/agentpb"
 	"github.com/percona/pmm/api/inventorypb"
-	"github.com/percona/pmm/api/qanpb"
 
 	"github.com/percona/pmm-agent/agents/mongodb/internal/report"
 	"github.com/percona/pmm-agent/agents/mongodb/internal/status"
@@ -280,8 +279,8 @@ func (a *Aggregator) createResult() *report.Result {
 				PeriodStartUnixSecs: uint32(a.timeStart.Truncate(1 * time.Minute).Unix()),
 				PeriodLengthSecs:    uint32(a.d.Seconds()),
 				Example:             v.Query,
-				ExampleFormat:       qanpb.ExampleFormat_EXAMPLE,
-				ExampleType:         qanpb.ExampleType_RANDOM,
+				ExampleFormat:       agentpb.ExampleFormat_EXAMPLE,
+				ExampleType:         agentpb.ExampleType_RANDOM,
 				NumQueries:          float32(v.Count),
 			},
 			Mongodb: &agentpb.MetricsBucket_MongoDB{},

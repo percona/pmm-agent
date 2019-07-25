@@ -25,7 +25,6 @@ import (
 	"github.com/AlekSi/pointer"
 	"github.com/percona/pmm/api/agentpb"
 	"github.com/percona/pmm/api/inventorypb"
-	"github.com/percona/pmm/api/qanpb"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -317,8 +316,8 @@ func TestPerfSchema(t *testing.T) {
 				PeriodLengthSecs:    60,
 				AgentType:           inventorypb.AgentType_QAN_MYSQL_PERFSCHEMA_AGENT,
 				Example:             "SELECT /* Sleep */ sleep(0.1)",
-				ExampleFormat:       qanpb.ExampleFormat_EXAMPLE,
-				ExampleType:         qanpb.ExampleType_RANDOM,
+				ExampleFormat:       agentpb.ExampleFormat_EXAMPLE,
+				ExampleType:         agentpb.ExampleType_RANDOM,
 				NumQueries:          1,
 				MQueryTimeCnt:       1,
 				MQueryTimeSum:       actual.Common.MQueryTimeSum,
@@ -357,8 +356,8 @@ func TestPerfSchema(t *testing.T) {
 				PeriodLengthSecs:    60,
 				AgentType:           inventorypb.AgentType_QAN_MYSQL_PERFSCHEMA_AGENT,
 				Example:             "SELECT /* AllCities */ * FROM city",
-				ExampleFormat:       qanpb.ExampleFormat_EXAMPLE,
-				ExampleType:         qanpb.ExampleType_RANDOM,
+				ExampleFormat:       agentpb.ExampleFormat_EXAMPLE,
+				ExampleType:         agentpb.ExampleType_RANDOM,
 				NumQueries:          1,
 				MQueryTimeCnt:       1,
 				MQueryTimeSum:       actual.Common.MQueryTimeSum,

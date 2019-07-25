@@ -143,7 +143,7 @@ func (m *PGStatStatementsQAN) Run(ctx context.Context) {
 				m.changes <- agents.Change{Status: inventorypb.AgentStatus_RUNNING}
 			}
 
-			m.changes <- agents.Change{Request: &agentpb.CollectRequest{MetricsBucket: buckets}}
+			m.changes <- agents.Change{Request: &agents.CollectRequest{MetricsBucket: buckets}}
 		}
 	}
 }

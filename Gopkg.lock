@@ -365,7 +365,7 @@
 
 [[projects]]
   branch = "PMM-4351-split-qan-protocol"
-  digest = "1:5c34ff23014c72885da138b8d7040df6bb6a009cd87e25fc059bd2ef553dd3e0"
+  digest = "1:59395ed6a4527461c9af8179ab0156a32da62b43fafe42faf780f1d841b612a2"
   name = "github.com/percona/pmm"
   packages = [
     "api/agentlocalpb",
@@ -381,12 +381,11 @@
     "api/managementpb/json/client/postgre_sql",
     "api/managementpb/json/client/proxy_sql",
     "api/managementpb/json/client/service",
-    "api/qanpb",
     "nodeinfo",
     "version",
   ]
   pruneopts = "NUT"
-  revision = "fbb4558ae4bab37c9d125221edc0e4aa0d593be6"
+  revision = "f90fe77a7c4dd6a00f43df9bae46acd236f03e40"
 
 [[projects]]
   digest = "1:14715f705ff5dfe0ffd6571d7d201dd8e921030f8070321a79380d8ca4ec1a24"
@@ -805,7 +804,6 @@
     "github.com/percona/pmm/api/inventorypb",
     "github.com/percona/pmm/api/managementpb/json/client",
     "github.com/percona/pmm/api/managementpb/json/client/node",
-    "github.com/percona/pmm/api/qanpb",
     "github.com/percona/pmm/nodeinfo",
     "github.com/percona/pmm/version",
     "github.com/pkg/errors",
