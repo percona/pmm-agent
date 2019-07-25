@@ -25,6 +25,8 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/percona/pmm-agent/agents/postgres/parser"
+
 	"github.com/AlekSi/pointer"
 	_ "github.com/lfittl/pg_query_go" // just to test build
 	_ "github.com/lib/pq"             // register SQL driver
@@ -179,14 +181,18 @@ func (m *PGStatStatementsQAN) getNewBuckets(periodStart time.Time, periodLengthS
 // to make metrics buckets.
 //
 // makeBuckets is a pure function for easier testing.
-func makeBuckets(q *reform.Querier, current, prev map[int64]*pgStatStatements, l *logrus.Entry) []*agentpb.MetricsBucket {
+func makeBuckets(q *reform.Querier, current, prev map[int64]*statStatements, l *logrus.Entry) []*agentpb.MetricsBucket {
 	res := make([]*agentpb.MetricsBucket, 0, len(current))
 
-	for queryID, currentPSS := range current {
-		prevPSS := prev[queryID]
-		if prevPSS == nil {
-			prevPSS = new(pgStatStatements)
+	for queryID, currentSS := range current {
+		prevSS := prev[queryID]
+		if prevSS == nil {
+			prevSS = &statStatements{
+				PgStatStatements: new(pgStatStatements),
+			}
 		}
+		prevPSS := prevSS.PgStatStatements
+		currentPSS := currentSS.PgStatStatements
 		count := float32(currentPSS.Calls - prevPSS.Calls)
 		switch {
 		case count == 0:
@@ -205,27 +211,19 @@ func makeBuckets(q *reform.Querier, current, prev map[int64]*pgStatStatements, l
 		default:
 			l.Debugf("Normal query: %s.", currentPSS)
 		}
-		pgStatDatabase := &pgStatDatabase{DatID: currentPSS.DBID}
-		err := q.FindOneTo(pgStatDatabase, "datid", currentPSS.DBID)
-		if err != nil {
-			l.Debugf("Can't get db name for db: %d. %s", currentPSS.DBID, err)
-		}
-		pgUser := &pgUser{UserID: currentPSS.UserID}
-		err = q.FindOneTo(pgUser, "usesysid", currentPSS.UserID)
-		if err != nil {
-			l.Debugf("Can't get username name for user: %d. %s", currentPSS.DBID, err)
-		}
+		currentSS.Database = getDatabaseName(currentPSS.DBID, prevSS, q, l)
+		currentSS.Username = getUserName(currentPSS.UserID, prevSS, q, l)
+		currentSS.Tables = getTables(*currentPSS.Query, prevSS, l)
 
 		mb := &agentpb.MetricsBucket{
 			Common: &agentpb.MetricsBucket_Common{
-				Schema:      pointer.GetString(pgStatDatabase.DatName),
-				Username:    pointer.GetString(pgUser.UserName),
+				Database:    pointer.GetString(currentSS.Database),
+				Tables:      currentSS.Tables,
+				Username:    pointer.GetString(currentSS.Username),
 				Queryid:     strconv.FormatInt(*currentPSS.QueryID, 10),
 				Fingerprint: *currentPSS.Query,
 				NumQueries:  count,
-				//NumQueriesWithErrors:   float32(currentPSS.SumErrors - prevPSS.SumErrors),
-				//NumQueriesWithWarnings: float32(currentPSS.SumWarnings - prevPSS.SumWarnings),
-				AgentType: inventorypb.AgentType_QAN_POSTGRESQL_PGSTATEMENTS_AGENT,
+				AgentType:   inventorypb.AgentType_QAN_POSTGRESQL_PGSTATEMENTS_AGENT,
 			},
 			Postgresql: &agentpb.MetricsBucket_PostgreSQL{},
 		}
@@ -265,6 +263,44 @@ func makeBuckets(q *reform.Querier, current, prev map[int64]*pgStatStatements, l
 	}
 
 	return res
+}
+
+func getTables(query string, prevSS *statStatements, l *logrus.Entry) []string {
+	if prevSS.Tables != nil {
+		return prevSS.Tables
+	} else {
+		tables, err := parser.ExtractTables(query)
+		if err != nil {
+			l.Debugf("Can't extract table names for query: %s", query)
+		}
+		return tables
+	}
+}
+
+func getUserName(userID int64, prevSS *statStatements, q *reform.Querier, l *logrus.Entry) *string {
+	if prevSS.Username != nil {
+		return prevSS.Username
+	} else {
+		pgUser := &pgUser{UserID: userID}
+		err := q.FindOneTo(pgUser, "usesysid", userID)
+		if err != nil {
+			l.Debugf("Can't get username name for user: %d. %s", userID, err)
+		}
+		return pgUser.UserName
+	}
+}
+
+func getDatabaseName(dbID int64, prevSS *statStatements, q *reform.Querier, l *logrus.Entry) *string {
+	if prevSS.Database != nil {
+		return prevSS.Database
+	} else {
+		pgStatDatabase := &pgStatDatabase{DatID: dbID}
+		err := q.FindOneTo(pgStatDatabase, "datid", dbID)
+		if err != nil {
+			l.Debugf("Can't get db name for db: %d. %s", dbID, err)
+		}
+		return pgStatDatabase.DatName
+	}
 }
 
 // Changes returns channel that should be read until it is closed.

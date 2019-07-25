@@ -270,7 +270,7 @@ func (a *Aggregator) createResult() *report.Result {
 				Queryid:             v.ID,
 				Fingerprint:         v.Fingerprint,
 				Database:            db,
-				Schema:              schema,
+				Tables:              []string{schema},
 				Username:            "",
 				ClientHost:          "",
 				AgentId:             a.agentID,

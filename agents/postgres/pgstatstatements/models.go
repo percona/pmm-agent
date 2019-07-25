@@ -59,3 +59,10 @@ type pgStatStatements struct {
 	BlkReadTime       float64 `reform:"blk_read_time"`
 	BlkWriteTime      float64 `reform:"blk_write_time"`
 }
+
+type statStatements struct {
+	PgStatStatements *pgStatStatements
+	Database         *string
+	Username         *string
+	Tables           []string
+}
