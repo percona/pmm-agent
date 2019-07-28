@@ -52,7 +52,12 @@ func (p *processAction) Type() string {
 // Run runs an Action and returns output and error.
 func (p *processAction) Run(ctx context.Context) ([]byte, error) {
 	cmd := exec.CommandContext(ctx, p.command, p.arg...) //nolint:gosec
+
+	// restrict process
+	cmd.Env = []string{} // do not inherit environment
+	cmd.Dir = "/"
 	setSysProcAttr(cmd)
+
 	return cmd.CombinedOutput()
 }
 

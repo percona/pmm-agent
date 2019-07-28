@@ -98,9 +98,15 @@ func (p *Process) toStarting() {
 	p.changes <- inventorypb.AgentStatus_STARTING
 
 	p.cmd = exec.Command(p.params.Path, p.params.Args...) //nolint:gosec
-	p.cmd.Env = p.params.Env
 	p.cmd.Stdout = p.pl
 	p.cmd.Stderr = p.pl
+
+	// restrict process
+	p.cmd.Env = p.params.Env
+	if p.cmd.Env == nil {
+		p.cmd.Env = []string{} // never inherit environment
+	}
+	p.cmd.Dir = "/"
 	setSysProcAttr(p.cmd)
 
 	p.cmdDone = make(chan struct{})
