@@ -25,8 +25,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/percona/pmm-agent/agents/postgres/parser"
-
 	"github.com/AlekSi/pointer"
 	_ "github.com/lfittl/pg_query_go" // just to test build
 	_ "github.com/lib/pq"             // register SQL driver
@@ -37,6 +35,7 @@ import (
 	"gopkg.in/reform.v1/dialects/postgresql"
 
 	"github.com/percona/pmm-agent/agents"
+	"github.com/percona/pmm-agent/agents/postgres/parser"
 )
 
 const (
