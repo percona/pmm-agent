@@ -24,7 +24,7 @@ import (
 	"gopkg.in/reform.v1"
 )
 
-func getStatStatements(q *reform.Querier) (map[int64]*pgStatStatementsExtended, error) {
+func getStatStatementsExtended(q *reform.Querier) (map[int64]*pgStatStatementsExtended, error) {
 	structs, err := q.SelectAllFrom(pgStatStatementsView, "WHERE queryid IS NOT NULL AND query IS NOT NULL")
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to query pg_stat_statements")

@@ -95,7 +95,7 @@ func (m *PGStatStatementsQAN) Run(ctx context.Context) {
 	// add current stat statements to cache so they are not send as new on first iteration with incorrect timestamps
 	var running bool
 	m.changes <- agents.Change{Status: inventorypb.AgentStatus_STARTING}
-	if s, err := getStatStatements(m.q); err == nil {
+	if s, err := getStatStatementsExtended(m.q); err == nil {
 		m.statementCache.refresh(s)
 		m.l.Debugf("Got %d initial stat statements.", len(s))
 		running = true
@@ -150,7 +150,7 @@ func (m *PGStatStatementsQAN) Run(ctx context.Context) {
 }
 
 func (m *PGStatStatementsQAN) getNewBuckets(periodStart time.Time, periodLengthSecs uint32) ([]*agentpb.MetricsBucket, error) {
-	current, err := getStatStatements(m.q)
+	current, err := getStatStatementsExtended(m.q)
 	if err != nil {
 		return nil, err
 	}
@@ -183,15 +183,15 @@ func (m *PGStatStatementsQAN) getNewBuckets(periodStart time.Time, periodLengthS
 func makeBuckets(q *reform.Querier, current, prev map[int64]*pgStatStatementsExtended, l *logrus.Entry) []*agentpb.MetricsBucket {
 	res := make([]*agentpb.MetricsBucket, 0, len(current))
 
-	for queryID, currentSS := range current {
-		prevSS := prev[queryID]
-		if prevSS == nil {
-			prevSS = &pgStatStatementsExtended{
+	for queryID, currentPSSE := range current {
+		prevPSSE := prev[queryID]
+		if prevPSSE == nil {
+			prevPSSE = &pgStatStatementsExtended{
 				PgStatStatements: new(pgStatStatements),
 			}
 		}
-		prevPSS := prevSS.PgStatStatements
-		currentPSS := currentSS.PgStatStatements
+		prevPSS := prevPSSE.PgStatStatements
+		currentPSS := currentPSSE.PgStatStatements
 		count := float32(currentPSS.Calls - prevPSS.Calls)
 		switch {
 		case count == 0:
@@ -210,15 +210,15 @@ func makeBuckets(q *reform.Querier, current, prev map[int64]*pgStatStatementsExt
 		default:
 			l.Debugf("Normal query: %s.", currentPSS)
 		}
-		currentSS.Database = getDatabaseName(currentPSS.DBID, prevSS, q, l)
-		currentSS.Username = getUserName(currentPSS.UserID, prevSS, q, l)
-		currentSS.Tables = getTables(*currentPSS.Query, prevSS, l)
+		currentPSSE.Database = getDatabaseName(currentPSS.DBID, prevPSSE, q, l)
+		currentPSSE.Username = getUserName(currentPSS.UserID, prevPSSE, q, l)
+		currentPSSE.Tables = getTables(*currentPSS.Query, prevPSSE, l)
 
 		mb := &agentpb.MetricsBucket{
 			Common: &agentpb.MetricsBucket_Common{
-				Database:    pointer.GetString(currentSS.Database),
-				Tables:      currentSS.Tables,
-				Username:    pointer.GetString(currentSS.Username),
+				Database:    pointer.GetString(currentPSSE.Database),
+				Tables:      currentPSSE.Tables,
+				Username:    pointer.GetString(currentPSSE.Username),
 				Queryid:     strconv.FormatInt(*currentPSS.QueryID, 10),
 				Fingerprint: *currentPSS.Query,
 				NumQueries:  count,
