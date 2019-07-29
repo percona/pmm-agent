@@ -60,7 +60,9 @@ type pgStatStatements struct {
 	BlkWriteTime      float64 `reform:"blk_write_time"`
 }
 
-type statStatements struct {
+// pgStatStatementsExtended contains pgStatStatements data and extends it with database, username and tables data.
+// It's made for performance reason.
+type pgStatStatementsExtended struct {
 	PgStatStatements *pgStatStatements
 	Database         *string
 	Username         *string

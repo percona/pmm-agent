@@ -180,13 +180,13 @@ func (m *PGStatStatementsQAN) getNewBuckets(periodStart time.Time, periodLengthS
 // to make metrics buckets.
 //
 // makeBuckets is a pure function for easier testing.
-func makeBuckets(q *reform.Querier, current, prev map[int64]*statStatements, l *logrus.Entry) []*agentpb.MetricsBucket {
+func makeBuckets(q *reform.Querier, current, prev map[int64]*pgStatStatementsExtended, l *logrus.Entry) []*agentpb.MetricsBucket {
 	res := make([]*agentpb.MetricsBucket, 0, len(current))
 
 	for queryID, currentSS := range current {
 		prevSS := prev[queryID]
 		if prevSS == nil {
-			prevSS = &statStatements{
+			prevSS = &pgStatStatementsExtended{
 				PgStatStatements: new(pgStatStatements),
 			}
 		}
@@ -264,42 +264,39 @@ func makeBuckets(q *reform.Querier, current, prev map[int64]*statStatements, l *
 	return res
 }
 
-func getTables(query string, prevSS *statStatements, l *logrus.Entry) []string {
+func getTables(query string, prevSS *pgStatStatementsExtended, l *logrus.Entry) []string {
 	if prevSS.Tables != nil {
 		return prevSS.Tables
-	} else {
-		tables, err := parser.ExtractTables(query)
-		if err != nil {
-			l.Debugf("Can't extract table names for query: %s", query)
-		}
-		return tables
 	}
+	tables, err := parser.ExtractTables(query)
+	if err != nil {
+		l.Warnf("Can't extract table names for query: %s", query)
+	}
+	return tables
 }
 
-func getUserName(userID int64, prevSS *statStatements, q *reform.Querier, l *logrus.Entry) *string {
+func getUserName(userID int64, prevSS *pgStatStatementsExtended, q *reform.Querier, l *logrus.Entry) *string {
 	if prevSS.Username != nil {
 		return prevSS.Username
-	} else {
-		pgUser := &pgUser{UserID: userID}
-		err := q.FindOneTo(pgUser, "usesysid", userID)
-		if err != nil {
-			l.Debugf("Can't get username name for user: %d. %s", userID, err)
-		}
-		return pgUser.UserName
 	}
+	pgUser := &pgUser{UserID: userID}
+	err := q.FindOneTo(pgUser, "usesysid", userID)
+	if err != nil {
+		l.Warnf("Can't get username name for user: %d. %s", userID, err)
+	}
+	return pgUser.UserName
 }
 
-func getDatabaseName(dbID int64, prevSS *statStatements, q *reform.Querier, l *logrus.Entry) *string {
+func getDatabaseName(dbID int64, prevSS *pgStatStatementsExtended, q *reform.Querier, l *logrus.Entry) *string {
 	if prevSS.Database != nil {
 		return prevSS.Database
-	} else {
-		pgStatDatabase := &pgStatDatabase{DatID: dbID}
-		err := q.FindOneTo(pgStatDatabase, "datid", dbID)
-		if err != nil {
-			l.Debugf("Can't get db name for db: %d. %s", dbID, err)
-		}
-		return pgStatDatabase.DatName
 	}
+	pgStatDatabase := &pgStatDatabase{DatID: dbID}
+	err := q.FindOneTo(pgStatDatabase, "datid", dbID)
+	if err != nil {
+		l.Warnf("Can't get db name for db: %d. %s", dbID, err)
+	}
+	return pgStatDatabase.DatName
 }
 
 // Changes returns channel that should be read until it is closed.
