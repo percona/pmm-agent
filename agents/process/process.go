@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/percona/pmm/api/inventorypb"
+	"github.com/percona/pmm/utils/pdeathsig"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
 
@@ -107,7 +108,7 @@ func (p *Process) toStarting() {
 		p.cmd.Env = []string{} // never inherit environment
 	}
 	p.cmd.Dir = "/"
-	setSysProcAttr(p.cmd)
+	pdeathsig.Set(p.cmd, unix.SIGKILL)
 
 	p.cmdDone = make(chan struct{})
 
