@@ -49,9 +49,7 @@ func TestPostgreSQLShowCreateTable(t *testing.T) {
 		b, err := a.Run(ctx)
 		require.NoError(t, err)
 
-		var expected string
-			// `DEFAULT '0'` for Population
-			expected = strings.TrimSpace(`
+		expected := strings.TrimSpace(`
                                          Table "public.country"
 Column         |Type          |Collation |Nullable |Default |Storage  |Stats target |Description
 code           |character(3)  |          |not null |        |extended |             |
@@ -82,7 +80,7 @@ Referenced by:
 
 		assert.Equal(t, expected, string(b))
 	})
-	
+
 	t.Run("LittleBobbyTables", func(t *testing.T) {
 		params := &agentpb.StartActionRequest_PostgreSQLShowCreateTableParams{
 			Dsn:   dsn,
