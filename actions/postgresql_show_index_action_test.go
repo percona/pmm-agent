@@ -35,7 +35,6 @@ func TestPostgreSQLShowIndex(t *testing.T) {
 	dsn := tests.GetTestPostgreSQLDSN(t)
 	db := tests.OpenTestPostgreSQL(t)
 	defer db.Close() //nolint:errcheck
-	postgreSQLVersion := tests.PostgreSQLVersion(t, db)
 
 	t.Run("Default", func(t *testing.T) {
 		params := &agentpb.StartActionRequest_PostgreSQLShowIndexParams{
