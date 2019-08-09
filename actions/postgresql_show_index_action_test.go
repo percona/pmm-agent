@@ -55,15 +55,9 @@ func TestPostgreSQLShowIndex(t *testing.T) {
 		require.NoError(t, err)
 		require.Len(t, actual, 2)
 
-		switch {
-		case postgreSQLVersion == "11":
-			assert.Equal(t, [][]interface{}{
-				{"schemaname", "tablename", "indexname", "tablespace", "indexdef"},
-				{"public", "city", "city_pkey", nil, "CREATE UNIQUE INDEX city_pkey ON public.city USING btree (id)"},
-			}, actual)
-
-		default:
-			t.Fatal("Unhandled version.")
-		}
+		assert.Equal(t, [][]interface{}{
+			{"schemaname", "tablename", "indexname", "tablespace", "indexdef"},
+			{"public", "city", "city_pkey", nil, "CREATE UNIQUE INDEX city_pkey ON public.city USING btree (id)"},
+		}, actual)
 	})
 }
