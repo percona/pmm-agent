@@ -150,7 +150,7 @@ func (e *postgresqlShowCreateTableAction) printTableInit(ctx context.Context, w 
 		}
 		return "", err
 	}
-	fmt.Fprintf(w, "Table \"%s.%s\"\n", schema, relname)
+	fmt.Fprintf(w, "Table \"%s.%s\"\n", schema, relname) //nolint:errcheck
 	return tableID, nil
 }
 
@@ -186,7 +186,7 @@ ORDER BY a.attnum;`, tableID)
 
 	tw := tabwriter.NewWriter(w, 0, 0, 1, ' ', tabwriter.Debug)
 
-	fmt.Fprintln(tw, "Column\tType\tCollation\tNullable\tDefault\tStorage\tStats target\tDescription")
+	fmt.Fprintln(tw, "Column\tType\tCollation\tNullable\tDefault\tStorage\tStats target\tDescription") //nolint:errcheck
 
 	for rows.Next() {
 		ci := columnInfo{}
@@ -214,7 +214,7 @@ ORDER BY a.attnum;`, tableID)
 			formatStorage(ci.Attstorage),
 			pointer.GetString(ci.Attstattarget),
 			pointer.GetString(ci.ColDescription),
-		)
+		) //nolint:errcheck
 	}
 	if err = tw.Flush(); err != nil {
 		return err
@@ -252,7 +252,7 @@ ORDER BY i.indisprimary DESC, i.indisunique DESC, c2.relname`, tableID)
 	var buf bytes.Buffer
 	bw := bufio.NewWriter(&buf)
 
-	fmt.Fprintln(bw, "Indexes:")
+	fmt.Fprintln(bw, "Indexes:") //nolint:errcheck
 
 	for rows.Next() {
 		info := indexInfo{}
@@ -274,20 +274,20 @@ ORDER BY i.indisprimary DESC, i.indisunique DESC, c2.relname`, tableID)
 		if err != nil {
 			return err
 		}
-		fmt.Fprintf(bw, "\t%q", info.Relname)
+		fmt.Fprintf(bw, "\t%q", info.Relname) //nolint:errcheck
 
 		if pointer.GetString(info.Contype) == "x" {
-			fmt.Fprintf(bw, " %s", pointer.GetString(info.PgGetConstraintDef))
+			fmt.Fprintf(bw, " %s", pointer.GetString(info.PgGetConstraintDef)) //nolint:errcheck
 		} else {
 
 			/* Label as primary key or unique (but not both) */
 			if info.IsPrimary {
-				fmt.Fprintf(bw, " PRIMARY KEY,")
+				fmt.Fprintf(bw, " PRIMARY KEY,") //nolint:errcheck
 			} else if info.IsUnique {
 				if pointer.GetString(info.Contype) == "u" {
-					fmt.Fprintf(bw, " UNIQUE CONSTRAINT,")
+					fmt.Fprintf(bw, " UNIQUE CONSTRAINT,") //nolint:errcheck
 				} else {
-					fmt.Fprintf(bw, " UNIQUE,")
+					fmt.Fprintf(bw, " UNIQUE,") //nolint:errcheck
 				}
 			}
 
@@ -297,24 +297,24 @@ ORDER BY i.indisprimary DESC, i.indisunique DESC, c2.relname`, tableID)
 			if usingPos != -1 {
 				indexDef = indexDef[usingPos+7:]
 			}
-			fmt.Fprintf(bw, " %s", indexDef)
+			fmt.Fprintf(bw, " %s", indexDef) //nolint:errcheck
 
 			/* Need these for deferrable PK/UNIQUE indexes */
 			if pointer.GetBool(info.Condeferrable) {
-				fmt.Fprintf(bw, " DEFERRABLE")
+				fmt.Fprintf(bw, " DEFERRABLE") //nolint:errcheck
 			}
 
 			if pointer.GetBool(info.Condeferred) {
-				fmt.Fprintf(bw, " INITIALLY DEFERRED")
+				fmt.Fprintf(bw, " INITIALLY DEFERRED") //nolint:errcheck
 			}
 		}
 
-		fmt.Fprintf(bw, "\n")
+		fmt.Fprintf(bw, "\n") //nolint:errcheck
 		if err = bw.Flush(); err != nil {
 			return err
 		}
 	}
-	w.Write(buf.Bytes())
+	w.Write(buf.Bytes()) //nolint:errcheck
 	return nil
 }
 
@@ -332,7 +332,7 @@ ORDER BY 1`, tableID)
 	var buf bytes.Buffer
 	bw := bufio.NewWriter(&buf)
 
-	fmt.Fprintln(bw, "Foreign-key constraints:")
+	fmt.Fprintln(bw, "Foreign-key constraints:") //nolint:errcheck
 
 	for rows.Next() {
 		var conname, condef string
@@ -343,13 +343,13 @@ ORDER BY 1`, tableID)
 		if err != nil {
 			return err
 		}
-		fmt.Fprintf(bw, "\t%q %s\n", conname, condef)
+		fmt.Fprintf(bw, "\t%q %s\n", conname, condef) //nolint:errcheck
 
 		if err = bw.Flush(); err != nil {
 			return err
 		}
 	}
-	w.Write(buf.Bytes())
+	w.Write(buf.Bytes()) //nolint:errcheck
 	return nil
 }
 
@@ -368,7 +368,7 @@ ORDER BY 1`, tableID)
 	var buf bytes.Buffer
 	bw := bufio.NewWriter(&buf)
 
-	fmt.Fprintln(bw, "Referenced by:")
+	fmt.Fprintln(bw, "Referenced by:") //nolint:errcheck
 
 	for rows.Next() {
 		var conname, conrelid, condef string
@@ -380,13 +380,13 @@ ORDER BY 1`, tableID)
 		if err != nil {
 			return err
 		}
-		fmt.Fprintf(bw, "\tTABLE %q CONSTRAINT %q %s", conrelid, conname, condef)
+		fmt.Fprintf(bw, "\tTABLE %q CONSTRAINT %q %s", conrelid, conname, condef) //nolint:errcheck
 
 		if err = bw.Flush(); err != nil {
 			return err
 		}
 	}
-	w.Write(buf.Bytes())
+	w.Write(buf.Bytes()) //nolint:errcheck
 	return nil
 }
 
@@ -404,7 +404,7 @@ ORDER BY 1`, tableID)
 	var buf bytes.Buffer
 	bw := bufio.NewWriter(&buf)
 
-	fmt.Fprintln(bw, "Check constraints:")
+	fmt.Fprintln(bw, "Check constraints:") //nolint:errcheck
 
 	for rows.Next() {
 		var conname, condef string
@@ -415,13 +415,13 @@ ORDER BY 1`, tableID)
 		if err != nil {
 			return err
 		}
-		fmt.Fprintf(bw, "\t%q %s\n", conname, condef)
+		fmt.Fprintf(bw, "\t%q %s\n", conname, condef) //nolint:errcheck
 
 		if err = bw.Flush(); err != nil {
 			return err
 		}
 	}
-	w.Write(buf.Bytes())
+	w.Write(buf.Bytes()) //nolint:errcheck
 	return nil
 }
 
