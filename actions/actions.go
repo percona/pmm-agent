@@ -81,7 +81,7 @@ func readRows(rows *sql.Rows) (columns []string, dataRows [][]interface{}, err e
 
 // jsonRows converts input to JSON array:
 // [
-//   ["column 1", "columnt 2", …],
+//   ["column 1", "column 2", …],
 //   ["value 1", 2, …]
 //   …
 // ]
