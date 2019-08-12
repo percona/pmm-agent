@@ -365,7 +365,7 @@
 
 [[projects]]
   branch = "PMM-4181-postgresql-actions"
-  digest = "1:bed0912cac4a81a24b018df48a011e17a443eb0545afc05b09103b0c8812c977"
+  digest = "1:5fafba328d5bf7cf228b54bd1e1acb5aeda62e26d133c1fe4a3f175c53dcc234"
   name = "github.com/percona/pmm"
   packages = [
     "api/agentlocalpb",
