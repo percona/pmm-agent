@@ -18,7 +18,6 @@ package actions
 
 import (
 	"context"
-	"strings"
 	"testing"
 	"time"
 
@@ -48,8 +47,7 @@ func TestPostgreSQLShowCreateTable(t *testing.T) {
 		b, err := a.Run(ctx)
 		require.NoError(t, err)
 
-		expected := strings.TrimSpace(`
-                                         Table "public.country"
+		expected := `Table "public.country"
 Column         |Type          |Collation |Nullable |Default |Storage  |Stats target |Description
 code           |character(3)  |          |not null |        |extended |             |
 name           |text          |          |not null |        |extended |             |
@@ -74,8 +72,62 @@ Foreign-key constraints:
 	"country_capital_fkey" FOREIGN KEY (capital) REFERENCES city(id)
 Referenced by:
 	TABLE "countrylanguage" CONSTRAINT "countrylanguage_countrycode_fkey" FOREIGN KEY (countrycode) REFERENCES country(code)
+`
 
-			`)
+		assert.Equal(t, expected, string(b))
+	})
+
+	t.Run("Without constraints", func(t *testing.T) {
+		params := &agentpb.StartActionRequest_PostgreSQLShowCreateTableParams{
+			Dsn:   dsn,
+			Table: "city",
+		}
+		a := NewPostgreSQLShowCreateTableAction("", params)
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+
+		b, err := a.Run(ctx)
+		require.NoError(t, err)
+
+		expected := `Table "public.city"
+Column      |Type         |Collation |Nullable |Default |Storage  |Stats target |Description
+id          |integer      |          |not null |        |plain    |             |
+name        |text         |          |not null |        |extended |             |
+countrycode |character(3) |          |not null |        |extended |             |
+district    |text         |          |not null |        |extended |             |
+population  |integer      |          |not null |        |plain    |             |
+Indexes:
+	"city_pkey" PRIMARY KEY, btree (id)
+Referenced by:
+	TABLE "country" CONSTRAINT "country_capital_fkey" FOREIGN KEY (capital) REFERENCES city(id)
+`
+
+		assert.Equal(t, expected, string(b))
+	})
+
+	t.Run("Without references", func(t *testing.T) {
+		params := &agentpb.StartActionRequest_PostgreSQLShowCreateTableParams{
+			Dsn:   dsn,
+			Table: "countrylanguage",
+		}
+		a := NewPostgreSQLShowCreateTableAction("", params)
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+
+		b, err := a.Run(ctx)
+		require.NoError(t, err)
+
+		expected := `Table "public.countrylanguage"
+Column      |Type         |Collation |Nullable |Default |Storage  |Stats target |Description
+countrycode |character(3) |          |not null |        |extended |             |
+language    |text         |          |not null |        |extended |             |
+isofficial  |boolean      |          |not null |        |plain    |             |
+percentage  |real         |          |not null |        |plain    |             |
+Indexes:
+	"countrylanguage_pkey" PRIMARY KEY, btree (countrycode, language)
+Foreign-key constraints:
+	"countrylanguage_countrycode_fkey" FOREIGN KEY (countrycode) REFERENCES country(code)
+`
 
 		assert.Equal(t, expected, string(b))
 	})

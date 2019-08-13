@@ -142,7 +142,7 @@ func (a *postgresqlShowCreateTableAction) printTableInit(ctx context.Context, w 
 	ORDER BY nspname, relname;`, a.params.Table)
 	if err := row.Scan(&tableID, &schema, &relname); err != nil {
 		if err == sql.ErrNoRows {
-			return "", errors.WithStack(errors.Wrap(err, "Table not found"))
+			return "", errors.Wrap(err, "Table not found")
 		}
 		return "", errors.WithStack(err)
 	}
@@ -177,7 +177,7 @@ WHERE a.attrelid = $1
   AND NOT a.attisdropped
 ORDER BY a.attnum;`, tableID)
 	if err != nil {
-		return err
+		return errors.WithStack(err)
 	}
 	defer rows.Close()
 
@@ -249,6 +249,7 @@ ORDER BY i.indisprimary DESC, i.indisunique DESC, c2.relname`, tableID)
 	defer rows.Close()
 
 	var buf bytes.Buffer
+	// We need it to be able to call Flush method to not write header if there are no rows.
 	bw := bufio.NewWriter(&buf)
 
 	fmt.Fprintln(bw, "Indexes:") //nolint:errcheck
@@ -327,13 +328,14 @@ func (a *postgresqlShowCreateTableAction) printForeignKeyConstraints(ctx context
 FROM pg_catalog.pg_constraint r
 WHERE r.conrelid = $1
   AND r.contype = 'f'
-ORDER BY 1`, tableID)
+ORDER BY conname`, tableID)
 	if err != nil {
 		return errors.WithStack(err)
 	}
 	defer rows.Close()
 
 	var buf bytes.Buffer
+	// We need it to be able to call Flush method to not write header if there are no rows.
 	bw := bufio.NewWriter(&buf)
 
 	fmt.Fprintln(bw, "Foreign-key constraints:") //nolint:errcheck
@@ -368,13 +370,14 @@ func (a *postgresqlShowCreateTableAction) printReferencedBy(ctx context.Context,
 FROM pg_catalog.pg_constraint c
 WHERE c.confrelid = $1
   AND c.contype = 'f'
-ORDER BY 1`, tableID)
+ORDER BY conname`, tableID)
 	if err != nil {
 		return errors.WithStack(err)
 	}
 	defer rows.Close()
 
 	var buf bytes.Buffer
+	// We need it to be able to call Flush method to not write header if there are no rows.
 	bw := bufio.NewWriter(&buf)
 
 	fmt.Fprintln(bw, "Referenced by:") //nolint:errcheck
@@ -389,7 +392,7 @@ ORDER BY 1`, tableID)
 		if err != nil {
 			return errors.WithStack(err)
 		}
-		fmt.Fprintf(bw, "\tTABLE %q CONSTRAINT %q %s", conrelid, conname, condef) //nolint:errcheck
+		fmt.Fprintf(bw, "\tTABLE %q CONSTRAINT %q %s\n", conrelid, conname, condef) //nolint:errcheck
 
 		if err = bw.Flush(); err != nil {
 			return errors.WithStack(err)
@@ -409,13 +412,14 @@ func (a *postgresqlShowCreateTableAction) printCheckConstraints(ctx context.Cont
 FROM pg_catalog.pg_constraint r
 WHERE r.conrelid = $1
   AND r.contype = 'c'
-ORDER BY 1`, tableID)
+ORDER BY conname`, tableID)
 	if err != nil {
 		return errors.WithStack(err)
 	}
 	defer rows.Close()
 
 	var buf bytes.Buffer
+	// We need it to be able to call Flush method to not write header if there are no rows.
 	bw := bufio.NewWriter(&buf)
 
 	fmt.Fprintln(bw, "Check constraints:") //nolint:errcheck
@@ -432,7 +436,7 @@ ORDER BY 1`, tableID)
 		fmt.Fprintf(bw, "\t%q %s\n", conname, condef) //nolint:errcheck
 
 		if err = bw.Flush(); err != nil {
-			return err
+			return errors.WithStack(err)
 		}
 	}
 	err = rows.Err()

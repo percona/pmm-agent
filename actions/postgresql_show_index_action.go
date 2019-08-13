@@ -19,6 +19,8 @@ package actions
 import (
 	"context"
 	"database/sql"
+	"github.com/lib/pq"
+	"github.com/pkg/errors"
 
 	_ "github.com/lib/pq" // register SQL driver
 	"github.com/percona/pmm/api/agentpb"
@@ -50,21 +52,22 @@ func (a *postgresqlShowIndexAction) Type() string {
 
 // Run runs an Action and returns output and error.
 func (a *postgresqlShowIndexAction) Run(ctx context.Context) ([]byte, error) {
-	db, err := sql.Open("postgres", a.params.Dsn)
+	connector, err := pq.NewConnector(a.params.Dsn)
 	if err != nil {
-		return nil, err
+		return nil, errors.WithStack(err)
 	}
+	db := sql.OpenDB(connector)
 	defer db.Close() //nolint:errcheck
 
 	// TODO: Throw error if table doesn't exist.
-	rows, err := db.QueryContext(ctx, "SELECT * FROM pg_indexes WHERE tablename = $1", a.params.Table)
+	rows, err := db.QueryContext(ctx, "SELECT /* pmm-agent */ * FROM pg_indexes WHERE tablename = $1", a.params.Table)
 	if err != nil {
-		return nil, err
+		return nil, errors.WithStack(err)
 	}
 
 	columns, dataRows, err := readRows(rows)
 	if err != nil {
-		return nil, err
+		return nil, errors.WithStack(err)
 	}
 	return jsonRows(columns, dataRows)
 }
