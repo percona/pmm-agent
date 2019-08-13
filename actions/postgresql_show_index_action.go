@@ -19,11 +19,10 @@ package actions
 import (
 	"context"
 	"database/sql"
-	"github.com/lib/pq"
-	"github.com/pkg/errors"
 
-	_ "github.com/lib/pq" // register SQL driver
+	"github.com/lib/pq"
 	"github.com/percona/pmm/api/agentpb"
+	"github.com/pkg/errors"
 )
 
 type postgresqlShowIndexAction struct {
