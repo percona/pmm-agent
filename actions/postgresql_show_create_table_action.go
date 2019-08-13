@@ -27,7 +27,7 @@ import (
 	"text/tabwriter"
 
 	"github.com/AlekSi/pointer"
-	_ "github.com/lib/pq" // register SQL driver
+	"github.com/lib/pq"
 	"github.com/percona/pmm/api/agentpb"
 	"github.com/pkg/errors"
 )
@@ -66,7 +66,7 @@ type postgresqlShowCreateTableAction struct {
 }
 
 // NewPostgreSQLShowCreateTableAction creates PostgreSQL SHOW CREATE TABLE Action.
-// This is an Action that can run `SHOW CREATE TABLE` command on PostgreSQL service with given DSN.
+// This is an Action that can run `\d+ table` command analog on PostgreSQL service with given DSN.
 func NewPostgreSQLShowCreateTableAction(id string, params *agentpb.StartActionRequest_PostgreSQLShowCreateTableParams) Action {
 	return &postgresqlShowCreateTableAction{
 		id:     id,
@@ -75,89 +75,85 @@ func NewPostgreSQLShowCreateTableAction(id string, params *agentpb.StartActionRe
 }
 
 // ID returns an Action ID.
-func (e *postgresqlShowCreateTableAction) ID() string {
-	return e.id
+func (a *postgresqlShowCreateTableAction) ID() string {
+	return a.id
 }
 
 // Type returns an Action type.
-func (e *postgresqlShowCreateTableAction) Type() string {
+func (a *postgresqlShowCreateTableAction) Type() string {
 	return "postgresql-show-create-table"
 }
 
 // Run runs an Action and returns output and error.
-func (e *postgresqlShowCreateTableAction) Run(ctx context.Context) ([]byte, error) {
-	db, err := sql.Open("postgres", e.params.Dsn)
+func (a *postgresqlShowCreateTableAction) Run(ctx context.Context) ([]byte, error) {
+	connector, err := pq.NewConnector(a.params.Dsn)
 	if err != nil {
-		return nil, err
+		return nil, errors.WithStack(err)
 	}
+	db := sql.OpenDB(connector)
 	defer db.Close() //nolint:errcheck
-	var buf bytes.Buffer
-	w := bufio.NewWriter(&buf)
+	buf := new(bytes.Buffer)
 
 	// Extract table id
-	tableID, err := e.printTableInit(ctx, w, db)
+	tableID, err := a.printTableInit(ctx, buf, db)
 	if err != nil {
 		return nil, err
 	}
 
-	/* Generate table cells to be printed */
-	err = e.printColumnsInfo(ctx, w, db, tableID)
+	// Generate table cells to be printed.
+	err = a.printColumnsInfo(ctx, buf, db, tableID)
 	if err != nil {
 		return nil, err
 	}
 
-	/* print indexes */
-	err = e.printIndexInfo(ctx, w, db, tableID)
+	// Print indexes.
+	err = a.printIndexInfo(ctx, buf, db, tableID)
 	if err != nil {
 		return nil, err
 	}
 
-	err = e.printCheckConstraints(ctx, w, db, tableID)
+	err = a.printCheckConstraints(ctx, buf, db, tableID)
 	if err != nil {
 		return nil, err
 	}
 
-	err = e.printForeignKeyConstraints(ctx, w, db, tableID)
+	err = a.printForeignKeyConstraints(ctx, buf, db, tableID)
 	if err != nil {
 		return nil, err
 	}
 
-	err = e.printReferencedBy(ctx, w, db, tableID)
+	err = a.printReferencedBy(ctx, buf, db, tableID)
 	if err != nil {
-		return nil, err
-	}
-
-	if err = w.Flush(); err != nil {
 		return nil, err
 	}
 
 	return buf.Bytes(), nil
 }
 
-func (e *postgresqlShowCreateTableAction) printTableInit(ctx context.Context, w io.Writer, db *sql.DB) (string, error) {
+func (a *postgresqlShowCreateTableAction) printTableInit(ctx context.Context, w io.Writer, db *sql.DB) (string, error) {
 	var tableID, schema, relname string
-	row := db.QueryRowContext(ctx, `SELECT c.oid,
+	row := db.QueryRowContext(ctx, `SELECT /* pmm-agent */  c.oid,
 	       n.nspname,
 	       c.relname
 	FROM pg_catalog.pg_class c
 	         LEFT JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
 	WHERE c.relname = $1
 	  AND pg_catalog.pg_table_is_visible(c.oid)
-	ORDER BY 2, 3;`, e.params.Table)
+	ORDER BY nspname, relname;`, a.params.Table)
 	if err := row.Scan(&tableID, &schema, &relname); err != nil {
 		if err == sql.ErrNoRows {
-			return "", errors.Wrap(err, "Table not found")
+			return "", errors.WithStack(errors.Wrap(err, "Table not found"))
 		}
-		return "", err
+		return "", errors.WithStack(err)
 	}
 	fmt.Fprintf(w, "Table \"%s.%s\"\n", schema, relname) //nolint:errcheck
 	return tableID, nil
 }
 
-func (e *postgresqlShowCreateTableAction) sealed() {}
+func (a *postgresqlShowCreateTableAction) sealed() {}
 
-func (e *postgresqlShowCreateTableAction) printColumnsInfo(ctx context.Context, w io.Writer, db *sql.DB, tableID string) error {
-	rows, err := db.QueryContext(ctx, `SELECT a.attname,
+func (a *postgresqlShowCreateTableAction) printColumnsInfo(ctx context.Context, w io.Writer, db *sql.DB, tableID string) error {
+	rows, err := db.QueryContext(ctx, `SELECT /* pmm-agent */ a.attname,
        pg_catalog.format_type(a.atttypid, a.atttypmod),
        (SELECT substring(pg_catalog.pg_get_expr(d.adbin, d.adrelid) for 128)
         FROM pg_catalog.pg_attrdef d
@@ -183,13 +179,14 @@ ORDER BY a.attnum;`, tableID)
 	if err != nil {
 		return err
 	}
+	defer rows.Close()
 
 	tw := tabwriter.NewWriter(w, 0, 0, 1, ' ', tabwriter.Debug)
 
 	fmt.Fprintln(tw, "Column\tType\tCollation\tNullable\tDefault\tStorage\tStats target\tDescription") //nolint:errcheck
 
 	for rows.Next() {
-		ci := columnInfo{}
+		var ci columnInfo
 		err = rows.Scan(
 			&ci.Attname,
 			&ci.FormatType,
@@ -202,7 +199,7 @@ ORDER BY a.attnum;`, tableID)
 			&ci.ColDescription,
 		)
 		if err != nil {
-			return err
+			return errors.WithStack(err)
 		}
 
 		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
@@ -216,14 +213,15 @@ ORDER BY a.attnum;`, tableID)
 			pointer.GetString(ci.ColDescription),
 		) //nolint:errcheck
 	}
-	if err = tw.Flush(); err != nil {
-		return err
+	err = rows.Err()
+	if err != nil {
+		return errors.WithStack(err)
 	}
-	return nil
+	return tw.Flush()
 }
 
-func (e *postgresqlShowCreateTableAction) printIndexInfo(ctx context.Context, w io.Writer, db *sql.DB, tableID string) error {
-	rows, err := db.QueryContext(ctx, `SELECT c2.relname,
+func (a *postgresqlShowCreateTableAction) printIndexInfo(ctx context.Context, w io.Writer, db *sql.DB, tableID string) error {
+	rows, err := db.QueryContext(ctx, `SELECT /* pmm-agent */  c2.relname,
        i.indisprimary,
        i.indisunique,
        i.indisclustered,
@@ -246,8 +244,9 @@ WHERE c.oid = $1
   AND i.indexrelid = c2.oid
 ORDER BY i.indisprimary DESC, i.indisunique DESC, c2.relname`, tableID)
 	if err != nil {
-		return err
+		return errors.WithStack(err)
 	}
+	defer rows.Close()
 
 	var buf bytes.Buffer
 	bw := bufio.NewWriter(&buf)
@@ -272,7 +271,7 @@ ORDER BY i.indisprimary DESC, i.indisunique DESC, c2.relname`, tableID)
 			&info.Reltablespace,
 		)
 		if err != nil {
-			return err
+			return errors.WithStack(err)
 		}
 		fmt.Fprintf(bw, "\t%q", info.Relname) //nolint:errcheck
 
@@ -280,7 +279,7 @@ ORDER BY i.indisprimary DESC, i.indisunique DESC, c2.relname`, tableID)
 			fmt.Fprintf(bw, " %s", pointer.GetString(info.PgGetConstraintDef)) //nolint:errcheck
 		} else {
 
-			/* Label as primary key or unique (but not both) */
+			// Label as primary key or unique (but not both).
 			if info.IsPrimary {
 				fmt.Fprintf(bw, " PRIMARY KEY,") //nolint:errcheck
 			} else if info.IsUnique {
@@ -291,7 +290,7 @@ ORDER BY i.indisprimary DESC, i.indisunique DESC, c2.relname`, tableID)
 				}
 			}
 
-			/* Everything after "USING" is echoed verbatim */
+			// Everything after "USING" is echoed verbatim.
 			indexDef := pointer.GetString(info.PgGetIndexDef)
 			usingPos := strings.Index(indexDef, " USING ")
 			if usingPos != -1 {
@@ -299,7 +298,7 @@ ORDER BY i.indisprimary DESC, i.indisunique DESC, c2.relname`, tableID)
 			}
 			fmt.Fprintf(bw, " %s", indexDef) //nolint:errcheck
 
-			/* Need these for deferrable PK/UNIQUE indexes */
+			// Need these for deferrable PK/UNIQUE indexes.
 			if pointer.GetBool(info.Condeferrable) {
 				fmt.Fprintf(bw, " DEFERRABLE") //nolint:errcheck
 			}
@@ -311,23 +310,28 @@ ORDER BY i.indisprimary DESC, i.indisunique DESC, c2.relname`, tableID)
 
 		fmt.Fprintf(bw, "\n") //nolint:errcheck
 		if err = bw.Flush(); err != nil {
-			return err
+			return errors.WithStack(err)
 		}
+	}
+	err = rows.Err()
+	if err != nil {
+		return errors.WithStack(err)
 	}
 	w.Write(buf.Bytes()) //nolint:errcheck
 	return nil
 }
 
-func (e *postgresqlShowCreateTableAction) printForeignKeyConstraints(ctx context.Context, w io.Writer, db *sql.DB, tableID string) error {
-	rows, err := db.QueryContext(ctx, `SELECT conname,
+func (a *postgresqlShowCreateTableAction) printForeignKeyConstraints(ctx context.Context, w io.Writer, db *sql.DB, tableID string) error {
+	rows, err := db.QueryContext(ctx, `SELECT /* pmm-agent */ conname,
        pg_catalog.pg_get_constraintdef(r.oid, true) as condef
 FROM pg_catalog.pg_constraint r
 WHERE r.conrelid = $1
   AND r.contype = 'f'
 ORDER BY 1`, tableID)
 	if err != nil {
-		return err
+		return errors.WithStack(err)
 	}
+	defer rows.Close()
 
 	var buf bytes.Buffer
 	bw := bufio.NewWriter(&buf)
@@ -341,20 +345,24 @@ ORDER BY 1`, tableID)
 			&condef,
 		)
 		if err != nil {
-			return err
+			return errors.WithStack(err)
 		}
 		fmt.Fprintf(bw, "\t%q %s\n", conname, condef) //nolint:errcheck
 
 		if err = bw.Flush(); err != nil {
-			return err
+			return errors.WithStack(err)
 		}
+	}
+	err = rows.Err()
+	if err != nil {
+		return errors.WithStack(err)
 	}
 	w.Write(buf.Bytes()) //nolint:errcheck
 	return nil
 }
 
-func (e *postgresqlShowCreateTableAction) printReferencedBy(ctx context.Context, w io.Writer, db *sql.DB, tableID string) error {
-	rows, err := db.QueryContext(ctx, `SELECT conname,
+func (a *postgresqlShowCreateTableAction) printReferencedBy(ctx context.Context, w io.Writer, db *sql.DB, tableID string) error {
+	rows, err := db.QueryContext(ctx, `SELECT /* pmm-agent */ conname,
        conrelid::pg_catalog.regclass,
        pg_catalog.pg_get_constraintdef(c.oid, true) as condef
 FROM pg_catalog.pg_constraint c
@@ -362,8 +370,9 @@ WHERE c.confrelid = $1
   AND c.contype = 'f'
 ORDER BY 1`, tableID)
 	if err != nil {
-		return err
+		return errors.WithStack(err)
 	}
+	defer rows.Close()
 
 	var buf bytes.Buffer
 	bw := bufio.NewWriter(&buf)
@@ -378,28 +387,33 @@ ORDER BY 1`, tableID)
 			&condef,
 		)
 		if err != nil {
-			return err
+			return errors.WithStack(err)
 		}
 		fmt.Fprintf(bw, "\tTABLE %q CONSTRAINT %q %s", conrelid, conname, condef) //nolint:errcheck
 
 		if err = bw.Flush(); err != nil {
-			return err
+			return errors.WithStack(err)
 		}
+	}
+	err = rows.Err()
+	if err != nil {
+		return errors.WithStack(err)
 	}
 	w.Write(buf.Bytes()) //nolint:errcheck
 	return nil
 }
 
-func (e *postgresqlShowCreateTableAction) printCheckConstraints(ctx context.Context, w io.Writer, db *sql.DB, tableID string) error {
-	rows, err := db.QueryContext(ctx, `SELECT conname,
+func (a *postgresqlShowCreateTableAction) printCheckConstraints(ctx context.Context, w io.Writer, db *sql.DB, tableID string) error {
+	rows, err := db.QueryContext(ctx, `SELECT /* pmm-agent */ conname,
        pg_catalog.pg_get_constraintdef(r.oid, true) as condef
 FROM pg_catalog.pg_constraint r
 WHERE r.conrelid = $1
   AND r.contype = 'c'
 ORDER BY 1`, tableID)
 	if err != nil {
-		return err
+		return errors.WithStack(err)
 	}
+	defer rows.Close()
 
 	var buf bytes.Buffer
 	bw := bufio.NewWriter(&buf)
@@ -413,13 +427,17 @@ ORDER BY 1`, tableID)
 			&condef,
 		)
 		if err != nil {
-			return err
+			return errors.WithStack(err)
 		}
 		fmt.Fprintf(bw, "\t%q %s\n", conname, condef) //nolint:errcheck
 
 		if err = bw.Flush(); err != nil {
 			return err
 		}
+	}
+	err = rows.Err()
+	if err != nil {
+		return errors.WithStack(err)
 	}
 	w.Write(buf.Bytes()) //nolint:errcheck
 	return nil

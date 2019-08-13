@@ -40,28 +40,28 @@ func NewMySQLShowIndexAction(id string, params *agentpb.StartActionRequest_MySQL
 }
 
 // ID returns an Action ID.
-func (e *mysqlShowIndexAction) ID() string {
-	return e.id
+func (a *mysqlShowIndexAction) ID() string {
+	return a.id
 }
 
 // Type returns an Action type.
-func (e *mysqlShowIndexAction) Type() string {
+func (a *mysqlShowIndexAction) Type() string {
 	return "mysql-show-index"
 }
 
 // Run runs an Action and returns output and error.
-func (e *mysqlShowIndexAction) Run(ctx context.Context) ([]byte, error) {
+func (a *mysqlShowIndexAction) Run(ctx context.Context) ([]byte, error) {
 	// TODO Use sql.OpenDB with ctx when https://github.com/go-sql-driver/mysql/issues/671 is released
 	// (likely in version 1.5.0).
 
-	db, err := sql.Open("mysql", e.params.Dsn)
+	db, err := sql.Open("mysql", a.params.Dsn)
 	if err != nil {
 		return nil, err
 	}
 	defer db.Close() //nolint:errcheck
 
 	// use %#q to convert "table" to `"table"` and `table` to "`table`" to avoid SQL injections
-	rows, err := db.QueryContext(ctx, fmt.Sprintf("SHOW /* pmm-agent */ INDEX IN %#q", e.params.Table))
+	rows, err := db.QueryContext(ctx, fmt.Sprintf("SHOW /* pmm-agent */ INDEX IN %#q", a.params.Table))
 	if err != nil {
 		return nil, err
 	}
@@ -73,4 +73,4 @@ func (e *mysqlShowIndexAction) Run(ctx context.Context) ([]byte, error) {
 	return jsonRows(columns, dataRows)
 }
 
-func (e *mysqlShowIndexAction) sealed() {}
+func (a *mysqlShowIndexAction) sealed() {}

@@ -39,25 +39,25 @@ func NewPostgreSQLShowIndexAction(id string, params *agentpb.StartActionRequest_
 }
 
 // ID returns an Action ID.
-func (e *postgresqlShowIndexAction) ID() string {
-	return e.id
+func (a *postgresqlShowIndexAction) ID() string {
+	return a.id
 }
 
 // Type returns an Action type.
-func (e *postgresqlShowIndexAction) Type() string {
+func (a *postgresqlShowIndexAction) Type() string {
 	return "postgresql-show-index"
 }
 
 // Run runs an Action and returns output and error.
-func (e *postgresqlShowIndexAction) Run(ctx context.Context) ([]byte, error) {
-	db, err := sql.Open("postgres", e.params.Dsn)
+func (a *postgresqlShowIndexAction) Run(ctx context.Context) ([]byte, error) {
+	db, err := sql.Open("postgres", a.params.Dsn)
 	if err != nil {
 		return nil, err
 	}
 	defer db.Close() //nolint:errcheck
 
 	// TODO: Throw error if table doesn't exist.
-	rows, err := db.QueryContext(ctx, "SELECT * FROM pg_indexes WHERE tablename = $1", e.params.Table)
+	rows, err := db.QueryContext(ctx, "SELECT * FROM pg_indexes WHERE tablename = $1", a.params.Table)
 	if err != nil {
 		return nil, err
 	}
@@ -69,4 +69,4 @@ func (e *postgresqlShowIndexAction) Run(ctx context.Context) ([]byte, error) {
 	return jsonRows(columns, dataRows)
 }
 
-func (e *postgresqlShowIndexAction) sealed() {}
+func (a *postgresqlShowIndexAction) sealed() {}
