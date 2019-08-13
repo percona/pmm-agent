@@ -279,7 +279,6 @@ ORDER BY i.indisprimary DESC, i.indisunique DESC, c2.relname`, tableID)
 		if pointer.GetString(info.Contype) == "x" {
 			fmt.Fprintf(bw, " %s", pointer.GetString(info.PgGetConstraintDef)) //nolint:errcheck
 		} else {
-
 			// Label as primary key or unique (but not both).
 			if info.IsPrimary {
 				fmt.Fprintf(bw, " PRIMARY KEY,") //nolint:errcheck
