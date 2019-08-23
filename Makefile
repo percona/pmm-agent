@@ -19,6 +19,7 @@ VERSION_FLAGS = -X 'github.com/percona/pmm-agent/vendor/github.com/percona/pmm/v
 release:                        ## Build static pmm-agent release binary (Linux only).
 	env CGO_ENABLED=1 go build -v -ldflags "-extldflags '-static' $(VERSION_FLAGS)" -tags 'osusergo netgo static_build' -o $(PMM_RELEASE_PATH)/pmm-agent
 	$(PMM_RELEASE_PATH)/pmm-agent --version
+	ldd $(PMM_RELEASE_PATH)/pmm-agent
 
 init:                           ## Installs tools to $GOPATH/bin (which is expected to be in $PATH).
 	curl https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(GOPATH)/bin
