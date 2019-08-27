@@ -78,6 +78,15 @@ func TestConnectionChecker(t *testing.T) {
 				Timeout: ptypes.DurationProto(time.Nanosecond),
 			},
 			expected: `context deadline exceeded`,
+		}, {
+			name: "PostgreSQL ssl enabled",
+			msg: &agentpb.CheckConnectionRequest{
+				Dsn: "postgres://pmm-agent:pmm-agent-password@127.0.0.1:15432/postgres?connect_timeout=10&sslmode=prefer" +
+					"&ssl-cert=../testdata/ssl/server.crt&ssl-key=../testdata/server.key",
+				Type:    inventorypb.ServiceType_POSTGRESQL_SERVICE,
+				Timeout: ptypes.DurationProto(time.Nanosecond),
+			},
+			expected: `context deadline exceeded`,
 		},
 
 		{

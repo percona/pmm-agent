@@ -43,6 +43,10 @@ services:
       -c pg_stat_statements.max=10000
       -c pg_stat_statements.track=all
       -c pg_stat_statements.save=off
+      -c ssl=on
+      -c ssl_cert_file=/var/lib/postgresql/ssl/server.crt
+      -c ssl_key_file=/var/lib/postgresql/ssl/server.key
+      -c log_min_messages=DEBUG4
     ports:
       - 127.0.0.1:15432:5432
     environment:
@@ -50,6 +54,7 @@ services:
       - POSTGRES_PASSWORD=pmm-agent-password
     volumes:
       - test_db_postgres:/docker-entrypoint-initdb.d/
+      - ./testdata/ssl:/var/lib/postgresql/ssl        
 
 volumes:
   test_db_mysql:
