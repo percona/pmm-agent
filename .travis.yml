@@ -55,6 +55,8 @@ before_install:
   - sudo chown postgres:postgres testdata/ssl/*
   - sudo chmod 0600 testdata/ssl/*
   - docker-compose up -d
+  - sleep 10
+  - docker ps -a
 
 install:
   # ensure that vendor/ is in sync with code and Gopkg.toml/lock
