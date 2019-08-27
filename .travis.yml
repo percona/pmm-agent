@@ -51,12 +51,6 @@ env:
 before_install:
   - touch testdata/slowlogs/slow.log
   - chmod 666 testdata/slowlogs/slow.log
-  - sudo usermod -u 999 postgres
-  - sudo chown postgres:postgres testdata/ssl/*
-  - sudo chmod 0600 testdata/ssl/*
-  - docker-compose up -d
-  - sleep 10
-  - docker ps -a
 
 install:
   # ensure that vendor/ is in sync with code and Gopkg.toml/lock
@@ -71,6 +65,12 @@ before_script:
   - git status
   - git diff --exit-code
   # use the same uid as in container
+  - sudo usermod -u 999 postgres
+  - sudo chown postgres:postgres testdata/ssl/*
+  - sudo chmod 0600 testdata/ssl/*
+  - docker-compose up -d
+  - sleep 10
+  - docker ps -a
 
 script:
   # for main_test.go
