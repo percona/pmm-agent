@@ -27,7 +27,7 @@ required = [
 # TODO switch to tags before PMM 2.0 release
 [[constraint]]
   name = "github.com/percona/pmm"
-  branch = "PMM-2.0"
+  branch = "PMM-4192"
 
 # TODO Remove when v1.1.0 is released.
 # https://github.com/AlekSi/pointer/milestone/1
@@ -44,7 +44,7 @@ required = [
 # and https://github.com/percona/percona-toolkit/pull/404.
 [[constraint]]
   name = "github.com/percona/percona-toolkit"
-  branch = "PMM-4278-official-mongo-driver"
+  branch = "3.0"
 
 # https://jira.percona.com/browse/PMM-4081
 [[constraint]]
