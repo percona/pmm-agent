@@ -47,7 +47,7 @@ func (a *mongodbExplainAction) ID() string {
 
 // Type returns an Action type.
 func (a *mongodbExplainAction) Type() string {
-	return "postgresql-show-create-table"
+	return "mongodb-explain"
 }
 
 // Run runs an Action and returns output and error.
