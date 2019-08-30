@@ -32,9 +32,8 @@ type mongodbExplainAction struct {
 	params *agentpb.StartActionRequest_MongoDBExplainParams
 }
 
-// NewPostgreSQLShowCreateTableAction creates PostgreSQL SHOW CREATE TABLE Action.
-// This is an Action that can run `\d+ table` command analog on PostgreSQL service with given DSN.
-func NewNomgoDBExplain(id string, params *agentpb.StartActionRequest_MongoDBExplainParams) Action {
+// NewMongoDBExplain creates a MongoDB  EXPLAIN query Action.
+func NewMongoDBExplain(id string, params *agentpb.StartActionRequest_MongoDBExplainParams) Action {
 	return &mongodbExplainAction{
 		id:     id,
 		params: params,

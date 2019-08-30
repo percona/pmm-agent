@@ -6,13 +6,14 @@ import (
 	"testing"
 
 	"github.com/percona/percona-toolkit/src/go/mongolib/proto"
-	"github.com/percona/pmm-agent/utils/tests"
 	"github.com/percona/pmm/api/agentpb"
 	"github.com/stretchr/testify/assert"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
+
+	"github.com/percona/pmm-agent/utils/tests"
 )
 
 func TestMongoDBExplain(t *testing.T) {
@@ -56,10 +57,12 @@ func TestMongoDBExplain(t *testing.T) {
 		Query:    string(buf),
 	}
 
-	ex := NewNomgoDBExplain(id, params)
+	ex := NewMongoDBExplain(id, params)
 	_, err = ex.Run(ctx)
 	assert.Nil(t, err)
-	client.Database(database).Drop(ctx)
+	if err := client.Database(database).Drop(ctx); err != nil {
+		t.Errorf("Cannot drop testing database for cleanup")
+	}
 }
 
 func prepareData(ctx context.Context, client *mongo.Client, database, collection string) error {
@@ -68,7 +71,10 @@ func prepareData(ctx context.Context, client *mongo.Client, database, collection
 
 	if count < max {
 		for i := int64(0); i < max; i++ {
-			client.Database(database).Collection(collection).InsertOne(ctx, primitive.M{"f1": i, "f2": fmt.Sprintf("text_%5d", max-i)})
+			doc := primitive.M{"f1": i, "f2": fmt.Sprintf("text_%5d", max-i)}
+			if _, err := client.Database(database).Collection(collection).InsertOne(ctx, doc); err != nil {
+				return err
+			}
 		}
 	}
 
