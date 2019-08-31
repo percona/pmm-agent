@@ -171,7 +171,7 @@ func get(args []string, l *logrus.Entry) (*Config, string, error) {
 		return nil, "", err
 	}
 	*configFileF = absConfigFileF
-	l.Debugf("Loading configuration file %s.", *configFileF)
+	l.Infof("Loading configuration file %s.", *configFileF)
 	fileCfg, err := loadFromFile(*configFileF)
 	if _, ok := err.(ErrConfigFileDoesNotExist); ok {
 		return cfg, *configFileF, err
@@ -189,7 +189,7 @@ func get(args []string, l *logrus.Entry) (*Config, string, error) {
 }
 
 // Application returns kingpin application that will parse command-line flags and environment variables
-// into cfg except --config-file/PMM_AGENT_CONFIG_FILE that is returned separately.
+// (but not configuration file) into cfg except --config-file/PMM_AGENT_CONFIG_FILE that is returned separately.
 func Application(cfg *Config) (*kingpin.Application, *string) {
 	app := kingpin.New("pmm-agent", fmt.Sprintf("Version %s", version.Version))
 	app.HelpFlag.Short('h')
