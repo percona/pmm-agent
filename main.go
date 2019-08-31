@@ -37,7 +37,7 @@ func main() {
 
 	// we don't have configuration options for formatter, so set it once there
 	logrus.SetFormatter(&logrus.TextFormatter{
-		// Enable consistent multiline-friendly formatter in both development (with terminal) and production (without terminal):
+		// Enable multiline-friendly formatter in both development (with terminal) and production (without terminal):
 		// https://github.com/sirupsen/logrus/blob/839c75faf7f98a33d445d181f3018b5c3409a45e/text_formatter.go#L176-L178
 		ForceColors:     true,
 		FullTimestamp:   true,
@@ -46,6 +46,7 @@ func main() {
 		CallerPrettyfier: func(f *runtime.Frame) (function string, file string) {
 			_, function = filepath.Split(f.Function)
 
+			// keep a single directory name as a compromise between brevity and unambiguity
 			var dir string
 			dir, file = filepath.Split(f.File)
 			dir = filepath.Base(dir)
