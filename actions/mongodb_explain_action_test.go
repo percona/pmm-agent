@@ -2,6 +2,7 @@ package actions
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"testing"
 
@@ -58,8 +59,18 @@ func TestMongoDBExplain(t *testing.T) {
 	}
 
 	ex := NewMongoDBExplain(id, params)
-	_, err = ex.Run(ctx)
+	res, err := ex.Run(ctx)
 	assert.Nil(t, err)
+
+	// explain package has a lot of tests for different queries and different MongoDB versions.
+	// Here we only need to check we are receiving a valid response
+	explainM := make(map[string]interface{})
+	err = json.Unmarshal(res, &explainM)
+	assert.Nil(t, err)
+	queryPlanner, ok := explainM["queryPlanner"]
+	assert.Equal(t, ok, true)
+	assert.NotEmpty(t, queryPlanner)
+
 	if err := client.Database(database).Drop(ctx); err != nil {
 		t.Errorf("Cannot drop testing database for cleanup")
 	}

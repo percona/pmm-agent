@@ -69,12 +69,8 @@ func (a *mongodbExplainAction) Run(ctx context.Context) ([]byte, error) {
 	}
 	defer client.Disconnect(ctx) //nolint:errcheck
 
-	return a.explain(ctx, client)
-}
-
-func (a *mongodbExplainAction) sealed() {}
-
-func (a *mongodbExplainAction) explain(ctx context.Context, client *mongo.Client) ([]byte, error) {
 	ex := explain.New(ctx, client)
 	return ex.Run(a.params.Database, []byte(a.params.Query))
 }
+
+func (a *mongodbExplainAction) sealed() {}

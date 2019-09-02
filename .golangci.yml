@@ -18,7 +18,7 @@ linters-settings:
     tab-width: 4
 
   unused:
-    check-exported: true
+    check-exported: false
 
   unparam:
     check-exported: true
@@ -28,6 +28,7 @@ linters:
   disable:
     - scopelint  # too many false positives
     - gochecknoglobals  # mostly useless
+    - typecheck # Too many false positives
 
 run:
   skip-dirs:
