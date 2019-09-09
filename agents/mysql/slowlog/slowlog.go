@@ -49,19 +49,19 @@ const (
 
 // SlowLog extracts performance data from MySQL slow log.
 type SlowLog struct {
-	dsn               string
-	agentID           string
-	slowLogFilePrefix string
+	dsn                  string
+	agentID              string
+	slowLogFilePrefix    string
 	disableQueryExamples bool
-	l                 *logrus.Entry
-	changes           chan agents.Change
+	l                    *logrus.Entry
+	changes              chan agents.Change
 }
 
 // Params represent Agent parameters.
 type Params struct {
-	DSN               string
-	AgentID           string
-	SlowLogFilePrefix string // for development and testing
+	DSN                  string
+	AgentID              string
+	SlowLogFilePrefix    string // for development and testing
 	DisableQueryExamples bool
 }
 
@@ -75,12 +75,12 @@ type slowLogInfo struct {
 // New creates new SlowLog QAN service.
 func New(params *Params, l *logrus.Entry) (*SlowLog, error) {
 	return &SlowLog{
-		dsn:               params.DSN,
-		agentID:           params.AgentID,
-		slowLogFilePrefix: params.SlowLogFilePrefix,
+		dsn:                  params.DSN,
+		agentID:              params.AgentID,
+		slowLogFilePrefix:    params.SlowLogFilePrefix,
 		disableQueryExamples: params.DisableQueryExamples,
-		l:                 l,
-		changes:           make(chan agents.Change, 10),
+		l:                    l,
+		changes:              make(chan agents.Change, 10),
 	}, nil
 }
 
@@ -306,13 +306,10 @@ func makeBuckets(agentID string, res event.Result, periodStart time.Time, period
 	buckets := make([]*agentpb.MetricsBucket, 0, len(res.Class))
 
 	for _, v := range res.Class {
-		example := v.Example.Query
-		exampleFormat := agentpb.ExampleFormat_EXAMPLE
-		// Skip query examples.
-		if disableQueryExamples {
-			example = ""
-			exampleFormat = agentpb.ExampleFormat_FINGERPRINT
+		if v.Metrics == nil {
+			continue
 		}
+
 		mb := &agentpb.MetricsBucket{
 			Common: &agentpb.MetricsBucket_Common{
 				Queryid:              v.Id,
@@ -325,14 +322,23 @@ func makeBuckets(agentID string, res event.Result, periodStart time.Time, period
 				AgentType:            inventorypb.AgentType_QAN_MYSQL_SLOWLOG_AGENT,
 				PeriodStartUnixSecs:  uint32(periodStart.Unix()),
 				PeriodLengthSecs:     periodLengthSecs,
-				Example:              example,
-				ExampleFormat:        exampleFormat,
-				ExampleType:          agentpb.ExampleType_RANDOM,
 				NumQueries:           float32(v.TotalQueries),
 				Errors:               errListsToMap(v.ErrorsCode, v.ErrorsCount),
 				NumQueriesWithErrors: v.NumQueriesWithErrors,
 			},
 			Mysql: &agentpb.MetricsBucket_MySQL{},
+		}
+
+		if v.Example != nil {
+			mb.Common.Example = v.Example.Query
+			mb.Common.ExampleFormat = agentpb.ExampleFormat_EXAMPLE
+			mb.Common.ExampleType = agentpb.ExampleType_RANDOM
+
+			// Skip query examples.
+			if disableQueryExamples {
+				mb.Common.Example = ""
+				exampleFormat = agentpb.ExampleFormat_FINGERPRINT
+			}
 		}
 
 		// If key has suffix _time or _wait than field is TimeMetrics.

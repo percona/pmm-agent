@@ -84,7 +84,7 @@ func TestGet(t *testing.T) {
 	t.Run("OnlyFlags", func(t *testing.T) {
 		actual, configFilePath, err := get([]string{
 			"--id=agent-id",
-			"--server-address=127.0.0.1:11111",
+			"--server-address=127.0.0.1",
 		}, logrus.WithField("test", t.Name()))
 		require.NoError(t, err)
 
@@ -92,9 +92,10 @@ func TestGet(t *testing.T) {
 			ID:         "agent-id",
 			ListenPort: 7777,
 			Server: Server{
-				Address: "127.0.0.1:11111",
+				Address: "127.0.0.1:443",
 			},
 			Paths: Paths{
+				ExportersBase:    "/usr/local/percona/pmm2/exporters",
 				NodeExporter:     "node_exporter",
 				MySQLdExporter:   "mysqld_exporter",
 				MongoDBExporter:  "mongodb_exporter",
@@ -105,8 +106,8 @@ func TestGet(t *testing.T) {
 				TempDir:          os.TempDir(),
 			},
 			Ports: Ports{
-				Min: 32768,
-				Max: 60999,
+				Min: 42000,
+				Max: 51999,
 			},
 		}
 		assert.Equal(t, expected, actual)
@@ -117,7 +118,7 @@ func TestGet(t *testing.T) {
 		name := writeConfig(t, &Config{
 			ID: "agent-id",
 			Server: Server{
-				Address: "127.0.0.1:11111",
+				Address: "127.0.0.1",
 			},
 		})
 		defer removeConfig(t, name)
@@ -131,9 +132,10 @@ func TestGet(t *testing.T) {
 			ID:         "agent-id",
 			ListenPort: 7777,
 			Server: Server{
-				Address: "127.0.0.1:11111",
+				Address: "127.0.0.1:443",
 			},
 			Paths: Paths{
+				ExportersBase:    "/usr/local/percona/pmm2/exporters",
 				NodeExporter:     "node_exporter",
 				MySQLdExporter:   "mysqld_exporter",
 				MongoDBExporter:  "mongodb_exporter",
@@ -144,8 +146,8 @@ func TestGet(t *testing.T) {
 				TempDir:          os.TempDir(),
 			},
 			Ports: Ports{
-				Min: 32768,
-				Max: 60999,
+				Min: 42000,
+				Max: 51999,
 			},
 		}
 		assert.Equal(t, expected, actual)
@@ -156,7 +158,7 @@ func TestGet(t *testing.T) {
 		name := writeConfig(t, &Config{
 			ID: "config-id",
 			Server: Server{
-				Address: "127.0.0.1:11111",
+				Address: "127.0.0.1",
 			},
 		})
 		defer removeConfig(t, name)
@@ -172,9 +174,10 @@ func TestGet(t *testing.T) {
 			ID:         "flag-id",
 			ListenPort: 7777,
 			Server: Server{
-				Address: "127.0.0.1:11111",
+				Address: "127.0.0.1:443",
 			},
 			Paths: Paths{
+				ExportersBase:    "/usr/local/percona/pmm2/exporters",
 				NodeExporter:     "node_exporter",
 				MySQLdExporter:   "mysqld_exporter",
 				MongoDBExporter:  "mongodb_exporter",
@@ -185,8 +188,8 @@ func TestGet(t *testing.T) {
 				TempDir:          os.TempDir(),
 			},
 			Ports: Ports{
-				Min: 32768,
-				Max: 60999,
+				Min: 42000,
+				Max: 51999,
 			},
 			Debug: true,
 		}
@@ -207,6 +210,7 @@ func TestGet(t *testing.T) {
 			ID:         "flag-id",
 			ListenPort: 7777,
 			Paths: Paths{
+				ExportersBase:    "/usr/local/percona/pmm2/exporters",
 				NodeExporter:     "node_exporter",
 				MySQLdExporter:   "mysqld_exporter",
 				MongoDBExporter:  "mongodb_exporter",
@@ -217,8 +221,8 @@ func TestGet(t *testing.T) {
 				TempDir:          os.TempDir(),
 			},
 			Ports: Ports{
-				Min: 32768,
-				Max: 60999,
+				Min: 42000,
+				Max: 51999,
 			},
 			Debug: true,
 		}

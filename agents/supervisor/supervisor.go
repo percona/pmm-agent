@@ -399,9 +399,9 @@ func (s *Supervisor) startBuiltin(agentID string, builtinAgent *agentpb.SetState
 
 	case agentpb.Type_QAN_MYSQL_SLOWLOG_AGENT:
 		params := &slowlog.Params{
-			DSN:               builtinAgent.Dsn,
-			AgentID:           agentID,
-			SlowLogFilePrefix: s.paths.SlowLogFilePrefix,
+			DSN:                  builtinAgent.Dsn,
+			AgentID:              agentID,
+			SlowLogFilePrefix:    s.paths.SlowLogFilePrefix,
 			DisableQueryExamples: builtinAgent.DisableQueryExamples,
 		}
 		agent, err = slowlog.New(params, l)
@@ -474,6 +474,10 @@ func (s *Supervisor) processParams(agentID string, agentProcess *agentpb.SetStat
 		processParams.Path = "sleep"
 	default:
 		return nil, errors.Errorf("unhandled agent type %[1]s (%[1]d).", agentProcess.Type)
+	}
+
+	if processParams.Path == "" {
+		return nil, errors.Errorf("no path for agent type %[1]s (%[1]d).", agentProcess.Type)
 	}
 
 	renderTemplate := func(name, text string, params map[string]interface{}) ([]byte, error) {

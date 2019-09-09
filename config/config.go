@@ -20,6 +20,7 @@ package config
 import (
 	"fmt"
 	"io/ioutil"
+	"net"
 	"net/url"
 	"os"
 	"os/exec"
@@ -66,27 +67,51 @@ func (s *Server) URL() *url.URL {
 
 // Paths represents binaries paths configuration.
 type Paths struct {
+	ExportersBase    string `yaml:"exporters_base"`
 	NodeExporter     string `yaml:"node_exporter"`
 	MySQLdExporter   string `yaml:"mysqld_exporter"`
 	MongoDBExporter  string `yaml:"mongodb_exporter"`
 	PostgresExporter string `yaml:"postgres_exporter"`
 	ProxySQLExporter string `yaml:"proxysql_exporter"`
-	PtSummary        string `yaml:"pt_summary"`
-	PtMySQLSummary   string `yaml:"pt_mysql_summary"`
-	TempDir          string `yaml:"tempdir"`
+
+	PtSummary      string `yaml:"pt_summary"`
+	PtMySQLSummary string `yaml:"pt_mysql_summary"`
+
+	TempDir string `yaml:"tempdir"`
 
 	SlowLogFilePrefix string `yaml:"slowlog_file_prefix,omitempty"` // for development and testing
 }
 
 // lookup replaces paths with absolute paths.
-func (p *Paths) lookup() {
-	p.NodeExporter, _ = exec.LookPath(p.NodeExporter)
-	p.MySQLdExporter, _ = exec.LookPath(p.MySQLdExporter)
-	p.MongoDBExporter, _ = exec.LookPath(p.MongoDBExporter)
-	p.PostgresExporter, _ = exec.LookPath(p.PostgresExporter)
-	p.ProxySQLExporter, _ = exec.LookPath(p.ProxySQLExporter)
-	p.PtSummary, _ = exec.LookPath(p.PtSummary)
-	p.PtMySQLSummary, _ = exec.LookPath(p.PtMySQLSummary)
+func (p *Paths) lookup(l *logrus.Entry) {
+	if p.ExportersBase != "" {
+		for _, sp := range []*string{
+			&p.NodeExporter,
+			&p.MySQLdExporter,
+			&p.MongoDBExporter,
+			&p.PostgresExporter,
+			&p.ProxySQLExporter,
+		} {
+			*sp = filepath.Join(p.ExportersBase, *sp)
+		}
+	}
+
+	for name, sp := range map[string]*string{
+		"node_exporter":     &p.NodeExporter,
+		"mysqld_exporter":   &p.MySQLdExporter,
+		"mongodb_exporter":  &p.MongoDBExporter,
+		"postgres_exporter": &p.PostgresExporter,
+		"proxysql_exporter": &p.ProxySQLExporter,
+
+		"pt-summary":       &p.PtSummary,
+		"pt-mysql-summary": &p.PtMySQLSummary,
+	} {
+		var err error
+		*sp, err = exec.LookPath(*sp)
+		if err != nil {
+			l.Warnf("%s not found: %s.", name, err)
+		}
+	}
 }
 
 // Ports represents ports configuration.
@@ -149,43 +174,52 @@ func (e ErrConfigFileDoesNotExist) Error() string {
 func Get(l *logrus.Entry) (*Config, string, error) {
 	cfg, configFileF, err := get(os.Args[1:], l)
 	if cfg != nil {
-		cfg.Paths.lookup()
+		cfg.Paths.lookup(l)
 	}
 	return cfg, configFileF, err
 }
 
 // get is Get for unit tests: parses args instead of command-line, and does not lookups paths.
-func get(args []string, l *logrus.Entry) (*Config, string, error) {
+func get(args []string, l *logrus.Entry) (cfg *Config, configFileF string, err error) {
+	// ensure that port is always present on exit
+	defer func() {
+		if cfg == nil || cfg.Server.Address == "" {
+			return
+		}
+		if _, _, e := net.SplitHostPort(cfg.Server.Address); e != nil {
+			host := cfg.Server.Address
+			cfg.Server.Address = net.JoinHostPort(host, "443")
+			l.Infof("Updating PMM Server address from %q to %q.", host, cfg.Server.Address)
+		}
+	}()
+
 	// parse command-line flags and environment variables
-	cfg := new(Config)
-	app, configFileF := Application(cfg)
-	if _, err := app.Parse(args); err != nil {
-		return nil, "", err
+	cfg = new(Config)
+	app, cfgFileF := Application(cfg)
+	if _, err = app.Parse(args); err != nil {
+		return
 	}
-	if *configFileF == "" {
-		return cfg, "", nil
+	if *cfgFileF == "" {
+		return
 	}
 
-	absConfigFileF, err := filepath.Abs(*configFileF)
-	if err != nil {
-		return nil, "", err
+	if configFileF, err = filepath.Abs(*cfgFileF); err != nil {
+		return
 	}
-	*configFileF = absConfigFileF
-	l.Debugf("Loading configuration file %s.", *configFileF)
-	fileCfg, err := loadFromFile(*configFileF)
-	if _, ok := err.(ErrConfigFileDoesNotExist); ok {
-		return cfg, *configFileF, err
-	}
+	l.Debugf("Loading configuration file %s.", configFileF)
+	fileCfg, err := loadFromFile(configFileF)
 	if err != nil {
-		return nil, "", err
+		return
 	}
 
 	// re-parse flags into configuration from file
 	app, _ = Application(fileCfg)
 	if _, err = app.Parse(args); err != nil {
-		return nil, "", err
+		return
 	}
-	return fileCfg, *configFileF, nil
+
+	cfg = fileCfg
+	return //nolint:nakedret
 }
 
 // Application returns kingpin application that will parse command-line flags and environment variables
@@ -216,6 +250,8 @@ func Application(cfg *Config) (*kingpin.Application, *string) {
 		Envar("PMM_AGENT_SERVER_INSECURE_TLS").BoolVar(&cfg.Server.InsecureTLS)
 	// no flag for WithoutTLS - it is only for development and testing
 
+	app.Flag("paths-exporters_base", "Base path for exporters to use [PMM_AGENT_PATHS_EXPORTERS_BASE]").
+		Envar("PMM_AGENT_PATHS_EXPORTERS_BASE").Default("/usr/local/percona/pmm2/exporters").StringVar(&cfg.Paths.ExportersBase)
 	app.Flag("paths-node_exporter", "Path to node_exporter to use [PMM_AGENT_PATHS_NODE_EXPORTER]").
 		Envar("PMM_AGENT_PATHS_NODE_EXPORTER").Default("node_exporter").StringVar(&cfg.Paths.NodeExporter)
 	app.Flag("paths-mysqld_exporter", "Path to mysqld_exporter to use [PMM_AGENT_PATHS_MYSQLD_EXPORTER]").
@@ -234,11 +270,11 @@ func Application(cfg *Config) (*kingpin.Application, *string) {
 		Envar("PMM_AGENT_PATHS_TEMPDIR").Default(os.TempDir()).StringVar(&cfg.Paths.TempDir)
 	// no flag for SlowLogFilePrefix - it is only for development and testing
 
-	// TODO read defaults from /proc/sys/net/ipv4/ip_local_port_range ?
+	// start from 42000 for minimal compatibility with PMM Client 1.x firewall rules and documentation
 	app.Flag("ports-min", "Minimal allowed port number for listening sockets [PMM_AGENT_PORTS_MIN]").
-		Envar("PMM_AGENT_PORTS_MIN").Default("32768").Uint16Var(&cfg.Ports.Min)
+		Envar("PMM_AGENT_PORTS_MIN").Default("42000").Uint16Var(&cfg.Ports.Min)
 	app.Flag("ports-max", "Maximal allowed port number for listening sockets [PMM_AGENT_PORTS_MAX]").
-		Envar("PMM_AGENT_PORTS_MAX").Default("60999").Uint16Var(&cfg.Ports.Max)
+		Envar("PMM_AGENT_PORTS_MAX").Default("51999").Uint16Var(&cfg.Ports.Max)
 
 	app.Flag("debug", "Enable debug output [PMM_AGENT_DEBUG]").
 		Envar("PMM_AGENT_DEBUG").BoolVar(&cfg.Debug)
