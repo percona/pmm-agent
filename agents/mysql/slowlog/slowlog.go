@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"os"
 	"path/filepath"
 	"time"
 
@@ -52,6 +53,7 @@ type SlowLog struct {
 	dsn               string
 	agentID           string
 	slowLogFilePrefix string
+	sizeSlowLogs      uint32
 	l                 *logrus.Entry
 	changes           chan agents.Change
 }
@@ -61,6 +63,7 @@ type Params struct {
 	DSN               string
 	AgentID           string
 	SlowLogFilePrefix string // for development and testing
+	SizeSlowLogs      uint32
 }
 
 const queryTag = "pmm-agent:slowlog"
@@ -76,6 +79,7 @@ func New(params *Params, l *logrus.Entry) (*SlowLog, error) {
 		dsn:               params.DSN,
 		agentID:           params.AgentID,
 		slowLogFilePrefix: params.SlowLogFilePrefix,
+		sizeSlowLogs:      params.SizeSlowLogs,
 		l:                 l,
 		changes:           make(chan agents.Change, 10),
 	}, nil
@@ -110,6 +114,22 @@ func (s *SlowLog) Run(ctx context.Context) {
 				}
 			} else {
 				s.l.Error(err)
+			}
+
+			fi, err := os.Stat(newInfo.path)
+			if err != nil {
+				s.l.Error(err)
+			} else {
+				// get the size of slowlog
+				currSizeSlowLog := fi.Size()
+				if currSizeSlowLog > int64(s.sizeSlowLogs) {
+					s.l.Infof("Rotating slow log with size: %d.", currSizeSlowLog)
+					err := s.rotateSlowLog(ctx, newInfo.path)
+					if err != nil {
+						s.l.Error(err)
+					}
+					continue
+				}
 			}
 
 			select {
@@ -154,6 +174,36 @@ func (s *SlowLog) Run(ctx context.Context) {
 			time.Sleep(b.Delay())
 		}
 	}
+}
+
+func (s *SlowLog) rotateSlowLog(ctx context.Context, slowLogPath string) error {
+	db, err := sql.Open("mysql", s.dsn)
+	if err != nil {
+		return errors.Wrap(err, "cannot open database connection")
+	}
+	defer db.Close() //nolint:errcheck
+
+	_, err = db.ExecContext(ctx, fmt.Sprintf("SET GLOBAL /* %s */ slow_query_log=off", queryTag)) //nolint:gosec
+	if err != nil {
+		return errors.Wrap(err, "cannot dissable slow_query_log")
+	}
+
+	_, err = db.ExecContext(ctx, fmt.Sprintf("FLUSH LOGS /* %s */", queryTag)) //nolint:gosec
+	if err != nil {
+		return errors.Wrap(err, "cannot flush logs")
+	}
+
+	err = os.Rename(slowLogPath, slowLogPath+".old")
+	if err != nil {
+		return errors.Wrap(err, "cannot rename slow log")
+	}
+
+	_, err = db.ExecContext(ctx, fmt.Sprintf("SET GLOBAL /* %s */ slow_query_log=on", queryTag)) //nolint:gosec
+	if err != nil {
+		return errors.Wrap(err, "cannot enable slow_query_log")
+	}
+
+	return nil
 }
 
 // getSlowLogInfo returns information about slowlog settings.

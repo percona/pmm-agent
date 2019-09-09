@@ -402,6 +402,7 @@ func (s *Supervisor) startBuiltin(agentID string, builtinAgent *agentpb.SetState
 			DSN:               builtinAgent.Dsn,
 			AgentID:           agentID,
 			SlowLogFilePrefix: s.paths.SlowLogFilePrefix,
+			SizeSlowLogs:      builtinAgent.SizeSlowLogs,
 		}
 		agent, err = slowlog.New(params, l)
 

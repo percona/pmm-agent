@@ -356,8 +356,8 @@
   revision = "3f775e176aab1ef9483bc06fbad31e178edf8ccd"
 
 [[projects]]
-  branch = "PMM-2.0"
-  digest = "1:766db4b17a7e0d517214951773e7292eac973459f8c724c9daa7cd77e9017b97"
+  branch = "PMM-4437-flush-slowlogs"
+  digest = "1:3e400ceb06e13d36097779e1cc3e15692495d88ca74cf4c3e6b2649d1c7a78a5"
   name = "github.com/percona/pmm"
   packages = [
     "api/agentlocalpb",
@@ -379,7 +379,7 @@
     "version",
   ]
   pruneopts = "NUT"
-  revision = "2d8fdd46ebc027d15ffc4858fe0ae55b93fdbad0"
+  revision = "21e0f409c4fdcea2760d7f83570b63d4e94993a3"
 
 [[projects]]
   digest = "1:14715f705ff5dfe0ffd6571d7d201dd8e921030f8070321a79380d8ca4ec1a24"
