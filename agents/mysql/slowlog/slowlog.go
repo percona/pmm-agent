@@ -337,7 +337,7 @@ func makeBuckets(agentID string, res event.Result, periodStart time.Time, period
 			// Skip query examples.
 			if disableQueryExamples {
 				mb.Common.Example = ""
-				exampleFormat = agentpb.ExampleFormat_FINGERPRINT
+				mb.Common.ExampleFormat = agentpb.ExampleFormat_FINGERPRINT
 			}
 		}
 
