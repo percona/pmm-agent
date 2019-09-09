@@ -52,6 +52,7 @@ type SlowLog struct {
 	dsn               string
 	agentID           string
 	slowLogFilePrefix string
+	disableQueryExamples bool
 	l                 *logrus.Entry
 	changes           chan agents.Change
 }
@@ -61,6 +62,7 @@ type Params struct {
 	DSN               string
 	AgentID           string
 	SlowLogFilePrefix string // for development and testing
+	DisableQueryExamples bool
 }
 
 const queryTag = "pmm-agent:slowlog"
@@ -76,6 +78,7 @@ func New(params *Params, l *logrus.Entry) (*SlowLog, error) {
 		dsn:               params.DSN,
 		agentID:           params.AgentID,
 		slowLogFilePrefix: params.SlowLogFilePrefix,
+		disableQueryExamples: params.DisableQueryExamples,
 		l:                 l,
 		changes:           make(chan agents.Change, 10),
 	}, nil
@@ -283,7 +286,7 @@ func (s *SlowLog) processFile(ctx context.Context, file string, outlierTime floa
 		case <-t.C:
 			lengthS := uint32(math.Round(wait.Seconds())) // round 59.9s/60.1s to 60s
 			res := aggregator.Finalize()
-			buckets := makeBuckets(s.agentID, res, start, lengthS)
+			buckets := makeBuckets(s.agentID, res, start, lengthS, s.disableQueryExamples)
 			s.l.Debugf("Made %d buckets out of %d classes in %s+%d interval. Wait time: %s.",
 				len(buckets), len(res.Class), start.Format("15:04:05"), lengthS, time.Since(start))
 
@@ -299,10 +302,17 @@ func (s *SlowLog) processFile(ctx context.Context, file string, outlierTime floa
 }
 
 // makeBuckets is a pure function for easier testing.
-func makeBuckets(agentID string, res event.Result, periodStart time.Time, periodLengthSecs uint32) []*agentpb.MetricsBucket {
+func makeBuckets(agentID string, res event.Result, periodStart time.Time, periodLengthSecs uint32, disableQueryExamples bool) []*agentpb.MetricsBucket {
 	buckets := make([]*agentpb.MetricsBucket, 0, len(res.Class))
 
 	for _, v := range res.Class {
+		example := v.Example.Query
+		exampleFormat := agentpb.ExampleFormat_EXAMPLE
+		// Skip query examples.
+		if disableQueryExamples {
+			example = ""
+			exampleFormat = agentpb.ExampleFormat_FINGERPRINT
+		}
 		mb := &agentpb.MetricsBucket{
 			Common: &agentpb.MetricsBucket_Common{
 				Queryid:              v.Id,
@@ -315,8 +325,8 @@ func makeBuckets(agentID string, res event.Result, periodStart time.Time, period
 				AgentType:            inventorypb.AgentType_QAN_MYSQL_SLOWLOG_AGENT,
 				PeriodStartUnixSecs:  uint32(periodStart.Unix()),
 				PeriodLengthSecs:     periodLengthSecs,
-				Example:              v.Example.Query,
-				ExampleFormat:        agentpb.ExampleFormat_EXAMPLE,
+				Example:              example,
+				ExampleFormat:        exampleFormat,
 				ExampleType:          agentpb.ExampleType_RANDOM,
 				NumQueries:           float32(v.TotalQueries),
 				Errors:               errListsToMap(v.ErrorsCode, v.ErrorsCount),

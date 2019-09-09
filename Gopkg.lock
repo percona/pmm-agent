@@ -242,8 +242,8 @@
     "utilities",
   ]
   pruneopts = "NUT"
-  revision = "ad529a448ba494a88058f9e5be0988713174ac86"
-  version = "v1.9.5"
+  revision = "fd2d159495beeea56e2b747d3d4b68299a81210c"
+  version = "v1.9.6"
 
 [[projects]]
   digest = "1:58999a98719fddbac6303cb17e8d85b945f60b72f48e3a2df6b950b97fa926f1"
@@ -364,8 +364,8 @@
   version = "0.5.2"
 
 [[projects]]
-  branch = "PMM-2.0"
-  digest = "1:23621b1dd6142ee9fe21fbda6fa233649051e26b7fcea8473bf1fd351b467855"
+  branch = "PMM-4459-disable-query-example"
+  digest = "1:3f423d47cb6ecf8b782e9589d5fc68a6d083b8b6b66fc4500e35e0ee55d26e18"
   name = "github.com/percona/pmm"
   packages = [
     "api/agentlocalpb",
@@ -387,7 +387,7 @@
     "version",
   ]
   pruneopts = "NUT"
-  revision = "a27771053e9169850702473edc8da84e2dc0c4b1"
+  revision = "3a264de225018a2b9842c8e2252b4051bdbbcb75"
 
 [[projects]]
   digest = "1:14715f705ff5dfe0ffd6571d7d201dd8e921030f8070321a79380d8ca4ec1a24"
@@ -671,7 +671,7 @@
   revision = "fa694d86fc64c7654a660f8908de4e879866748d"
 
 [[projects]]
-  digest = "1:4b80ce1c300dde345f466a4d89e4ed1f419b745d8b5cd16f0879693fc43c4cda"
+  digest = "1:583b1c5c5daf09f86e8b587e061d6312d16a242811a394d5825c84d5f18cebed"
   name = "google.golang.org/grpc"
   packages = [
     ".",
@@ -713,8 +713,8 @@
     "tap",
   ]
   pruneopts = "NUT"
-  revision = "045159ad57f3781d409358e3ade910a018c16b30"
-  version = "v1.22.1"
+  revision = "6eaf6f47437a6b4e2153a190160ef39a92c7eceb"
+  version = "v1.23.0"
 
 [[projects]]
   branch = "v2.2.6-no-dots"
