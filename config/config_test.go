@@ -208,6 +208,7 @@ func TestGet(t *testing.T) {
 			"--paths-mysqld_exporter=/foo/mysqld_exporter",
 			"--paths-mongodb_exporter=../bar/mongodb_exporter",
 			"--paths-postgres_exporter=./../baz/postgres_exporter",
+			"--paths-proxysql_exporter=/base/proxysql_exporter",
 		}, logrus.WithField("test", t.Name()))
 		require.NoError(t, err)
 
@@ -220,7 +221,7 @@ func TestGet(t *testing.T) {
 			Paths: Paths{
 				ExportersBase:    "/base",
 				NodeExporter:     "/base/node_exporter",
-				MySQLdExporter:   "/base/foo/mysqld_exporter",
+				MySQLdExporter:   "/foo/mysqld_exporter", // respect absolute path
 				MongoDBExporter:  "/bar/mongodb_exporter",
 				PostgresExporter: "/baz/postgres_exporter",
 				ProxySQLExporter: "/base/proxysql_exporter",

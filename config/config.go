@@ -160,7 +160,7 @@ func get(args []string, l *logrus.Entry) (cfg *Config, configFileF string, err e
 			&cfg.Paths.PostgresExporter,
 			&cfg.Paths.ProxySQLExporter,
 		} {
-			if cfg.Paths.ExportersBase != "" && !filepath.HasPrefix(*sp, cfg.Paths.ExportersBase) {
+			if cfg.Paths.ExportersBase != "" && !filepath.IsAbs(*sp) {
 				*sp = filepath.Join(cfg.Paths.ExportersBase, *sp)
 			}
 			l.Infof("Using %s", *sp)
