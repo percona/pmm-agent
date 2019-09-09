@@ -20,9 +20,9 @@ package config
 import (
 	"fmt"
 	"io/ioutil"
+	"net"
 	"net/url"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 
@@ -66,27 +66,16 @@ func (s *Server) URL() *url.URL {
 
 // Paths represents binaries paths configuration.
 type Paths struct {
+	ExportersBase    string `yaml:"exporters_base"`
 	NodeExporter     string `yaml:"node_exporter"`
 	MySQLdExporter   string `yaml:"mysqld_exporter"`
 	MongoDBExporter  string `yaml:"mongodb_exporter"`
 	PostgresExporter string `yaml:"postgres_exporter"`
 	ProxySQLExporter string `yaml:"proxysql_exporter"`
-	PtSummary        string `yaml:"pt_summary"`
-	PtMySQLSummary   string `yaml:"pt_mysql_summary"`
-	TempDir          string `yaml:"tempdir"`
+
+	TempDir string `yaml:"tempdir"`
 
 	SlowLogFilePrefix string `yaml:"slowlog_file_prefix,omitempty"` // for development and testing
-}
-
-// lookup replaces paths with absolute paths.
-func (p *Paths) lookup() {
-	p.NodeExporter, _ = exec.LookPath(p.NodeExporter)
-	p.MySQLdExporter, _ = exec.LookPath(p.MySQLdExporter)
-	p.MongoDBExporter, _ = exec.LookPath(p.MongoDBExporter)
-	p.PostgresExporter, _ = exec.LookPath(p.PostgresExporter)
-	p.ProxySQLExporter, _ = exec.LookPath(p.ProxySQLExporter)
-	p.PtSummary, _ = exec.LookPath(p.PtSummary)
-	p.PtMySQLSummary, _ = exec.LookPath(p.PtMySQLSummary)
 }
 
 // Ports represents ports configuration.
@@ -147,45 +136,72 @@ func (e ErrConfigFileDoesNotExist) Error() string {
 // but file itself does not exist. Configuration from command-line flags and environment variables
 // is still returned in this case.
 func Get(l *logrus.Entry) (*Config, string, error) {
-	cfg, configFileF, err := get(os.Args[1:], l)
-	if cfg != nil {
-		cfg.Paths.lookup()
-	}
-	return cfg, configFileF, err
+	return get(os.Args[1:], l)
 }
 
-// get is Get for unit tests: parses args instead of command-line, and does not lookups paths.
-func get(args []string, l *logrus.Entry) (*Config, string, error) {
+// get is Get for unit tests: it parses args instead of command-line.
+func get(args []string, l *logrus.Entry) (cfg *Config, configFileF string, err error) {
+	// tweak configuration on exit to cover all return points
+	defer func() {
+		if cfg == nil {
+			return
+		}
+
+		if cfg.Paths.ExportersBase != "" {
+			if abs, _ := filepath.Abs(cfg.Paths.ExportersBase); abs != "" {
+				cfg.Paths.ExportersBase = abs
+			}
+		}
+
+		for _, sp := range []*string{
+			&cfg.Paths.NodeExporter,
+			&cfg.Paths.MySQLdExporter,
+			&cfg.Paths.MongoDBExporter,
+			&cfg.Paths.PostgresExporter,
+			&cfg.Paths.ProxySQLExporter,
+		} {
+			if cfg.Paths.ExportersBase != "" && !filepath.IsAbs(*sp) {
+				*sp = filepath.Join(cfg.Paths.ExportersBase, *sp)
+			}
+			l.Infof("Using %s", *sp)
+		}
+
+		if cfg.Server.Address != "" {
+			if _, _, e := net.SplitHostPort(cfg.Server.Address); e != nil {
+				host := cfg.Server.Address
+				cfg.Server.Address = net.JoinHostPort(host, "443")
+				l.Infof("Updating PMM Server address from %q to %q.", host, cfg.Server.Address)
+			}
+		}
+	}()
+
 	// parse command-line flags and environment variables
-	cfg := new(Config)
-	app, configFileF := Application(cfg)
-	if _, err := app.Parse(args); err != nil {
-		return nil, "", err
+	cfg = new(Config)
+	app, cfgFileF := Application(cfg)
+	if _, err = app.Parse(args); err != nil {
+		return
 	}
-	if *configFileF == "" {
-		return cfg, "", nil
+	if *cfgFileF == "" {
+		return
 	}
 
-	absConfigFileF, err := filepath.Abs(*configFileF)
-	if err != nil {
-		return nil, "", err
+	if configFileF, err = filepath.Abs(*cfgFileF); err != nil {
+		return
 	}
-	*configFileF = absConfigFileF
-	l.Infof("Loading configuration file %s.", *configFileF)
-	fileCfg, err := loadFromFile(*configFileF)
-	if _, ok := err.(ErrConfigFileDoesNotExist); ok {
-		return cfg, *configFileF, err
-	}
+	l.Infof("Loading configuration file %s.", configFileF)
+	fileCfg, err := loadFromFile(configFileF)
 	if err != nil {
-		return nil, "", err
+		return
 	}
 
 	// re-parse flags into configuration from file
 	app, _ = Application(fileCfg)
 	if _, err = app.Parse(args); err != nil {
-		return nil, "", err
+		return
 	}
-	return fileCfg, *configFileF, nil
+
+	cfg = fileCfg
+	return //nolint:nakedret
 }
 
 // Application returns kingpin application that will parse command-line flags and environment variables
@@ -216,6 +232,8 @@ func Application(cfg *Config) (*kingpin.Application, *string) {
 		Envar("PMM_AGENT_SERVER_INSECURE_TLS").BoolVar(&cfg.Server.InsecureTLS)
 	// no flag for WithoutTLS - it is only for development and testing
 
+	app.Flag("paths-exporters_base", "Base path for exporters to use [PMM_AGENT_PATHS_EXPORTERS_BASE]").
+		Envar("PMM_AGENT_PATHS_EXPORTERS_BASE").Default("/usr/local/percona/pmm2/exporters").StringVar(&cfg.Paths.ExportersBase)
 	app.Flag("paths-node_exporter", "Path to node_exporter to use [PMM_AGENT_PATHS_NODE_EXPORTER]").
 		Envar("PMM_AGENT_PATHS_NODE_EXPORTER").Default("node_exporter").StringVar(&cfg.Paths.NodeExporter)
 	app.Flag("paths-mysqld_exporter", "Path to mysqld_exporter to use [PMM_AGENT_PATHS_MYSQLD_EXPORTER]").
@@ -226,10 +244,6 @@ func Application(cfg *Config) (*kingpin.Application, *string) {
 		Envar("PMM_AGENT_PATHS_POSTGRES_EXPORTER").Default("postgres_exporter").StringVar(&cfg.Paths.PostgresExporter)
 	app.Flag("paths-proxysql_exporter", "Path to proxysql_exporter to use [PMM_AGENT_PATHS_PROXYSQL_EXPORTER]").
 		Envar("PMM_AGENT_PATHS_PROXYSQL_EXPORTER").Default("proxysql_exporter").StringVar(&cfg.Paths.ProxySQLExporter)
-	app.Flag("paths-pt-summary", "Path to pt-summary to use [PMM_AGENT_PATHS_PT_SUMMARY]").
-		Envar("PMM_AGENT_PATHS_PT_SUMMARY").Default("pt-summary").StringVar(&cfg.Paths.PtSummary)
-	app.Flag("paths-pt-mysql-summary", "Path to pt-mysql-summary to use [PMM_AGENT_PATHS_PT_MYSQL_SUMMARY]").
-		Envar("PMM_AGENT_PATHS_PT_MYSQL_SUMMARY").Default("pt-mysql-summary").StringVar(&cfg.Paths.PtMySQLSummary)
 	app.Flag("paths-tempdir", "Temporary directory for exporters [PMM_AGENT_PATHS_TEMPDIR]").
 		Envar("PMM_AGENT_PATHS_TEMPDIR").Default(os.TempDir()).StringVar(&cfg.Paths.TempDir)
 	// no flag for SlowLogFilePrefix - it is only for development and testing
