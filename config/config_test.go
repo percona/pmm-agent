@@ -1,18 +1,17 @@
 // pmm-agent
-// Copyright (C) 2018 Percona LLC
+// Copyright 2019 Percona LLC
 //
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
 //
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Affero General Public License for more details.
+//  http://www.apache.org/licenses/LICENSE-2.0
 //
-// You should have received a copy of the GNU Affero General Public License
-// along with this program. If not, see <https://www.gnu.org/licenses/>.
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 package config
 
@@ -84,7 +83,7 @@ func TestGet(t *testing.T) {
 	t.Run("OnlyFlags", func(t *testing.T) {
 		actual, configFilePath, err := get([]string{
 			"--id=agent-id",
-			"--server-address=127.0.0.1:11111",
+			"--server-address=127.0.0.1",
 		}, logrus.WithField("test", t.Name()))
 		require.NoError(t, err)
 
@@ -92,16 +91,15 @@ func TestGet(t *testing.T) {
 			ID:         "agent-id",
 			ListenPort: 7777,
 			Server: Server{
-				Address: "127.0.0.1:11111",
+				Address: "127.0.0.1:443",
 			},
 			Paths: Paths{
-				NodeExporter:     "node_exporter",
-				MySQLdExporter:   "mysqld_exporter",
-				MongoDBExporter:  "mongodb_exporter",
-				PostgresExporter: "postgres_exporter",
-				ProxySQLExporter: "proxysql_exporter",
-				PtSummary:        "pt-summary",
-				PtMySQLSummary:   "pt-mysql-summary",
+				ExportersBase:    "/usr/local/percona/pmm2/exporters",
+				NodeExporter:     "/usr/local/percona/pmm2/exporters/node_exporter",
+				MySQLdExporter:   "/usr/local/percona/pmm2/exporters/mysqld_exporter",
+				MongoDBExporter:  "/usr/local/percona/pmm2/exporters/mongodb_exporter",
+				PostgresExporter: "/usr/local/percona/pmm2/exporters/postgres_exporter",
+				ProxySQLExporter: "/usr/local/percona/pmm2/exporters/proxysql_exporter",
 				TempDir:          os.TempDir(),
 			},
 			Ports: Ports{
@@ -117,7 +115,7 @@ func TestGet(t *testing.T) {
 		name := writeConfig(t, &Config{
 			ID: "agent-id",
 			Server: Server{
-				Address: "127.0.0.1:11111",
+				Address: "127.0.0.1",
 			},
 		})
 		defer removeConfig(t, name)
@@ -131,16 +129,15 @@ func TestGet(t *testing.T) {
 			ID:         "agent-id",
 			ListenPort: 7777,
 			Server: Server{
-				Address: "127.0.0.1:11111",
+				Address: "127.0.0.1:443",
 			},
 			Paths: Paths{
-				NodeExporter:     "node_exporter",
-				MySQLdExporter:   "mysqld_exporter",
-				MongoDBExporter:  "mongodb_exporter",
-				PostgresExporter: "postgres_exporter",
-				ProxySQLExporter: "proxysql_exporter",
-				PtSummary:        "pt-summary",
-				PtMySQLSummary:   "pt-mysql-summary",
+				ExportersBase:    "/usr/local/percona/pmm2/exporters",
+				NodeExporter:     "/usr/local/percona/pmm2/exporters/node_exporter",
+				MySQLdExporter:   "/usr/local/percona/pmm2/exporters/mysqld_exporter",
+				MongoDBExporter:  "/usr/local/percona/pmm2/exporters/mongodb_exporter",
+				PostgresExporter: "/usr/local/percona/pmm2/exporters/postgres_exporter",
+				ProxySQLExporter: "/usr/local/percona/pmm2/exporters/proxysql_exporter",
 				TempDir:          os.TempDir(),
 			},
 			Ports: Ports{
@@ -156,7 +153,7 @@ func TestGet(t *testing.T) {
 		name := writeConfig(t, &Config{
 			ID: "config-id",
 			Server: Server{
-				Address: "127.0.0.1:11111",
+				Address: "127.0.0.1",
 			},
 		})
 		defer removeConfig(t, name)
@@ -172,16 +169,61 @@ func TestGet(t *testing.T) {
 			ID:         "flag-id",
 			ListenPort: 7777,
 			Server: Server{
-				Address: "127.0.0.1:11111",
+				Address: "127.0.0.1:443",
 			},
 			Paths: Paths{
-				NodeExporter:     "node_exporter",
-				MySQLdExporter:   "mysqld_exporter",
-				MongoDBExporter:  "mongodb_exporter",
-				PostgresExporter: "postgres_exporter",
-				ProxySQLExporter: "proxysql_exporter",
-				PtSummary:        "pt-summary",
-				PtMySQLSummary:   "pt-mysql-summary",
+				ExportersBase:    "/usr/local/percona/pmm2/exporters",
+				NodeExporter:     "/usr/local/percona/pmm2/exporters/node_exporter",
+				MySQLdExporter:   "/usr/local/percona/pmm2/exporters/mysqld_exporter",
+				MongoDBExporter:  "/usr/local/percona/pmm2/exporters/mongodb_exporter",
+				PostgresExporter: "/usr/local/percona/pmm2/exporters/postgres_exporter",
+				ProxySQLExporter: "/usr/local/percona/pmm2/exporters/proxysql_exporter",
+				TempDir:          os.TempDir(),
+			},
+			Ports: Ports{
+				Min: 42000,
+				Max: 51999,
+			},
+			Debug: true,
+		}
+		assert.Equal(t, expected, actual)
+		assert.Equal(t, name, configFilePath)
+	})
+
+	t.Run("MixExportersBase", func(t *testing.T) {
+		name := writeConfig(t, &Config{
+			ID: "config-id",
+			Server: Server{
+				Address: "127.0.0.1",
+			},
+		})
+		defer removeConfig(t, name)
+
+		actual, configFilePath, err := get([]string{
+			"--config-file=" + name,
+			"--id=flag-id",
+			"--debug",
+			"--paths-exporters_base=/base",
+			"--paths-mysqld_exporter=/foo/mysqld_exporter",
+			"--paths-mongodb_exporter=../bar/mongodb_exporter",
+			"--paths-postgres_exporter=./../baz/postgres_exporter",
+			"--paths-proxysql_exporter=/base/proxysql_exporter",
+		}, logrus.WithField("test", t.Name()))
+		require.NoError(t, err)
+
+		expected := &Config{
+			ID:         "flag-id",
+			ListenPort: 7777,
+			Server: Server{
+				Address: "127.0.0.1:443",
+			},
+			Paths: Paths{
+				ExportersBase:    "/base",
+				NodeExporter:     "/base/node_exporter",
+				MySQLdExporter:   "/foo/mysqld_exporter", // respect absolute path
+				MongoDBExporter:  "/bar/mongodb_exporter",
+				PostgresExporter: "/baz/postgres_exporter",
+				ProxySQLExporter: "/base/proxysql_exporter",
 				TempDir:          os.TempDir(),
 			},
 			Ports: Ports{
@@ -207,13 +249,12 @@ func TestGet(t *testing.T) {
 			ID:         "flag-id",
 			ListenPort: 7777,
 			Paths: Paths{
-				NodeExporter:     "node_exporter",
-				MySQLdExporter:   "mysqld_exporter",
-				MongoDBExporter:  "mongodb_exporter",
-				PostgresExporter: "postgres_exporter",
-				ProxySQLExporter: "proxysql_exporter",
-				PtSummary:        "pt-summary",
-				PtMySQLSummary:   "pt-mysql-summary",
+				ExportersBase:    "/usr/local/percona/pmm2/exporters",
+				NodeExporter:     "/usr/local/percona/pmm2/exporters/node_exporter",
+				MySQLdExporter:   "/usr/local/percona/pmm2/exporters/mysqld_exporter",
+				MongoDBExporter:  "/usr/local/percona/pmm2/exporters/mongodb_exporter",
+				PostgresExporter: "/usr/local/percona/pmm2/exporters/postgres_exporter",
+				ProxySQLExporter: "/usr/local/percona/pmm2/exporters/proxysql_exporter",
 				TempDir:          os.TempDir(),
 			},
 			Ports: Ports{
