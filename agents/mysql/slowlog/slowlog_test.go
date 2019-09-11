@@ -51,7 +51,7 @@ func TestSlowLogMakeBuckets(t *testing.T) {
 	parsingResult := event.Result{}
 	getDataFromFile(t, "slowlog_fixture.json", &parsingResult)
 
-	actualBuckets := makeBuckets(agentID, parsingResult, periodStart, 60)
+	actualBuckets := makeBuckets(agentID, parsingResult, periodStart, 60, false)
 
 	expectedBuckets := []*agentpb.MetricsBucket{}
 	getDataFromFile(t, "slowlog_expected.json", &expectedBuckets)

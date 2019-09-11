@@ -399,10 +399,11 @@ func (s *Supervisor) startBuiltin(agentID string, builtinAgent *agentpb.SetState
 
 	case agentpb.Type_QAN_MYSQL_SLOWLOG_AGENT:
 		params := &slowlog.Params{
-			DSN:               builtinAgent.Dsn,
-			AgentID:           agentID,
-			SlowLogFilePrefix: s.paths.SlowLogFilePrefix,
-			SizeSlowLogs:      builtinAgent.SizeSlowLogs,
+			DSN:                  builtinAgent.Dsn,
+			AgentID:              agentID,
+			SlowLogFilePrefix:    s.paths.SlowLogFilePrefix,
+			MaxSlowlogFileSize:   builtinAgent.MaxSlowlogFileSize,
+			DisableQueryExamples: builtinAgent.DisableQueryExamples,
 		}
 		agent, err = slowlog.New(params, l)
 
