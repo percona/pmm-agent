@@ -48,19 +48,24 @@ install:                        ## Install pmm-agent binary.
 install-race:                   ## Install pmm-agent binary with race detector.
 	go install -ldflags "$(VERSION_FLAGS)" -race ./...
 
+# TODO https://jira.percona.com/browse/PMM-4681
+# TEST_PARALLEL_PACKAGES ?= foo bar
+# go test $(TEST_FLAGS) $(TEST_PARALLEL_PACKAGES) - without `-p 1`
+
+TEST_PACKAGES ?= ./...
 TEST_FLAGS ?= -timeout=20s
 
 test:                           ## Run tests.
-	go test $(TEST_FLAGS) ./...
+	go test $(TEST_FLAGS) -p 1 $(TEST_PACKAGES)
 
 test-race:                      ## Run tests with race detector.
-	go test $(TEST_FLAGS) -race ./...
+	go test $(TEST_FLAGS) -p 1 -race $(TEST_PACKAGES)
 
 test-cover:                     ## Run tests and collect per-package coverage information.
-	go test $(TEST_FLAGS) -coverprofile=cover.out -covermode=count ./...
+	go test $(TEST_FLAGS) -p 1 -coverprofile=cover.out -covermode=count $(TEST_PACKAGES)
 
 test-crosscover:                ## Run tests and collect cross-package coverage information.
-	go test $(TEST_FLAGS) -coverprofile=crosscover.out -covermode=count -coverpkg=./... ./...
+	go test $(TEST_FLAGS) -p 1 -coverprofile=crosscover.out -covermode=count -coverpkg=./... $(TEST_PACKAGES)
 
 fuzz-slowlog-parser:            ## Run fuzzer for agents/mysql/slowlog/parser package.
 	# go get -u github.com/dvyukov/go-fuzz/go-fuzz github.com/dvyukov/go-fuzz/go-fuzz-build
