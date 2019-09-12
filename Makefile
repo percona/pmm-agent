@@ -107,8 +107,10 @@ _run:
 ENV_UP_FLAGS ?= --force-recreate --renew-anon-volumes --remove-orphans
 
 env-up:                         ## Start development environment.
-	chmod -R 0777 testdata/mysql
-	rm -f testdata/mysql/slowlogs/slow.log
+	# to make slowlog rotation tests work
+	rm -fr testdata
+	mkdir -p testdata/mysql/slowlogs
+	chmod -R 0777 testdata
 
 	docker-compose up $(ENV_UP_FLAGS)
 

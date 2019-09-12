@@ -87,25 +87,24 @@ func (s *SlowLog) Run(ctx context.Context) {
 	}()
 
 	// Check slowlog configuration and send updates to fileInfos channel, close it when ctx is done.
-	// Also check if slowlog file should be rotated.
 	var oldInfo slowLogInfo
 	fileInfos := make(chan *slowLogInfo, 1)
 	go func() {
 		recheck := time.NewTicker(recheckInterval)
 		defer recheck.Stop()
 
-		newInfo := s.recheck(ctx)
-		if newInfo != nil {
-			if *newInfo != oldInfo {
-				s.l.Debugf("Sloglow information changed: old = %+v, new = %+v.", oldInfo, *newInfo)
-				fileInfos <- newInfo
-				oldInfo = *newInfo
-			} else {
-				s.l.Tracef("Sloglow information not changed.")
-			}
-		}
-
 		for {
+			newInfo := s.recheck(ctx)
+			if newInfo != nil {
+				if *newInfo != oldInfo {
+					s.l.Debugf("Sloglow information changed: old = %+v, new = %+v.", oldInfo, *newInfo)
+					fileInfos <- newInfo
+					oldInfo = *newInfo
+				} else {
+					s.l.Tracef("Sloglow information not changed.")
+				}
+			}
+
 			select {
 			case <-ctx.Done():
 				close(fileInfos)
@@ -167,7 +166,7 @@ func (s *SlowLog) recheck(ctx context.Context) (newInfo *slowLogInfo) {
 
 	fi, err := os.Stat(newInfo.path)
 	if err != nil {
-		s.l.Error(err)
+		s.l.Errorf("Failed to stat file: %s", err)
 		return
 	}
 	if size := fi.Size(); size > maxSize {
@@ -234,6 +233,7 @@ func (s *SlowLog) getSlowLogInfo(ctx context.Context) (*slowLogInfo, error) {
 	}, nil
 }
 
+// rotateSlowLog removes slowlog file and calls FLUSH LOGS.
 func (s *SlowLog) rotateSlowLog(ctx context.Context, slowLogPath string) error {
 	db, err := sql.Open("mysql", s.params.DSN)
 	if err != nil {
@@ -241,8 +241,10 @@ func (s *SlowLog) rotateSlowLog(ctx context.Context, slowLogPath string) error {
 	}
 	defer db.Close() //nolint:errcheck
 
-	if err = os.Remove(slowLogPath); err != nil {
-		return errors.Wrap(err, "cannot remove old slowlog")
+	// reader will continue to read from open file descriptor until EOF
+	old := slowLogPath + ".old"
+	if err = os.Rename(slowLogPath, old); err != nil {
+		return errors.Wrap(err, "cannot rename old slowlog file")
 	}
 
 	_, err = db.ExecContext(ctx, fmt.Sprintf("FLUSH LOGS /* %s */", queryTag)) //nolint:gosec
@@ -250,10 +252,9 @@ func (s *SlowLog) rotateSlowLog(ctx context.Context, slowLogPath string) error {
 		return errors.Wrap(err, "cannot flush logs")
 	}
 
-	// old := slowLogPath + ".old"
-	// if err = os.Rename(slowLogPath, old); err != nil {
-	// 	return errors.Wrap(err, "cannot rename slowlog")
-	// }
+	if err = os.Remove(old); err != nil {
+		return errors.Wrap(err, "cannot remove old slowlog file")
+	}
 
 	return nil
 }

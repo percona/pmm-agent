@@ -4,6 +4,8 @@
 cover.out
 crosscover.out
 
+/testdata/
+
 *.bench
 
 /agents/mysql/slowlog/parser/corpus/
