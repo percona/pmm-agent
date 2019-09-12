@@ -356,7 +356,7 @@
   revision = "3f775e176aab1ef9483bc06fbad31e178edf8ccd"
 
 [[projects]]
-  branch = "PMM-4362-hide-some-actions"
+  branch = "PMM-2.0"
   digest = "1:3a90e3c8482642a1064a01b1cc80e0b6e567e22d6c97afbc6af354862ec264ed"
   name = "github.com/percona/pmm"
   packages = [
@@ -379,7 +379,7 @@
     "version",
   ]
   pruneopts = "NUT"
-  revision = "a780b8f200797996651e84b26b4bd7f055a84d22"
+  revision = "90d7058bce502bb54ad3ed77bc9d9bd9592ecd39"
 
 [[projects]]
   digest = "1:14715f705ff5dfe0ffd6571d7d201dd8e921030f8070321a79380d8ca4ec1a24"
