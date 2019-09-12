@@ -104,8 +104,16 @@ run-race-cover: install-race    ## Run pmm-agent with race detector and collect 
 _run:
 	pmm-agent $(RUN_FLAGS)
 
+ENV_UP_FLAGS ?= --force-recreate --renew-anon-volumes --remove-orphans
+
 env-up:                         ## Start development environment.
-	docker-compose up --force-recreate --renew-anon-volumes --remove-orphans
+	chmod -R 0777 testdata
+	rm -f testdata/mysql/slowlogs/slow.log
+
+	docker-compose up $(ENV_UP_FLAGS)
 
 env-down:                       ## Stop development environment.
 	docker-compose down --volumes --remove-orphans
+
+mysql:                          ## Run mysql client.
+	mysql --host=127.0.0.1 --user=root --password=root-password
