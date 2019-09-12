@@ -107,7 +107,7 @@ _run:
 ENV_UP_FLAGS ?= --force-recreate --renew-anon-volumes --remove-orphans
 
 env-up:                         ## Start development environment.
-	chmod -R 0777 testdata
+	chmod -R 0777 testdata/mysql
 	rm -f testdata/mysql/slowlogs/slow.log
 
 	docker-compose up $(ENV_UP_FLAGS)
