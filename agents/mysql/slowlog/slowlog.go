@@ -58,8 +58,8 @@ type SlowLog struct {
 type Params struct {
 	DSN                  string
 	AgentID              string
-	MaxSlowlogFileSize   int64
 	DisableQueryExamples bool
+	MaxSlowlogFileSize   int64
 	SlowLogFilePrefix    string // for development and testing
 }
 
@@ -241,7 +241,11 @@ func (s *SlowLog) rotateSlowLog(ctx context.Context, slowLogPath string) error {
 	}
 	defer db.Close() //nolint:errcheck
 
-	// reader will continue to read from open file descriptor until EOF
+	// We have to rename slowlog file, not remove it, before flushing logs:
+	// https://www.percona.com/blog/2007/12/09/be-careful-rotating-mysql-logs/
+	// This problem is especially bad with MySQL in Docker - it locks completely even on small files.
+	//
+	// Reader will continue to read old file from open file descriptor until EOF.
 	old := slowLogPath + ".old"
 	if err = os.Rename(slowLogPath, old); err != nil {
 		return errors.Wrap(err, "cannot rename old slowlog file")
@@ -252,6 +256,7 @@ func (s *SlowLog) rotateSlowLog(ctx context.Context, slowLogPath string) error {
 		return errors.Wrap(err, "cannot flush logs")
 	}
 
+	// TODO should we remove it?
 	if err = os.Remove(old); err != nil {
 		return errors.Wrap(err, "cannot remove old slowlog file")
 	}
