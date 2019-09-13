@@ -86,13 +86,13 @@ func (s *SlowLog) Run(ctx context.Context) {
 		close(s.changes)
 	}()
 
-	// Check slowlog configuration and send updates to fileInfos channel, close it when ctx is done.
-	var oldInfo slowLogInfo
+	// send updates to fileInfos channel, close it when ctx is done
 	fileInfos := make(chan *slowLogInfo, 1)
 	go func() {
 		recheck := time.NewTicker(recheckInterval)
 		defer recheck.Stop()
 
+		var oldInfo slowLogInfo
 		for {
 			newInfo := s.recheck(ctx)
 			if newInfo != nil {
@@ -149,6 +149,7 @@ func (s *SlowLog) Run(ctx context.Context) {
 	}
 }
 
+// recheck returns new slowlog information, and rotates slowlog file if needed.
 func (s *SlowLog) recheck(ctx context.Context) (newInfo *slowLogInfo) {
 	var err error
 	if newInfo, err = s.getSlowLogInfo(ctx); err != nil {
@@ -285,9 +286,9 @@ func (s *SlowLog) processFile(ctx context.Context, file string, outlierTime floa
 	}
 
 	// send events to the channel, close it when parser is done
-	events := make(chan *log.Event, 1000)
 	parser := parser.NewSlowLogParser(reader, opts)
 	go parser.Run()
+	events := make(chan *log.Event, 1000)
 	go func() {
 		for {
 			event := parser.Parse()
