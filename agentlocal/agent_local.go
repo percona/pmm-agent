@@ -137,8 +137,8 @@ func (s *Server) Status(ctx context.Context, req *agentlocalpb.StatusRequest) (*
 		serverInfo = &agentlocalpb.ServerInfo{
 			Url:         u.String(),
 			InsecureTls: s.cfg.Server.InsecureTLS,
-			Version:     md.ServerVersion,
 			Connected:   connected,
+			Version:     md.ServerVersion,
 		}
 
 		if req.GetNetworkInfo && connected {

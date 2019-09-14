@@ -120,7 +120,6 @@ func (s *Supervisor) AgentsList() []*agentlocalpb.AgentInfo {
 			AgentId:   id,
 			AgentType: agent.requestedState.Type,
 			Status:    s.lastStatuses[id],
-			Logs:      nil, // TODO https://jira.percona.com/browse/PMM-3758
 		}
 		res = append(res, info)
 	}
@@ -130,7 +129,6 @@ func (s *Supervisor) AgentsList() []*agentlocalpb.AgentInfo {
 			AgentId:   id,
 			AgentType: agent.requestedState.Type,
 			Status:    s.lastStatuses[id],
-			Logs:      nil, // TODO https://jira.percona.com/browse/PMM-3758
 		}
 		res = append(res, info)
 	}

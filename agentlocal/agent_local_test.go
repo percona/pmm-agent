@@ -36,7 +36,6 @@ func TestServerStatus(t *testing.T) {
 			AgentId:   "/agent_id/00000000-0000-4000-8000-000000000002",
 			AgentType: agentpb.Type_NODE_EXPORTER,
 			Status:    inventorypb.AgentStatus_RUNNING,
-			Logs:      nil,
 		}}
 		supervisor := new(mockSupervisor)
 		supervisor.Test(t)
