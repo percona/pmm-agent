@@ -75,7 +75,7 @@ func TestServerStatus(t *testing.T) {
 				Connected: true,
 			},
 			AgentsInfo:     agentInfo,
-			ConfigFilePath: "/some/dir/pmm-agent.yaml",
+			ConfigFilepath: "/some/dir/pmm-agent.yaml",
 		}
 		assert.Equal(t, expected, actual)
 	})
@@ -103,7 +103,7 @@ func TestServerStatus(t *testing.T) {
 				Connected:  true,
 			},
 			AgentsInfo:     agentInfo,
-			ConfigFilePath: "/some/dir/pmm-agent.yaml",
+			ConfigFilepath: "/some/dir/pmm-agent.yaml",
 		}
 		assert.Equal(t, expected, actual)
 	})
