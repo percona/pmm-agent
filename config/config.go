@@ -236,8 +236,10 @@ func Application(cfg *Config) (*kingpin.Application, *string) {
 
 	app.Command("run", "Run pmm-agent (default command)").Default()
 
-	// App flags should not have default values as it leads to configuration file parameters being ignored.
-	// See get above for the actual default values.
+	// All `app` flags should be options and should not have non-zero default values for:
+	// * `pmm-agent setup` to work;
+	// * correct configuration file loading.
+	// See `get` above for the actual default values.
 
 	configFileF := app.Flag("config-file", "Configuration file path [PMM_AGENT_CONFIG_FILE]").
 		Envar("PMM_AGENT_CONFIG_FILE").PlaceHolder("</path/to/pmm-agent.yaml>").String()
