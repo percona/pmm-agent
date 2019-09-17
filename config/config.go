@@ -236,7 +236,7 @@ func Application(cfg *Config) (*kingpin.Application, *string) {
 
 	app.Command("run", "Run pmm-agent (default command)").Default()
 
-	// All `app` flags should be options and should not have non-zero default values for:
+	// All `app` flags should be optional and should not have non-zero default values for:
 	// * `pmm-agent setup` to work;
 	// * correct configuration file loading.
 	// See `get` above for the actual default values.
