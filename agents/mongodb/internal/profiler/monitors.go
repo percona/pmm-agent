@@ -84,10 +84,10 @@ func (ms *monitors) MonitorAll() error {
 			dbName,
 		)
 		// ... and start it
-		e := m.Start()
-		if e != nil {
-			ms.logger.Debugf("couldn't start monitor, reason: %v", e)
-			break
+		err := m.Start()
+		if err != nil {
+			ms.logger.Debugf("couldn't start monitor, reason: %v", err)
+			return err
 		}
 
 		// add new monitor to list of monitored databases
