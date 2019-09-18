@@ -26,6 +26,7 @@ import (
 	mongostats "github.com/percona/percona-toolkit/src/go/mongolib/stats"
 	"github.com/percona/pmm/api/agentpb"
 	"github.com/percona/pmm/api/inventorypb"
+	"github.com/sirupsen/logrus"
 
 	"github.com/percona/pmm-agent/agents/mongodb/internal/report"
 	"github.com/percona/pmm-agent/agents/mongodb/internal/status"
@@ -36,10 +37,11 @@ var DefaultInterval = time.Duration(time.Minute)
 const reportChanBuffer = 1000
 
 // New returns configured *Aggregator
-func New(timeStart time.Time, agentID string) *Aggregator {
+func New(timeStart time.Time, agentID string, logger *logrus.Entry) *Aggregator {
 
 	aggregator := &Aggregator{
 		agentID: agentID,
+		logger:  logger,
 	}
 
 	// create duration from interval
@@ -58,6 +60,7 @@ func New(timeStart time.Time, agentID string) *Aggregator {
 // Aggregator aggregates system.profile document
 type Aggregator struct {
 	agentID string
+	logger  *logrus.Entry
 
 	// status
 	status *status.Status
@@ -114,6 +117,7 @@ func (a *Aggregator) Start() <-chan *report.Report {
 	a.Lock()
 	defer a.Unlock()
 	if a.running {
+		a.logger.Debugln("aggregator already running.")
 		return a.reportChan
 	}
 
@@ -195,12 +199,14 @@ func start(wg *sync.WaitGroup, aggregator *Aggregator, doneChan <-chan struct{},
 func (a *Aggregator) Flush() {
 	a.Lock()
 	defer a.Unlock()
+	a.logger.Debugf("Flushing aggregator at: %s", time.Now())
 	a.flush(time.Now())
 }
 
 func (a *Aggregator) flush(ts time.Time) {
 	r := a.interval(ts)
 	if r != nil {
+		a.logger.Tracef("Sending report to reportChan:\n %v", r)
 		a.reportChan <- r
 		a.stats.ReportsOut += 1
 	}

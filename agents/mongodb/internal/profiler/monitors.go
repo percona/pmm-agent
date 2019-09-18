@@ -17,7 +17,6 @@ package profiler
 
 import (
 	"context"
-	"log"
 	"sync"
 	"time"
 
@@ -85,10 +84,10 @@ func (ms *monitors) MonitorAll() error {
 			dbName,
 		)
 		// ... and start it
-		err := m.Start()
-		if err != nil {
-			log.Println(err)
-			return err
+		e := m.Start()
+		if e != nil {
+			ms.logger.Errorf("couldn't start monitor, reason: %v", e)
+			break
 		}
 
 		// add new monitor to list of monitored databases
