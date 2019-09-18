@@ -220,6 +220,7 @@ func (a *Aggregator) interval(ts time.Time) *report.Report {
 	// let's check if we have anything to send for current interval
 	if len(a.mongostats.Queries()) == 0 {
 		// if there are no queries then we don't create report #PMM-927
+		a.logger.Tracef("No information to send for interval: '%s - %s'", a.timeStart.Format(time.RFC3339), a.timeEnd.Format(time.RFC3339))
 		return nil
 	}
 
@@ -260,6 +261,9 @@ func (a *Aggregator) createResult() *report.Result {
 	queries := a.mongostats.Queries()
 	queryStats := queries.CalcQueriesStats(int64(DefaultInterval))
 	var buckets []*agentpb.MetricsBucket
+
+	a.logger.Tracef("Queries: %#v", queries)
+	a.logger.Tracef("Query Stats: %#v", queryStats)
 
 	for _, v := range queryStats {
 		db := ""
