@@ -205,7 +205,7 @@ func start(monitors *monitors, wg *sync.WaitGroup, doneChan <-chan struct{}, rea
 	// monitor all databases
 	err := monitors.MonitorAll()
 	if err != nil {
-		logger.Errorf("couldn't monitor all databases, reason: %v", err)
+		logger.Debugf("couldn't monitor all databases, reason: %v", err)
 	}
 
 	// signal we started monitoring
@@ -224,7 +224,7 @@ func start(monitors *monitors, wg *sync.WaitGroup, doneChan <-chan struct{}, rea
 		// update monitors
 		err = monitors.MonitorAll()
 		if err != nil {
-			logger.Errorf("couldn't monitor all databases, reason: %v", err)
+			logger.Debugf("couldn't monitor all databases, reason: %v", err)
 		}
 	}
 }

@@ -86,7 +86,7 @@ func (ms *monitors) MonitorAll() error {
 		// ... and start it
 		e := m.Start()
 		if e != nil {
-			ms.logger.Errorf("couldn't start monitor, reason: %v", e)
+			ms.logger.Debugf("couldn't start monitor, reason: %v", e)
 			break
 		}
 
