@@ -80,6 +80,20 @@ func TestLoadFromFile(t *testing.T) {
 }
 
 func TestGet(t *testing.T) {
+	defaultPaths := Paths{
+		ExportersBase:    "/usr/local/percona/pmm2/exporters",
+		NodeExporter:     "/usr/local/percona/pmm2/exporters/node_exporter",
+		MySQLdExporter:   "/usr/local/percona/pmm2/exporters/mysqld_exporter",
+		MongoDBExporter:  "/usr/local/percona/pmm2/exporters/mongodb_exporter",
+		PostgresExporter: "/usr/local/percona/pmm2/exporters/postgres_exporter",
+		ProxySQLExporter: "/usr/local/percona/pmm2/exporters/proxysql_exporter",
+		TempDir:          os.TempDir(),
+	}
+	defaultPorts := Ports{
+		Min: 42000,
+		Max: 51999,
+	}
+
 	t.Run("OnlyFlags", func(t *testing.T) {
 		actual, configFilepath, err := get([]string{
 			"--id=agent-id",
@@ -93,19 +107,8 @@ func TestGet(t *testing.T) {
 			Server: Server{
 				Address: "127.0.0.1:443",
 			},
-			Paths: Paths{
-				ExportersBase:    "/usr/local/percona/pmm2/exporters",
-				NodeExporter:     "/usr/local/percona/pmm2/exporters/node_exporter",
-				MySQLdExporter:   "/usr/local/percona/pmm2/exporters/mysqld_exporter",
-				MongoDBExporter:  "/usr/local/percona/pmm2/exporters/mongodb_exporter",
-				PostgresExporter: "/usr/local/percona/pmm2/exporters/postgres_exporter",
-				ProxySQLExporter: "/usr/local/percona/pmm2/exporters/proxysql_exporter",
-				TempDir:          os.TempDir(),
-			},
-			Ports: Ports{
-				Min: 42000,
-				Max: 51999,
-			},
+			Paths: defaultPaths,
+			Ports: defaultPorts,
 		}
 		assert.Equal(t, expected, actual)
 		assert.Empty(t, configFilepath)
@@ -131,19 +134,8 @@ func TestGet(t *testing.T) {
 			Server: Server{
 				Address: "127.0.0.1:443",
 			},
-			Paths: Paths{
-				ExportersBase:    "/usr/local/percona/pmm2/exporters",
-				NodeExporter:     "/usr/local/percona/pmm2/exporters/node_exporter",
-				MySQLdExporter:   "/usr/local/percona/pmm2/exporters/mysqld_exporter",
-				MongoDBExporter:  "/usr/local/percona/pmm2/exporters/mongodb_exporter",
-				PostgresExporter: "/usr/local/percona/pmm2/exporters/postgres_exporter",
-				ProxySQLExporter: "/usr/local/percona/pmm2/exporters/proxysql_exporter",
-				TempDir:          os.TempDir(),
-			},
-			Ports: Ports{
-				Min: 42000,
-				Max: 51999,
-			},
+			Paths: defaultPaths,
+			Ports: defaultPorts,
 		}
 		assert.Equal(t, expected, actual)
 		assert.Equal(t, name, configFilepath)
@@ -171,19 +163,8 @@ func TestGet(t *testing.T) {
 			Server: Server{
 				Address: "127.0.0.1:443",
 			},
-			Paths: Paths{
-				ExportersBase:    "/usr/local/percona/pmm2/exporters",
-				NodeExporter:     "/usr/local/percona/pmm2/exporters/node_exporter",
-				MySQLdExporter:   "/usr/local/percona/pmm2/exporters/mysqld_exporter",
-				MongoDBExporter:  "/usr/local/percona/pmm2/exporters/mongodb_exporter",
-				PostgresExporter: "/usr/local/percona/pmm2/exporters/postgres_exporter",
-				ProxySQLExporter: "/usr/local/percona/pmm2/exporters/proxysql_exporter",
-				TempDir:          os.TempDir(),
-			},
-			Ports: Ports{
-				Min: 42000,
-				Max: 51999,
-			},
+			Paths: defaultPaths,
+			Ports: defaultPorts,
 			Debug: true,
 		}
 		assert.Equal(t, expected, actual)
@@ -228,10 +209,7 @@ func TestGet(t *testing.T) {
 				ProxySQLExporter: "/base/pro_exporter",     // respect relative value from config file
 				TempDir:          os.TempDir(),
 			},
-			Ports: Ports{
-				Min: 42000,
-				Max: 51999,
-			},
+			Ports: defaultPorts,
 			Debug: true,
 		}
 		assert.Equal(t, expected, actual)
@@ -250,23 +228,41 @@ func TestGet(t *testing.T) {
 		expected := &Config{
 			ID:         "flag-id",
 			ListenPort: 7777,
-			Paths: Paths{
-				ExportersBase:    "/usr/local/percona/pmm2/exporters",
-				NodeExporter:     "/usr/local/percona/pmm2/exporters/node_exporter",
-				MySQLdExporter:   "/usr/local/percona/pmm2/exporters/mysqld_exporter",
-				MongoDBExporter:  "/usr/local/percona/pmm2/exporters/mongodb_exporter",
-				PostgresExporter: "/usr/local/percona/pmm2/exporters/postgres_exporter",
-				ProxySQLExporter: "/usr/local/percona/pmm2/exporters/proxysql_exporter",
-				TempDir:          os.TempDir(),
-			},
-			Ports: Ports{
-				Min: 42000,
-				Max: 51999,
-			},
-			Debug: true,
+			Paths:      defaultPaths,
+			Ports:      defaultPorts,
+			Debug:      true,
 		}
 		assert.Equal(t, expected, actual)
 		assert.Equal(t, filepath.Join(wd, name), configFilepath)
 		assert.Equal(t, ErrConfigFileDoesNotExist(filepath.Join(wd, name)), err)
+	})
+
+	t.Run("DontStorePassword", func(t *testing.T) {
+		name := writeConfig(t, &Config{
+			Server: Server{
+				Address:  "127.0.0.1",
+				Username: "username",
+				Password: "secret",
+			},
+			Setup: Setup{
+				DontStorePassword: true,
+			},
+		})
+		defer removeConfig(t, name)
+
+		actual, configFilepath, err := get([]string{"--config-file=" + name}, logrus.WithField("test", t.Name()))
+		require.NoError(t, err)
+
+		expected := &Config{
+			ListenPort: 7777,
+			Server: Server{
+				Address:  "127.0.0.1:443",
+				Username: "username",
+			},
+			Paths: defaultPaths,
+			Ports: defaultPorts,
+		}
+		assert.Equal(t, expected, actual)
+		assert.Equal(t, name, configFilepath)
 	})
 }

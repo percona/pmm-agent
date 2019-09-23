@@ -35,8 +35,8 @@ import (
 // Server represents PMM Server configuration.
 type Server struct {
 	Address     string `yaml:"address"`
-	Username    string `yaml:"username"`
-	Password    string `yaml:"password"`
+	Username    string `yaml:"username,omitempty"`
+	Password    string `yaml:"password,omitempty"`
 	InsecureTLS bool   `yaml:"insecure-tls"`
 
 	WithoutTLS bool `yaml:"without-tls,omitempty"` // for development and testing
@@ -98,8 +98,9 @@ type Setup struct {
 	// TODO CustomLabels  string
 	Address string
 
-	Force            bool
-	SkipRegistration bool
+	Force             bool
+	SkipRegistration  bool
+	DontStorePassword bool
 }
 
 // Config represents pmm-agent's configuration.
@@ -322,6 +323,7 @@ func Application(cfg *Config) (*kingpin.Application, *string) {
 
 	setupCmd.Flag("force", "Remove Node with that name with all dependent Services and Agents if one exist").BoolVar(&cfg.Setup.Force)
 	setupCmd.Flag("skip-registration", "Skip registration on PMM Server").BoolVar(&cfg.Setup.SkipRegistration)
+	setupCmd.Flag("dont-store-password", "Do not store password in configuration file").BoolVar(&cfg.Setup.DontStorePassword)
 
 	return app, configFileF
 }
@@ -347,8 +349,17 @@ func loadFromFile(path string) (*Config, error) {
 }
 
 // SaveToFile saves configuration to file.
-// No special cases.
 func SaveToFile(path string, cfg *Config, comment string) error {
+	if cfg != nil {
+		password := cfg.Server.Password
+		if cfg.Setup.DontStorePassword {
+			cfg.Server.Password = ""
+		}
+		defer func() {
+			cfg.Server.Password = password
+		}()
+	}
+
 	b, err := yaml.Marshal(cfg)
 	if err != nil {
 		return err
