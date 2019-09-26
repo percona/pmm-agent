@@ -226,6 +226,174 @@ var (
 	_ fmt.Stringer  = (*eventsStatementsHistory)(nil)
 )
 
+type preparedStatementsInstancesViewType struct {
+	s parse.StructInfo
+	z []interface{}
+}
+
+// Schema returns a schema name in SQL database ("performance_schema").
+func (v *preparedStatementsInstancesViewType) Schema() string {
+	return v.s.SQLSchema
+}
+
+// Name returns a view or table name in SQL database ("prepared_statements_instances").
+func (v *preparedStatementsInstancesViewType) Name() string {
+	return v.s.SQLName
+}
+
+// Columns returns a new slice of column names for that view or table in SQL database.
+func (v *preparedStatementsInstancesViewType) Columns() []string {
+	return []string{"OBJECT_INSTANCE_BEGIN", "STATEMENT_ID", "STATEMENT_NAME", "SQL_TEXT", "OWNER_THREAD_ID", "OWNER_EVENT_ID", "OWNER_OBJECT_TYPE", "OWNER_OBJECT_SCHEMA", "OWNER_OBJECT_NAME", "TIMER_PREPARE", "COUNT_REPREPARE", "COUNT_EXECUTE", "SUM_TIMER_EXECUTE", "MIN_TIMER_EXECUTE", "AVG_TIMER_EXECUTE", "MAX_TIMER_EXECUTE", "SUM_LOCK_TIME", "SUM_ERRORS", "SUM_WARNINGS", "SUM_ROWS_AFFECTED", "SUM_ROWS_SENT", "SUM_ROWS_EXAMINED", "SUM_CREATED_TMP_DISK_TABLES", "SUM_CREATED_TMP_TABLES", "SUM_SELECT_FULL_JOIN", "SUM_SELECT_FULL_RANGE_JOIN", "SUM_SELECT_RANGE", "SUM_SELECT_RANGE_CHECK", "SUM_SELECT_SCAN", "SUM_SORT_MERGE_PASSES", "SUM_SORT_RANGE", "SUM_SORT_ROWS", "SUM_SORT_SCAN", "SUM_NO_INDEX_USED", "SUM_NO_GOOD_INDEX_USED"}
+}
+
+// NewStruct makes a new struct for that view or table.
+func (v *preparedStatementsInstancesViewType) NewStruct() reform.Struct {
+	return new(preparedStatementsInstances)
+}
+
+// preparedStatementsInstancesView represents prepared_statements_instances view or table in SQL database.
+var preparedStatementsInstancesView = &preparedStatementsInstancesViewType{
+	s: parse.StructInfo{Type: "preparedStatementsInstances", SQLSchema: "performance_schema", SQLName: "prepared_statements_instances", Fields: []parse.FieldInfo{{Name: "ObjectInstanceBegin", Type: "int64", Column: "OBJECT_INSTANCE_BEGIN"}, {Name: "StatementID", Type: "int64", Column: "STATEMENT_ID"}, {Name: "StatementName", Type: "*string", Column: "STATEMENT_NAME"}, {Name: "SQLText", Type: "string", Column: "SQL_TEXT"}, {Name: "OwnerThreadID", Type: "int64", Column: "OWNER_THREAD_ID"}, {Name: "OwnerEventID", Type: "int64", Column: "OWNER_EVENT_ID"}, {Name: "OwnerObjectType", Type: "*string", Column: "OWNER_OBJECT_TYPE"}, {Name: "OwnerObjectSchema", Type: "*string", Column: "OWNER_OBJECT_SCHEMA"}, {Name: "OwnerObjectName", Type: "*string", Column: "OWNER_OBJECT_NAME"}, {Name: "TimerPrepare", Type: "int64", Column: "TIMER_PREPARE"}, {Name: "CountReprepare", Type: "int64", Column: "COUNT_REPREPARE"}, {Name: "CountExecute", Type: "int64", Column: "COUNT_EXECUTE"}, {Name: "SumTimerExecute", Type: "int64", Column: "SUM_TIMER_EXECUTE"}, {Name: "MinTimerExecute", Type: "int64", Column: "MIN_TIMER_EXECUTE"}, {Name: "AvgTimerExecute", Type: "int64", Column: "AVG_TIMER_EXECUTE"}, {Name: "MaxTimerExecute", Type: "int64", Column: "MAX_TIMER_EXECUTE"}, {Name: "SumLockTime", Type: "int64", Column: "SUM_LOCK_TIME"}, {Name: "SumErrors", Type: "int64", Column: "SUM_ERRORS"}, {Name: "SumWarnings", Type: "int64", Column: "SUM_WARNINGS"}, {Name: "SumRowsAffected", Type: "int64", Column: "SUM_ROWS_AFFECTED"}, {Name: "SumRowsSent", Type: "int64", Column: "SUM_ROWS_SENT"}, {Name: "SumRowsExamined", Type: "int64", Column: "SUM_ROWS_EXAMINED"}, {Name: "SumCreatedTmpDiskTables", Type: "int64", Column: "SUM_CREATED_TMP_DISK_TABLES"}, {Name: "SumCreatedTmpTables", Type: "int64", Column: "SUM_CREATED_TMP_TABLES"}, {Name: "SumSelectFullJoin", Type: "int64", Column: "SUM_SELECT_FULL_JOIN"}, {Name: "SumSelectFullRangeJoin", Type: "int64", Column: "SUM_SELECT_FULL_RANGE_JOIN"}, {Name: "SumSelectRange", Type: "int64", Column: "SUM_SELECT_RANGE"}, {Name: "SumSelectRangeCheck", Type: "int64", Column: "SUM_SELECT_RANGE_CHECK"}, {Name: "SumSelectScan", Type: "int64", Column: "SUM_SELECT_SCAN"}, {Name: "SumSortMergePasses", Type: "int64", Column: "SUM_SORT_MERGE_PASSES"}, {Name: "SumSortRange", Type: "int64", Column: "SUM_SORT_RANGE"}, {Name: "SumSortRows", Type: "int64", Column: "SUM_SORT_ROWS"}, {Name: "SumSortScan", Type: "int64", Column: "SUM_SORT_SCAN"}, {Name: "SumNoIndexUsed", Type: "int64", Column: "SUM_NO_INDEX_USED"}, {Name: "SumNoGoodIndexUsed", Type: "int64", Column: "SUM_NO_GOOD_INDEX_USED"}}, PKFieldIndex: -1},
+	z: new(preparedStatementsInstances).Values(),
+}
+
+// String returns a string representation of this struct or record.
+func (s preparedStatementsInstances) String() string {
+	res := make([]string, 35)
+	res[0] = "ObjectInstanceBegin: " + reform.Inspect(s.ObjectInstanceBegin, true)
+	res[1] = "StatementID: " + reform.Inspect(s.StatementID, true)
+	res[2] = "StatementName: " + reform.Inspect(s.StatementName, true)
+	res[3] = "SQLText: " + reform.Inspect(s.SQLText, true)
+	res[4] = "OwnerThreadID: " + reform.Inspect(s.OwnerThreadID, true)
+	res[5] = "OwnerEventID: " + reform.Inspect(s.OwnerEventID, true)
+	res[6] = "OwnerObjectType: " + reform.Inspect(s.OwnerObjectType, true)
+	res[7] = "OwnerObjectSchema: " + reform.Inspect(s.OwnerObjectSchema, true)
+	res[8] = "OwnerObjectName: " + reform.Inspect(s.OwnerObjectName, true)
+	res[9] = "TimerPrepare: " + reform.Inspect(s.TimerPrepare, true)
+	res[10] = "CountReprepare: " + reform.Inspect(s.CountReprepare, true)
+	res[11] = "CountExecute: " + reform.Inspect(s.CountExecute, true)
+	res[12] = "SumTimerExecute: " + reform.Inspect(s.SumTimerExecute, true)
+	res[13] = "MinTimerExecute: " + reform.Inspect(s.MinTimerExecute, true)
+	res[14] = "AvgTimerExecute: " + reform.Inspect(s.AvgTimerExecute, true)
+	res[15] = "MaxTimerExecute: " + reform.Inspect(s.MaxTimerExecute, true)
+	res[16] = "SumLockTime: " + reform.Inspect(s.SumLockTime, true)
+	res[17] = "SumErrors: " + reform.Inspect(s.SumErrors, true)
+	res[18] = "SumWarnings: " + reform.Inspect(s.SumWarnings, true)
+	res[19] = "SumRowsAffected: " + reform.Inspect(s.SumRowsAffected, true)
+	res[20] = "SumRowsSent: " + reform.Inspect(s.SumRowsSent, true)
+	res[21] = "SumRowsExamined: " + reform.Inspect(s.SumRowsExamined, true)
+	res[22] = "SumCreatedTmpDiskTables: " + reform.Inspect(s.SumCreatedTmpDiskTables, true)
+	res[23] = "SumCreatedTmpTables: " + reform.Inspect(s.SumCreatedTmpTables, true)
+	res[24] = "SumSelectFullJoin: " + reform.Inspect(s.SumSelectFullJoin, true)
+	res[25] = "SumSelectFullRangeJoin: " + reform.Inspect(s.SumSelectFullRangeJoin, true)
+	res[26] = "SumSelectRange: " + reform.Inspect(s.SumSelectRange, true)
+	res[27] = "SumSelectRangeCheck: " + reform.Inspect(s.SumSelectRangeCheck, true)
+	res[28] = "SumSelectScan: " + reform.Inspect(s.SumSelectScan, true)
+	res[29] = "SumSortMergePasses: " + reform.Inspect(s.SumSortMergePasses, true)
+	res[30] = "SumSortRange: " + reform.Inspect(s.SumSortRange, true)
+	res[31] = "SumSortRows: " + reform.Inspect(s.SumSortRows, true)
+	res[32] = "SumSortScan: " + reform.Inspect(s.SumSortScan, true)
+	res[33] = "SumNoIndexUsed: " + reform.Inspect(s.SumNoIndexUsed, true)
+	res[34] = "SumNoGoodIndexUsed: " + reform.Inspect(s.SumNoGoodIndexUsed, true)
+	return strings.Join(res, ", ")
+}
+
+// Values returns a slice of struct or record field values.
+// Returned interface{} values are never untyped nils.
+func (s *preparedStatementsInstances) Values() []interface{} {
+	return []interface{}{
+		s.ObjectInstanceBegin,
+		s.StatementID,
+		s.StatementName,
+		s.SQLText,
+		s.OwnerThreadID,
+		s.OwnerEventID,
+		s.OwnerObjectType,
+		s.OwnerObjectSchema,
+		s.OwnerObjectName,
+		s.TimerPrepare,
+		s.CountReprepare,
+		s.CountExecute,
+		s.SumTimerExecute,
+		s.MinTimerExecute,
+		s.AvgTimerExecute,
+		s.MaxTimerExecute,
+		s.SumLockTime,
+		s.SumErrors,
+		s.SumWarnings,
+		s.SumRowsAffected,
+		s.SumRowsSent,
+		s.SumRowsExamined,
+		s.SumCreatedTmpDiskTables,
+		s.SumCreatedTmpTables,
+		s.SumSelectFullJoin,
+		s.SumSelectFullRangeJoin,
+		s.SumSelectRange,
+		s.SumSelectRangeCheck,
+		s.SumSelectScan,
+		s.SumSortMergePasses,
+		s.SumSortRange,
+		s.SumSortRows,
+		s.SumSortScan,
+		s.SumNoIndexUsed,
+		s.SumNoGoodIndexUsed,
+	}
+}
+
+// Pointers returns a slice of pointers to struct or record fields.
+// Returned interface{} values are never untyped nils.
+func (s *preparedStatementsInstances) Pointers() []interface{} {
+	return []interface{}{
+		&s.ObjectInstanceBegin,
+		&s.StatementID,
+		&s.StatementName,
+		&s.SQLText,
+		&s.OwnerThreadID,
+		&s.OwnerEventID,
+		&s.OwnerObjectType,
+		&s.OwnerObjectSchema,
+		&s.OwnerObjectName,
+		&s.TimerPrepare,
+		&s.CountReprepare,
+		&s.CountExecute,
+		&s.SumTimerExecute,
+		&s.MinTimerExecute,
+		&s.AvgTimerExecute,
+		&s.MaxTimerExecute,
+		&s.SumLockTime,
+		&s.SumErrors,
+		&s.SumWarnings,
+		&s.SumRowsAffected,
+		&s.SumRowsSent,
+		&s.SumRowsExamined,
+		&s.SumCreatedTmpDiskTables,
+		&s.SumCreatedTmpTables,
+		&s.SumSelectFullJoin,
+		&s.SumSelectFullRangeJoin,
+		&s.SumSelectRange,
+		&s.SumSelectRangeCheck,
+		&s.SumSelectScan,
+		&s.SumSortMergePasses,
+		&s.SumSortRange,
+		&s.SumSortRows,
+		&s.SumSortScan,
+		&s.SumNoIndexUsed,
+		&s.SumNoGoodIndexUsed,
+	}
+}
+
+// View returns View object for that struct.
+func (s *preparedStatementsInstances) View() reform.View {
+	return preparedStatementsInstancesView
+}
+
+// check interfaces
+var (
+	_ reform.View   = preparedStatementsInstancesView
+	_ reform.Struct = (*preparedStatementsInstances)(nil)
+	_ fmt.Stringer  = (*preparedStatementsInstances)(nil)
+)
+
 type setupConsumersViewType struct {
 	s parse.StructInfo
 	z []interface{}
@@ -370,6 +538,7 @@ var (
 func init() {
 	parse.AssertUpToDate(&eventsStatementsSummaryByDigestView.s, new(eventsStatementsSummaryByDigest))
 	parse.AssertUpToDate(&eventsStatementsHistoryView.s, new(eventsStatementsHistory))
+	parse.AssertUpToDate(&preparedStatementsInstancesView.s, new(preparedStatementsInstances))
 	parse.AssertUpToDate(&setupConsumersView.s, new(setupConsumers))
 	parse.AssertUpToDate(&setupInstrumentsView.s, new(setupInstruments))
 }

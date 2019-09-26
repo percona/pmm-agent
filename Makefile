@@ -30,6 +30,8 @@ init:                           ## Installs tools to $GOPATH/bin (which is expec
 				./vendor/golang.org/x/tools/cmd/goimports \
 				./vendor/gopkg.in/reform.v1/reform
 
+	# go install ./vendor/gopkg.in/reform.v1/reform-db
+
 	go test -i ./...
 	go test -race -i ./...
 

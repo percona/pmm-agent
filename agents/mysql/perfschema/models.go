@@ -94,6 +94,46 @@ type eventsStatementsHistory struct {
 	// MoGoodIndexUsed      int64   `reform:"NO_GOOD_INDEX_USED"`
 }
 
+// preparedStatementsInstances represents a row in performance_schema.prepared_statements_instances table.
+//reform:performance_schema.prepared_statements_instances
+type preparedStatementsInstances struct {
+	ObjectInstanceBegin     int64   `reform:"OBJECT_INSTANCE_BEGIN"`
+	StatementID             int64   `reform:"STATEMENT_ID"`
+	StatementName           *string `reform:"STATEMENT_NAME"`
+	SQLText                 string  `reform:"SQL_TEXT"`
+	OwnerThreadID           int64   `reform:"OWNER_THREAD_ID"`
+	OwnerEventID            int64   `reform:"OWNER_EVENT_ID"`
+	OwnerObjectType         *string `reform:"OWNER_OBJECT_TYPE"`
+	OwnerObjectSchema       *string `reform:"OWNER_OBJECT_SCHEMA"`
+	OwnerObjectName         *string `reform:"OWNER_OBJECT_NAME"`
+	TimerPrepare            int64   `reform:"TIMER_PREPARE"`
+	CountReprepare          int64   `reform:"COUNT_REPREPARE"`
+	CountExecute            int64   `reform:"COUNT_EXECUTE"`
+	SumTimerExecute         int64   `reform:"SUM_TIMER_EXECUTE"`
+	MinTimerExecute         int64   `reform:"MIN_TIMER_EXECUTE"`
+	AvgTimerExecute         int64   `reform:"AVG_TIMER_EXECUTE"`
+	MaxTimerExecute         int64   `reform:"MAX_TIMER_EXECUTE"`
+	SumLockTime             int64   `reform:"SUM_LOCK_TIME"`
+	SumErrors               int64   `reform:"SUM_ERRORS"`
+	SumWarnings             int64   `reform:"SUM_WARNINGS"`
+	SumRowsAffected         int64   `reform:"SUM_ROWS_AFFECTED"`
+	SumRowsSent             int64   `reform:"SUM_ROWS_SENT"`
+	SumRowsExamined         int64   `reform:"SUM_ROWS_EXAMINED"`
+	SumCreatedTmpDiskTables int64   `reform:"SUM_CREATED_TMP_DISK_TABLES"`
+	SumCreatedTmpTables     int64   `reform:"SUM_CREATED_TMP_TABLES"`
+	SumSelectFullJoin       int64   `reform:"SUM_SELECT_FULL_JOIN"`
+	SumSelectFullRangeJoin  int64   `reform:"SUM_SELECT_FULL_RANGE_JOIN"`
+	SumSelectRange          int64   `reform:"SUM_SELECT_RANGE"`
+	SumSelectRangeCheck     int64   `reform:"SUM_SELECT_RANGE_CHECK"`
+	SumSelectScan           int64   `reform:"SUM_SELECT_SCAN"`
+	SumSortMergePasses      int64   `reform:"SUM_SORT_MERGE_PASSES"`
+	SumSortRange            int64   `reform:"SUM_SORT_RANGE"`
+	SumSortRows             int64   `reform:"SUM_SORT_ROWS"`
+	SumSortScan             int64   `reform:"SUM_SORT_SCAN"`
+	SumNoIndexUsed          int64   `reform:"SUM_NO_INDEX_USED"`
+	SumNoGoodIndexUsed      int64   `reform:"SUM_NO_GOOD_INDEX_USED"`
+}
+
 // setupConsumers represents a row in performance_schema.setup_consumers table.
 //reform:performance_schema.setup_consumers
 type setupConsumers struct {
