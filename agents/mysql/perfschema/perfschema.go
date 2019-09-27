@@ -229,14 +229,18 @@ func (m *PerfSchema) getNewBuckets(periodStart time.Time, periodLengthSecs uint3
 // to make metrics buckets.
 //
 // makeBuckets is a pure function for easier testing.
-func makeBuckets(current, prev map[string]*eventsStatementsSummaryByDigest, l *logrus.Entry) []*agentpb.MetricsBucket {
+func makeBuckets(current, prev map[string]summary, l *logrus.Entry) []*agentpb.MetricsBucket {
 	res := make([]*agentpb.MetricsBucket, 0, len(current))
 
-	for digest, currentESS := range current {
-		prevESS := prev[digest]
-		if prevESS == nil {
+	for digest, currentSummary := range current {
+		currentESS := currentSummary.normal
+		var prevESS *eventsStatementsSummaryByDigest
+		if p, ok := prev[digest]; ok {
+			prevESS = p.normal
+		} else {
 			prevESS = new(eventsStatementsSummaryByDigest)
 		}
+
 		count := float32(currentESS.CountStar - prevESS.CountStar)
 		switch {
 		case count == 0:

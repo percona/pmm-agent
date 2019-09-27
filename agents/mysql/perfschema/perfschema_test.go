@@ -35,20 +35,24 @@ import (
 
 func TestPerfSchemaMakeBuckets(t *testing.T) {
 	t.Run("Normal", func(t *testing.T) {
-		prev := map[string]*eventsStatementsSummaryByDigest{
+		prev := map[string]summary{
 			"Normal": {
-				Digest:          pointer.ToString("Normal"),
-				DigestText:      pointer.ToString("SELECT 'Normal'"),
-				CountStar:       10,
-				SumRowsAffected: 50,
+				normal: &eventsStatementsSummaryByDigest{
+					Digest:          pointer.ToString("Normal"),
+					DigestText:      pointer.ToString("SELECT 'Normal'"),
+					CountStar:       10,
+					SumRowsAffected: 50,
+				},
 			},
 		}
-		current := map[string]*eventsStatementsSummaryByDigest{
+		current := map[string]summary{
 			"Normal": {
-				Digest:          pointer.ToString("Normal"),
-				DigestText:      pointer.ToString("SELECT 'Normal'"),
-				CountStar:       15, // +5
-				SumRowsAffected: 60, // +10
+				normal: &eventsStatementsSummaryByDigest{
+					Digest:          pointer.ToString("Normal"),
+					DigestText:      pointer.ToString("SELECT 'Normal'"),
+					CountStar:       15, // +5
+					SumRowsAffected: 60, // +10
+				},
 			},
 		}
 		actual := makeBuckets(current, prev, logrus.WithField("test", t.Name()))
@@ -69,13 +73,15 @@ func TestPerfSchemaMakeBuckets(t *testing.T) {
 	})
 
 	t.Run("New", func(t *testing.T) {
-		prev := map[string]*eventsStatementsSummaryByDigest{}
-		current := map[string]*eventsStatementsSummaryByDigest{
+		prev := map[string]summary{}
+		current := map[string]summary{
 			"New": {
-				Digest:          pointer.ToString("New"),
-				DigestText:      pointer.ToString("SELECT 'New'"),
-				CountStar:       10,
-				SumRowsAffected: 50,
+				normal: &eventsStatementsSummaryByDigest{
+					Digest:          pointer.ToString("New"),
+					DigestText:      pointer.ToString("SELECT 'New'"),
+					CountStar:       10,
+					SumRowsAffected: 50,
+				},
 			},
 		}
 		actual := makeBuckets(current, prev, logrus.WithField("test", t.Name()))
@@ -96,20 +102,24 @@ func TestPerfSchemaMakeBuckets(t *testing.T) {
 	})
 
 	t.Run("Same", func(t *testing.T) {
-		prev := map[string]*eventsStatementsSummaryByDigest{
+		prev := map[string]summary{
 			"Same": {
-				Digest:          pointer.ToString("Same"),
-				DigestText:      pointer.ToString("SELECT 'Same'"),
-				CountStar:       10,
-				SumRowsAffected: 50,
+				normal: &eventsStatementsSummaryByDigest{
+					Digest:          pointer.ToString("Same"),
+					DigestText:      pointer.ToString("SELECT 'Same'"),
+					CountStar:       10,
+					SumRowsAffected: 50,
+				},
 			},
 		}
-		current := map[string]*eventsStatementsSummaryByDigest{
+		current := map[string]summary{
 			"Same": {
-				Digest:          pointer.ToString("Same"),
-				DigestText:      pointer.ToString("SELECT 'Same'"),
-				CountStar:       10,
-				SumRowsAffected: 50,
+				normal: &eventsStatementsSummaryByDigest{
+					Digest:          pointer.ToString("Same"),
+					DigestText:      pointer.ToString("SELECT 'Same'"),
+					CountStar:       10,
+					SumRowsAffected: 50,
+				},
 			},
 		}
 		actual := makeBuckets(current, prev, logrus.WithField("test", t.Name()))
@@ -117,34 +127,40 @@ func TestPerfSchemaMakeBuckets(t *testing.T) {
 	})
 
 	t.Run("Truncate", func(t *testing.T) {
-		prev := map[string]*eventsStatementsSummaryByDigest{
+		prev := map[string]summary{
 			"Truncate": {
-				Digest:          pointer.ToString("Truncate"),
-				DigestText:      pointer.ToString("SELECT 'Truncate'"),
-				CountStar:       10,
-				SumRowsAffected: 50,
+				normal: &eventsStatementsSummaryByDigest{
+					Digest:          pointer.ToString("Truncate"),
+					DigestText:      pointer.ToString("SELECT 'Truncate'"),
+					CountStar:       10,
+					SumRowsAffected: 50,
+				},
 			},
 		}
-		current := map[string]*eventsStatementsSummaryByDigest{}
+		current := map[string]summary{}
 		actual := makeBuckets(current, prev, logrus.WithField("test", t.Name()))
 		require.Len(t, actual, 0)
 	})
 
 	t.Run("TruncateAndNew", func(t *testing.T) {
-		prev := map[string]*eventsStatementsSummaryByDigest{
+		prev := map[string]summary{
 			"TruncateAndNew": {
-				Digest:          pointer.ToString("TruncateAndNew"),
-				DigestText:      pointer.ToString("SELECT 'TruncateAndNew'"),
-				CountStar:       10,
-				SumRowsAffected: 50,
+				normal: &eventsStatementsSummaryByDigest{
+					Digest:          pointer.ToString("TruncateAndNew"),
+					DigestText:      pointer.ToString("SELECT 'TruncateAndNew'"),
+					CountStar:       10,
+					SumRowsAffected: 50,
+				},
 			},
 		}
-		current := map[string]*eventsStatementsSummaryByDigest{
+		current := map[string]summary{
 			"TruncateAndNew": {
-				Digest:          pointer.ToString("TruncateAndNew"),
-				DigestText:      pointer.ToString("SELECT 'TruncateAndNew'"),
-				CountStar:       5,
-				SumRowsAffected: 25,
+				normal: &eventsStatementsSummaryByDigest{
+					Digest:          pointer.ToString("TruncateAndNew"),
+					DigestText:      pointer.ToString("SELECT 'TruncateAndNew'"),
+					CountStar:       5,
+					SumRowsAffected: 25,
+				},
 			},
 		}
 		actual := makeBuckets(current, prev, logrus.WithField("test", t.Name()))
@@ -186,31 +202,31 @@ func filter(mb []*agentpb.MetricsBucket) []*agentpb.MetricsBucket {
 		switch {
 		case strings.Contains(b.Common.Example, "/* pmm-agent:perfschema */"):
 			continue
-		case strings.Contains(b.Common.Example, "/* pmm-agent:slowlog */"):
-			continue
-		case strings.Contains(b.Common.Example, "/* pmm-agent:connectionchecker */"):
-			continue
+			// case strings.Contains(b.Common.Example, "/* pmm-agent:slowlog */"):
+			// 	continue
+			// case strings.Contains(b.Common.Example, "/* pmm-agent:connectionchecker */"):
+			// 	continue
 
-		case strings.Contains(b.Common.Example, "/* pmm-agent-tests:MySQLVersion */"):
-			continue
-		case strings.Contains(b.Common.Example, "/* pmm-agent-tests:waitForFixtures */"):
-			continue
+			// case strings.Contains(b.Common.Example, "/* pmm-agent-tests:MySQLVersion */"):
+			// 	continue
+			// case strings.Contains(b.Common.Example, "/* pmm-agent-tests:waitForFixtures */"):
+			// 	continue
 		}
 
 		switch {
-		case b.Common.Fingerprint == "ANALYZE TABLE `city`": // OpenTestMySQL
-			continue
-		case b.Common.Fingerprint == "SHOW GLOBAL VARIABLES WHERE `Variable_name` = ?": // MySQLVersion
-			continue
-		case b.Common.Fingerprint == "SELECT `id` FROM `city` LIMIT ?": // waitForFixtures
-			continue
-		case b.Common.Fingerprint == "SELECT ID FROM `city` LIMIT ?": // waitForFixtures for MariaDB
-			continue
-		case b.Common.Fingerprint == "SELECT COUNT ( * ) FROM `city`": // actions tests
-			continue
+		// case b.Common.Fingerprint == "ANALYZE TABLE `city`": // OpenTestMySQL
+		// 	continue
+		// case b.Common.Fingerprint == "SHOW GLOBAL VARIABLES WHERE `Variable_name` = ?": // MySQLVersion
+		// 	continue
+		// case b.Common.Fingerprint == "SELECT `id` FROM `city` LIMIT ?": // waitForFixtures
+		// 	continue
+		// case b.Common.Fingerprint == "SELECT ID FROM `city` LIMIT ?": // waitForFixtures for MariaDB
+		// 	continue
+		// case b.Common.Fingerprint == "SELECT COUNT ( * ) FROM `city`": // actions tests
+		// 	continue
 
-		case strings.HasPrefix(b.Common.Fingerprint, "SELECT @@`slow_query_log"): // slowlog
-			continue
+		// case strings.HasPrefix(b.Common.Fingerprint, "SELECT @@`slow_query_log"): // slowlog
+		// 	continue
 		}
 
 		res = append(res, b)

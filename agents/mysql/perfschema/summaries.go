@@ -20,26 +20,47 @@ import (
 	"sync"
 	"time"
 
+	"github.com/percona/go-mysql/query"
 	"github.com/pkg/errors"
 	"gopkg.in/reform.v1"
 )
 
-func getSummaries(q *reform.Querier) (map[string]*eventsStatementsSummaryByDigest, error) {
-	structs, err := q.SelectAllFrom(eventsStatementsSummaryByDigestView, "WHERE DIGEST IS NOT NULL AND DIGEST_TEXT IS NOT NULL")
+type summary struct {
+	normal   *eventsStatementsSummaryByDigest
+	prepared *preparedStatementsInstances
+}
+
+func getSummaries(q *reform.Querier) (map[string]summary, error) {
+	normal, err := q.SelectAllFrom(eventsStatementsSummaryByDigestView, "WHERE DIGEST IS NOT NULL AND DIGEST_TEXT IS NOT NULL")
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to query events_statements_summary_by_digest")
 	}
+	prepared, err := q.SelectAllFrom(preparedStatementsInstancesView, "")
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to query prepared_statements_instances")
+	}
 
-	res := make(map[string]*eventsStatementsSummaryByDigest, len(structs))
-	for _, str := range structs {
+	res := make(map[string]summary, len(normal)+len(prepared))
+	for _, str := range normal {
 		ess := str.(*eventsStatementsSummaryByDigest)
 
 		// From https://dev.mysql.com/doc/relnotes/mysql/8.0/en/news-8-0-11.html:
 		// > The Performance Schema could produce DIGEST_TEXT values with a trailing space. […] (Bug #26908015)
 		*ess.DigestText = strings.TrimSpace(*ess.DigestText)
 
-		res[*ess.Digest] = ess
+		res[*ess.Digest] = summary{normal: ess}
 	}
+	for _, str := range prepared {
+		psi := str.(*preparedStatementsInstances)
+
+		// From https://dev.mysql.com/doc/relnotes/mysql/8.0/en/news-8-0-11.html:
+		// > The Performance Schema could produce DIGEST_TEXT values with a trailing space. […] (Bug #26908015)
+		psi.SQLText = strings.TrimSpace(psi.SQLText)
+
+		digest := query.Id(psi.SQLText)
+		res[digest] = summary{prepared: psi}
+	}
+
 	return res, nil
 }
 
@@ -49,7 +70,7 @@ type summaryCache struct {
 	retain time.Duration
 
 	rw    sync.RWMutex
-	items map[string]*eventsStatementsSummaryByDigest
+	items map[string]summary
 	added map[string]time.Time
 }
 
@@ -57,17 +78,17 @@ type summaryCache struct {
 func newSummaryCache(retain time.Duration) *summaryCache {
 	return &summaryCache{
 		retain: retain,
-		items:  make(map[string]*eventsStatementsSummaryByDigest),
+		items:  make(map[string]summary),
 		added:  make(map[string]time.Time),
 	}
 }
 
 // get returns all current items.
-func (c *summaryCache) get() map[string]*eventsStatementsSummaryByDigest {
+func (c *summaryCache) get() map[string]summary {
 	c.rw.RLock()
 	defer c.rw.RUnlock()
 
-	res := make(map[string]*eventsStatementsSummaryByDigest, len(c.items))
+	res := make(map[string]summary, len(c.items))
 	for k, v := range c.items {
 		res[k] = v
 	}
@@ -75,7 +96,7 @@ func (c *summaryCache) get() map[string]*eventsStatementsSummaryByDigest {
 }
 
 // refresh removes expired items in cache, then adds current items.
-func (c *summaryCache) refresh(current map[string]*eventsStatementsSummaryByDigest) {
+func (c *summaryCache) refresh(current map[string]summary) {
 	c.rw.Lock()
 	defer c.rw.Unlock()
 
