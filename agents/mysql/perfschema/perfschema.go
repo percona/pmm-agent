@@ -246,11 +246,8 @@ func makeBuckets(current, prev map[string]*eventsStatementsSummaryByDigest, l *l
 			prevESS = new(eventsStatementsSummaryByDigest)
 		}
 
-		// convert to (signed) float64 to avoid uint64 wrap-around
-		count := float32(float64(currentESS.CountStar) - float64(prevESS.CountStar))
-
 		switch {
-		case count == 0:
+		case currentESS.CountStar == prevESS.CountStar:
 			// TODO
 			// Another way how this is possible is if events_statements_summary_by_digest was truncated,
 			// and then the same number of queries were made.
@@ -258,24 +255,24 @@ func makeBuckets(current, prev map[string]*eventsStatementsSummaryByDigest, l *l
 			// We probably could by using first_seen/last_seen columns.
 			l.Debugf("Skipped due to the same number of queries: %s.", currentESS)
 			continue
-		case count < 0:
+		case currentESS.CountStar < prevESS.CountStar:
 			l.Debugf("Truncate detected. Treating as a new query: %s.", currentESS)
 			prevESS = new(eventsStatementsSummaryByDigest)
-			count = float32(currentESS.CountStar)
 		case prevESS.CountStar == 0:
 			l.Debugf("New query: %s.", currentESS)
 		default:
 			l.Debugf("Normal query: %s.", currentESS)
 		}
 
+		count := inc(currentESS.CountStar, prevESS.CountStar)
 		mb := &agentpb.MetricsBucket{
 			Common: &agentpb.MetricsBucket_Common{
 				Schema:                 pointer.GetString(currentESS.SchemaName), // TODO can it be NULL?
 				Queryid:                *currentESS.Digest,
 				Fingerprint:            *currentESS.DigestText,
 				NumQueries:             count,
-				NumQueriesWithErrors:   float32(currentESS.SumErrors - prevESS.SumErrors),
-				NumQueriesWithWarnings: float32(currentESS.SumWarnings - prevESS.SumWarnings),
+				NumQueriesWithErrors:   inc(currentESS.SumErrors, prevESS.SumErrors),
+				NumQueriesWithWarnings: inc(currentESS.SumWarnings, prevESS.SumWarnings),
 				AgentType:              inventorypb.AgentType_QAN_MYSQL_PERFSCHEMA_AGENT,
 			},
 			Mysql: &agentpb.MetricsBucket_MySQL{},
