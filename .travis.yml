@@ -49,7 +49,10 @@ env:
     - MYSQL_IMAGE=mariadb:10.4                                                POSTGRES_IMAGE=postgres:9.6
 
 before_install:
+  - sudo usermod -a -G google-sudoers $USER
   - env ENV_UP_FLAGS=--detach make env-up
+  - cat /etc/group
+  - ls -la testdata/mysql/slowlogs/
 
 install:
   # ensure that vendor/ is in sync with code and Gopkg.toml/lock
@@ -57,14 +60,12 @@ install:
   - dep check
 
 before_script:
-  - sudo usermod -a -G google-sudoers $USER
   # ensure that generated files are not changed
   - make init
   - make gen
   - make format
   - git status
   - git diff --exit-code
-  - cat /etc/group
 
 script:
   # for main_test.go
