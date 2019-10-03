@@ -57,7 +57,7 @@ install:
   - dep check
 
 before_script:
-  - usermod -a -G google-sudoers $(whoami)
+  - sudo usermod -a -G google-sudoers $USER
   # ensure that generated files are not changed
   - make init
   - make gen
