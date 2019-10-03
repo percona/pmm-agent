@@ -71,6 +71,7 @@ script:
   - make install
 
   - make test-race
+  - ls -la testdata/mysql/slowlogs/
   - make test-cover
   - make test-crosscover
 
