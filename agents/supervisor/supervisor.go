@@ -469,6 +469,8 @@ func (s *Supervisor) processParams(agentID string, agentProcess *agentpb.SetStat
 		processParams.Path = s.paths.PostgresExporter
 	case inventorypb.AgentType_PROXYSQL_EXPORTER:
 		processParams.Path = s.paths.ProxySQLExporter
+	case inventorypb.AgentType_RDS_EXPORTER:
+		processParams.Path = s.paths.RDSExporter
 	case type_TEST_SLEEP:
 		processParams.Path = "sleep"
 	default:
@@ -496,6 +498,7 @@ func (s *Supervisor) processParams(agentID string, agentProcess *agentpb.SetStat
 
 	templateParams := map[string]interface{}{
 		"listen_port": port,
+		//TODO: add config_file parameter to the template to start RDS exporter
 	}
 
 	// render files only if they are present to avoid creating temporary directory for every agent

@@ -129,7 +129,7 @@ type AgentsInfoItems0 struct {
 	AgentID string `json:"agent_id,omitempty"`
 
 	// AgentType describes supported Agent types.
-	// Enum: [AGENT_TYPE_INVALID PMM_AGENT NODE_EXPORTER MYSQLD_EXPORTER MONGODB_EXPORTER POSTGRES_EXPORTER PROXYSQL_EXPORTER QAN_MYSQL_PERFSCHEMA_AGENT QAN_MYSQL_SLOWLOG_AGENT QAN_MONGODB_PROFILER_AGENT QAN_POSTGRESQL_PGSTATEMENTS_AGENT]
+	// Enum: [AGENT_TYPE_INVALID PMM_AGENT NODE_EXPORTER MYSQLD_EXPORTER MONGODB_EXPORTER POSTGRES_EXPORTER PROXYSQL_EXPORTER QAN_MYSQL_PERFSCHEMA_AGENT QAN_MYSQL_SLOWLOG_AGENT QAN_MONGODB_PROFILER_AGENT QAN_POSTGRESQL_PGSTATEMENTS_AGENT RDS_EXPORTER]
 	AgentType *string `json:"agent_type,omitempty"`
 
 	// AgentStatus represents actual Agent status.
@@ -165,7 +165,7 @@ var agentsInfoItems0TypeAgentTypePropEnum []interface{}
 
 func init() {
 	var res []string
-	if err := json.Unmarshal([]byte(`["AGENT_TYPE_INVALID","PMM_AGENT","NODE_EXPORTER","MYSQLD_EXPORTER","MONGODB_EXPORTER","POSTGRES_EXPORTER","PROXYSQL_EXPORTER","QAN_MYSQL_PERFSCHEMA_AGENT","QAN_MYSQL_SLOWLOG_AGENT","QAN_MONGODB_PROFILER_AGENT","QAN_POSTGRESQL_PGSTATEMENTS_AGENT"]`), &res); err != nil {
+	if err := json.Unmarshal([]byte(`["AGENT_TYPE_INVALID","PMM_AGENT","NODE_EXPORTER","MYSQLD_EXPORTER","MONGODB_EXPORTER","POSTGRES_EXPORTER","PROXYSQL_EXPORTER","QAN_MYSQL_PERFSCHEMA_AGENT","QAN_MYSQL_SLOWLOG_AGENT","QAN_MONGODB_PROFILER_AGENT","QAN_POSTGRESQL_PGSTATEMENTS_AGENT","RDS_EXPORTER"]`), &res); err != nil {
 		panic(err)
 	}
 	for _, v := range res {
@@ -207,6 +207,9 @@ const (
 
 	// AgentsInfoItems0AgentTypeQANPOSTGRESQLPGSTATEMENTSAGENT captures enum value "QAN_POSTGRESQL_PGSTATEMENTS_AGENT"
 	AgentsInfoItems0AgentTypeQANPOSTGRESQLPGSTATEMENTSAGENT string = "QAN_POSTGRESQL_PGSTATEMENTS_AGENT"
+
+	// AgentsInfoItems0AgentTypeRDSEXPORTER captures enum value "RDS_EXPORTER"
+	AgentsInfoItems0AgentTypeRDSEXPORTER string = "RDS_EXPORTER"
 )
 
 // prop value enum
@@ -382,14 +385,14 @@ type StatusOKBody struct {
 	// agent id
 	AgentID string `json:"agent_id,omitempty"`
 
+	// runs on node id
+	RunsOnNodeID string `json:"runs_on_node_id,omitempty"`
+
 	// agents info
 	AgentsInfo []*AgentsInfoItems0 `json:"agents_info"`
 
 	// Config file path if pmm-agent was started with one.
 	ConfigFilepath string `json:"config_filepath,omitempty"`
-
-	// runs on node id
-	RunsOnNodeID string `json:"runs_on_node_id,omitempty"`
 
 	// server info
 	ServerInfo *StatusOKBodyServerInfo `json:"server_info,omitempty"`
@@ -479,23 +482,23 @@ swagger:model StatusOKBodyServerInfo
 */
 type StatusOKBodyServerInfo struct {
 
-	// Clock drift from PMM Server (if agent is connected).
-	ClockDrift string `json:"clock_drift,omitempty"`
-
-	// True if pmm-agent is currently connected to the server.
-	Connected bool `json:"connected,omitempty"`
+	// PMM Server URL in a form https://HOST:PORT/.
+	URL string `json:"url,omitempty"`
 
 	// PMM Server's TLS certificate validation should be skipped if true.
 	InsecureTLS bool `json:"insecure_tls,omitempty"`
 
-	// Ping time from pmm-agent to pmm-managed (if agent is connected).
-	Latency string `json:"latency,omitempty"`
-
-	// PMM Server URL in a form https://HOST:PORT/.
-	URL string `json:"url,omitempty"`
+	// True if pmm-agent is currently connected to the server.
+	Connected bool `json:"connected,omitempty"`
 
 	// PMM Server version (if agent is connected).
 	Version string `json:"version,omitempty"`
+
+	// Ping time from pmm-agent to pmm-managed (if agent is connected).
+	Latency string `json:"latency,omitempty"`
+
+	// Clock drift from PMM Server (if agent is connected).
+	ClockDrift string `json:"clock_drift,omitempty"`
 }
 
 // Validate validates this status OK body server info
