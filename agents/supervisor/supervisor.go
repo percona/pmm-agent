@@ -348,6 +348,7 @@ const (
 func getTableNumber(processParams *process.Params, l *logrus.Entry) int32 {
 	// get count of tables.
 	var tablesNumber int32
+
 	dsn := ""
 
 	for _, e := range processParams.Env {
@@ -368,12 +369,13 @@ func getTableNumber(processParams *process.Params, l *logrus.Entry) int32 {
 	}
 
 	l.Infof("Number of tables: %d", tablesNumber)
+
 	return tablesNumber
 }
 
 func cleanupOptions(processParams *process.Params, l *logrus.Entry) *process.Params {
-
 	newArgs := []string{}
+
 	for _, a := range processParams.Args {
 		if _, ok := heavyLoadOptions[a]; ok {
 			continue
@@ -383,6 +385,7 @@ func cleanupOptions(processParams *process.Params, l *logrus.Entry) *process.Par
 	}
 
 	processParams.Args = newArgs
+
 	return processParams
 }
 
