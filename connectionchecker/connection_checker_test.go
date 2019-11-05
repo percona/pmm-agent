@@ -165,6 +165,6 @@ func TestConnectionChecker(t *testing.T) {
 			Type: inventorypb.ServiceType_MYSQL_SERVICE,
 		})
 		require.NotNil(t, resp)
-		assert.InDelta(t, 250, resp.Stats.TablesCount, 100)
+		assert.InDelta(t, 250, resp.Stats.TablesCount, 150)
 	})
 }
