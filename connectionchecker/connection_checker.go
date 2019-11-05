@@ -96,13 +96,13 @@ func checkMySQLConnection(ctx context.Context, dsn string) *agentpb.CheckConnect
 		return &res
 	}
 
-	tablesCount := int32(count)
+	tableCount := int32(count)
 	if count > math.MaxInt32 {
-		tablesCount = math.MaxInt32
+		tableCount = math.MaxInt32
 	}
 
 	res.Stats = &agentpb.CheckConnectionResponse_Stats{
-		TablesCount: tablesCount,
+		TableCount: tableCount,
 	}
 
 	return &res
