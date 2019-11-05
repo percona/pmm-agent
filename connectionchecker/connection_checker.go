@@ -91,8 +91,7 @@ func checkMySQLConnection(ctx context.Context, dsn string) *agentpb.CheckConnect
 	}
 
 	var count uint64
-	err = db.QueryRowContext(ctx, "SELECT /* pmm-agent:connectionchecker */ COUNT(*) FROM information_schema.tables").Scan(&count)
-	if err != nil {
+	if err = db.QueryRowContext(ctx, "SELECT /* pmm-agent:connectionchecker */ COUNT(*) FROM information_schema.tables").Scan(&count); err != nil {
 		res.Error = err.Error()
 		return &res
 	}
@@ -105,6 +104,7 @@ func checkMySQLConnection(ctx context.Context, dsn string) *agentpb.CheckConnect
 	res.Stats = &agentpb.CheckConnectionResponse_Stats{
 		TablesCount: tablesCount,
 	}
+
 	return &res
 }
 
@@ -121,6 +121,7 @@ func checkMongoDBConnection(ctx context.Context, dsn string) *agentpb.CheckConne
 	if err = client.Ping(ctx, nil); err != nil {
 		res.Error = err.Error()
 	}
+
 	return &res
 }
 
@@ -138,6 +139,7 @@ func checkPostgreSQLConnection(ctx context.Context, dsn string) *agentpb.CheckCo
 	if err = sqlPing(ctx, db); err != nil {
 		res.Error = err.Error()
 	}
+
 	return &res
 }
 
@@ -156,5 +158,6 @@ func checkProxySQLConnection(ctx context.Context, dsn string) *agentpb.CheckConn
 	if err = sqlPing(ctx, db); err != nil {
 		res.Error = err.Error()
 	}
+
 	return &res
 }
