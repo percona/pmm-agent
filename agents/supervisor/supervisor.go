@@ -19,12 +19,15 @@ package supervisor
 import (
 	"bytes"
 	"context"
+	"database/sql"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"regexp"
 	"runtime/pprof"
+	"strconv"
+
 	"sort"
 	"strings"
 	"sync"
@@ -47,6 +50,18 @@ import (
 	"github.com/percona/pmm-agent/config"
 )
 
+const maxTableStats = 1000
+
+// set of mysqld_exporter that can have heavy impact on performance when numerous tables (more then 1000)
+var heavyLoadOptions = map[string]struct{}{
+	"--collect.auto_increment.columns":   {},
+	"--collect.info_schema.tables":       {},
+	"--collect.info_schema.tablestats":   {},
+	"--collect.perf_schema.indexiowaits": {},
+	"--collect.perf_schema.tableiowaits": {},
+	"--collect.perf_schema.tablelocks":   {},
+}
+
 // Supervisor manages all Agents, both processes and built-in.
 type Supervisor struct {
 	ctx           context.Context
@@ -62,6 +77,9 @@ type Supervisor struct {
 
 	arw          sync.RWMutex
 	lastStatuses map[string]inventorypb.AgentStatus
+
+	tablesNumber    map[string]int32
+	maxTablesNumber map[string]int32
 }
 
 // agentProcessInfo describes Agent process.
@@ -93,9 +111,11 @@ func NewSupervisor(ctx context.Context, paths *config.Paths, ports *config.Ports
 		qanRequests:   make(chan agentpb.QANCollectRequest, 10),
 		l:             logrus.WithField("component", "supervisor"),
 
-		agentProcesses: make(map[string]*agentProcessInfo),
-		builtinAgents:  make(map[string]*builtinAgentInfo),
-		lastStatuses:   make(map[string]inventorypb.AgentStatus),
+		agentProcesses:  make(map[string]*agentProcessInfo),
+		builtinAgents:   make(map[string]*builtinAgentInfo),
+		lastStatuses:    make(map[string]inventorypb.AgentStatus),
+		tablesNumber:    make(map[string]int32),
+		maxTablesNumber: make(map[string]int32),
 	}
 
 	go func() {
@@ -325,6 +345,61 @@ const (
 	type_TEST_NOOP  inventorypb.AgentType = 999 // built-in
 )
 
+func getTableNumber(processParams *process.Params, l *logrus.Entry) int32 {
+	// get count of tables.
+	var tablesNumber int32
+	dsn := ""
+
+	for _, e := range processParams.Env {
+		if strings.HasPrefix(e, "DATA_SOURCE_NAME") {
+			dsn = strings.TrimPrefix(e, "DATA_SOURCE_NAME=")
+			break
+		}
+	}
+
+	db, err := sql.Open("mysql", dsn)
+	if err != nil {
+		l.Warnf("cannot connect to db: %s", err)
+	}
+
+	err = db.QueryRow("SELECT COUNT(*) FROM information_schema.TABLES").Scan(&tablesNumber)
+	if err != nil {
+		l.Warnf("cannot query count of tables: %s", err)
+	}
+
+	l.Infof("Number of tables: %d", tablesNumber)
+	return tablesNumber
+}
+
+func cleanupOptions(processParams *process.Params, l *logrus.Entry) *process.Params {
+
+	newArgs := []string{}
+	for _, a := range processParams.Args {
+		if _, ok := heavyLoadOptions[a]; ok {
+			continue
+		}
+
+		newArgs = append(newArgs, a)
+	}
+
+	processParams.Args = newArgs
+	return processParams
+}
+
+func getMaxAllowedNumberOfTables(processParams *process.Params, l *logrus.Entry) int32 {
+	for _, e := range processParams.Env {
+		if strings.HasPrefix(e, "MAX_TABLE_STATS=") {
+			if m, err := strconv.Atoi(strings.TrimPrefix(e, "MAX_TABLE_STATS=")); err != nil || m <= 0 {
+				l.Warnf("cannot get max allowed number of tables: %s", err)
+			} else {
+				return int32(m)
+			}
+		}
+	}
+
+	return maxTableStats
+}
+
 // startProcess starts Agent's process.
 // Must be called with s.rw held for writing.
 func (s *Supervisor) startProcess(agentID string, agentProcess *agentpb.SetStateRequest_AgentProcess, port uint16) error {
@@ -340,6 +415,17 @@ func (s *Supervisor) startProcess(agentID string, agentProcess *agentpb.SetState
 		"agentID":   agentID,
 		"type":      agentType,
 	})
+
+	if _, ok := s.tablesNumber[agentID]; !ok && agentProcess.Type == inventorypb.AgentType_MYSQLD_EXPORTER {
+		s.tablesNumber[agentID] = getTableNumber(processParams, l)
+
+		s.maxTablesNumber[agentID] = getMaxAllowedNumberOfTables(processParams, l)
+		if s.tablesNumber[agentID] > s.maxTablesNumber[agentID] {
+			l.Infof("Heavy options of mysql_exporter were removed as tables %d more then allowed %d", s.tablesNumber[agentID], s.maxTablesNumber[agentID])
+			processParams = cleanupOptions(processParams, l)
+		}
+	}
+
 	process := process.New(processParams, l)
 	go pprof.Do(ctx, pprof.Labels("agentID", agentID, "type", agentType), process.Run)
 
