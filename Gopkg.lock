@@ -356,7 +356,7 @@
   version = "v3.1.1"
 
 [[projects]]
-  branch = "PMM-4926-add-tables"
+  branch = "PMM-2.0"
   digest = "1:2a3ff4c56aad285e9b0aba991e6e1d3cb88667f84800f7e9fd3c3f8c333c5732"
   name = "github.com/percona/pmm"
   packages = [
@@ -379,7 +379,7 @@
     "version",
   ]
   pruneopts = "NUT"
-  revision = "22ab59dfa34747684f71d78b73425cf5358ac303"
+  revision = "dba9194afb528aa85716f245d9a5985a752a7000"
 
 [[projects]]
   digest = "1:14715f705ff5dfe0ffd6571d7d201dd8e921030f8070321a79380d8ca4ec1a24"
