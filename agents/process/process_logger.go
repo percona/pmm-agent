@@ -33,13 +33,16 @@ type processLogger struct {
 	buf  []byte
 	i    int
 	data []*string
+
+	hideKeywords []string
 }
 
 // newProcessLogger creates new processLogger with a given logger and a given amount of lines to keep.
-func newProcessLogger(l *logrus.Entry, lines int) *processLogger {
+func newProcessLogger(l *logrus.Entry, lines int, hideKeywords []string) *processLogger {
 	return &processLogger{
-		l:    l,
-		data: make([]*string, lines),
+		l:            l,
+		data:         make([]*string, lines),
+		hideKeywords: hideKeywords,
 	}
 }
 
@@ -64,6 +67,7 @@ func (pl *processLogger) Write(p []byte) (n int, err error) {
 			return
 		}
 		line = strings.TrimSuffix(line, "\n")
+		line = pl.clearKeywords(line)
 		if pl.l != nil {
 			pl.l.Infoln(line)
 		}
@@ -86,6 +90,13 @@ func (pl *processLogger) Latest() []string {
 		}
 	}
 	return result
+}
+
+func (pl *processLogger) clearKeywords(s string) string {
+	for _, k := range pl.hideKeywords {
+		s = strings.Replace(s, k, "***", -1)
+	}
+	return s
 }
 
 // check interfaces
