@@ -19,7 +19,6 @@ package supervisor
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -340,6 +339,7 @@ func (s *Supervisor) startProcess(agentID string, agentProcess *agentpb.SetState
 		"agentID":   agentID,
 		"type":      agentType,
 	})
+	l.Debugf("Starting: %s.", processParams)
 	process := process.New(processParams, l)
 	go pprof.Do(ctx, pprof.Labels("agentID", agentID, "type", agentType), process.Run)
 
@@ -502,7 +502,7 @@ func (s *Supervisor) processParams(agentID string, agentProcess *agentpb.SetStat
 
 	// render files only if they are present to avoid creating temporary directory for every agent
 	if len(agentProcess.TextFiles) > 0 {
-		dir := filepath.Join(s.paths.TempDir, fmt.Sprintf("%s-%s", strings.ToLower(agentProcess.Type.String()), agentID))
+		dir := filepath.Join(s.paths.TempDir, strings.ToLower(agentProcess.Type.String()), agentID)
 		if err := os.RemoveAll(dir); err != nil {
 			return nil, errors.WithStack(err)
 		}
