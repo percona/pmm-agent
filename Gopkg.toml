@@ -24,10 +24,9 @@ required = [
     non-go = false
     unused-packages = false
 
-# TODO switch to tags before PMM 2.0 release
 [[constraint]]
   name = "github.com/percona/pmm"
-  branch = "PMM-4474_Add_rds_exporter_agent-B"
+  branch = "PMM-4474-rds-inventory"
 
 # TODO Remove when v1.1.0 is released.
 # https://github.com/AlekSi/pointer/milestone/1
