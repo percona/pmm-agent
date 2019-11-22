@@ -229,7 +229,7 @@ func TestGet(t *testing.T) {
 				MongoDBExporter:  "/base/mongo_exporter",   // respect relative value from flag
 				PostgresExporter: "/bar/postgres_exporter", // respect absolute value from config file
 				ProxySQLExporter: "/base/pro_exporter",     // respect relative value from config file
-				RDSExporter:      "/base/rds_exporter",
+				RDSExporter:      "/base/rds_exporter",     // default value
 				TempDir:          os.TempDir(),
 			},
 			Ports: Ports{

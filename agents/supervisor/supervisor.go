@@ -498,7 +498,6 @@ func (s *Supervisor) processParams(agentID string, agentProcess *agentpb.SetStat
 
 	templateParams := map[string]interface{}{
 		"listen_port": port,
-		//TODO: add config_file parameter to the template to start RDS exporter
 	}
 
 	// render files only if they are present to avoid creating temporary directory for every agent
