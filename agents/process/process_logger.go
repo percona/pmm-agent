@@ -34,15 +34,15 @@ type processLogger struct {
 	i    int
 	data []*string
 
-	hideKeywords []string
+	redactWords []string
 }
 
 // newProcessLogger creates new processLogger with a given logger and a given amount of lines to keep.
-func newProcessLogger(l *logrus.Entry, lines int, hideKeywords []string) *processLogger {
+func newProcessLogger(l *logrus.Entry, lines int, redactWords []string) *processLogger {
 	return &processLogger{
-		l:            l,
-		data:         make([]*string, lines),
-		hideKeywords: hideKeywords,
+		l:           l,
+		data:        make([]*string, lines),
+		redactWords: redactWords,
 	}
 }
 
@@ -58,6 +58,8 @@ func (pl *processLogger) Write(p []byte) (n int, err error) {
 		return
 	}
 
+	replacer := pl.replacer()
+
 	var line string
 	for {
 		line, err = b.ReadString('\n')
@@ -67,7 +69,7 @@ func (pl *processLogger) Write(p []byte) (n int, err error) {
 			return
 		}
 		line = strings.TrimSuffix(line, "\n")
-		line = pl.clearKeywords(line)
+		line = replacer.Replace(line)
 		if pl.l != nil {
 			pl.l.Infoln(line)
 		}
@@ -92,11 +94,15 @@ func (pl *processLogger) Latest() []string {
 	return result
 }
 
-func (pl *processLogger) clearKeywords(s string) string {
-	for _, k := range pl.hideKeywords {
-		s = strings.Replace(s, k, "***", -1)
+func (pl *processLogger) replacer() *strings.Replacer {
+	var r []string
+	for _, k := range pl.redactWords {
+		if k == "" {
+			panic("redact word can't be empty")
+		}
+		r = append(r, k, "***")
 	}
-	return s
+	return strings.NewReplacer(r...)
 }
 
 // check interfaces

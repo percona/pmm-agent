@@ -56,7 +56,7 @@ install-race:                   ## Install pmm-agent binary with race detector.
 TEST_PACKAGES ?= ./...
 TEST_FLAGS ?= -timeout=20s
 
-test: install                   ## Run tests.
+test:                           ## Run tests.
 	go test $(TEST_FLAGS) -p 1 $(TEST_PACKAGES)
 
 test-race:                      ## Run tests with race detector.
@@ -118,8 +118,8 @@ env-up:                         ## Start development environment.
 env-down:                       ## Stop development environment.
 	docker-compose down --volumes --remove-orphans
 
-setup-dev:
-	env CGO_ENABLED=1 go run -ldflags "$(VERSION_FLAGS)" main.go setup --server-insecure-tls --server-address=127.0.0.1:443 --config-file=pmm-agent-dev.yaml --server-username=admin --server-password=admin --paths-exporters_base=$(GOPATH)/bin
+setup-dev: install
+	pmm-agent setup $(RUN_FLAGS) --server-insecure-tls --server-address=127.0.0.1:443 --server-username=admin --server-password=admin --paths-exporters_base=$(GOPATH)/bin
 
 mysql:                          ## Run mysql client.
 	docker exec -ti pmm-agent_mysql mysql --host=127.0.0.1 --user=root --password=root-password

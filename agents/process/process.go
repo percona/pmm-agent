@@ -71,11 +71,11 @@ type Params struct {
 }
 
 // New creates new process.
-func New(params *Params, hideKeywords []string, l *logrus.Entry) *Process {
+func New(params *Params, redactWords []string, l *logrus.Entry) *Process {
 	return &Process{
 		params:  params,
 		l:       l,
-		pl:      newProcessLogger(l, keepLogLines, hideKeywords),
+		pl:      newProcessLogger(l, keepLogLines, redactWords),
 		changes: make(chan inventorypb.AgentStatus, 10),
 		backoff: backoff.New(backoffMinDelay, backoffMaxDelay),
 		ctxDone: make(chan struct{}),

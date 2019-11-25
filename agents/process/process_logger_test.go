@@ -27,7 +27,7 @@ func TestProcessLogger(t *testing.T) {
 		testName       string
 		writerLines    int
 		writeArgs      []string
-		hideKeywords   []string
+		redactWords    []string
 		expectedLatest []string
 		expectedLen    int
 		expectedCap    int
@@ -115,7 +115,7 @@ func TestProcessLogger(t *testing.T) {
 			0,
 		},
 		{
-			"hide keywords",
+			"redact keywords",
 			3,
 			[]string{
 				"text\nsecond ",
@@ -131,7 +131,7 @@ func TestProcessLogger(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.testName, func(t *testing.T) {
-			pl := newProcessLogger(nil, tt.writerLines, tt.hideKeywords)
+			pl := newProcessLogger(nil, tt.writerLines, tt.redactWords)
 			for _, arg := range tt.writeArgs {
 				_, err := pl.Write([]byte(arg))
 				require.NoError(t, err)
