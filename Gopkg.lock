@@ -355,7 +355,7 @@
 
 [[projects]]
   branch = "PMM-4474-rds-inventory"
-  digest = "1:0e03d065a76a4b4644d78364356bd8b0c4343dfa2b25e514f9eff3cb3bc54d47"
+  digest = "1:94c65cbfea716ea91f533f88c89aff682e9335f0e50c76645c2df4321d25c5fa"
   name = "github.com/percona/pmm"
   packages = [
     "api/agentlocalpb",
@@ -378,7 +378,7 @@
     "version",
   ]
   pruneopts = "NUT"
-  revision = "c1d33133964ead94db6fba159e662fa5e7f20c98"
+  revision = "ff0f53af8a23e4edf6790eb0cc4db2a0980dad0c"
 
 [[projects]]
   digest = "1:14715f705ff5dfe0ffd6571d7d201dd8e921030f8070321a79380d8ca4ec1a24"
