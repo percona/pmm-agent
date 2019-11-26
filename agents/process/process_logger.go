@@ -34,16 +34,23 @@ type processLogger struct {
 	i    int
 	data []*string
 
-	redactWords []string
+	replacer *strings.Replacer
 }
 
 // newProcessLogger creates new processLogger with a given logger and a given amount of lines to keep.
 func newProcessLogger(l *logrus.Entry, lines int, redactWords []string) *processLogger {
-	return &processLogger{
-		l:           l,
-		data:        make([]*string, lines),
-		redactWords: redactWords,
+	pl := &processLogger{
+		l:    l,
+		data: make([]*string, lines),
 	}
+
+	if l != nil && l.Logger.GetLevel() >= logrus.DebugLevel {
+		l.Debug("Logs redactor disabled in debug mode.")
+	} else {
+		pl.replacer = replacer(redactWords)
+	}
+
+	return pl
 }
 
 // Write implements io.Writer.
@@ -58,8 +65,6 @@ func (pl *processLogger) Write(p []byte) (n int, err error) {
 		return
 	}
 
-	replacer := pl.replacer()
-
 	var line string
 	for {
 		line, err = b.ReadString('\n')
@@ -69,7 +74,9 @@ func (pl *processLogger) Write(p []byte) (n int, err error) {
 			return
 		}
 		line = strings.TrimSuffix(line, "\n")
-		line = replacer.Replace(line)
+		if pl.replacer != nil {
+			line = pl.replacer.Replace(line)
+		}
 		if pl.l != nil {
 			pl.l.Infoln(line)
 		}
@@ -94,13 +101,13 @@ func (pl *processLogger) Latest() []string {
 	return result
 }
 
-func (pl *processLogger) replacer() *strings.Replacer {
-	var r []string
-	for _, k := range pl.redactWords {
-		if k == "" {
+func replacer(redactWords []string) *strings.Replacer {
+	r := make([]string, 0, len(redactWords)*2)
+	for _, w := range redactWords {
+		if w == "" {
 			panic("redact word can't be empty")
 		}
-		r = append(r, k, "***")
+		r = append(r, w, "***")
 	}
 	return strings.NewReplacer(r...)
 }
