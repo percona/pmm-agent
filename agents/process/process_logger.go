@@ -102,6 +102,10 @@ func (pl *processLogger) Latest() []string {
 }
 
 func replacer(redactWords []string) *strings.Replacer {
+	if len(redactWords) == 0 {
+		return nil
+	}
+
 	r := make([]string, 0, len(redactWords)*2)
 	for _, w := range redactWords {
 		if w == "" {
