@@ -234,7 +234,7 @@ func TestPerfSchema(t *testing.T) {
 	require.NoError(t, err)
 	tests.LogTable(t, structs)
 
-	rowsExamined := float32(0)
+	var rowsExamined float32
 	mySQLVersion, mySQLVendor := tests.MySQLVersion(t, sqlDB)
 	var digests map[string]string // digest_text/fingerprint to digest/query_id
 	switch fmt.Sprintf("%s-%s", mySQLVersion, mySQLVendor) {
