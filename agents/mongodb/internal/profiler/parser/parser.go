@@ -49,56 +49,56 @@ type Parser struct {
 }
 
 // Start starts but doesn't wait until it exits
-func (self *Parser) Start() error {
-	self.m.Lock()
-	defer self.m.Unlock()
-	if self.running {
+func (p *Parser) Start() error {
+	p.m.Lock()
+	defer p.m.Unlock()
+	if p.running {
 		return nil
 	}
 
 	// create new channels over which we will communicate to...
 	// ... inside goroutine to close it
-	self.doneChan = make(chan struct{})
+	p.doneChan = make(chan struct{})
 
 	// start a goroutine and Add() it to WaitGroup
 	// so we could later Wait() for it to finish
-	self.wg = &sync.WaitGroup{}
-	self.wg.Add(1)
+	p.wg = &sync.WaitGroup{}
+	p.wg.Add(1)
 
 	ctx := context.Background()
 	labels := pprof.Labels("component", "mongodb.monitor")
 	pprof.Do(ctx, labels, func(ctx context.Context) {
 		go start(
-			self.wg,
-			self.docsChan,
-			self.aggregator,
-			self.doneChan,
-			self.logger,
+			p.wg,
+			p.docsChan,
+			p.aggregator,
+			p.doneChan,
+			p.logger,
 		)
 	})
 
-	self.running = true
+	p.running = true
 	return nil
 }
 
 // Stop stops running
-func (self *Parser) Stop() {
-	self.m.Lock()
-	defer self.m.Unlock()
-	if !self.running {
+func (p *Parser) Stop() {
+	p.m.Lock()
+	defer p.m.Unlock()
+	if !p.running {
 		return
 	}
-	self.running = false
+	p.running = false
 
 	// notify goroutine to close
-	close(self.doneChan)
+	close(p.doneChan)
 
 	// wait for goroutines to exit
-	self.wg.Wait()
+	p.wg.Wait()
 	return
 }
 
-func (self *Parser) Name() string {
+func (p *Parser) Name() string {
 	return "parser"
 }
 
