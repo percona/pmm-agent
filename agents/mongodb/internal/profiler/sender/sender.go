@@ -40,16 +40,16 @@ type Sender struct {
 	logger     *logrus.Entry
 
 	// state
-	sync.RWMutex                 // Lock() to protect internal consistency of the service
-	running      bool            // Is this service running?
-	doneChan     chan struct{}   // close(doneChan) to notify goroutines that they should shutdown
-	wg           *sync.WaitGroup // Wait() for goroutines to stop after being notified they should shutdown
+	m        sync.Mutex      // Lock() to protect internal consistency of the service
+	running  bool            // Is this service running?
+	doneChan chan struct{}   // close(doneChan) to notify goroutines that they should shutdown
+	wg       *sync.WaitGroup // Wait() for goroutines to stop after being notified they should shutdown
 }
 
 // Start starts but doesn't wait until it exits
 func (s *Sender) Start() error {
-	s.Lock()
-	defer s.Unlock()
+	s.m.Lock()
+	defer s.m.Unlock()
 	if s.running {
 		return nil
 	}
@@ -75,8 +75,8 @@ func (s *Sender) Start() error {
 
 // Stop stops running
 func (s *Sender) Stop() {
-	s.Lock()
-	defer s.Unlock()
+	s.m.Lock()
+	defer s.m.Unlock()
 	if !s.running {
 		return
 	}

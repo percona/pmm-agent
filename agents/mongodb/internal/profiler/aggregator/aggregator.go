@@ -75,16 +75,16 @@ type Aggregator struct {
 	mongostats *mongostats.Stats
 
 	// state
-	sync.RWMutex                 // Lock() to protect internal consistency of the service
-	running      bool            // Is this service running?
-	doneChan     chan struct{}   // close(doneChan) to notify goroutines that they should shutdown
-	wg           *sync.WaitGroup // Wait() for goroutines to stop after being notified they should shutdown
+	m        sync.Mutex      // Lock() to protect internal consistency of the service
+	running  bool            // Is this service running?
+	doneChan chan struct{}   // close(doneChan) to notify goroutines that they should shutdown
+	wg       *sync.WaitGroup // Wait() for goroutines to stop after being notified they should shutdown
 }
 
 // Add aggregates new system.profile document
 func (a *Aggregator) Add(doc proto.SystemProfile) error {
-	a.Lock()
-	defer a.Unlock()
+	a.m.Lock()
+	defer a.m.Unlock()
 	if !a.running {
 		return fmt.Errorf("aggregator is not running")
 	}
@@ -104,8 +104,8 @@ func (a *Aggregator) Add(doc proto.SystemProfile) error {
 }
 
 func (a *Aggregator) Start() <-chan *report.Report {
-	a.Lock()
-	defer a.Unlock()
+	a.m.Lock()
+	defer a.m.Unlock()
 	if a.running {
 		a.logger.Debugln("aggregator already running.")
 		return a.reportChan
@@ -136,8 +136,8 @@ func (a *Aggregator) Start() <-chan *report.Report {
 }
 
 func (a *Aggregator) Stop() {
-	a.Lock()
-	defer a.Unlock()
+	a.m.Lock()
+	defer a.m.Unlock()
 	if !a.running {
 		return
 	}
@@ -174,8 +174,8 @@ func start(wg *sync.WaitGroup, aggregator *Aggregator, doneChan <-chan struct{})
 }
 
 func (a *Aggregator) Flush() {
-	a.Lock()
-	defer a.Unlock()
+	a.m.Lock()
+	defer a.m.Unlock()
 	a.logger.Debugf("Flushing aggregator at: %s", time.Now())
 	a.flush(time.Now())
 }

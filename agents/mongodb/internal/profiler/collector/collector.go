@@ -51,16 +51,16 @@ type Collector struct {
 	docsChan chan proto.SystemProfile
 
 	// state
-	sync.RWMutex                 // Lock() to protect internal consistency of the service
-	running      bool            // Is this service running?
-	doneChan     chan struct{}   // close(doneChan) to notify goroutines that they should shutdown
-	wg           *sync.WaitGroup // Wait() for goroutines to stop after being notified they should shutdown
+	m        sync.Mutex      // Lock() to protect internal consistency of the service
+	running  bool            // Is this service running?
+	doneChan chan struct{}   // close(doneChan) to notify goroutines that they should shutdown
+	wg       *sync.WaitGroup // Wait() for goroutines to stop after being notified they should shutdown
 }
 
 // Start starts but doesn't wait until it exits
 func (c *Collector) Start() (<-chan proto.SystemProfile, error) {
-	c.Lock()
-	defer c.Unlock()
+	c.m.Lock()
+	defer c.m.Unlock()
 	if c.running {
 		return nil, nil
 	}
@@ -104,8 +104,8 @@ func (c *Collector) Start() (<-chan proto.SystemProfile, error) {
 
 // Stop stops running
 func (c *Collector) Stop() {
-	c.Lock()
-	defer c.Unlock()
+	c.m.Lock()
+	defer c.m.Unlock()
 	if !c.running {
 		return
 	}

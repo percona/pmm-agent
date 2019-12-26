@@ -20,9 +20,8 @@ import (
 	"runtime/pprof"
 	"sync"
 
-	"github.com/sirupsen/logrus"
-
 	"github.com/percona/percona-toolkit/src/go/mongolib/proto"
+	"github.com/sirupsen/logrus"
 
 	"github.com/percona/pmm-agent/agents/mongodb/internal/profiler/aggregator"
 )
@@ -43,16 +42,16 @@ type Parser struct {
 	logger *logrus.Entry
 
 	// state
-	sync.RWMutex                 // Lock() to protect internal consistency of the service
-	running      bool            // Is this service running?
-	doneChan     chan struct{}   // close(doneChan) to notify goroutines that they should shutdown
-	wg           *sync.WaitGroup // Wait() for goroutines to stop after being notified they should shutdown
+	m        sync.Mutex      // Lock() to protect internal consistency of the service
+	running  bool            // Is this service running?
+	doneChan chan struct{}   // close(doneChan) to notify goroutines that they should shutdown
+	wg       *sync.WaitGroup // Wait() for goroutines to stop after being notified they should shutdown
 }
 
 // Start starts but doesn't wait until it exits
 func (self *Parser) Start() error {
-	self.Lock()
-	defer self.Unlock()
+	self.m.Lock()
+	defer self.m.Unlock()
 	if self.running {
 		return nil
 	}
@@ -84,8 +83,8 @@ func (self *Parser) Start() error {
 
 // Stop stops running
 func (self *Parser) Stop() {
-	self.Lock()
-	defer self.Unlock()
+	self.m.Lock()
+	defer self.m.Unlock()
 	if !self.running {
 		return
 	}

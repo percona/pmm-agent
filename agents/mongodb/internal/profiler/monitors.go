@@ -52,7 +52,7 @@ type monitors struct {
 	monitors map[string]*monitor
 
 	// state
-	sync.RWMutex // Lock() to protect internal consistency of the service
+	rw sync.RWMutex // Lock() to protect internal consistency of the service
 }
 
 func (ms *monitors) MonitorAll() error {
@@ -117,21 +117,21 @@ func (ms *monitors) Stop(dbName string) {
 	m := ms.Get(dbName)
 	m.Stop()
 
-	ms.Lock()
-	defer ms.Unlock()
+	ms.rw.Lock()
+	defer ms.rw.Unlock()
 	delete(ms.monitors, dbName)
 }
 
 func (ms *monitors) Get(dbName string) *monitor {
-	ms.RLock()
-	defer ms.RUnlock()
+	ms.rw.RLock()
+	defer ms.rw.RUnlock()
 
 	return ms.monitors[dbName]
 }
 
 func (ms *monitors) GetAll() map[string]*monitor {
-	ms.RLock()
-	defer ms.RUnlock()
+	ms.rw.RLock()
+	defer ms.rw.RUnlock()
 
 	list := map[string]*monitor{}
 	for dbName, m := range ms.monitors {

@@ -47,13 +47,13 @@ type monitor struct {
 	services []services
 
 	// state
-	sync.RWMutex      // Lock() to protect internal consistency of the service
-	running      bool // Is this service running?
+	m       sync.Mutex // Lock() to protect internal consistency of the service
+	running bool       // Is this service running?
 }
 
 func (m *monitor) Start() error {
-	m.Lock()
-	defer m.Unlock()
+	m.m.Lock()
+	defer m.m.Unlock()
 
 	if m.running {
 		return nil
@@ -91,8 +91,8 @@ func (m *monitor) Start() error {
 }
 
 func (m *monitor) Stop() {
-	m.Lock()
-	defer m.Unlock()
+	m.m.Lock()
+	defer m.m.Unlock()
 
 	if !m.running {
 		return

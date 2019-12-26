@@ -55,16 +55,16 @@ type profiler struct {
 	sender     *sender.Sender
 
 	// state
-	sync.RWMutex                 // Lock() to protect internal consistency of the service
-	running      bool            // Is this service running?
-	doneChan     chan struct{}   // close(doneChan) to notify goroutines that they should shutdown
-	wg           *sync.WaitGroup // Wait() for goroutines to stop after being notified they should shutdown
+	m        sync.Mutex      // Lock() to protect internal consistency of the service
+	running  bool            // Is this service running?
+	doneChan chan struct{}   // close(doneChan) to notify goroutines that they should shutdown
+	wg       *sync.WaitGroup // Wait() for goroutines to stop after being notified they should shutdown
 }
 
 // Start starts analyzer but doesn't wait until it exits
 func (p *profiler) Start() error {
-	p.Lock()
-	defer p.Unlock()
+	p.m.Lock()
+	defer p.m.Unlock()
 	if p.running {
 		return nil
 	}
@@ -123,8 +123,8 @@ func (p *profiler) Start() error {
 
 // Stop stops running analyzer, waits until it stops
 func (p *profiler) Stop() error {
-	p.Lock()
-	defer p.Unlock()
+	p.m.Lock()
+	defer p.m.Unlock()
 	if !p.running {
 		return nil
 	}
