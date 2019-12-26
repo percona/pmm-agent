@@ -48,12 +48,12 @@ func TestNew(t *testing.T) {
 				docsChan:   docsChan,
 				aggregator: a,
 			},
-			want: New(docsChan, a),
+			want: New(docsChan, a, logrus.WithField("component", "test-parser")),
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := New(tt.args.docsChan, tt.args.aggregator); !reflect.DeepEqual(got, tt.want) {
+			if got := New(tt.args.docsChan, tt.args.aggregator, logrus.WithField("component", "test-parser")); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("New(%v, %v) = %v, want %v", tt.args.docsChan, tt.args.aggregator, got, tt.want)
 			}
 		})
@@ -65,7 +65,7 @@ func TestParserStartStop(t *testing.T) {
 	docsChan := make(chan pm.SystemProfile)
 	a := aggregator.New(time.Now(), "test-id", logrus.WithField("component", "aggregator"))
 
-	parser1 := New(docsChan, a)
+	parser1 := New(docsChan, a, logrus.WithField("component", "test-parser"))
 	err = parser1.Start()
 	require.NoError(t, err)
 
@@ -85,7 +85,7 @@ func TestParserrunning(t *testing.T) {
 	defer a.Stop()
 	d := aggregator.DefaultInterval
 
-	parser1 := New(docsChan, a)
+	parser1 := New(docsChan, a, logrus.WithField("component", "test-parser"))
 	err := parser1.Start()
 	require.NoError(t, err)
 

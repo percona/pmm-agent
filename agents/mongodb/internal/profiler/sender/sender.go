@@ -16,12 +16,13 @@
 package sender
 
 import (
+	"context"
+	"runtime/pprof"
 	"sync"
 
 	"github.com/sirupsen/logrus"
 
 	"github.com/percona/pmm-agent/agents/mongodb/internal/report"
-	"github.com/percona/pmm-agent/agents/mongodb/internal/status"
 )
 
 func New(reportChan <-chan *report.Report, w Writer, logger *logrus.Entry) *Sender {
@@ -38,9 +39,6 @@ type Sender struct {
 	w          Writer
 	logger     *logrus.Entry
 
-	// stats
-	status *status.Status
-
 	// state
 	sync.RWMutex                 // Lock() to protect internal consistency of the service
 	running      bool            // Is this service running?
@@ -49,63 +47,54 @@ type Sender struct {
 }
 
 // Start starts but doesn't wait until it exits
-func (self *Sender) Start() error {
-	self.Lock()
-	defer self.Unlock()
-	if self.running {
+func (s *Sender) Start() error {
+	s.Lock()
+	defer s.Unlock()
+	if s.running {
 		return nil
 	}
 
 	// create new channels over which we will communicate to...
 	// ... inside goroutine to close it
-	self.doneChan = make(chan struct{})
-
-	// set stats
-	stats := &stats{}
-	self.status = status.New(stats)
+	s.doneChan = make(chan struct{})
 
 	// start a goroutine and Add() it to WaitGroup
 	// so we could later Wait() for it to finish
-	self.wg = &sync.WaitGroup{}
-	self.wg.Add(1)
-	go start(self.wg, self.reportChan, self.w, self.logger, self.doneChan, stats)
+	s.wg = &sync.WaitGroup{}
+	s.wg.Add(1)
 
-	self.running = true
+	ctx := context.Background()
+	labels := pprof.Labels("component", "mongodb.sender")
+	pprof.Do(ctx, labels, func(ctx context.Context) {
+		go start(s.wg, s.reportChan, s.w, s.logger, s.doneChan)
+	})
+
+	s.running = true
 	return nil
 }
 
 // Stop stops running
-func (self *Sender) Stop() {
-	self.Lock()
-	defer self.Unlock()
-	if !self.running {
+func (s *Sender) Stop() {
+	s.Lock()
+	defer s.Unlock()
+	if !s.running {
 		return
 	}
-	self.running = false
+	s.running = false
 
 	// notify goroutine to close
-	close(self.doneChan)
+	close(s.doneChan)
 
 	// wait for goroutines to exit
-	self.wg.Wait()
+	s.wg.Wait()
 	return
 }
 
-func (self *Sender) Status() map[string]string {
-	self.RLock()
-	defer self.RUnlock()
-	if !self.running {
-		return nil
-	}
-
-	return self.status.Map()
-}
-
-func (self *Sender) Name() string {
+func (s *Sender) Name() string {
 	return "sender"
 }
 
-func start(wg *sync.WaitGroup, reportChan <-chan *report.Report, w Writer, logger *logrus.Entry, doneChan <-chan struct{}, stats *stats) {
+func start(wg *sync.WaitGroup, reportChan <-chan *report.Report, w Writer, logger *logrus.Entry, doneChan <-chan struct{}) {
 	// signal WaitGroup when goroutine finished
 	defer wg.Done()
 
@@ -113,7 +102,6 @@ func start(wg *sync.WaitGroup, reportChan <-chan *report.Report, w Writer, logge
 
 		select {
 		case report, ok := <-reportChan:
-			stats.In += 1
 			// if channel got closed we should exit as there is nothing we can listen to
 			if !ok {
 				return
@@ -129,11 +117,9 @@ func start(wg *sync.WaitGroup, reportChan <-chan *report.Report, w Writer, logge
 
 			// sent report
 			if err := w.Write(report); err != nil {
-				stats.ErrIter += 1
 				logger.Warn("Lost report:", err)
 				continue
 			}
-			stats.Out += 1
 		case <-doneChan:
 			return
 		}

@@ -38,7 +38,7 @@ func TestProfiler(t *testing.T) {
 
 	url := "mongodb://root:root-password@127.0.0.1:27017"
 
-	sess, err := createSession(url)
+	sess, err := createSession(url, "pmm-server")
 	require.NoError(t, err)
 
 	err = sess.Database("test").Drop(context.TODO())
@@ -47,6 +47,7 @@ func TestProfiler(t *testing.T) {
 	ms := &testWriter{t: t}
 	prof := New(url, logrus.WithField("component", "profiler-test"), ms, "test-id")
 	err = prof.Start()
+	defer prof.Stop()
 	require.NoError(t, err)
 	data := []interface{}{bson.M{"name": "Anton"}, bson.M{"name": "Alexey"}}
 	_, err = sess.Database("test").Collection("peoples").InsertMany(context.TODO(), data)

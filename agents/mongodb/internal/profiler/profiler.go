@@ -18,6 +18,7 @@ package profiler
 import (
 	"context"
 	"fmt"
+	"runtime/pprof"
 	"sync"
 	"time"
 
@@ -69,7 +70,7 @@ func (p *profiler) Start() error {
 	}
 
 	// create new session
-	client, err := createSession(p.mongoDSN)
+	client, err := createSession(p.mongoDSN, p.agentID)
 	if err != nil {
 		return err
 	}
@@ -107,64 +108,17 @@ func (p *profiler) Start() error {
 	ready.L.Lock()
 	defer ready.L.Unlock()
 
-	go start(p.monitors, p.wg, p.doneChan, ready, p.logger)
+	ctx := context.Background()
+	labels := pprof.Labels("component", "mongodb.profiler")
+	pprof.Do(ctx, labels, func(ctx context.Context) {
+		go start(p.monitors, p.wg, p.doneChan, ready, p.logger)
+	})
 
 	// wait until we actually fetch data from db
 	ready.Wait()
 
 	p.running = true
 	return nil
-}
-
-// Status returns list of statuses
-func (p *profiler) Status() map[string]string {
-	p.RLock()
-	defer p.RUnlock()
-	if !p.running {
-		return nil
-	}
-
-	statuses := &sync.Map{}
-	monitors := p.monitors.GetAll()
-
-	wg := &sync.WaitGroup{}
-	wg.Add(len(monitors))
-	for dbName, m := range monitors {
-		go func(dbName string, m *monitor) {
-			defer wg.Done()
-			for k, v := range m.Status() {
-				key := fmt.Sprintf("%s-%s", k, dbName)
-				statuses.Store(key, v)
-			}
-		}(dbName, m)
-	}
-
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		for k, v := range p.aggregator.Status() {
-			key := fmt.Sprintf("%s-%s", "aggregator", k)
-			statuses.Store(key, v)
-		}
-	}()
-
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		for k, v := range p.sender.Status() {
-			key := fmt.Sprintf("%s-%s", "sender", k)
-			statuses.Store(key, v)
-		}
-	}()
-
-	wg.Wait()
-
-	statusesMap := map[string]string{}
-	statuses.Range(func(key, value interface{}) bool {
-		statusesMap[key.(string)] = value.(string)
-		return true
-	})
-	return statusesMap
 }
 
 // Stop stops running analyzer, waits until it stops
@@ -235,14 +189,15 @@ func signalReady(ready *sync.Cond) {
 	ready.Broadcast()
 }
 
-func createSession(dsn string) (*mongo.Client, error) {
+func createSession(dsn string, agentID string) (*mongo.Client, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), MgoTimeoutDialInfo)
 	defer cancel()
 	opts := options.Client().
 		ApplyURI(dsn).
 		SetDirect(true).
 		SetReadPreference(readpref.Nearest()).
-		SetSocketTimeout(MgoTimeoutSessionSocket)
+		SetSocketTimeout(MgoTimeoutSessionSocket).
+		SetAppName(fmt.Sprintf("QAN-mongodb-profiler-%s", agentID))
 
 	client, err := mongo.Connect(ctx, opts)
 	if err != nil {

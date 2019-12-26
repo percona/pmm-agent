@@ -16,7 +16,6 @@
 package profiler
 
 import (
-	"fmt"
 	"sync"
 
 	"github.com/sirupsen/logrus"
@@ -80,7 +79,7 @@ func (m *monitor) Start() error {
 	m.services = append(m.services, c)
 
 	// create parser and start it
-	p := parser.New(docsChan, m.aggregator)
+	p := parser.New(docsChan, m.aggregator, m.logger)
 	err = p.Start()
 	if err != nil {
 		return err
@@ -107,37 +106,7 @@ func (m *monitor) Stop() {
 	m.running = false
 }
 
-// Status returns list of statuses
-func (m *monitor) Status() map[string]string {
-	m.RLock()
-	defer m.RUnlock()
-
-	statuses := &sync.Map{}
-
-	wg := &sync.WaitGroup{}
-	wg.Add(len(m.services))
-	for _, s := range m.services {
-		go func(s services) {
-			defer wg.Done()
-			for k, v := range s.Status() {
-				key := fmt.Sprintf("%s-%s", s.Name(), k)
-				statuses.Store(key, v)
-			}
-		}(s)
-	}
-	wg.Wait()
-
-	statusesMap := map[string]string{}
-	statuses.Range(func(key, value interface{}) bool {
-		statusesMap[key.(string)] = value.(string)
-		return true
-	})
-
-	return statusesMap
-}
-
 type services interface {
-	Status() map[string]string
 	Stop()
 	Name() string
 }

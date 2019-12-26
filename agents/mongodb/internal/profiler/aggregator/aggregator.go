@@ -16,7 +16,9 @@
 package aggregator
 
 import (
+	"context"
 	"fmt"
+	"runtime/pprof"
 	"strings"
 	"sync"
 	"time"
@@ -29,7 +31,6 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"github.com/percona/pmm-agent/agents/mongodb/internal/report"
-	"github.com/percona/pmm-agent/agents/mongodb/internal/status"
 )
 
 var DefaultInterval = time.Duration(time.Minute)
@@ -62,10 +63,6 @@ type Aggregator struct {
 	agentID string
 	logger  *logrus.Entry
 
-	// status
-	status *status.Status
-	stats  *stats
-
 	// provides
 	reportChan chan *report.Report
 
@@ -94,12 +91,6 @@ func (a *Aggregator) Add(doc proto.SystemProfile) error {
 
 	ts := doc.Ts.UTC()
 
-	// skip old metrics
-	if ts.Before(a.timeStart) {
-		a.stats.DocsSkippedOld += 1
-		return nil
-	}
-
 	// if new doc is outside of interval then finish old interval and flush it
 	if !ts.Before(a.timeEnd) {
 		a.flush(ts)
@@ -109,7 +100,6 @@ func (a *Aggregator) Add(doc proto.SystemProfile) error {
 	a.t.Reset(a.d)
 
 	// add new doc to stats
-	a.stats.DocsIn += 1
 	return a.mongostats.Add(doc)
 }
 
@@ -127,10 +117,6 @@ func (a *Aggregator) Start() <-chan *report.Report {
 	// ... inside goroutine to close it
 	a.doneChan = make(chan struct{})
 
-	// set status
-	a.stats = &stats{}
-	a.status = status.New(a.stats)
-
 	// timeout after not receiving data for interval time
 	a.t = time.NewTimer(a.d)
 
@@ -138,7 +124,12 @@ func (a *Aggregator) Start() <-chan *report.Report {
 	// so we could later Wait() for it to finish
 	a.wg = &sync.WaitGroup{}
 	a.wg.Add(1)
-	go start(a.wg, a, a.doneChan, a.stats)
+
+	ctx := context.Background()
+	labels := pprof.Labels("component", "mongodb.aggregator")
+	pprof.Do(ctx, labels, func(ctx context.Context) {
+		go start(a.wg, a, a.doneChan)
+	})
 
 	a.running = true
 	return a.reportChan
@@ -162,23 +153,9 @@ func (a *Aggregator) Stop() {
 	close(a.reportChan)
 }
 
-func (a *Aggregator) Status() map[string]string {
-	a.RLock()
-	defer a.RUnlock()
-	if !a.running {
-		return nil
-	}
-
-	return a.status.Map()
-}
-
-func start(wg *sync.WaitGroup, aggregator *Aggregator, doneChan <-chan struct{}, stats *stats) {
+func start(wg *sync.WaitGroup, aggregator *Aggregator, doneChan <-chan struct{}) {
 	// signal WaitGroup when goroutine finished
 	defer wg.Done()
-
-	// update stats
-	stats.IntervalStart = aggregator.TimeStart().Format("2006-01-02 15:04:05")
-	stats.IntervalEnd = aggregator.TimeEnd().Format("2006-01-02 15:04:05")
 	for {
 		select {
 		case <-aggregator.t.C:
@@ -208,7 +185,6 @@ func (a *Aggregator) flush(ts time.Time) {
 	if r != nil {
 		a.logger.Tracef("Sending report to reportChan:\n %v", r)
 		a.reportChan <- r
-		a.stats.ReportsOut += 1
 	}
 }
 
