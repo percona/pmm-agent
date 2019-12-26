@@ -47,7 +47,10 @@ func TestProfiler(t *testing.T) {
 	err = sess.Database("test").Drop(context.TODO())
 	require.NoError(t, err)
 
-	ms := &testWriter{t: t}
+	ms := &testWriter{
+		t:       t,
+		reports: make([]*report.Report, 0),
+	}
 	prof := New(url, logrus.WithField("component", "profiler-test"), ms, "test-id")
 	err = prof.Start()
 	defer prof.Stop()
@@ -78,10 +81,13 @@ func TestProfiler(t *testing.T) {
 	fmt.Printf("default interval: %v\n", aggregator.DefaultInterval)
 	err = prof.Stop()
 	require.NoError(t, err)
+
+	pretty.Println(ms.reports)
 }
 
 type testWriter struct {
-	t *testing.T
+	t       *testing.T
+	reports []*report.Report
 }
 
 func (tw *testWriter) Write(actual *report.Report) error {
@@ -104,9 +110,7 @@ func (tw *testWriter) Write(actual *report.Report) error {
 		},
 	}
 
-	fmt.Println("====================================================================================================")
-	pretty.Println(actual.Buckets)
-	fmt.Println("====================================================================================================")
 	assert.Equal(tw.t, expected, actual.Buckets[0])
+	tw.reports = append(tw.reports, actual)
 	return nil
 }
