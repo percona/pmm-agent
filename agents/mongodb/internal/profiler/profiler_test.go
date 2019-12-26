@@ -17,9 +17,12 @@ package profiler
 
 import (
 	"context"
+	"fmt"
+	"sync"
 	"testing"
 	"time"
 
+	"github.com/kr/pretty"
 	"github.com/percona/pmm/api/agentpb"
 	"github.com/percona/pmm/api/inventorypb"
 	"github.com/sirupsen/logrus"
@@ -33,7 +36,7 @@ import (
 
 func TestProfiler(t *testing.T) {
 	defaultInterval := aggregator.DefaultInterval
-	aggregator.DefaultInterval = time.Duration(time.Second)
+	aggregator.DefaultInterval = time.Duration(time.Second * 30)
 	defer func() { aggregator.DefaultInterval = defaultInterval }()
 
 	url := "mongodb://root:root-password@127.0.0.1:27017"
@@ -49,12 +52,30 @@ func TestProfiler(t *testing.T) {
 	err = prof.Start()
 	defer prof.Stop()
 	require.NoError(t, err)
-	data := []interface{}{bson.M{"name": "Anton"}, bson.M{"name": "Alexey"}}
-	_, err = sess.Database("test").Collection("peoples").InsertMany(context.TODO(), data)
-	assert.NoError(t, err)
+
+	wg := &sync.WaitGroup{}
+	wg.Add(1)
+	go func() {
+		ticker := time.NewTicker(time.Millisecond * 100)
+		i := 0
+		for i < int(aggregator.DefaultInterval*10) {
+			fieldsCount := int(i/10) + 1
+			doc := bson.M{}
+			for j := 0; j < fieldsCount; j++ {
+				doc[fmt.Sprintf("name_%05d", j)] = fmt.Sprintf("value_%05d", j)
+			}
+			<-ticker.C
+			_, err = sess.Database("test").Collection("peoples").InsertOne(context.TODO(), doc)
+			i++
+		}
+		wg.Done()
+	}()
+
+	//assert.NoError(t, err)
 
 	<-time.After(aggregator.DefaultInterval)
 
+	fmt.Printf("default interval: %v\n", aggregator.DefaultInterval)
 	err = prof.Stop()
 	require.NoError(t, err)
 }
@@ -83,6 +104,9 @@ func (tw *testWriter) Write(actual *report.Report) error {
 		},
 	}
 
+	fmt.Println("====================================================================================================")
+	pretty.Println(actual.Buckets)
+	fmt.Println("====================================================================================================")
 	assert.Equal(tw.t, expected, actual.Buckets[0])
 	return nil
 }
