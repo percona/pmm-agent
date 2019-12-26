@@ -85,14 +85,6 @@
   version = "v1.1.1"
 
 [[projects]]
-  digest = "1:aa3ed0a71c4e66e4ae6486bf97a3f4cab28edc78df2e50c5ad01dc7d91604b88"
-  name = "github.com/fatih/structs"
-  packages = ["."]
-  pruneopts = "NUT"
-  revision = "4966fc68f5b7593aafa6cbbba2d65ec6e1416047"
-  version = "v1.1.0"
-
-[[projects]]
   digest = "1:b207f23640c59caf8516c3aa739bd5e92212e1c36ef513016782ab5d6b6918e2"
   name = "github.com/go-openapi/analysis"
   packages = [
@@ -762,7 +754,6 @@
     "github.com/AlekSi/pointer",
     "github.com/BurntSushi/go-sumtype",
     "github.com/davecgh/go-spew/spew",
-    "github.com/fatih/structs",
     "github.com/go-openapi/runtime",
     "github.com/go-openapi/runtime/client",
     "github.com/go-sql-driver/mysql",
