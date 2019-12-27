@@ -15,8 +15,232 @@
 
 package collector
 
-import "testing"
+import (
+	"context"
+	"fmt"
+	"strings"
+	"sync"
+	"testing"
+	"time"
+
+	"github.com/percona/percona-toolkit/src/go/mongolib/proto"
+	"github.com/sirupsen/logrus"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
+	"go.mongodb.org/mongo-driver/mongo/readpref"
+)
+
+const (
+	MgoTimeoutDialInfo      = 5 * time.Second
+	MgoTimeoutSessionSync   = 5 * time.Second
+	MgoTimeoutSessionSocket = 5 * time.Second
+)
+
+type ProfilerStatus struct {
+	Was      int64 `bson:"was"`
+	SlowMs   int64 `bson:"slowms"`
+	GleStats struct {
+		ElectionID string `bson:"electionId"`
+		LastOpTime int64  `bson:"lastOpTime"`
+	} `bson:"$gleStats"`
+}
+
+func BenchmarkCollector(b *testing.B) {
+	maxLoops := 3
+	maxDocs := 100
+
+	originalCursorTimeout := cursorTimeout
+	cursorTimeout = time.Duration(maxDocs)*time.Millisecond + 100*time.Millisecond
+	defer func() {
+		cursorTimeout = originalCursorTimeout
+	}()
+
+	timeout := time.Millisecond*time.Duration(maxDocs*maxLoops) + cursorTimeout*time.Duration(maxLoops*2) + time.Second
+
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	url := "mongodb://root:root-password@127.0.0.1:27017"
+	// time.Millisecond*time.Duration(maxDocs*maxLoops): time it takes to write all docs for all iterations
+	// cursorTimeout*time.Duration(maxLoops*2): Wait time between loops to produce iter.TryNext to return a false
+
+	client, err := createSession(url, "pmm-agent")
+	if err != nil {
+		return
+	}
+
+	cleanUpDBs(client) // Just in case there are old dbs with matching names
+	defer cleanUpDBs(client)
+
+	ps := ProfilerStatus{}
+	err = client.Database("admin").RunCommand(ctx, primitive.M{"profile": -1}).Decode(&ps)
+	defer func() { // restore profiler status
+		client.Database("admin").RunCommand(ctx, primitive.D{{"profile", ps.Was}, {"slowms", ps.SlowMs}})
+	}()
+
+	// Enable profilling all queries (2, slowms = 0)
+	res := client.Database("admin").RunCommand(ctx, primitive.D{{"profile", 2}, {"slowms", 0}})
+	if res.Err() != nil {
+		return
+	}
+
+	for n := 0; n < b.N; n++ {
+		ctr := New(client, "test", logrus.WithField("component", "profiler-test"))
+		wg := &sync.WaitGroup{}
+		wg.Add(1)
+		go genData(ctx, client, maxLoops, maxDocs)
+
+		profiles := make([]proto.SystemProfile, 0)
+		docsChan, err := ctr.Start()
+		if err != nil {
+			return
+		}
+
+		go func() {
+			i := 0
+			for profile := range docsChan {
+				profiles = append(profiles, profile)
+				i++
+				if i >= 300 {
+					wg.Done()
+				}
+			}
+		}()
+		wg.Wait()
+		ctr.Stop()
+	}
+
+	cancel()
+}
 
 func TestCollector(t *testing.T) {
-	// we need at least one test per package to correctly calculate coverage
+	maxLoops := 3
+	maxDocs := 100
+
+	originalCursorTimeout := cursorTimeout
+	cursorTimeout = time.Duration(maxDocs)*time.Millisecond + 100*time.Millisecond
+	defer func() {
+		cursorTimeout = originalCursorTimeout
+	}()
+
+	url := "mongodb://root:root-password@127.0.0.1:27017"
+	// time.Millisecond*time.Duration(maxDocs*maxLoops): time it takes to write all docs for all iterations
+	// cursorTimeout*time.Duration(maxLoops*2): Wait time between loops to produce iter.TryNext to return a false
+	timeout := time.Millisecond*time.Duration(maxDocs*maxLoops) + cursorTimeout*time.Duration(maxLoops*2) + 3*time.Second
+
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	client, err := createSession(url, "pmm-agent")
+	require.NoError(t, err)
+
+	cleanUpDBs(client) // Just in case there are old dbs with matching names
+	defer cleanUpDBs(client)
+
+	ctr := New(client, "test", logrus.WithField("component", "profiler-test"))
+
+	// Save current profiler status
+	ps := ProfilerStatus{}
+	err = client.Database("admin").RunCommand(ctx, primitive.M{"profile": -1}).Decode(&ps)
+	require.NoError(t, err, "Cannot get profiler status")
+	defer func() { // restore profiler status
+		res := client.Database("admin").RunCommand(ctx, primitive.D{{"profile", ps.Was}})
+		require.NoError(t, res.Err())
+	}()
+
+	// Enable profilling all queries (2, slowms = 0)
+	res := client.Database("admin").RunCommand(ctx, primitive.D{{"profile", 2}, {"slowms", 0}})
+	require.NoError(t, res.Err())
+
+	go genData(ctx, client, maxLoops, maxDocs)
+
+	// Start the collector
+	profiles := make([]proto.SystemProfile, 0)
+	docsChan, err := ctr.Start()
+	wg := &sync.WaitGroup{}
+	wg.Add(1)
+
+	go func() {
+		defer wg.Done()
+		i := 0
+		for profile := range docsChan {
+			select {
+			case <-ctx.Done():
+				return
+			default:
+			}
+			profiles = append(profiles, profile)
+			i++
+			if i >= 300 {
+				return
+			}
+		}
+	}()
+
+	wg.Wait()
+
+	assert.Equal(t, maxDocs*maxLoops, len(profiles))
+}
+
+func genData(ctx context.Context, client *mongo.Client, maxLoops, maxDocs int) {
+	interval := time.Millisecond
+
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+
+	for j := 0; j < maxLoops; j++ {
+		select {
+		case <-ctx.Done():
+			return
+		default:
+		}
+
+		for i := 0; i < maxDocs; i++ {
+			select {
+			case <-ticker.C:
+				doc := bson.M{"firt_name": "zapp", "last_name": "brannigan"}
+				client.Database("test").Collection("people").InsertOne(context.TODO(), doc)
+			case <-ctx.Done():
+				return
+			}
+		}
+
+		<-time.After(2 * cursorTimeout)
+	}
+}
+
+func createSession(dsn string, agentID string) (*mongo.Client, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), MgoTimeoutDialInfo)
+	defer cancel()
+
+	opts := options.Client().
+		ApplyURI(dsn).
+		SetDirect(true).
+		SetReadPreference(readpref.Nearest()).
+		SetSocketTimeout(MgoTimeoutSessionSocket).
+		SetAppName(fmt.Sprintf("QAN-mongodb-profiler-%s", agentID))
+
+	client, err := mongo.Connect(ctx, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	return client, nil
+}
+
+func cleanUpDBs(sess *mongo.Client) error {
+	dbs, err := sess.ListDatabaseNames(context.TODO(), bson.M{})
+	if err != nil {
+		return err
+	}
+	for _, dbname := range dbs {
+		if strings.HasPrefix("test_", dbname) {
+			err = sess.Database(dbname).Drop(context.TODO())
+		}
+	}
+	return nil
 }

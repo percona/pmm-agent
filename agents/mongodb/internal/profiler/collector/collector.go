@@ -32,6 +32,10 @@ const (
 	MgoTimeoutTail = 1 * time.Second
 )
 
+var (
+	cursorTimeout = 3 * time.Second
+)
+
 // New creates new Collector.
 func New(client *mongo.Client, dbName string, logger *logrus.Entry) *Collector {
 	return &Collector{
@@ -169,7 +173,7 @@ func connectAndCollect(client *mongo.Client, dbName string, docsChan chan<- prot
 	collection := client.Database(dbName).Collection("system.profile")
 	query := createQuery(dbName, startTime, endTime)
 
-	timeoutCtx, cancel := context.WithTimeout(context.TODO(), 3*time.Second)
+	timeoutCtx, cancel := context.WithTimeout(context.TODO(), cursorTimeout)
 	defer cancel()
 	cursor, err := createIterator(timeoutCtx, collection, query)
 	if err != nil {
@@ -189,6 +193,7 @@ func connectAndCollect(client *mongo.Client, dbName string, docsChan chan<- prot
 	default:
 		// just continue if not
 	}
+
 	for cursor.TryNext(timeoutCtx) {
 		doc := proto.SystemProfile{}
 		e := cursor.Decode(&doc)
