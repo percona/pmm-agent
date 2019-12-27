@@ -18,34 +18,34 @@ package profiler
 import (
 	"context"
 	"fmt"
-	"sync"
+	"sort"
+	"strings"
 	"testing"
 	"time"
 
-	"github.com/kr/pretty"
-	"github.com/percona/pmm/api/agentpb"
-	"github.com/percona/pmm/api/inventorypb"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
 
 	"github.com/percona/pmm-agent/agents/mongodb/internal/profiler/aggregator"
 	"github.com/percona/pmm-agent/agents/mongodb/internal/report"
+	"github.com/percona/pmm/api/agentpb"
+	"github.com/percona/pmm/api/inventorypb"
 )
 
 func TestProfiler(t *testing.T) {
 	defaultInterval := aggregator.DefaultInterval
-	aggregator.DefaultInterval = time.Duration(time.Second * 30)
+	aggregator.DefaultInterval = time.Duration(time.Second)
 	defer func() { aggregator.DefaultInterval = defaultInterval }()
 
 	url := "mongodb://root:root-password@127.0.0.1:27017"
 
-	sess, err := createSession(url, "pmm-server")
+	sess, err := createSession(url, "pmm-agent")
 	require.NoError(t, err)
 
-	err = sess.Database("test").Drop(context.TODO())
-	require.NoError(t, err)
+	cleanUpDBs(t, sess) // Just in case there are old dbs with matching names
 
 	ms := &testWriter{
 		t:       t,
@@ -56,33 +56,56 @@ func TestProfiler(t *testing.T) {
 	defer prof.Stop()
 	require.NoError(t, err)
 
-	wg := &sync.WaitGroup{}
-	wg.Add(1)
-	go func() {
-		ticker := time.NewTicker(time.Millisecond * 100)
-		i := 0
-		for i < int(aggregator.DefaultInterval*10) {
-			fieldsCount := int(i/10) + 1
-			doc := bson.M{}
-			for j := 0; j < fieldsCount; j++ {
-				doc[fmt.Sprintf("name_%05d", j)] = fmt.Sprintf("value_%05d", j)
-			}
-			<-ticker.C
-			_, err = sess.Database("test").Collection("peoples").InsertOne(context.TODO(), doc)
-			i++
+	ticker := time.NewTicker(time.Millisecond * 1)
+	i := 0
+	for i < 300 {
+		<-ticker.C
+		fieldsCount := int(i/10) + 1
+		doc := bson.M{}
+		for j := 0; j < fieldsCount; j++ {
+			doc[fmt.Sprintf("name_%05d", j)] = fmt.Sprintf("value_%05d", j) // to generate different fingerprints
 		}
-		wg.Done()
-	}()
+		_, err = sess.Database(fmt.Sprintf("test_%02d", int(i/10))).Collection("people").InsertOne(context.TODO(), doc)
+		i++
+	}
+	<-time.After(aggregator.DefaultInterval * 2) // give it some time to catch all metrics
 
-	//assert.NoError(t, err)
-
-	<-time.After(aggregator.DefaultInterval)
-
-	fmt.Printf("default interval: %v\n", aggregator.DefaultInterval)
 	err = prof.Stop()
 	require.NoError(t, err)
 
-	pretty.Println(ms.reports)
+	cleanUpDBs(t, sess)
+
+	buckets := ms.reports[0].Buckets
+	sort.Slice(buckets, func(i, j int) bool { return buckets[i].Common.Database < buckets[j].Common.Database })
+
+	assert.Equal(t, len(buckets), 30) // 300 sample docs / 10 = different database names
+	for i := 0; i < 30; i++ {
+		assert.Equal(t, fmt.Sprintf("test_%02d", i), buckets[i].Common.Database)
+		assert.Equal(t, "INSERT people", buckets[i].Common.Fingerprint)
+		assert.Equal(t, []string{"people"}, buckets[i].Common.Tables)
+		assert.Equal(t, "test-id", buckets[i].Common.AgentId)
+		assert.Equal(t, inventorypb.AgentType(9), buckets[i].Common.AgentType)
+		wantMongoDB := &agentpb.MetricsBucket_MongoDB{
+			MDocsReturnedCnt:   10,
+			MResponseLengthCnt: 10,
+			MResponseLengthSum: 450,
+			MResponseLengthMin: 45,
+			MResponseLengthMax: 45,
+			MResponseLengthP99: 45,
+			MDocsScannedCnt:    10,
+		}
+		assert.Equal(t, wantMongoDB, buckets[i].Mongodb)
+	}
+}
+
+func cleanUpDBs(t *testing.T, sess *mongo.Client) {
+	dbs, err := sess.ListDatabaseNames(context.TODO(), bson.M{})
+	for _, dbname := range dbs {
+		if strings.HasPrefix("test_", dbname) {
+			err = sess.Database(dbname).Drop(context.TODO())
+			require.NoError(t, err)
+		}
+	}
 }
 
 type testWriter struct {
@@ -92,25 +115,6 @@ type testWriter struct {
 
 func (tw *testWriter) Write(actual *report.Report) error {
 	require.NotNil(tw.t, actual)
-	assert.Equal(tw.t, 1, len(actual.Buckets))
-
-	expected := &agentpb.MetricsBucket{
-		Common: &agentpb.MetricsBucket_Common{
-			Fingerprint: "INSERT peoples",
-			Database:    "test",
-			Schema:      "peoples",
-			AgentId:     "test-id",
-			AgentType:   inventorypb.AgentType_QAN_MONGODB_PROFILER_AGENT,
-			NumQueries:  1,
-		},
-		Mongodb: &agentpb.MetricsBucket_MongoDB{
-			MResponseLengthSum: 60,
-			MResponseLengthMin: 60,
-			MResponseLengthMax: 60,
-		},
-	}
-
-	assert.Equal(tw.t, expected, actual.Buckets[0])
 	tw.reports = append(tw.reports, actual)
 	return nil
 }
