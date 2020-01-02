@@ -89,6 +89,7 @@ func (c *Collector) Start() (<-chan proto.SystemProfile, error) {
 	labels := pprof.Labels("component", "mongodb.aggregator")
 	pprof.Do(ctx, labels, func(ctx context.Context) {
 		go start(
+			ctx,
 			c.wg,
 			c.client,
 			c.dbName,
@@ -103,6 +104,7 @@ func (c *Collector) Start() (<-chan proto.SystemProfile, error) {
 	ready.Wait()
 
 	c.running = true
+
 	return c.docsChan, nil
 }
 
@@ -110,27 +112,23 @@ func (c *Collector) Start() (<-chan proto.SystemProfile, error) {
 func (c *Collector) Stop() {
 	c.m.Lock()
 	defer c.m.Unlock()
+
 	if !c.running {
 		return
 	}
+
 	c.running = false
-
-	// notify goroutine to close
-	close(c.doneChan)
-
-	// wait for goroutines to exit
-	c.wg.Wait()
-
-	// we can now safely close channels goroutines write to as goroutine is stopped
-	close(c.docsChan)
-	return
+	close(c.doneChan) // notify goroutine to close
+	c.wg.Wait()       // wait for goroutines to exit
+	close(c.docsChan) // we can now safely close channels goroutines write to as goroutine is stopped
 }
 
 func (c *Collector) Name() string {
 	return "collector"
 }
 
-func start(wg *sync.WaitGroup, client *mongo.Client, dbName string, docsChan chan<- proto.SystemProfile, doneChan <-chan struct{}, ready *sync.Cond, logger *logrus.Entry) { //nolint: lll
+func start(ctx context.Context, wg *sync.WaitGroup, client *mongo.Client, dbName string,
+	docsChan chan<- proto.SystemProfile, doneChan <-chan struct{}, ready *sync.Cond, logger *logrus.Entry) {
 	// signal WaitGroup when goroutine finished
 	defer wg.Done()
 
@@ -140,6 +138,7 @@ func start(wg *sync.WaitGroup, client *mongo.Client, dbName string, docsChan cha
 		now := time.Now()
 		// make a connection and collect data
 		connectAndCollect(
+			ctx,
 			client,
 			dbName,
 			docsChan,
@@ -153,6 +152,8 @@ func start(wg *sync.WaitGroup, client *mongo.Client, dbName string, docsChan cha
 
 		select {
 		// check if we should shutdown
+		case <-ctx.Done():
+			return
 		case <-doneChan:
 			return
 		// wait some time before reconnecting
@@ -168,7 +169,7 @@ func start(wg *sync.WaitGroup, client *mongo.Client, dbName string, docsChan cha
 	}
 }
 
-func connectAndCollect(client *mongo.Client, dbName string, docsChan chan<- proto.SystemProfile, doneChan <-chan struct{}, ready *sync.Cond, logger *logrus.Entry, startTime, endTime time.Time) { //nolint: lll
+func connectAndCollect(ctx context.Context, client *mongo.Client, dbName string, docsChan chan<- proto.SystemProfile, doneChan <-chan struct{}, ready *sync.Cond, logger *logrus.Entry, startTime, endTime time.Time) { //nolint: lll
 	logger.Traceln("connect and collect is called")
 	collection := client.Database(dbName).Collection("system.profile")
 	query := createQuery(dbName, startTime, endTime)
@@ -188,6 +189,8 @@ func connectAndCollect(client *mongo.Client, dbName string, docsChan chan<- prot
 
 	// check if we should shutdown
 	select {
+	case <-ctx.Done():
+		return
 	case <-doneChan:
 		return
 	default:
@@ -204,6 +207,8 @@ func connectAndCollect(client *mongo.Client, dbName string, docsChan chan<- prot
 
 		// check if we should shutdown
 		select {
+		case <-ctx.Done():
+			return
 		case <-doneChan:
 			return
 		default:
