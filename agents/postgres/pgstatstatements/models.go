@@ -79,6 +79,7 @@ type pgStatStatementsExtended struct {
 
 func (e *pgStatStatementsExtended) String() string {
 	s := strconv.FormatInt(e.pgStatStatements.QueryID, 10) + ": " + e.pgStatStatements.Query
+
 	if e.Database == nil && e.Username == nil && e.Tables == nil {
 		return s
 	}
