@@ -44,9 +44,22 @@ func getStatStatementsExtended(q *reform.Querier) (map[int64]*pgStatStatementsEx
 type statStatementCache struct {
 	retain time.Duration
 
-	rw    sync.RWMutex
-	items map[int64]*pgStatStatementsExtended
-	added map[int64]time.Time
+	rw       sync.RWMutex
+	items    map[int64]*pgStatStatementsExtended
+	added    map[int64]time.Time
+	addedN   uint
+	updatedN uint
+	removedN uint
+}
+
+// statStatementCacheStats contains statStatementCache statistics.
+type statStatementCacheStats struct {
+	current  uint
+	oldest   time.Time
+	newest   time.Time
+	addedN   uint
+	updatedN uint
+	removedN uint
 }
 
 // newStatStatementCache creates new statStatementCache.
@@ -55,6 +68,32 @@ func newStatStatementCache(retain time.Duration) *statStatementCache {
 		retain: retain,
 		items:  make(map[int64]*pgStatStatementsExtended),
 		added:  make(map[int64]time.Time),
+	}
+}
+
+// stats returns statStatementCache statistics.
+func (c *statStatementCache) stats() statStatementCacheStats {
+	c.rw.RLock()
+	defer c.rw.RUnlock()
+
+	oldest := time.Now().Add(retainStatStatements)
+	var newest time.Time
+	for _, t := range c.added {
+		if oldest.After(t) {
+			oldest = t
+		}
+		if newest.Before(t) {
+			newest = t
+		}
+	}
+
+	return statStatementCacheStats{
+		current:  uint(len(c.added)),
+		oldest:   oldest,
+		newest:   newest,
+		addedN:   c.addedN,
+		updatedN: c.updatedN,
+		removedN: c.removedN,
 	}
 }
 
@@ -79,12 +118,18 @@ func (c *statStatementCache) refresh(current map[int64]*pgStatStatementsExtended
 
 	for k, t := range c.added {
 		if now.Sub(t) > c.retain {
+			c.removedN++
 			delete(c.items, k)
 			delete(c.added, k)
 		}
 	}
 
 	for k, v := range current {
+		if _, ok := c.items[k]; ok {
+			c.updatedN++
+		} else {
+			c.addedN++
+		}
 		c.items[k] = v
 		c.added[k] = now
 	}
