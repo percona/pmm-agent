@@ -17,6 +17,7 @@ package trim
 
 var maxQueryLength = 1024
 
+// Query limits passed query string to 1024 Unicode runes, trimming it if necessary.
 func Query(query string) string {
 	runes := []rune(query)
 	if len(runes) <= maxQueryLength {
