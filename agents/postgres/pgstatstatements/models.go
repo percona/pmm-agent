@@ -17,6 +17,7 @@ package pgstatstatements
 
 import (
 	"fmt"
+	"strconv"
 
 	"github.com/AlekSi/pointer"
 )
@@ -84,8 +85,11 @@ type pgStatStatementsExtended struct {
 }
 
 func (e *pgStatStatementsExtended) String() string {
-	return fmt.Sprintf("%q %q %v: %d %s",
-		pointer.GetString(e.Database), pointer.GetString(e.Username), e.Tables,
-		pointer.GetInt64(e.pgStatStatements.QueryID), trimQuery(pointer.GetString(e.pgStatStatements.Query)),
-	)
+	s := strconv.FormatInt(pointer.GetInt64(e.pgStatStatements.QueryID), 10) +
+		" " + trimQuery(pointer.GetString(e.pgStatStatements.Query))
+	if e.Database == nil && e.Username == nil && e.Tables == nil {
+		return s
+	}
+
+	return fmt.Sprintf("%q %q %v: %s", pointer.GetString(e.Database), pointer.GetString(e.Username), e.Tables, s)
 }
