@@ -16,6 +16,7 @@
 package pgstatstatements
 
 import (
+	"fmt"
 	"sync"
 	"time"
 
@@ -47,19 +48,26 @@ type statStatementCache struct {
 	rw       sync.RWMutex
 	items    map[int64]*pgStatStatementsExtended
 	added    map[int64]time.Time
-	addedN   uint
 	updatedN uint
+	addedN   uint
 	removedN uint
 }
 
 // statStatementCacheStats contains statStatementCache statistics.
 type statStatementCacheStats struct {
 	current  uint
+	updatedN uint
+	addedN   uint
+	removedN uint
 	oldest   time.Time
 	newest   time.Time
-	addedN   uint
-	updatedN uint
-	removedN uint
+}
+
+func (s statStatementCacheStats) String() string {
+	d := s.newest.Sub(s.oldest)
+	return fmt.Sprintf("current=%d: updated=%d added=%d removed=%d; %s - %s (%s)",
+		s.current, s.updatedN, s.addedN, s.removedN,
+		s.oldest.UTC().Format("2006-01-02T15:04:05Z"), s.newest.UTC().Format("2006-01-02T15:04:05Z"), d)
 }
 
 // newStatStatementCache creates new statStatementCache.
@@ -89,11 +97,11 @@ func (c *statStatementCache) stats() statStatementCacheStats {
 
 	return statStatementCacheStats{
 		current:  uint(len(c.added)),
+		updatedN: c.updatedN,
+		addedN:   c.addedN,
+		removedN: c.removedN,
 		oldest:   oldest,
 		newest:   newest,
-		addedN:   c.addedN,
-		updatedN: c.updatedN,
-		removedN: c.removedN,
 	}
 }
 
