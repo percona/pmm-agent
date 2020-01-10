@@ -34,6 +34,7 @@ import (
 
 	"github.com/percona/pmm-agent/agents"
 	"github.com/percona/pmm-agent/agents/postgres/parser"
+	"github.com/percona/pmm-agent/utils/trim"
 )
 
 const (
@@ -262,16 +263,16 @@ func makeBuckets(q *reform.Querier, current, prev map[int64]*pgStatStatementsExt
 
 func getTables(query string, prevSS *pgStatStatementsExtended, l *logrus.Entry) []string {
 	if prevSS.Tables != nil {
-		l.Tracef("Re-using extracted table names %v for query: %s.", prevSS.Tables, trimQuery(query))
+		l.Tracef("Re-using extracted table names %v for query: %s.", prevSS.Tables, trim.Query(query))
 		return prevSS.Tables
 	}
 
 	tables, err := parser.ExtractTables(query)
 	if err != nil {
-		l.Warnf("Can't extract table names for query: %s.", trimQuery(query))
+		l.Warnf("Can't extract table names for query: %s.", trim.Query(query))
 		return []string{} // non-nil
 	}
-	l.Debugf("Extracted table names %v from query: %s.", tables, trimQuery(query))
+	l.Debugf("Extracted table names %v from query: %s.", tables, trim.Query(query))
 	return tables
 }
 

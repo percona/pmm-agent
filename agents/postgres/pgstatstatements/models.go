@@ -24,13 +24,6 @@ import (
 
 //go:generate reform
 
-func trimQuery(query string) string {
-	if len(query) <= 50 {
-		return query
-	}
-	return fmt.Sprintf("%s[... %d chars ...]%s", query[:25], len(query)-50, query[len(query)-25:])
-}
-
 // pgStatDatabase represents a row in pg_stat_database view.
 //reform:pg_catalog.pg_stat_database
 type pgStatDatabase struct {
@@ -85,8 +78,7 @@ type pgStatStatementsExtended struct {
 }
 
 func (e *pgStatStatementsExtended) String() string {
-	s := strconv.FormatInt(e.pgStatStatements.QueryID, 10) +
-		" " + trimQuery(e.pgStatStatements.Query)
+	s := strconv.FormatInt(e.pgStatStatements.QueryID, 10) + ": " + e.pgStatStatements.Query
 	if e.Database == nil && e.Username == nil && e.Tables == nil {
 		return s
 	}
