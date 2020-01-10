@@ -182,15 +182,11 @@ func (m *PGStatStatementsQAN) getNewBuckets(periodStart time.Time, periodLengthS
 func makeBuckets(q *reform.Querier, current, prev map[int64]*pgStatStatementsExtended, l *logrus.Entry) []*agentpb.MetricsBucket {
 	res := make([]*agentpb.MetricsBucket, 0, len(current))
 
-	for queryID, currentPSSE := range current {
-		prevPSSE := prev[queryID]
-		if prevPSSE == nil {
-			prevPSSE = &pgStatStatementsExtended{
-				PgStatStatements: new(pgStatStatements),
-			}
+	for queryID, currentPSS := range current {
+		prevPSS := prev[queryID]
+		if prevPSS == nil {
+			prevPSS = new(pgStatStatementsExtended)
 		}
-		prevPSS := prevPSSE.PgStatStatements
-		currentPSS := currentPSSE.PgStatStatements
 		count := float32(currentPSS.Calls - prevPSS.Calls)
 		switch {
 		case count == 0:
@@ -202,22 +198,22 @@ func makeBuckets(q *reform.Querier, current, prev map[int64]*pgStatStatementsExt
 			continue
 		case count < 0:
 			l.Debugf("Truncate detected. Treating as a new query: %s.", currentPSS)
-			prevPSS = new(pgStatStatements)
+			prevPSS = new(pgStatStatementsExtended)
 			count = float32(currentPSS.Calls)
 		case prevPSS.Calls == 0:
 			l.Debugf("New query: %s.", currentPSS)
 		default:
 			l.Debugf("Normal query: %s.", currentPSS)
 		}
-		currentPSSE.Database = getDatabaseName(currentPSS.DBID, prevPSSE, q, l)
-		currentPSSE.Username = getUserName(currentPSS.UserID, prevPSSE, q, l)
-		currentPSSE.Tables = getTables(*currentPSS.Query, prevPSSE, l)
+		currentPSS.Database = getDatabaseName(currentPSS.DBID, prevPSS, q, l)
+		currentPSS.Username = getUserName(currentPSS.UserID, prevPSS, q, l)
+		currentPSS.Tables = getTables(*currentPSS.Query, prevPSS, l)
 
 		mb := &agentpb.MetricsBucket{
 			Common: &agentpb.MetricsBucket_Common{
-				Database:    pointer.GetString(currentPSSE.Database),
-				Tables:      currentPSSE.Tables,
-				Username:    pointer.GetString(currentPSSE.Username),
+				Database:    pointer.GetString(currentPSS.Database),
+				Tables:      currentPSS.Tables,
+				Username:    pointer.GetString(currentPSS.Username),
 				Queryid:     strconv.FormatInt(*currentPSS.QueryID, 10),
 				Fingerprint: *currentPSS.Query,
 				NumQueries:  count,

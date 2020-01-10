@@ -33,7 +33,7 @@ func getStatStatementsExtended(q *reform.Querier) (map[int64]*pgStatStatementsEx
 	for _, str := range structs {
 		pss := str.(*pgStatStatements)
 		res[*pss.QueryID] = &pgStatStatementsExtended{
-			PgStatStatements: pss,
+			pgStatStatements: *pss,
 		}
 	}
 	return res, nil

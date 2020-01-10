@@ -62,8 +62,10 @@ type pgStatStatements struct {
 // pgStatStatementsExtended contains pgStatStatements data and extends it with database, username and tables data.
 // It's made for performance reason.
 type pgStatStatementsExtended struct {
-	PgStatStatements *pgStatStatements
-	Database         *string
-	Username         *string
-	Tables           []string
+	pgStatStatements
+
+	// In those fields, nil means "not know yet", non-nil value (even if empty) means extraction was performed.
+	Database *string
+	Username *string
+	Tables   []string
 }
