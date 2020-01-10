@@ -33,7 +33,6 @@ func getStatStatementsExtended(q *reform.Querier) (map[int64]*pgStatStatementsEx
 	res := make(map[int64]*pgStatStatementsExtended, len(structs))
 	for _, str := range structs {
 		pss := str.(*pgStatStatements)
-		pss.Query = "" // FIXME HACK REMOVE
 		res[pss.QueryID] = &pgStatStatementsExtended{
 			pgStatStatements: *pss,
 		}
