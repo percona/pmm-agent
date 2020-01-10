@@ -24,8 +24,14 @@ import (
 	"github.com/pkg/errors"
 )
 
+var DebugExtractTables = true // FIXME HACK REMOVE
+
 // ExtractTables extracts table names from query.
 func ExtractTables(query string) (tables []string, err error) {
+	if !DebugExtractTables {
+		return []string{}, nil
+	}
+
 	defer func() {
 		if r := recover(); r != nil {
 			// preserve stack
