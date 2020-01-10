@@ -25,8 +25,7 @@ import (
 	"time"
 
 	"github.com/AlekSi/pointer"
-	_ "github.com/lfittl/pg_query_go" // just to test build
-	_ "github.com/lib/pq"             // register SQL driver
+	_ "github.com/lib/pq" // register SQL driver
 	"github.com/percona/pmm/api/agentpb"
 	"github.com/percona/pmm/api/inventorypb"
 	"github.com/sirupsen/logrus"
@@ -266,12 +265,16 @@ func makeBuckets(q *reform.Querier, current, prev map[int64]*pgStatStatementsExt
 
 func getTables(query string, prevSS *pgStatStatementsExtended, l *logrus.Entry) []string {
 	if prevSS.Tables != nil {
+		l.Tracef("Re-using extracted table names %v for query: %s.", prevSS.Tables, query)
 		return prevSS.Tables
 	}
+
 	tables, err := parser.ExtractTables(query)
 	if err != nil {
-		l.Warnf("Can't extract table names for query: %s", query)
+		l.Warnf("Can't extract table names for query: %s.", query)
+		return []string{} // non-nil
 	}
+	l.Debugf("Extracted table names %v from query: %s.", tables, query)
 	return tables
 }
 
@@ -279,10 +282,12 @@ func getUserName(userID int64, prevSS *pgStatStatementsExtended, q *reform.Queri
 	if prevSS.Username != nil {
 		return prevSS.Username
 	}
+
 	pgUser := &pgUser{UserID: userID}
 	err := q.FindOneTo(pgUser, "usesysid", userID)
 	if err != nil {
 		l.Warnf("Can't get username name for user: %d. %s", userID, err)
+		return pointer.ToString("") // non-nil
 	}
 	return pgUser.UserName
 }
@@ -291,10 +296,12 @@ func getDatabaseName(dbID int64, prevSS *pgStatStatementsExtended, q *reform.Que
 	if prevSS.Database != nil {
 		return prevSS.Database
 	}
+
 	pgStatDatabase := &pgStatDatabase{DatID: dbID}
 	err := q.FindOneTo(pgStatDatabase, "datid", dbID)
 	if err != nil {
 		l.Warnf("Can't get db name for db: %d. %s", dbID, err)
+		return pointer.ToString("") // non-nil
 	}
 	return pgStatDatabase.DatName
 }
