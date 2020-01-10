@@ -15,7 +15,20 @@
 
 package pgstatstatements
 
+import (
+	"fmt"
+
+	"github.com/AlekSi/pointer"
+)
+
 //go:generate reform
+
+func trimQuery(query string) string {
+	if len(query) <= 50 {
+		return query
+	}
+	return fmt.Sprintf("%s[... %d chars ...]%s", query[:25], len(query)-50, query[len(query)-25:])
+}
 
 // pgStatDatabase represents a row in pg_stat_database view.
 //reform:pg_catalog.pg_stat_database
@@ -68,4 +81,11 @@ type pgStatStatementsExtended struct {
 	Database *string
 	Username *string
 	Tables   []string
+}
+
+func (e *pgStatStatementsExtended) String() string {
+	return fmt.Sprintf("%q %q %v: %d %s",
+		pointer.GetString(e.Database), pointer.GetString(e.Username), e.Tables,
+		pointer.GetInt64(e.pgStatStatements.QueryID), trimQuery(pointer.GetString(e.pgStatStatements.Query)),
+	)
 }
