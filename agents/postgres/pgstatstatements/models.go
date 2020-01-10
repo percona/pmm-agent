@@ -50,8 +50,8 @@ type pgUser struct {
 type pgStatStatements struct {
 	UserID    int64   `reform:"userid"`
 	DBID      int64   `reform:"dbid"`
-	QueryID   *int64  `reform:"queryid"`
-	Query     *string `reform:"query"`
+	QueryID   int64   `reform:"queryid"` // we select only non-NULL rows
+	Query     string  `reform:"query"`   // we select only non-NULL rows
 	Calls     int64   `reform:"calls"`
 	TotalTime float64 `reform:"total_time"`
 	//MinTime           *float64 `reform:"min_time"`
@@ -85,8 +85,8 @@ type pgStatStatementsExtended struct {
 }
 
 func (e *pgStatStatementsExtended) String() string {
-	s := strconv.FormatInt(pointer.GetInt64(e.pgStatStatements.QueryID), 10) +
-		" " + trimQuery(pointer.GetString(e.pgStatStatements.Query))
+	s := strconv.FormatInt(e.pgStatStatements.QueryID, 10) +
+		" " + trimQuery(e.pgStatStatements.Query)
 	if e.Database == nil && e.Username == nil && e.Tables == nil {
 		return s
 	}

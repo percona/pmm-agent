@@ -208,15 +208,15 @@ func makeBuckets(q *reform.Querier, current, prev map[int64]*pgStatStatementsExt
 		}
 		currentPSS.Database = getDatabaseName(currentPSS.DBID, prevPSS, q, l)
 		currentPSS.Username = getUserName(currentPSS.UserID, prevPSS, q, l)
-		currentPSS.Tables = getTables(*currentPSS.Query, prevPSS, l)
+		currentPSS.Tables = getTables(currentPSS.Query, prevPSS, l)
 
 		mb := &agentpb.MetricsBucket{
 			Common: &agentpb.MetricsBucket_Common{
 				Database:    pointer.GetString(currentPSS.Database),
 				Tables:      currentPSS.Tables,
 				Username:    pointer.GetString(currentPSS.Username),
-				Queryid:     strconv.FormatInt(*currentPSS.QueryID, 10),
-				Fingerprint: *currentPSS.Query,
+				Queryid:     strconv.FormatInt(currentPSS.QueryID, 10),
+				Fingerprint: currentPSS.Query,
 				NumQueries:  count,
 				AgentType:   inventorypb.AgentType_QAN_POSTGRESQL_PGSTATEMENTS_AGENT,
 			},
