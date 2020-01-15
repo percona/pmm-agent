@@ -55,7 +55,7 @@ type monitors struct {
 	rw sync.RWMutex // Lock() to protect internal consistency of the service
 }
 
-func (ms *monitors) MonitorAll() error {
+func (ms *monitors) MonitorAll(ctx context.Context) error {
 	databases := map[string]struct{}{}
 	databasesSlice, err := ms.listDatabases()
 	if err != nil {
@@ -84,7 +84,7 @@ func (ms *monitors) MonitorAll() error {
 			dbName,
 		)
 		// ... and start it
-		err := m.Start()
+		err := m.Start(ctx)
 		if err != nil {
 			ms.logger.Debugf("couldn't start monitor, reason: %v", err)
 			return err

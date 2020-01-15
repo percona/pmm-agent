@@ -95,7 +95,7 @@ func BenchmarkCollector(b *testing.B) {
 		go genData(ctx, client, maxLoops, maxDocs)
 
 		profiles := make([]proto.SystemProfile, 0)
-		docsChan, err := ctr.Start()
+		docsChan, err := ctr.Start(ctx)
 		if err != nil {
 			return
 		}
@@ -160,7 +160,7 @@ func TestCollector(t *testing.T) {
 
 	// Start the collector
 	profiles := make([]proto.SystemProfile, 0)
-	docsChan, err := ctr.Start()
+	docsChan, err := ctr.Start(ctx)
 	wg := &sync.WaitGroup{}
 	wg.Add(1)
 

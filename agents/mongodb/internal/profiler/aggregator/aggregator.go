@@ -82,7 +82,7 @@ type Aggregator struct {
 }
 
 // Add aggregates new system.profile document
-func (a *Aggregator) Add(doc proto.SystemProfile) error {
+func (a *Aggregator) Add(ctx context.Context, doc proto.SystemProfile) error {
 	a.m.Lock()
 	defer a.m.Unlock()
 	if !a.running {
@@ -93,7 +93,7 @@ func (a *Aggregator) Add(doc proto.SystemProfile) error {
 
 	// if new doc is outside of interval then finish old interval and flush it
 	if !ts.Before(a.timeEnd) {
-		a.flush(ts)
+		a.flush(ctx, ts)
 	}
 
 	// we had some activity so reset timer
@@ -127,8 +127,8 @@ func (a *Aggregator) Start() <-chan *report.Report {
 
 	ctx := context.Background()
 	labels := pprof.Labels("component", "mongodb.aggregator")
-	pprof.Do(ctx, labels, func(ctx context.Context) {
-		go start(a.wg, a, a.doneChan)
+	go pprof.Do(ctx, labels, func(ctx context.Context) {
+		start(ctx, a.wg, a, a.doneChan)
 	})
 
 	a.running = true
@@ -153,7 +153,7 @@ func (a *Aggregator) Stop() {
 	close(a.reportChan)
 }
 
-func start(wg *sync.WaitGroup, aggregator *Aggregator, doneChan <-chan struct{}) {
+func start(ctx context.Context, wg *sync.WaitGroup, aggregator *Aggregator, doneChan <-chan struct{}) {
 	// signal WaitGroup when goroutine finished
 	defer wg.Done()
 	for {
@@ -165,7 +165,7 @@ func start(wg *sync.WaitGroup, aggregator *Aggregator, doneChan <-chan struct{})
 			// but still expect them to show after interval expires, we need to implement timeout.
 			// This introduces another issue, that in case something goes wrong, and we get metrics for old interval too late, they will be skipped.
 			// A proper solution would be to allow fixing old samples, but API and qan-agent doesn't allow this, yet.
-			aggregator.Flush()
+			aggregator.Flush(ctx)
 		case <-doneChan:
 			// Check if we should shutdown.
 			return
@@ -173,15 +173,15 @@ func start(wg *sync.WaitGroup, aggregator *Aggregator, doneChan <-chan struct{})
 	}
 }
 
-func (a *Aggregator) Flush() {
+func (a *Aggregator) Flush(ctx context.Context) {
 	a.m.Lock()
 	defer a.m.Unlock()
 	a.logger.Debugf("Flushing aggregator at: %s", time.Now())
-	a.flush(time.Now())
+	a.flush(ctx, time.Now())
 }
 
-func (a *Aggregator) flush(ts time.Time) {
-	r := a.interval(ts)
+func (a *Aggregator) flush(ctx context.Context, ts time.Time) {
+	r := a.interval(ctx, ts)
 	if r != nil {
 		a.logger.Tracef("Sending report to reportChan:\n %v", r)
 		a.reportChan <- r
@@ -189,7 +189,7 @@ func (a *Aggregator) flush(ts time.Time) {
 }
 
 // interval sets interval if necessary and returns *qan.Report for old interval if not empty
-func (a *Aggregator) interval(ts time.Time) *report.Report {
+func (a *Aggregator) interval(ctx context.Context, ts time.Time) *report.Report {
 	// create new interval
 	defer a.newInterval(ts)
 
@@ -201,10 +201,10 @@ func (a *Aggregator) interval(ts time.Time) *report.Report {
 	}
 
 	// create result
-	result := a.createResult()
+	result := a.createResult(ctx)
 
 	// translate result into report and return it
-	return report.MakeReport(a.timeStart, a.timeEnd, result)
+	return report.MakeReport(ctx, a.timeStart, a.timeEnd, result)
 }
 
 // TimeStart returns start time for current interval
@@ -233,7 +233,7 @@ func (a *Aggregator) newInterval(ts time.Time) {
 	a.timeEnd = a.timeStart.Add(a.d)
 }
 
-func (a *Aggregator) createResult() *report.Result {
+func (a *Aggregator) createResult(ctx context.Context) *report.Result {
 	queries := a.mongostats.Queries()
 	queryStats := queries.CalcQueriesStats(int64(DefaultInterval))
 	var buckets []*agentpb.MetricsBucket

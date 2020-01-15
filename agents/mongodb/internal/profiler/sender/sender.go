@@ -65,8 +65,8 @@ func (s *Sender) Start() error {
 
 	ctx := context.Background()
 	labels := pprof.Labels("component", "mongodb.sender")
-	pprof.Do(ctx, labels, func(ctx context.Context) {
-		go start(s.wg, s.reportChan, s.w, s.logger, s.doneChan)
+	go pprof.Do(ctx, labels, func(ctx context.Context) {
+		start(ctx, s.wg, s.reportChan, s.w, s.logger, s.doneChan)
 	})
 
 	s.running = true
@@ -94,7 +94,7 @@ func (s *Sender) Name() string {
 	return "sender"
 }
 
-func start(wg *sync.WaitGroup, reportChan <-chan *report.Report, w Writer, logger *logrus.Entry, doneChan <-chan struct{}) {
+func start(ctx context.Context, wg *sync.WaitGroup, reportChan <-chan *report.Report, w Writer, logger *logrus.Entry, doneChan <-chan struct{}) {
 	// signal WaitGroup when goroutine finished
 	defer wg.Done()
 

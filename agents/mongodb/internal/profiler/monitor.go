@@ -16,6 +16,7 @@
 package profiler
 
 import (
+	"context"
 	"sync"
 
 	"github.com/sirupsen/logrus"
@@ -51,7 +52,7 @@ type monitor struct {
 	running bool       // Is this service running?
 }
 
-func (m *monitor) Start() error {
+func (m *monitor) Start(ctx context.Context) error {
 	m.m.Lock()
 	defer m.m.Unlock()
 
@@ -72,7 +73,7 @@ func (m *monitor) Start() error {
 
 	// create collector and start it
 	c := collector.New(m.client, m.dbName, m.logger)
-	docsChan, err := c.Start()
+	docsChan, err := c.Start(ctx)
 	if err != nil {
 		return err
 	}
@@ -80,7 +81,7 @@ func (m *monitor) Start() error {
 
 	// create parser and start it
 	p := parser.New(docsChan, m.aggregator, m.logger)
-	err = p.Start()
+	err = p.Start(ctx)
 	if err != nil {
 		return err
 	}

@@ -110,8 +110,8 @@ func (p *profiler) Start() error {
 
 	ctx := context.Background()
 	labels := pprof.Labels("component", "mongodb.profiler")
-	pprof.Do(ctx, labels, func(ctx context.Context) {
-		go start(p.monitors, p.wg, p.doneChan, ready, p.logger)
+	go pprof.Do(ctx, labels, func(ctx context.Context) {
+		start(ctx, p.monitors, p.wg, p.doneChan, ready, p.logger)
 	})
 
 	// wait until we actually fetch data from db
@@ -149,7 +149,7 @@ func (p *profiler) Stop() error {
 	return nil
 }
 
-func start(monitors *monitors, wg *sync.WaitGroup, doneChan <-chan struct{}, ready *sync.Cond, logger *logrus.Entry) {
+func start(ctx context.Context, monitors *monitors, wg *sync.WaitGroup, doneChan <-chan struct{}, ready *sync.Cond, logger *logrus.Entry) {
 	// signal WaitGroup when goroutine finished
 	defer wg.Done()
 
@@ -157,7 +157,7 @@ func start(monitors *monitors, wg *sync.WaitGroup, doneChan <-chan struct{}, rea
 	defer monitors.StopAll()
 
 	// monitor all databases
-	err := monitors.MonitorAll()
+	err := monitors.MonitorAll(ctx)
 	if err != nil {
 		logger.Debugf("couldn't monitor all databases, reason: %v", err)
 	}
@@ -176,7 +176,7 @@ func start(monitors *monitors, wg *sync.WaitGroup, doneChan <-chan struct{}, rea
 		}
 
 		// update monitors
-		err = monitors.MonitorAll()
+		err = monitors.MonitorAll(ctx)
 		if err != nil {
 			logger.Debugf("couldn't monitor all databases, reason: %v", err)
 		}

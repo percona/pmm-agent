@@ -49,7 +49,7 @@ type Parser struct {
 }
 
 // Start starts but doesn't wait until it exits
-func (p *Parser) Start() error {
+func (p *Parser) Start(context.Context) error {
 	p.m.Lock()
 	defer p.m.Unlock()
 	if p.running {
@@ -67,8 +67,9 @@ func (p *Parser) Start() error {
 
 	ctx := context.Background()
 	labels := pprof.Labels("component", "mongodb.monitor")
-	pprof.Do(ctx, labels, func(ctx context.Context) {
-		go start(
+	go pprof.Do(ctx, labels, func(ctx context.Context) {
+		start(
+			ctx,
 			p.wg,
 			p.docsChan,
 			p.aggregator,
@@ -102,7 +103,7 @@ func (p *Parser) Name() string {
 	return "parser"
 }
 
-func start(wg *sync.WaitGroup, docsChan <-chan proto.SystemProfile, aggregator *aggregator.Aggregator, doneChan <-chan struct{}, logger *logrus.Entry) {
+func start(ctx context.Context, wg *sync.WaitGroup, docsChan <-chan proto.SystemProfile, aggregator *aggregator.Aggregator, doneChan <-chan struct{}, logger *logrus.Entry) {
 	// signal WaitGroup when goroutine finished
 	defer wg.Done()
 
@@ -125,7 +126,7 @@ func start(wg *sync.WaitGroup, docsChan <-chan proto.SystemProfile, aggregator *
 			}
 
 			// aggregate the doc
-			err := aggregator.Add(doc)
+			err := aggregator.Add(ctx, doc)
 			if err != nil {
 				logger.Warn("couldn't add document to aggregator")
 			}

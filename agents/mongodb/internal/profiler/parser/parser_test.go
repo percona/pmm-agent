@@ -16,6 +16,7 @@
 package parser
 
 import (
+	"context"
 	"reflect"
 	"testing"
 	"time"
@@ -65,12 +66,13 @@ func TestParserStartStop(t *testing.T) {
 	docsChan := make(chan pm.SystemProfile)
 	a := aggregator.New(time.Now(), "test-id", logrus.WithField("component", "aggregator"))
 
+	ctx := context.TODO()
 	parser1 := New(docsChan, a, logrus.WithField("component", "test-parser"))
-	err = parser1.Start()
+	err = parser1.Start(ctx)
 	require.NoError(t, err)
 
 	// running multiple Start() should be idempotent
-	err = parser1.Start()
+	err = parser1.Start(ctx)
 	require.NoError(t, err)
 
 	// running multiple Stop() should be idempotent
@@ -78,7 +80,7 @@ func TestParserStartStop(t *testing.T) {
 	parser1.Stop()
 }
 
-func TestParserrunning(t *testing.T) {
+func TestParserRunning(t *testing.T) {
 	docsChan := make(chan pm.SystemProfile)
 	a := aggregator.New(time.Now(), "test-id", logrus.WithField("component", "aggregator"))
 	reportChan := a.Start()
@@ -86,7 +88,7 @@ func TestParserrunning(t *testing.T) {
 	d := aggregator.DefaultInterval
 
 	parser1 := New(docsChan, a, logrus.WithField("component", "test-parser"))
-	err := parser1.Start()
+	err := parser1.Start(context.TODO())
 	require.NoError(t, err)
 
 	now := time.Now().UTC()

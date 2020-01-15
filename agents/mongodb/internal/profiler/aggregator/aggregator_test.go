@@ -16,6 +16,7 @@
 package aggregator
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -35,7 +36,7 @@ func TestAggregator(t *testing.T) {
 	t.Run("Add", func(t *testing.T) {
 		t.Run("error if aggregator is not running", func(t *testing.T) {
 			a := New(time.Now(), "test-agent", logrus.WithField("component", "test"))
-			err := a.Add(proto.SystemProfile{})
+			err := a.Add(nil, proto.SystemProfile{})
 			assert.EqualError(t, err, "aggregator is not running")
 		})
 	})
@@ -46,7 +47,8 @@ func TestAggregator(t *testing.T) {
 		aggregator := New(startPeriod, agentID, logrus.WithField("component", "test"))
 		aggregator.Start()
 		defer aggregator.Stop()
-		err := aggregator.Add(proto.SystemProfile{
+		ctx := context.TODO()
+		err := aggregator.Add(ctx, proto.SystemProfile{
 			NscannedObjects: 2,
 			Nreturned:       3,
 			Ns:              "collection.people",
@@ -54,7 +56,7 @@ func TestAggregator(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		result := aggregator.createResult()
+		result := aggregator.createResult(ctx)
 
 		require.Equal(t, 1, len(result.Buckets))
 		assert.Equal(t, report.Result{
