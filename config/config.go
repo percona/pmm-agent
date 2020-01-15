@@ -307,10 +307,12 @@ func Application(cfg *Config) (*kingpin.Application, *string) {
 
 	if nodeinfo.PublicAddress == "" {
 		help := "Node address [PMM_AGENT_SETUP_NODE_ADDRESS]"
-		setupCmd.Arg("node-address", help).Required().Envar("PMM_AGENT_SETUP_NODE_ADDRESS").StringVar(&cfg.Setup.Address)
+		setupCmd.Arg("node-address", help).Required().
+			Envar("PMM_AGENT_SETUP_NODE_ADDRESS").StringVar(&cfg.Setup.Address)
 	} else {
 		help := fmt.Sprintf("Node address (autodetected default: %s) [PMM_AGENT_SETUP_NODE_ADDRESS]", nodeinfo.PublicAddress)
-		setupCmd.Arg("node-address", help).Default(nodeinfo.PublicAddress).Envar("PMM_AGENT_SETUP_NODE_ADDRESS").StringVar(&cfg.Setup.Address)
+		setupCmd.Arg("node-address", help).Default(nodeinfo.PublicAddress).
+			Envar("PMM_AGENT_SETUP_NODE_ADDRESS").StringVar(&cfg.Setup.Address)
 	}
 
 	nodeTypeKeys := []string{"generic", "container"}
@@ -319,26 +321,37 @@ func Application(cfg *Config) (*kingpin.Application, *string) {
 		nodeTypeDefault = "container"
 	}
 	nodeTypeHelp := fmt.Sprintf("Node type, one of: %s (default: %s) [PMM_AGENT_SETUP_NODE_TYPE]", strings.Join(nodeTypeKeys, ", "), nodeTypeDefault)
-	setupCmd.Arg("node-type", nodeTypeHelp).Default(nodeTypeDefault).Envar("PMM_AGENT_SETUP_NODE_TYPE").EnumVar(&cfg.Setup.NodeType, nodeTypeKeys...)
+	setupCmd.Arg("node-type", nodeTypeHelp).Default(nodeTypeDefault).
+		Envar("PMM_AGENT_SETUP_NODE_TYPE").EnumVar(&cfg.Setup.NodeType, nodeTypeKeys...)
 
 	hostname, _ := os.Hostname()
 	nodeNameHelp := fmt.Sprintf("Node name (autodetected default: %s) [PMM_AGENT_SETUP_NODE_NAME]", hostname)
-	setupCmd.Arg("node-name", nodeNameHelp).Default(hostname).Envar("PMM_AGENT_SETUP_NODE_NAME").StringVar(&cfg.Setup.NodeName)
+	setupCmd.Arg("node-name", nodeNameHelp).Default(hostname).
+		Envar("PMM_AGENT_SETUP_NODE_NAME").StringVar(&cfg.Setup.NodeName)
 
 	var defaultMachineID string
 	if nodeinfo.MachineID != "" {
 		defaultMachineID = "/machine_id/" + nodeinfo.MachineID
 	}
-	setupCmd.Flag("machine-id", "Node machine-id (default is autodetected) [PMM_AGENT_SETUP_MACHINE_ID]").Default(defaultMachineID).Envar("PMM_AGENT_SETUP_MACHINE_ID").StringVar(&cfg.Setup.MachineID)
-	setupCmd.Flag("distro", "Node OS distribution (default is autodetected) [PMM_AGENT_SETUP_DISTRO]").Default(nodeinfo.Distro).Envar("PMM_AGENT_SETUP_DISTRO").StringVar(&cfg.Setup.Distro)
-	setupCmd.Flag("container-id", "Container ID [PMM_AGENT_SETUP_CONTAINER_ID]").Envar("PMM_AGENT_SETUP_CONTAINER_ID").StringVar(&cfg.Setup.ContainerID)
-	setupCmd.Flag("container-name", "Container name [PMM_AGENT_SETUP_CONTAINER_NAME]").Envar("PMM_AGENT_SETUP_CONTAINER_NAME").StringVar(&cfg.Setup.ContainerName)
-	setupCmd.Flag("node-model", "Node model [PMM_AGENT_SETUP_NODE_MODEL]").Envar("PMM_AGENT_SETUP_NODE_MODEL").StringVar(&cfg.Setup.NodeModel)
-	setupCmd.Flag("region", "Node region [PMM_AGENT_SETUP_REGION]").Envar("PMM_AGENT_SETUP_REGION").StringVar(&cfg.Setup.Region)
-	setupCmd.Flag("az", "Node availability zone [PMM_AGENT_SETUP_AZ]").Envar("PMM_AGENT_SETUP_AZ").StringVar(&cfg.Setup.Az)
+	setupCmd.Flag("machine-id", "Node machine-id (default is autodetected) [PMM_AGENT_SETUP_MACHINE_ID]").Default(defaultMachineID).
+		Envar("PMM_AGENT_SETUP_MACHINE_ID").StringVar(&cfg.Setup.MachineID)
+	setupCmd.Flag("distro", "Node OS distribution (default is autodetected) [PMM_AGENT_SETUP_DISTRO]").Default(nodeinfo.Distro).
+		Envar("PMM_AGENT_SETUP_DISTRO").StringVar(&cfg.Setup.Distro)
+	setupCmd.Flag("container-id", "Container ID [PMM_AGENT_SETUP_CONTAINER_ID]").
+		Envar("PMM_AGENT_SETUP_CONTAINER_ID").StringVar(&cfg.Setup.ContainerID)
+	setupCmd.Flag("container-name", "Container name [PMM_AGENT_SETUP_CONTAINER_NAME]").
+		Envar("PMM_AGENT_SETUP_CONTAINER_NAME").StringVar(&cfg.Setup.ContainerName)
+	setupCmd.Flag("node-model", "Node model [PMM_AGENT_SETUP_NODE_MODEL]").
+		Envar("PMM_AGENT_SETUP_NODE_MODEL").StringVar(&cfg.Setup.NodeModel)
+	setupCmd.Flag("region", "Node region [PMM_AGENT_SETUP_REGION]").
+		Envar("PMM_AGENT_SETUP_REGION").StringVar(&cfg.Setup.Region)
+	setupCmd.Flag("az", "Node availability zone [PMM_AGENT_SETUP_AZ]").
+		Envar("PMM_AGENT_SETUP_AZ").StringVar(&cfg.Setup.Az)
 
-	setupCmd.Flag("force", "Remove Node with that name with all dependent Services and Agents if one exist [PMM_AGENT_SETUP_FORCE]").Envar("PMM_AGENT_SETUP_FORCE").BoolVar(&cfg.Setup.Force)
-	setupCmd.Flag("skip-registration", "Skip registration on PMM Server [PMM_AGENT_SETUP_SKIP_REGISTRATION]").Envar("PMM_AGENT_SETUP_SKIP_REGISTRATION").BoolVar(&cfg.Setup.SkipRegistration)
+	setupCmd.Flag("force", "Remove Node with that name with all dependent Services and Agents if one exist [PMM_AGENT_SETUP_FORCE]").
+		Envar("PMM_AGENT_SETUP_FORCE").BoolVar(&cfg.Setup.Force)
+	setupCmd.Flag("skip-registration", "Skip registration on PMM Server [PMM_AGENT_SETUP_SKIP_REGISTRATION]").
+		Envar("PMM_AGENT_SETUP_SKIP_REGISTRATION").BoolVar(&cfg.Setup.SkipRegistration)
 
 	return app, configFileF
 }
