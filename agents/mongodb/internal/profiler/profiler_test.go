@@ -75,6 +75,8 @@ func TestProfiler(t *testing.T) {
 
 	cleanUpDBs(t, sess)
 
+	require.GreaterOrEqual(t, len(ms.reports), 1)
+
 	buckets := ms.reports[0].Buckets
 	sort.Slice(buckets, func(i, j int) bool { return buckets[i].Common.Database < buckets[j].Common.Database })
 
