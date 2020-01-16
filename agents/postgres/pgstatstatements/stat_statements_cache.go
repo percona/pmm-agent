@@ -25,17 +25,24 @@ import (
 )
 
 func getStatStatementsExtended(q *reform.Querier) (map[int64]*pgStatStatementsExtended, error) {
-	structs, err := q.SelectAllFrom(pgStatStatementsView, "WHERE queryid IS NOT NULL AND query IS NOT NULL")
+	rows, err := q.SelectRows(pgStatStatementsView, "WHERE queryid IS NOT NULL AND query IS NOT NULL")
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to query pg_stat_statements")
 	}
+	defer rows.Close() //nolint:errcheck
 
-	res := make(map[int64]*pgStatStatementsExtended, len(structs))
-	for _, str := range structs {
-		pss := str.(*pgStatStatements)
-		res[pss.QueryID] = &pgStatStatementsExtended{
-			pgStatStatements: *pss,
+	res := make(map[int64]*pgStatStatementsExtended)
+	for {
+		var row pgStatStatements
+		if err = q.NextRow(&row, rows); err != nil {
+			break
 		}
+		res[row.QueryID] = &pgStatStatementsExtended{
+			pgStatStatements: row,
+		}
+	}
+	if err != reform.ErrNoRows {
+		return nil, errors.Wrap(err, "failed to fetch pg_stat_statements")
 	}
 	return res, nil
 }
