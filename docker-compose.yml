@@ -1,5 +1,6 @@
 ---
-version: '3'
+version: '3.7'
+
 services:
   pmm-server:
     image: ${PMM_SERVER_IMAGE:-perconalab/pmm-server:dev-latest}
@@ -61,6 +62,10 @@ services:
       - POSTGRES_PASSWORD=pmm-agent-password
     volumes:
       - test_db_postgres:/docker-entrypoint-initdb.d/
+
+  sysbench:
+    image: perconalab/sysbench
+    container_name: pmm-agent_sysbench
 
 volumes:
   test_db_mysql:

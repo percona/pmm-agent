@@ -127,3 +127,13 @@ env-mysql:                      ## Run mysql client.
 
 env-psql:                       ## Run psql client.
 	docker exec -ti pmm-agent_postgres env PGPASSWORD=pmm-agent-password psql --username=pmm-agent
+
+env-sysbench:
+	docker-compose exec --workdir=/sysbench/sysbench-tpcc sysbench ./tpcc.lua \
+		--db-driver=pgsql --pgsql-host=postgres --pgsql-user=pmm-agent --pgsql-password=pmm-agent-password --pgsql-db=pmm-agent \
+		--threads=1 --time=0 --report-interval=10 \
+		--tables=1 --scale=10  --use_fk=0 --enable_purge=yes prepare
+	docker-compose exec --workdir=/sysbench/sysbench-tpcc sysbench ./tpcc.lua \
+		--db-driver=pgsql --pgsql-host=postgres --pgsql-user=pmm-agent --pgsql-password=pmm-agent-password --pgsql-db=pmm-agent \
+		--threads=4 --time=0 --rate=10 --report-interval=10 --percentile=99 \
+		--tables=1 --scale=10  --use_fk=0 --enable_purge=yes run
