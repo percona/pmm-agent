@@ -16,6 +16,7 @@
 package pgstatstatements
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"testing"
@@ -109,7 +110,7 @@ func TestPGStatStatementsQAN(t *testing.T) {
 		_, err := db.Exec("SELECT /* AllCities */ * FROM city")
 		require.NoError(t, err)
 
-		buckets, err := m.getNewBuckets(time.Date(2019, 4, 1, 10, 59, 0, 0, time.UTC), 60)
+		buckets, err := m.getNewBuckets(context.Background(), time.Date(2019, 4, 1, 10, 59, 0, 0, time.UTC), 60)
 		require.NoError(t, err)
 		buckets = filter(buckets)
 		require.Len(t, buckets, 1, "%s", tests.FormatBuckets(buckets))
@@ -147,7 +148,7 @@ func TestPGStatStatementsQAN(t *testing.T) {
 		_, err = db.Exec("SELECT /* AllCities */ * FROM city")
 		require.NoError(t, err)
 
-		buckets, err = m.getNewBuckets(time.Date(2019, 4, 1, 10, 59, 0, 0, time.UTC), 60)
+		buckets, err = m.getNewBuckets(context.Background(), time.Date(2019, 4, 1, 10, 59, 0, 0, time.UTC), 60)
 		require.NoError(t, err)
 		buckets = filter(buckets)
 		require.Len(t, buckets, 1, "%s", tests.FormatBuckets(buckets))
