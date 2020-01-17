@@ -71,12 +71,14 @@ func newStatStatementCache(retain time.Duration, l *logrus.Entry) *statStatement
 	}
 }
 
+// getStatStatementsExtended returns the current state of pg_stat_statements table with extended information (database, username, tables)
+// and the previous cashed state.
 func (ssc *statStatementCache) getStatStatementsExtended(ctx context.Context, q *reform.Querier) (current, prev map[int64]*pgStatStatementsExtended, err error) {
-	var totalN, newN, oldN int
+	var totalN, newN, newSharedN, oldN int
 	start := time.Now()
 	defer func() {
 		dur := time.Since(start)
-		ssc.l.Debugf("getStatStatementsExtended: selected %d rows (%d new, %d old or updated) in %s.", totalN, newN, oldN, dur)
+		ssc.l.Debugf("Selected %d rows from pg_stat_statements in %s: %d new (%d shared tables), %d old.", totalN, dur, newN, newSharedN, oldN)
 	}()
 
 	ssc.rw.RLock()
@@ -90,6 +92,9 @@ func (ssc *statStatementCache) getStatStatementsExtended(ctx context.Context, q 
 	// load all databases and usernames first as we can't use querier while iterating over rows below
 	databases := queryDatabases(q)
 	usernames := queryUsernames(q)
+
+	// the same query can appear several times (with different database and/or username),
+	// so cache results of the current iteration too
 	tables := make(map[int64][]string)
 
 	rows, err := q.SelectRows(pgStatStatementsView, "WHERE queryid IS NOT NULL AND query IS NOT NULL")
@@ -118,13 +123,17 @@ func (ssc *statStatementCache) getStatStatementsExtended(ctx context.Context, q 
 		if p := prev[c.QueryID]; p != nil {
 			oldN++
 
+			// use previous values
 			c.Tables = p.Tables
 			c.Query, c.QueryTruncated = p.Query, p.QueryTruncated
 		} else {
 			newN++
 
+			// do not extract tables again if we saw this query during this iteration already
 			if tables[c.QueryID] == nil {
 				tables[c.QueryID] = extractTables(c.Query, ssc.l)
+			} else {
+				newSharedN++
 			}
 
 			c.Tables = tables[c.QueryID]
