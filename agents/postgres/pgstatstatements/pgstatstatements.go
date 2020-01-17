@@ -188,11 +188,10 @@ func makeBuckets(current, prev map[int64]*pgStatStatementsExtended, l *logrus.En
 		count := float32(currentPSS.Calls - prevPSS.Calls)
 		switch {
 		case count == 0:
-			// TODO
 			// Another way how this is possible is if pg_stat_statements was truncated,
 			// and then the same number of queries were made.
 			// Currently, we can't differentiate between those situations.
-			l.Debugf("Skipped due to the same number of queries: %s.", currentPSS)
+			l.Tracef("Skipped due to the same number of queries: %s.", currentPSS)
 			continue
 		case count < 0:
 			l.Debugf("Truncate detected. Treating as a new query: %s.", currentPSS)
