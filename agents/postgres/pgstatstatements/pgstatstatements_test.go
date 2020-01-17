@@ -140,7 +140,8 @@ func TestPGStatStatementsQAN(t *testing.T) {
 		buckets, err := m.getNewBuckets(context.Background(), time.Date(2019, 4, 1, 10, 59, 0, 0, time.UTC), 60)
 		require.NoError(t, err)
 		buckets = filter(buckets)
-		require.Len(t, buckets, 1, "%s", tests.FormatBuckets(buckets))
+		t.Logf("Actual:\n%s", tests.FormatBuckets(buckets))
+		require.Len(t, buckets, 1)
 
 		actual := buckets[0]
 		assert.InDelta(t, 0, actual.Common.MQueryTimeSum, 0.09)
@@ -178,7 +179,8 @@ func TestPGStatStatementsQAN(t *testing.T) {
 		buckets, err = m.getNewBuckets(context.Background(), time.Date(2019, 4, 1, 10, 59, 0, 0, time.UTC), 60)
 		require.NoError(t, err)
 		buckets = filter(buckets)
-		require.Len(t, buckets, 1, "%s", tests.FormatBuckets(buckets))
+		t.Logf("Actual:\n%s", tests.FormatBuckets(buckets))
+		require.Len(t, buckets, 1)
 
 		actual = buckets[0]
 		assert.InDelta(t, 0, actual.Common.MQueryTimeSum, 0.09)
@@ -223,11 +225,12 @@ func TestPGStatStatementsQAN(t *testing.T) {
 		buckets, err := m.getNewBuckets(context.Background(), time.Date(2019, 4, 1, 10, 59, 0, 0, time.UTC), 60)
 		require.NoError(t, err)
 		buckets = filter(buckets)
-		require.Len(t, buckets, 1, "%s", tests.FormatBuckets(buckets))
+		t.Logf("Actual:\n%s", tests.FormatBuckets(buckets))
+		require.Len(t, buckets, 1)
 
 		actual := buckets[0]
 		assert.InDelta(t, 0, actual.Common.MQueryTimeSum, 0.09)
-		assert.Equal(t, float32(1010), actual.Postgresql.MSharedBlksHitSum+actual.Postgresql.MSharedBlksReadSum)
+		assert.InDelta(t, 1010, actual.Postgresql.MSharedBlksHitSum+actual.Postgresql.MSharedBlksReadSum, 3)
 		assert.InDelta(t, 1.5, actual.Postgresql.MSharedBlksHitCnt+actual.Postgresql.MSharedBlksReadCnt, 0.5)
 		expected := &agentpb.MetricsBucket{
 			Common: &agentpb.MetricsBucket_Common{
@@ -262,10 +265,12 @@ func TestPGStatStatementsQAN(t *testing.T) {
 		buckets, err = m.getNewBuckets(context.Background(), time.Date(2019, 4, 1, 10, 59, 0, 0, time.UTC), 60)
 		require.NoError(t, err)
 		buckets = filter(buckets)
-		require.Len(t, buckets, 1, "%s", tests.FormatBuckets(buckets))
+		t.Logf("Actual:\n%s", tests.FormatBuckets(buckets))
+		require.Len(t, buckets, 1)
 
 		actual = buckets[0]
 		assert.InDelta(t, 0, actual.Common.MQueryTimeSum, 0.09)
+		assert.InDelta(t, 1007, actual.Postgresql.MSharedBlksHitSum, 2)
 		expected = &agentpb.MetricsBucket{
 			Common: &agentpb.MetricsBucket_Common{
 				Fingerprint:         selectAllCitiesLong,
@@ -283,7 +288,7 @@ func TestPGStatStatementsQAN(t *testing.T) {
 			},
 			Postgresql: &agentpb.MetricsBucket_PostgreSQL{
 				MSharedBlksHitCnt: 1,
-				MSharedBlksHitSum: 1007,
+				MSharedBlksHitSum: actual.Postgresql.MSharedBlksHitSum,
 				MRowsCnt:          1,
 				MRowsSum:          499,
 			},
