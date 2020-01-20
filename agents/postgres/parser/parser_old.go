@@ -19,6 +19,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
+	"sort"
 
 	pgquery "github.com/lfittl/pg_query_go"
 	pgquerynodes "github.com/lfittl/pg_query_go/nodes"
@@ -27,12 +28,14 @@ import (
 
 // extractTablesOld extracts table names from query.
 func extractTablesOld(query string) (tables []string, err error) {
-	defer func() {
-		if r := recover(); r != nil {
-			// preserve stack
-			err = errors.WithStack(fmt.Errorf("%v", r))
-		}
-	}()
+	if extractTablesRecover {
+		defer func() {
+			if r := recover(); r != nil {
+				// preserve stack
+				err = errors.WithStack(fmt.Errorf("%v", r))
+			}
+		}()
+	}
 
 	var jsonTree string
 	if jsonTree, err = pgquery.ParseToJSON(query); err != nil {
@@ -65,6 +68,8 @@ func extractTablesOld(query string) (tables []string, err error) {
 			}
 		}
 	}
+
+	sort.Strings(tables)
 
 	return
 }

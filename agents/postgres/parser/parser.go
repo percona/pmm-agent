@@ -24,17 +24,20 @@ import (
 	pgquery "github.com/lfittl/pg_query_go"
 	pgquerynodes "github.com/lfittl/pg_query_go/nodes"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
+
+var extractTablesRecover = true
 
 // ExtractTables extracts table names from query.
 func ExtractTables(query string) (tables []string, err error) {
-	defer func() {
-		if r := recover(); r != nil {
-			// preserve stack
-			err = errors.WithStack(fmt.Errorf("%v", r))
-		}
-	}()
+	if extractTablesRecover {
+		defer func() {
+			if r := recover(); r != nil {
+				// preserve stack
+				err = errors.WithStack(fmt.Errorf("%v", r))
+			}
+		}()
+	}
 
 	var jsonTree string
 	if jsonTree, err = pgquery.ParseToJSON(query); err != nil {
@@ -43,8 +46,8 @@ func ExtractTables(query string) (tables []string, err error) {
 	}
 
 	var list []json.RawMessage
-	err = json.Unmarshal([]byte(jsonTree), &list)
-	if err != nil {
+	if err = json.Unmarshal([]byte(jsonTree), &list); err != nil {
+		err = errors.Wrap(err, "failed to unmarshal JSON")
 		return
 	}
 
@@ -82,8 +85,7 @@ func extractTableNames(stmts ...json.RawMessage) ([]string, []string) {
 			var list []json.RawMessage
 			err := json.Unmarshal(input, &list)
 			if err != nil {
-				logrus.Warn(err)
-				continue
+				panic(err)
 			}
 			foundTables, tmpExcludeTables := extractTableNames(list...)
 			tables = append(tables, foundTables...)
@@ -91,11 +93,7 @@ func extractTableNames(stmts ...json.RawMessage) ([]string, []string) {
 			continue
 		}
 
-		nodeMap, err := parseNodeMap(input)
-		if err != nil {
-			continue
-		}
-
+		nodeMap := parseNodeMap(input)
 		for nodeType, jsonText := range nodeMap {
 			if jsonText == nil || string(jsonText) == "null" {
 				continue
@@ -103,20 +101,16 @@ func extractTableNames(stmts ...json.RawMessage) ([]string, []string) {
 			var foundTables, tmpExcludeTables []string
 			if nodeType == "RangeVar" {
 				var outNode pgquerynodes.RangeVar
-				err = json.Unmarshal(jsonText, &outNode)
+				err := json.Unmarshal(jsonText, &outNode)
 				if err != nil {
-					logrus.Warnln("couldn't decode json", err)
-					continue
+					panic(err)
 				}
 				tables = append(tables, *outNode.Relname)
 				continue
 			} else if nodeType == "List" {
 				foundTables, tmpExcludeTables = extractTableNames(jsonText)
 			} else {
-				nm, err := parseNodeMap(jsonText)
-				if err != nil {
-					continue
-				}
+				nm := parseNodeMap(jsonText)
 				switch nodeType {
 				case "RangeVar":
 				case "CommonTableExpr":
@@ -160,12 +154,11 @@ func extractTableNames(stmts ...json.RawMessage) ([]string, []string) {
 	return tables, excludeTables
 }
 
-func parseNodeMap(jsonText json.RawMessage) (map[string]json.RawMessage, error) {
+func parseNodeMap(jsonText json.RawMessage) map[string]json.RawMessage {
 	var nm map[string]json.RawMessage
 	err := json.Unmarshal(jsonText, &nm)
 	if err != nil {
-		logrus.Warnln("couldn't decode json", err)
-		return nil, err
+		panic(err)
 	}
-	return nm, err
+	return nm
 }
