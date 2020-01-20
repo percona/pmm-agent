@@ -29,10 +29,11 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 
-	"github.com/percona/pmm-agent/agents/mongodb/internal/profiler/aggregator"
-	"github.com/percona/pmm-agent/agents/mongodb/internal/report"
 	"github.com/percona/pmm/api/agentpb"
 	"github.com/percona/pmm/api/inventorypb"
+
+	"github.com/percona/pmm-agent/agents/mongodb/internal/profiler/aggregator"
+	"github.com/percona/pmm-agent/agents/mongodb/internal/report"
 )
 
 func TestProfiler(t *testing.T) {
