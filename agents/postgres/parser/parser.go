@@ -21,11 +21,10 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/sirupsen/logrus"
-
 	pgquery "github.com/lfittl/pg_query_go"
 	pgquerynodes "github.com/lfittl/pg_query_go/nodes"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 )
 
 // ExtractTables extracts table names from query.
