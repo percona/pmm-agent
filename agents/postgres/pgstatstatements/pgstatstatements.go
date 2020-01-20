@@ -212,7 +212,7 @@ func makeBuckets(current, prev map[int64]*pgStatStatementsExtended, l *logrus.En
 				Fingerprint: currentPSS.Query,
 				NumQueries:  count,
 				AgentType:   inventorypb.AgentType_QAN_POSTGRESQL_PGSTATEMENTS_AGENT,
-				IsTruncated: currentPSS.QueryTruncated,
+				IsTruncated: currentPSS.IsQueryTruncated,
 			},
 			Postgresql: &agentpb.MetricsBucket_PostgreSQL{},
 		}

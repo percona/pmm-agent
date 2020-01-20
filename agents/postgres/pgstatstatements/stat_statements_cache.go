@@ -125,7 +125,7 @@ func (ssc *statStatementCache) getStatStatementsExtended(ctx context.Context, q 
 
 			// use previous values
 			c.Tables = p.Tables
-			c.Query, c.QueryTruncated = p.Query, p.QueryTruncated
+			c.Query, c.IsQueryTruncated = p.Query, p.IsQueryTruncated
 		} else {
 			newN++
 
@@ -137,7 +137,7 @@ func (ssc *statStatementCache) getStatStatementsExtended(ctx context.Context, q 
 			}
 
 			c.Tables = tables[c.QueryID]
-			c.Query, c.QueryTruncated = truncate.Query(c.Query)
+			c.Query, c.IsQueryTruncated = truncate.Query(c.Query)
 		}
 
 		current[c.QueryID] = c
