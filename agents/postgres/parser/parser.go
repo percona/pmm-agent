@@ -34,7 +34,7 @@ func ExtractTables(query string) (tables []string, err error) {
 		defer func() {
 			if r := recover(); r != nil {
 				// preserve stack
-				err = errors.WithStack(fmt.Errorf("%v", r))
+				err = errors.WithStack(fmt.Errorf("panic: %v", r))
 			}
 		}()
 	}
@@ -83,8 +83,7 @@ func extractTableNames(stmts ...json.RawMessage) ([]string, []string) {
 
 		if strings.HasPrefix(string(input), "[") {
 			var list []json.RawMessage
-			err := json.Unmarshal(input, &list)
-			if err != nil {
+			if err := json.Unmarshal(input, &list); err != nil {
 				panic(err)
 			}
 			foundTables, tmpExcludeTables := extractTableNames(list...)
@@ -93,24 +92,35 @@ func extractTableNames(stmts ...json.RawMessage) ([]string, []string) {
 			continue
 		}
 
-		nodeMap := parseNodeMap(input)
+		var nodeMap map[string]json.RawMessage
+		if err := json.Unmarshal(input, &nodeMap); err != nil {
+			panic(err)
+		}
+
 		for nodeType, jsonText := range nodeMap {
 			if jsonText == nil || string(jsonText) == "null" {
 				continue
 			}
+
 			var foundTables, tmpExcludeTables []string
-			if nodeType == "RangeVar" {
+			switch nodeType {
+			case "RangeVar":
 				var outNode pgquerynodes.RangeVar
-				err := json.Unmarshal(jsonText, &outNode)
-				if err != nil {
+				if err := json.Unmarshal(jsonText, &outNode); err != nil {
 					panic(err)
 				}
 				tables = append(tables, *outNode.Relname)
 				continue
-			} else if nodeType == "List" {
+
+			case "List":
 				foundTables, tmpExcludeTables = extractTableNames(jsonText)
-			} else {
-				nm := parseNodeMap(jsonText)
+
+			default:
+				var nm map[string]json.RawMessage
+				if err := json.Unmarshal(jsonText, &nm); err != nil {
+					panic(err)
+				}
+
 				switch nodeType {
 				case "RangeVar":
 				case "CommonTableExpr":
@@ -139,26 +149,18 @@ func extractTableNames(stmts ...json.RawMessage) ([]string, []string) {
 				case "A_Expr":
 					foundTables, tmpExcludeTables = extractTableNames(nm["lexpr"], nm["rexpr"])
 
-				//Subqueries
+				// Subqueries
 				case "SubLink":
 					foundTables, tmpExcludeTables = extractTableNames(nm["subselect"], nm["xpr"], nm["testexpr"])
 				case "RangeSubselect":
 					foundTables, tmpExcludeTables = extractTableNames(nm["subquery"])
 				}
 			}
+
 			tables = append(tables, foundTables...)
 			excludeTables = append(excludeTables, tmpExcludeTables...)
 		}
 	}
 
 	return tables, excludeTables
-}
-
-func parseNodeMap(jsonText json.RawMessage) map[string]json.RawMessage {
-	var nm map[string]json.RawMessage
-	err := json.Unmarshal(jsonText, &nm)
-	if err != nil {
-		panic(err)
-	}
-	return nm
 }

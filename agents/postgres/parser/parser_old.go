@@ -32,7 +32,7 @@ func extractTablesOld(query string) (tables []string, err error) {
 		defer func() {
 			if r := recover(); r != nil {
 				// preserve stack
-				err = errors.WithStack(fmt.Errorf("%v", r))
+				err = errors.WithStack(fmt.Errorf("panic: %v", r))
 			}
 		}()
 	}
