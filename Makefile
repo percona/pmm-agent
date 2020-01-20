@@ -77,10 +77,10 @@ fuzz-slowlog-parser:            ## Run fuzzer for agents/mysql/slowlog/parser pa
 	cd agents/mysql/slowlog/parser && go-fuzz
 
 bench:                          ## Run benchmarks.
-	go test -bench=. -benchtime=3s -count=5 -cpu=1 -failfast github.com/percona/pmm-agent/agents/mysql/slowlog/parser | tee slowlog_parser_new.bench
+	go test -bench=. -benchtime=3s -count=5 -cpu=1 -timeout=20m -failfast github.com/percona/pmm-agent/agents/mysql/slowlog/parser | tee slowlog_parser_new.bench
 	benchstat slowlog_parser_old.bench slowlog_parser_new.bench
 
-	go test -bench=. -benchtime=3s -count=5 -cpu=1 -failfast github.com/percona/pmm-agent/agents/postgres/parser | tee pgstatstatements_parser_new.bench
+	go test -bench=. -benchtime=3s -count=5 -cpu=1 -timeout=20m -failfast github.com/percona/pmm-agent/agents/postgres/parser | tee pgstatstatements_parser_new.bench
 	benchstat pgstatstatements_parser_old.bench pgstatstatements_parser_new.bench
 
 check:                          ## Run required checkers and linters.
