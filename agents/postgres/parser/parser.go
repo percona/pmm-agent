@@ -18,9 +18,10 @@ package parser
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/sirupsen/logrus"
 	"sort"
 	"strings"
+
+	"github.com/sirupsen/logrus"
 
 	pgquery "github.com/lfittl/pg_query_go"
 	pgquerynodes "github.com/lfittl/pg_query_go/nodes"
