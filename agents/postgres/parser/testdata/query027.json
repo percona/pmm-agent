@@ -1,8 +1,8 @@
 {
   "tables": [
-    "accounts",
+    "employees_log",
     "employees",
-    "employees_log"
+    "accounts"
   ],
   "error": ""
 }

@@ -18,9 +18,7 @@ package parser
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/sirupsen/logrus"
-	"sort"
-	"strings"
+	"reflect"
 
 	pgquery "github.com/lfittl/pg_query_go"
 	pgquerynodes "github.com/lfittl/pg_query_go/nodes"
@@ -42,98 +40,101 @@ func ExtractTables(query string) (tables []string, err error) {
 		return
 	}
 
-	var list []json.RawMessage
-	err = json.Unmarshal([]byte(jsonTree), &list)
-	if err != nil {
+	var tree pgquery.ParsetreeList
+	if err = json.Unmarshal([]byte(jsonTree), &tree); err != nil {
+		err = errors.Wrap(err, "failed to unmarshal JSON")
 		return
 	}
 
 	tables = []string{}
 	tableNames := make(map[string]bool)
 	excludedtableNames := make(map[string]bool)
-	foundTables, excludeTables := extractTableNames(list...)
-	for _, tableName := range excludeTables {
-		if _, ok := excludedtableNames[tableName]; !ok {
-			excludedtableNames[tableName] = true
+	for _, stmt := range tree.Statements {
+		foundTables, excludeTables := extractTableNames(stmt)
+		for _, tableName := range excludeTables {
+			if _, ok := excludedtableNames[tableName]; !ok {
+				excludedtableNames[tableName] = true
+			}
+		}
+		for _, tableName := range foundTables {
+			_, tableAdded := tableNames[tableName]
+			_, tableExcluded := excludedtableNames[tableName]
+			if !tableAdded && !tableExcluded {
+				tables = append(tables, tableName)
+				tableNames[tableName] = true
+			}
 		}
 	}
-	for _, tableName := range foundTables {
-		_, tableAdded := tableNames[tableName]
-		_, tableExcluded := excludedtableNames[tableName]
-		if !tableAdded && !tableExcluded {
-			tables = append(tables, tableName)
-			tableNames[tableName] = true
-		}
-	}
-
-	sort.Strings(tables)
 
 	return
 }
 
-func extractTableNames(stmts ...json.RawMessage) ([]string, []string) {
+func extractTableNames(stmts ...pgquerynodes.Node) ([]string, []string) {
 	var tables, excludeTables []string
-	for _, input := range stmts {
-		if input == nil || string(input) == "null" || !(strings.HasPrefix(string(input), "{") || strings.HasPrefix(string(input), "[")) {
+	for _, stmt := range stmts {
+		if isNilValue(stmt) {
 			continue
 		}
+		var foundTables, tmpExcludeTables []string
+		switch v := stmt.(type) {
+		case pgquerynodes.RawStmt:
+			return extractTableNames(v.Stmt)
+		case pgquerynodes.SelectStmt: // Select queries
+			foundTables, tmpExcludeTables = extractTableNames(v.FromClause, v.WhereClause, v.WithClause, v.Larg, v.Rarg)
+		case pgquerynodes.InsertStmt: // Insert queries
+			foundTables, tmpExcludeTables = extractTableNames(v.Relation, v.SelectStmt, v.WithClause)
+		case pgquerynodes.UpdateStmt: // Update queries
+			foundTables, tmpExcludeTables = extractTableNames(v.Relation, v.FromClause, v.WhereClause, v.WithClause)
+		case pgquerynodes.DeleteStmt: // Delete queries
+			foundTables, tmpExcludeTables = extractTableNames(v.Relation, v.WhereClause, v.WithClause)
 
-		if strings.HasPrefix(string(input), "[") {
-			var list []json.RawMessage
-			err := json.Unmarshal(input, &list)
-			if err != nil {
-				logrus.Warn(err)
-				continue
+		case pgquerynodes.JoinExpr: // Joins
+			foundTables, tmpExcludeTables = extractTableNames(v.Larg, v.Rarg)
+
+		case pgquerynodes.RangeVar: // Table name
+			foundTables = []string{*v.Relname}
+
+		case pgquerynodes.List:
+			foundTables, tmpExcludeTables = extractTableNames(v.Items...)
+
+		case pgquerynodes.WithClause: // To exclude temporary tables
+			foundTables, tmpExcludeTables = extractTableNames(v.Ctes)
+			for _, item := range v.Ctes.Items {
+				if cte, ok := item.(pgquerynodes.CommonTableExpr); ok {
+					tmpExcludeTables = append(tmpExcludeTables, *cte.Ctename)
+				}
 			}
-			foundTables, tmpExcludeTables := extractTableNames(list...)
-			tables = append(tables, foundTables...)
-			excludeTables = append(excludeTables, tmpExcludeTables...)
-			continue
-		}
 
-		var nodeMap map[string]json.RawMessage
+		case pgquerynodes.A_Expr: // Where a=b
+			foundTables, tmpExcludeTables = extractTableNames(v.Lexpr, v.Rexpr)
 
-		err := json.Unmarshal(input, &nodeMap)
-		if err != nil {
-			logrus.Warnln("couldn't decode json", err)
-			continue
-		}
+		// Subqueries
+		case pgquerynodes.SubLink:
+			foundTables, tmpExcludeTables = extractTableNames(v.Subselect, v.Xpr, v.Testexpr)
+		case pgquerynodes.RangeSubselect:
+			foundTables, tmpExcludeTables = extractTableNames(v.Subquery)
+		case pgquerynodes.CommonTableExpr:
+			foundTables, tmpExcludeTables = extractTableNames(v.Ctequery)
 
-		for nodeType, jsonText := range nodeMap {
-			var foundTables, tmpExcludeTables []string
-			switch nodeType {
-			case "RangeVar":
-				var outNode pgquerynodes.RangeVar
-				err = json.Unmarshal(jsonText, &outNode)
-				if err != nil {
-					logrus.Warnln("couldn't decode json", err)
-					continue
+		default:
+			if isPointer(v) { // to avoid duplications in case of pointers
+				dereference, ok := reflect.ValueOf(v).Elem().Interface().(pgquerynodes.Node)
+				if ok {
+					foundTables, tmpExcludeTables = extractTableNames(dereference)
 				}
-				logrus.Debugln(*outNode.Relname)
-				foundTables = []string{*outNode.Relname}
-			case "CommonTableExpr":
-				var ctesNodeMap map[string]json.RawMessage
-
-				err := json.Unmarshal(jsonText, &ctesNodeMap)
-				if err != nil {
-					logrus.Warnln("couldn't decode json", err)
-					continue
-				}
-				foundTables, tmpExcludeTables = extractTableNames(ctesNodeMap["ctequery"])
-				var cteName string
-				err = json.Unmarshal(ctesNodeMap["ctename"], &cteName)
-				if err != nil {
-					logrus.Warnln("couldn't decode json", err)
-					continue
-				}
-				tmpExcludeTables = append(tmpExcludeTables, cteName)
-			default:
-				foundTables, tmpExcludeTables = extractTableNames(jsonText)
 			}
-			tables = append(tables, foundTables...)
-			excludeTables = append(excludeTables, tmpExcludeTables...)
 		}
+		tables = append(tables, foundTables...)
+		excludeTables = append(excludeTables, tmpExcludeTables...)
 	}
 
 	return tables, excludeTables
+}
+
+func isNilValue(i interface{}) bool {
+	return i == nil || (isPointer(i) && reflect.ValueOf(i).IsNil())
+}
+
+func isPointer(v interface{}) bool {
+	return reflect.ValueOf(v).Kind() == reflect.Ptr
 }

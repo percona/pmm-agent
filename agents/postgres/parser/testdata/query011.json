@@ -1,7 +1,7 @@
 {
   "tables": [
-    "credit_card_wo_complaints",
-    "without_complaints"
+    "without_complaints",
+    "credit_card_wo_complaints"
   ],
   "error": ""
 }
