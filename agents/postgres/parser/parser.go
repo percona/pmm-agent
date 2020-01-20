@@ -92,44 +92,66 @@ func extractTableNames(stmts ...json.RawMessage) ([]string, []string) {
 			continue
 		}
 
-		var nodeMap map[string]json.RawMessage
-
-		err := json.Unmarshal(input, &nodeMap)
+		nodeMap, err := parseNodeMap(input)
 		if err != nil {
-			logrus.Warnln("couldn't decode json", err)
 			continue
 		}
 
 		for nodeType, jsonText := range nodeMap {
+			if jsonText == nil || string(jsonText) == "null" {
+				continue
+			}
 			var foundTables, tmpExcludeTables []string
-			switch nodeType {
-			case "RangeVar":
+			if nodeType == "RangeVar" {
 				var outNode pgquerynodes.RangeVar
 				err = json.Unmarshal(jsonText, &outNode)
 				if err != nil {
 					logrus.Warnln("couldn't decode json", err)
 					continue
 				}
-				logrus.Debugln(*outNode.Relname)
-				foundTables = []string{*outNode.Relname}
-			case "CommonTableExpr":
-				var ctesNodeMap map[string]json.RawMessage
-
-				err := json.Unmarshal(jsonText, &ctesNodeMap)
-				if err != nil {
-					logrus.Warnln("couldn't decode json", err)
-					continue
-				}
-				foundTables, tmpExcludeTables = extractTableNames(ctesNodeMap["ctequery"])
-				var cteName string
-				err = json.Unmarshal(ctesNodeMap["ctename"], &cteName)
-				if err != nil {
-					logrus.Warnln("couldn't decode json", err)
-					continue
-				}
-				tmpExcludeTables = append(tmpExcludeTables, cteName)
-			default:
+				tables = append(tables, *outNode.Relname)
+				continue
+			} else if nodeType == "List" {
 				foundTables, tmpExcludeTables = extractTableNames(jsonText)
+			} else {
+				nm, err := parseNodeMap(jsonText)
+				if err != nil {
+					continue
+				}
+				switch nodeType {
+				case "RangeVar":
+				case "CommonTableExpr":
+					foundTables, tmpExcludeTables = extractTableNames(nm["ctequery"])
+					cteName := string(nm["ctename"])
+					cteName = strings.TrimPrefix(cteName, `"`)
+					cteName = strings.TrimSuffix(cteName, `"`)
+					tmpExcludeTables = append(tmpExcludeTables, cteName)
+
+				case "RawStmt":
+					foundTables, tmpExcludeTables = extractTableNames(nm["stmt"])
+				case "SelectStmt":
+					foundTables, tmpExcludeTables = extractTableNames(nm["fromClause"], nm["whereClause"], nm["withClause"], nm["larg"], nm["rarg"])
+				case "InsertStmt":
+					foundTables, tmpExcludeTables = extractTableNames(nm["relation"], nm["selectStmt"], nm["withClause"])
+				case "UpdateStmt":
+					foundTables, tmpExcludeTables = extractTableNames(nm["relation"], nm["fromClause"], nm["whereClause"], nm["withClause"])
+				case "DeleteStmt":
+					foundTables, tmpExcludeTables = extractTableNames(nm["relation"], nm["whereClause"], nm["withClause"])
+
+				case "JoinExpr":
+					foundTables, tmpExcludeTables = extractTableNames(nm["larg"], nm["rarg"])
+
+				case "WithClause":
+					foundTables, tmpExcludeTables = extractTableNames(nm["ctes"])
+				case "A_Expr":
+					foundTables, tmpExcludeTables = extractTableNames(nm["lexpr"], nm["rexpr"])
+
+				//Subqueries
+				case "SubLink":
+					foundTables, tmpExcludeTables = extractTableNames(nm["subselect"], nm["xpr"], nm["testexpr"])
+				case "RangeSubselect":
+					foundTables, tmpExcludeTables = extractTableNames(nm["subquery"])
+				}
 			}
 			tables = append(tables, foundTables...)
 			excludeTables = append(excludeTables, tmpExcludeTables...)
@@ -137,4 +159,14 @@ func extractTableNames(stmts ...json.RawMessage) ([]string, []string) {
 	}
 
 	return tables, excludeTables
+}
+
+func parseNodeMap(jsonText json.RawMessage) (map[string]json.RawMessage, error) {
+	var nm map[string]json.RawMessage
+	err := json.Unmarshal(jsonText, &nm)
+	if err != nil {
+		logrus.Warnln("couldn't decode json", err)
+		return nil, err
+	}
+	return nm, err
 }
