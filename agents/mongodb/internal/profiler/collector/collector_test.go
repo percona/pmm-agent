@@ -182,6 +182,7 @@ func TestCollector(t *testing.T) {
 	}()
 
 	wg.Wait()
+	ctr.Stop()
 
 	assert.Equal(t, maxDocs*maxLoops, len(profiles))
 }
