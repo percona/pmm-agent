@@ -53,12 +53,6 @@ func BenchmarkCollector(b *testing.B) {
 	maxLoops := 3
 	maxDocs := 100
 
-	originalCursorTimeout := cursorTimeout
-	cursorTimeout = time.Duration(maxDocs)*time.Millisecond + 100*time.Millisecond
-	defer func() {
-		cursorTimeout = originalCursorTimeout
-	}()
-
 	timeout := time.Millisecond*time.Duration(maxDocs*maxLoops) + cursorTimeout*time.Duration(maxLoops*2) + time.Second
 
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
@@ -121,12 +115,6 @@ func TestCollector(t *testing.T) {
 	maxLoops := 3
 	maxDocs := 100
 
-	originalCursorTimeout := cursorTimeout
-	cursorTimeout = time.Duration(maxDocs)*time.Millisecond + 100*time.Millisecond
-	defer func() {
-		cursorTimeout = originalCursorTimeout
-	}()
-
 	url := "mongodb://root:root-password@127.0.0.1:27017"
 	// time.Millisecond*time.Duration(maxDocs*maxLoops): time it takes to write all docs for all iterations
 	// cursorTimeout*time.Duration(maxLoops*2): Wait time between loops to produce iter.TryNext to return a false
@@ -141,7 +129,7 @@ func TestCollector(t *testing.T) {
 	cleanUpDBs(client) // Just in case there are old dbs with matching names
 	defer cleanUpDBs(client)
 
-	ctr := New(client, "test", logrus.WithField("component", "profiler-test"))
+	ctr := New(client, "test", logrus.WithField("component", "collector-test"))
 
 	// Save current profiler status
 	ps := ProfilerStatus{}
@@ -210,7 +198,7 @@ func genData(ctx context.Context, client *mongo.Client, maxLoops, maxDocs int) {
 			}
 		}
 
-		<-time.After(2 * cursorTimeout)
+		<-time.After(cursorTimeout)
 	}
 }
 

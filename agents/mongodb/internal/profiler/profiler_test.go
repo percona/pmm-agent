@@ -69,7 +69,7 @@ func TestProfiler(t *testing.T) {
 		_, err = sess.Database(fmt.Sprintf("test_%02d", int(i/10))).Collection("people").InsertOne(context.TODO(), doc)
 		i++
 	}
-	<-time.After(aggregator.DefaultInterval * 2) // give it some time to catch all metrics
+	<-time.After(aggregator.DefaultInterval * 3) // give it some time to catch all metrics
 
 	err = prof.Stop()
 	require.NoError(t, err)
@@ -81,7 +81,7 @@ func TestProfiler(t *testing.T) {
 	buckets := ms.reports[0].Buckets
 	sort.Slice(buckets, func(i, j int) bool { return buckets[i].Common.Database < buckets[j].Common.Database })
 
-	assert.Equal(t, len(buckets), 30) // 300 sample docs / 10 = different database names
+	require.Equal(t, len(buckets), 30) // 300 sample docs / 10 = different database names
 	for i := 0; i < 30; i++ {
 		assert.Equal(t, fmt.Sprintf("test_%02d", i), buckets[i].Common.Database)
 		assert.Equal(t, "INSERT people", buckets[i].Common.Fingerprint)

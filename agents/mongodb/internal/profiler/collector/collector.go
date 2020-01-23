@@ -196,6 +196,11 @@ func connectAndCollect(ctx context.Context, client *mongo.Client, dbName string,
 	default:
 		// just continue if not
 	}
+	count := 0
+
+	defer func() {
+		logger.Tracef(`%d documents was collected from %s to %s`, count, startTime.String(), endTime.String())
+	}()
 
 	for cursor.TryNext(timeoutCtx) {
 		doc := proto.SystemProfile{}
@@ -204,6 +209,7 @@ func connectAndCollect(ctx context.Context, client *mongo.Client, dbName string,
 			logger.Error(e)
 			continue
 		}
+		count++
 
 		// check if we should shutdown
 		select {
