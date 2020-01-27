@@ -62,7 +62,7 @@ test:                           ## Run tests.
 	go test $(TEST_FLAGS) -p 1 $(TEST_PACKAGES)
 
 test-race:                      ## Run tests with race detector.
-	go test $(TEST_FLAGS) -p 1 -race $(TEST_PACKAGES)
+	go test $(TEST_FLAGS) -p 1 -count 1 -race $(TEST_PACKAGES)
 
 test-cover:                     ## Run tests and collect per-package coverage information.
 	go test $(TEST_FLAGS) -p 1 -coverprofile=cover.out -covermode=count $(TEST_PACKAGES)

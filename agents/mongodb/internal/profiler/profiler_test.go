@@ -48,6 +48,15 @@ func TestProfiler(t *testing.T) {
 
 	cleanUpDBs(t, sess) // Just in case there are old dbs with matching names
 
+	i := 0
+	// It's done to create Databases.
+	for i < 30 {
+		doc := bson.M{"id": i}
+		sess.Database(fmt.Sprintf("test_%02d", i)).Collection("people").InsertOne(context.TODO(), doc)
+		sess.Database(fmt.Sprintf("test_%02d", i)).Collection("people").DeleteOne(context.TODO(), doc)
+		i++
+	}
+
 	ms := &testWriter{
 		t:       t,
 		reports: make([]*report.Report, 0),
@@ -58,7 +67,7 @@ func TestProfiler(t *testing.T) {
 	require.NoError(t, err)
 
 	ticker := time.NewTicker(time.Millisecond * 1)
-	i := 0
+	i = 0
 	for i < 300 {
 		<-ticker.C
 		fieldsCount := int(i/10) + 1
@@ -74,7 +83,7 @@ func TestProfiler(t *testing.T) {
 	err = prof.Stop()
 	require.NoError(t, err)
 
-	cleanUpDBs(t, sess)
+	defer cleanUpDBs(t, sess)
 
 	require.GreaterOrEqual(t, len(ms.reports), 1)
 
