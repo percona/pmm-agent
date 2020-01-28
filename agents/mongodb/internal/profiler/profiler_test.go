@@ -18,7 +18,6 @@ package profiler
 import (
 	"context"
 	"fmt"
-	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -68,11 +67,14 @@ func TestProfiler(t *testing.T) {
 	dbsCount := 30
 	docsCount := float32(10)
 
+	ticker := time.NewTicker(time.Millisecond * 1)
 	i := 0
 	// It's done to create Databases.
 	for i < dbsCount {
+		<-ticker.C
 		doc := bson.M{"id": i}
-		sess.Database(fmt.Sprintf("test_%02d", i)).Collection("test").InsertOne(context.TODO(), doc)
+		_, err := sess.Database(fmt.Sprintf("test_%02d", i)).Collection("test").InsertOne(context.TODO(), doc)
+		assert.NoError(t, err)
 		i++
 	}
 	<-time.After(aggregator.DefaultInterval * 2) // give it some time before starting profiler
@@ -87,7 +89,6 @@ func TestProfiler(t *testing.T) {
 	require.NoError(t, err)
 	<-time.After(aggregator.DefaultInterval * 2) // give it some time to start profiler
 
-	ticker := time.NewTicker(time.Millisecond * 1)
 	i = 0
 	for i < dbsCount*int(docsCount) {
 		<-ticker.C
@@ -97,6 +98,7 @@ func TestProfiler(t *testing.T) {
 			doc[fmt.Sprintf("name_%05d", j)] = fmt.Sprintf("value_%05d", j) // to generate different fingerprints
 		}
 		_, err = sess.Database(fmt.Sprintf("test_%02d", int(i/int(docsCount)))).Collection("people").InsertOne(context.TODO(), doc)
+		assert.NoError(t, err)
 		i++
 	}
 	<-time.After(aggregator.DefaultInterval * 2) // give it some time to catch all metrics
@@ -108,13 +110,23 @@ func TestProfiler(t *testing.T) {
 
 	require.GreaterOrEqual(t, len(ms.reports), 1)
 
-	var buckets []*agentpb.MetricsBucket
+	buckets := make(map[string]*agentpb.MetricsBucket)
 	for _, r := range ms.reports {
-		buckets = append(buckets, r.Buckets...)
+		for _, bucket := range r.Buckets {
+			if bucket.Common.Fingerprint != "INSERT people" {
+				continue
+			}
+			key := fmt.Sprintf("%s:%s", bucket.Common.Database, bucket.Common.Fingerprint)
+			if b, ok := buckets[key]; ok {
+				b.Mongodb.MDocsReturnedCnt += bucket.Mongodb.MDocsReturnedCnt
+				b.Mongodb.MResponseLengthCnt += bucket.Mongodb.MResponseLengthCnt
+				b.Mongodb.MResponseLengthSum += bucket.Mongodb.MResponseLengthSum
+				b.Mongodb.MDocsScannedCnt += bucket.Mongodb.MDocsScannedCnt
+			} else {
+				buckets[key] = bucket
+			}
+		}
 	}
-
-	//buckets := ms.reports[0].Buckets
-	sort.Slice(buckets, func(i, j int) bool { return buckets[i].Common.Database < buckets[j].Common.Database })
 
 	version, err := GetMongoVersion(context.TODO(), sess)
 	require.NoError(t, err)
@@ -130,18 +142,13 @@ func TestProfiler(t *testing.T) {
 		responseLength = 45
 	}
 
-	dbs := make(map[string]bool)
 	assert.Equal(t, dbsCount, len(buckets)) // 300 sample docs / 10 = different database names
-	for i := 0; i < len(buckets); i++ {
-		if buckets[i].Common.Fingerprint == "INSERT test" {
-			continue
-		}
-		dbs[buckets[i].Common.Database] = true
-		assert.True(t, strings.HasPrefix(buckets[i].Common.Database, "test_"), fmt.Sprintf("database name %s should have prefix test_", buckets[i].Common.Database))
-		assert.Equal(t, "INSERT people", buckets[i].Common.Fingerprint)
-		assert.Equal(t, []string{"people"}, buckets[i].Common.Tables)
-		assert.Equal(t, "test-id", buckets[i].Common.AgentId)
-		assert.Equal(t, inventorypb.AgentType(9), buckets[i].Common.AgentType)
+	for _, bucket := range buckets {
+		assert.True(t, strings.HasPrefix(bucket.Common.Database, "test_"), fmt.Sprintf("database name %s should have prefix test_", bucket.Common.Database))
+		assert.Equal(t, "INSERT people", bucket.Common.Fingerprint)
+		assert.Equal(t, []string{"people"}, bucket.Common.Tables)
+		assert.Equal(t, "test-id", bucket.Common.AgentId)
+		assert.Equal(t, inventorypb.AgentType(9), bucket.Common.AgentType)
 		wantMongoDB := &agentpb.MetricsBucket_MongoDB{
 			MDocsReturnedCnt:   docsCount,
 			MResponseLengthCnt: docsCount,
@@ -151,9 +158,8 @@ func TestProfiler(t *testing.T) {
 			MResponseLengthP99: responseLength,
 			MDocsScannedCnt:    docsCount,
 		}
-		assert.Equal(t, wantMongoDB, buckets[i].Mongodb)
+		assert.Equalf(t, wantMongoDB, bucket.Mongodb, "wrong metrics for db %s", bucket.Common.Database)
 	}
-	assert.Equal(t, dbsCount, len(dbs))
 }
 
 func cleanUpDBs(t *testing.T, sess *mongo.Client) {
