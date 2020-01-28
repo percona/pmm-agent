@@ -65,11 +65,14 @@ func TestProfiler(t *testing.T) {
 
 	cleanUpDBs(t, sess) // Just in case there are old dbs with matching names
 
+	dbsCount := 30
+	docsCount := float32(10)
+
 	i := 0
 	// It's done to create Databases.
-	for i < 30 {
+	for i < dbsCount {
 		doc := bson.M{"id": i}
-		sess.Database(fmt.Sprintf("test_%02d", i)).Collection("people").InsertOne(context.TODO(), doc)
+		sess.Database(fmt.Sprintf("test_%02d", i)).Collection("test").InsertOne(context.TODO(), doc)
 		i++
 	}
 	<-time.After(aggregator.DefaultInterval * 2) // give it some time before starting profiler
@@ -82,21 +85,21 @@ func TestProfiler(t *testing.T) {
 	err = prof.Start()
 	defer prof.Stop()
 	require.NoError(t, err)
-	<-time.After(aggregator.DefaultInterval) // give it some time to start profiler
+	<-time.After(aggregator.DefaultInterval * 2) // give it some time to start profiler
 
 	ticker := time.NewTicker(time.Millisecond * 1)
 	i = 0
-	for i < 300 {
+	for i < dbsCount*int(docsCount) {
 		<-ticker.C
-		fieldsCount := int(i/10) + 1
+		fieldsCount := int(i/int(docsCount)) + 1
 		doc := bson.M{}
 		for j := 0; j < fieldsCount; j++ {
 			doc[fmt.Sprintf("name_%05d", j)] = fmt.Sprintf("value_%05d", j) // to generate different fingerprints
 		}
-		_, err = sess.Database(fmt.Sprintf("test_%02d", int(i/10))).Collection("people").InsertOne(context.TODO(), doc)
+		_, err = sess.Database(fmt.Sprintf("test_%02d", int(i/int(docsCount)))).Collection("people").InsertOne(context.TODO(), doc)
 		i++
 	}
-	<-time.After(aggregator.DefaultInterval * 3) // give it some time to catch all metrics
+	<-time.After(aggregator.DefaultInterval * 2) // give it some time to catch all metrics
 
 	err = prof.Stop()
 	require.NoError(t, err)
@@ -107,7 +110,6 @@ func TestProfiler(t *testing.T) {
 
 	var buckets []*agentpb.MetricsBucket
 	for _, r := range ms.reports {
-		fmt.Printf("%v\n", len(r.Buckets))
 		buckets = append(buckets, r.Buckets...)
 	}
 
@@ -128,24 +130,30 @@ func TestProfiler(t *testing.T) {
 		responseLength = 45
 	}
 
-	assert.Equal(t, 30, len(buckets)) // 300 sample docs / 10 = different database names
+	dbs := make(map[string]bool)
+	assert.Equal(t, dbsCount, len(buckets)) // 300 sample docs / 10 = different database names
 	for i := 0; i < len(buckets); i++ {
-		assert.Equal(t, fmt.Sprintf("test_%02d", i), buckets[i].Common.Database)
+		if buckets[i].Common.Fingerprint == "INSERT test" {
+			continue
+		}
+		dbs[buckets[i].Common.Database] = true
+		assert.True(t, strings.HasPrefix(buckets[i].Common.Database, "test_"), fmt.Sprintf("database name %s should have prefix test_", buckets[i].Common.Database))
 		assert.Equal(t, "INSERT people", buckets[i].Common.Fingerprint)
 		assert.Equal(t, []string{"people"}, buckets[i].Common.Tables)
 		assert.Equal(t, "test-id", buckets[i].Common.AgentId)
 		assert.Equal(t, inventorypb.AgentType(9), buckets[i].Common.AgentType)
 		wantMongoDB := &agentpb.MetricsBucket_MongoDB{
-			MDocsReturnedCnt:   10,
-			MResponseLengthCnt: 10,
-			MResponseLengthSum: responseLength * 10,
+			MDocsReturnedCnt:   docsCount,
+			MResponseLengthCnt: docsCount,
+			MResponseLengthSum: responseLength * docsCount,
 			MResponseLengthMin: responseLength,
 			MResponseLengthMax: responseLength,
 			MResponseLengthP99: responseLength,
-			MDocsScannedCnt:    10,
+			MDocsScannedCnt:    docsCount,
 		}
 		assert.Equal(t, wantMongoDB, buckets[i].Mongodb)
 	}
+	assert.Equal(t, dbsCount, len(dbs))
 }
 
 func cleanUpDBs(t *testing.T, sess *mongo.Client) {
