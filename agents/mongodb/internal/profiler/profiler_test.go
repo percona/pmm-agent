@@ -67,7 +67,7 @@ func TestProfiler(t *testing.T) {
 
 	cleanUpDBs(t, sess) // Just in case there are old dbs with matching names
 
-	dbsCount := 30
+	dbsCount := 10
 	docsCount := float32(10)
 
 	ticker := time.NewTicker(time.Millisecond * 1)

@@ -41,7 +41,7 @@ func New(client *mongo.Client, dbName string, logger *logrus.Entry) *Collector {
 	return &Collector{
 		client: client,
 		dbName: dbName,
-		logger: logger,
+		logger: logger.WithField("db", dbName),
 	}
 }
 
@@ -131,6 +131,7 @@ func start(ctx context.Context, wg *sync.WaitGroup, client *mongo.Client, dbName
 	docsChan chan<- proto.SystemProfile, doneChan <-chan struct{}, ready *sync.Cond, logger *logrus.Entry) {
 	// signal WaitGroup when goroutine finished
 	defer wg.Done()
+	collection := client.Database(dbName).Collection("system.profile")
 
 	lastCollectTime := time.Now()
 	firstTry := true
@@ -139,7 +140,7 @@ func start(ctx context.Context, wg *sync.WaitGroup, client *mongo.Client, dbName
 		// make a connection and collect data
 		connectAndCollect(
 			ctx,
-			client,
+			collection,
 			dbName,
 			docsChan,
 			doneChan,
@@ -169,9 +170,8 @@ func start(ctx context.Context, wg *sync.WaitGroup, client *mongo.Client, dbName
 	}
 }
 
-func connectAndCollect(ctx context.Context, client *mongo.Client, dbName string, docsChan chan<- proto.SystemProfile, doneChan <-chan struct{}, ready *sync.Cond, logger *logrus.Entry, startTime, endTime time.Time) { //nolint: lll
+func connectAndCollect(ctx context.Context, collection *mongo.Collection, dbName string, docsChan chan<- proto.SystemProfile, doneChan <-chan struct{}, ready *sync.Cond, logger *logrus.Entry, startTime, endTime time.Time) { //nolint: lll
 	logger.Traceln("connect and collect is called")
-	collection := client.Database(dbName).Collection("system.profile")
 	query := createQuery(dbName, startTime, endTime)
 
 	timeoutCtx, cancel := context.WithTimeout(context.TODO(), cursorTimeout)
@@ -244,7 +244,7 @@ func createQuery(dbName string, startTime, endTime time.Time) bson.M {
 }
 
 func createIterator(ctx context.Context, collection *mongo.Collection, query bson.M) (*mongo.Cursor, error) {
-	opts := options.Find().SetSort(bson.M{"$natural": 1}).SetCursorType(options.NonTailable)
+	opts := options.Find().SetSort(bson.M{"$natural": 1}).SetCursorType(options.TailableAwait)
 	return collection.Find(ctx, query, opts)
 }
 
