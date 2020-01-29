@@ -136,7 +136,6 @@ func start(ctx context.Context, wg *sync.WaitGroup, client *mongo.Client, dbName
 	lastCollectTime := time.Now()
 	firstTry := true
 	for {
-		now := time.Now()
 		// make a connection and collect data
 		connectAndCollect(
 			ctx,
@@ -147,9 +146,8 @@ func start(ctx context.Context, wg *sync.WaitGroup, client *mongo.Client, dbName
 			ready,
 			logger,
 			lastCollectTime,
-			now,
 		)
-		lastCollectTime = now
+		lastCollectTime = time.Now()
 
 		select {
 		// check if we should shutdown
@@ -170,9 +168,9 @@ func start(ctx context.Context, wg *sync.WaitGroup, client *mongo.Client, dbName
 	}
 }
 
-func connectAndCollect(ctx context.Context, collection *mongo.Collection, dbName string, docsChan chan<- proto.SystemProfile, doneChan <-chan struct{}, ready *sync.Cond, logger *logrus.Entry, startTime, endTime time.Time) { //nolint: lll
+func connectAndCollect(ctx context.Context, collection *mongo.Collection, dbName string, docsChan chan<- proto.SystemProfile, doneChan <-chan struct{}, ready *sync.Cond, logger *logrus.Entry, startTime time.Time) { //nolint: lll
 	logger.Traceln("connect and collect is called")
-	query := createQuery(dbName, startTime, endTime)
+	query := createQuery(dbName, startTime)
 
 	timeoutCtx, cancel := context.WithTimeout(context.TODO(), cursorTimeout)
 	defer cancel()
@@ -199,47 +197,59 @@ func connectAndCollect(ctx context.Context, collection *mongo.Collection, dbName
 	count := 0
 
 	defer func() {
-		logger.Tracef(`%d documents was collected from %s to %s`, count, startTime.String(), endTime.String())
+		logger.Tracef(`%d documents was collected from %s to %s`, count, startTime.String(), time.Now())
 	}()
 
-	for cursor.TryNext(timeoutCtx) {
-		doc := proto.SystemProfile{}
-		e := cursor.Decode(&doc)
-		if e != nil {
-			logger.Error(e)
-			continue
-		}
-		count++
+	for {
+		for cursor.TryNext(context.TODO()) {
+			doc := proto.SystemProfile{}
+			e := cursor.Decode(&doc)
+			if e != nil {
+				logger.Error(e)
+				continue
+			}
+			count++
 
-		// check if we should shutdown
+			// check if we should shutdown
+			select {
+			case <-ctx.Done():
+				return
+			case <-doneChan:
+				return
+			default:
+				// just continue if not
+			}
+
+			// try to push doc
+			select {
+			case docsChan <- doc:
+			// or exit if we can't push the doc and we should shutdown
+			// note that if we can push the doc then exiting is not guaranteed
+			// that's why we have separate `select <-doneChan` above
+			case <-doneChan:
+				return
+			}
+		}
+		if err := cursor.Err(); err != nil {
+			logger.Warnln("couldn't retrieve data from cursor", err)
+		}
+
 		select {
+		// check if we should shutdown
 		case <-ctx.Done():
 			return
 		case <-doneChan:
 			return
-		default:
-			// just continue if not
+		// wait some time before reconnecting
+		case <-time.After(1 * time.Second):
 		}
-
-		// try to push doc
-		select {
-		case docsChan <- doc:
-		// or exit if we can't push the doc and we should shutdown
-		// note that if we can push the doc then exiting is not guaranteed
-		// that's why we have separate `select <-doneChan` above
-		case <-doneChan:
-			return
-		}
-	}
-	if err := cursor.Err(); err != nil {
-		logger.Warnln("couldn't retrieve data from cursor", err)
 	}
 }
 
-func createQuery(dbName string, startTime, endTime time.Time) bson.M {
+func createQuery(dbName string, startTime time.Time) bson.M {
 	return bson.M{
 		"ns": bson.M{"$ne": dbName + ".system.profile"},
-		"ts": bson.M{"$gt": startTime, "$lt": endTime},
+		"ts": bson.M{"$gt": startTime},
 	}
 }
 
