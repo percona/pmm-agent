@@ -166,7 +166,10 @@ func start(ctx context.Context, wg *sync.WaitGroup, aggregator *Aggregator, done
 			// This introduces another issue, that in case something goes wrong, and we get metrics for old interval too late, they will be skipped.
 			// A proper solution would be to allow fixing old samples, but API and qan-agent doesn't allow this, yet.
 			aggregator.Flush(ctx)
+
+			aggregator.m.Lock()
 			aggregator.t.Reset(aggregator.d)
+			aggregator.m.Unlock()
 		case <-doneChan:
 			// Check if we should shutdown.
 			return
