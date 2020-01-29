@@ -59,6 +59,9 @@ func TestProfiler(t *testing.T) {
 
 	url := "mongodb://root:root-password@127.0.0.1:27017"
 
+	logrus.SetLevel(logrus.TraceLevel)
+	defer logrus.SetLevel(logrus.InfoLevel)
+
 	sess, err := createSession(url, "pmm-agent")
 	require.NoError(t, err)
 
@@ -73,7 +76,9 @@ func TestProfiler(t *testing.T) {
 	for i < dbsCount {
 		<-ticker.C
 		doc := bson.M{"id": i}
-		_, err := sess.Database(fmt.Sprintf("test_%02d", i)).Collection("test").InsertOne(context.TODO(), doc)
+		dbName := fmt.Sprintf("test_%02d", i)
+		logrus.Traceln("create db", dbName)
+		_, err := sess.Database(dbName).Collection("test").InsertOne(context.TODO(), doc)
 		assert.NoError(t, err)
 		i++
 	}
@@ -87,17 +92,20 @@ func TestProfiler(t *testing.T) {
 	err = prof.Start()
 	defer prof.Stop()
 	require.NoError(t, err)
-	<-time.After(aggregator.DefaultInterval * 2) // give it some time to start profiler
+	<-time.After(aggregator.DefaultInterval * 3) // give it some time to start profiler
 
 	i = 0
 	for i < dbsCount*int(docsCount) {
 		<-ticker.C
-		fieldsCount := int(i/int(docsCount)) + 1
+		dbNumber := i / int(docsCount)
+		fieldsCount := dbNumber + 1
 		doc := bson.M{}
 		for j := 0; j < fieldsCount; j++ {
 			doc[fmt.Sprintf("name_%05d", j)] = fmt.Sprintf("value_%05d", j) // to generate different fingerprints
 		}
-		_, err = sess.Database(fmt.Sprintf("test_%02d", int(i/int(docsCount)))).Collection("people").InsertOne(context.TODO(), doc)
+		dbName := fmt.Sprintf("test_%02d", dbNumber)
+		logrus.Tracef("inserting value %d to %s", dbNumber, dbName)
+		_, err = sess.Database(dbName).Collection("people").InsertOne(context.TODO(), doc)
 		assert.NoError(t, err)
 		i++
 	}
@@ -138,7 +146,6 @@ func TestProfiler(t *testing.T) {
 	case "3.6":
 		responseLength = 29
 	default:
-		fmt.Printf("%v", version)
 		responseLength = 45
 	}
 
