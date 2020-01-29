@@ -97,7 +97,7 @@ func (a *Aggregator) Add(ctx context.Context, doc proto.SystemProfile) error {
 	}
 
 	// we had some activity so reset timer
-	//a.t.Reset(a.d)
+	a.t.Reset(a.d)
 
 	// add new doc to stats
 	return a.mongostats.Add(doc)
@@ -166,6 +166,7 @@ func start(ctx context.Context, wg *sync.WaitGroup, aggregator *Aggregator, done
 			// This introduces another issue, that in case something goes wrong, and we get metrics for old interval too late, they will be skipped.
 			// A proper solution would be to allow fixing old samples, but API and qan-agent doesn't allow this, yet.
 			aggregator.Flush(ctx)
+			aggregator.t.Reset(aggregator.d)
 		case <-doneChan:
 			// Check if we should shutdown.
 			return
