@@ -118,7 +118,10 @@ func TestCollector(t *testing.T) {
 	url := "mongodb://root:root-password@127.0.0.1:27017"
 	// time.Millisecond*time.Duration(maxDocs*maxLoops): time it takes to write all docs for all iterations
 	// cursorTimeout*time.Duration(maxLoops*2): Wait time between loops to produce iter.TryNext to return a false
-	timeout := time.Millisecond*time.Duration(maxDocs*maxLoops) + cursorTimeout*time.Duration(maxLoops*2) + 3*time.Second
+	timeout := time.Millisecond*time.Duration(maxDocs*maxLoops) + cursorTimeout*time.Duration(maxLoops*2) + 5*time.Second
+
+	logrus.SetLevel(logrus.TraceLevel)
+	defer logrus.SetLevel(logrus.InfoLevel)
 
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
@@ -129,28 +132,21 @@ func TestCollector(t *testing.T) {
 	cleanUpDBs(client) // Just in case there are old dbs with matching names
 	defer cleanUpDBs(client)
 
-	ctr := New(client, "test", logrus.WithField("component", "collector-test"))
+	//It's done create DB before the test.
+	doc := bson.M{}
+	client.Database("test_collector").Collection("test").InsertOne(context.TODO(), doc)
+	<-time.After(time.Second)
 
-	// Save current profiler status
-	ps := ProfilerStatus{}
-	err = client.Database("admin").RunCommand(ctx, primitive.M{"profile": -1}).Decode(&ps)
-	require.NoError(t, err, "Cannot get profiler status")
-	defer func() { // restore profiler status
-		res := client.Database("admin").RunCommand(ctx, primitive.D{{"profile", ps.Was}})
-		require.NoError(t, res.Err())
-	}()
-
-	// Enable profilling all queries (2, slowms = 0)
-	res := client.Database("admin").RunCommand(ctx, primitive.D{{"profile", 2}, {"slowms", 0}})
-	require.NoError(t, res.Err())
-
-	go genData(ctx, client, maxLoops, maxDocs)
+	ctr := New(client, "test_collector", logrus.WithField("component", "collector-test"))
 
 	// Start the collector
 	profiles := make([]proto.SystemProfile, 0)
 	docsChan, err := ctr.Start(ctx)
 	wg := &sync.WaitGroup{}
 	wg.Add(1)
+	<-time.After(time.Second)
+
+	go genData(ctx, client, maxLoops, maxDocs)
 
 	go func() {
 		defer wg.Done()
@@ -191,8 +187,8 @@ func genData(ctx context.Context, client *mongo.Client, maxLoops, maxDocs int) {
 		for i := 0; i < maxDocs; i++ {
 			select {
 			case <-ticker.C:
-				doc := bson.M{"firt_name": "zapp", "last_name": "brannigan"}
-				client.Database("test").Collection("people").InsertOne(context.TODO(), doc)
+				doc := bson.M{"first_name": "zapp", "last_name": "brannigan"}
+				client.Database("test_collector").Collection("people").InsertOne(context.TODO(), doc)
 			case <-ctx.Done():
 				return
 			}
