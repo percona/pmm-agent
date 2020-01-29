@@ -97,7 +97,7 @@ func (a *Aggregator) Add(ctx context.Context, doc proto.SystemProfile) error {
 	}
 
 	// we had some activity so reset timer
-	a.t.Reset(a.d)
+	//a.t.Reset(a.d)
 
 	// add new doc to stats
 	return a.mongostats.Add(doc)

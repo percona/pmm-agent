@@ -54,7 +54,7 @@ func GetMongoVersion(ctx context.Context, client *mongo.Client) (string, error) 
 
 func TestProfiler(t *testing.T) {
 	defaultInterval := aggregator.DefaultInterval
-	aggregator.DefaultInterval = time.Duration(time.Second)
+	aggregator.DefaultInterval = time.Second
 	defer func() { aggregator.DefaultInterval = defaultInterval }()
 
 	url := "mongodb://root:root-password@127.0.0.1:27017"
@@ -82,7 +82,7 @@ func TestProfiler(t *testing.T) {
 		assert.NoError(t, err)
 		i++
 	}
-	<-time.After(aggregator.DefaultInterval * 2) // give it some time before starting profiler
+	<-time.After(aggregator.DefaultInterval) // give it some time before starting profiler
 
 	ms := &testWriter{
 		t:       t,
@@ -104,12 +104,12 @@ func TestProfiler(t *testing.T) {
 			doc[fmt.Sprintf("name_%05d", j)] = fmt.Sprintf("value_%05d", j) // to generate different fingerprints
 		}
 		dbName := fmt.Sprintf("test_%02d", dbNumber)
-		logrus.Tracef("inserting value %d to %s", dbNumber, dbName)
+		logrus.Tracef("inserting value %d to %s", i, dbName)
 		_, err = sess.Database(dbName).Collection("people").InsertOne(context.TODO(), doc)
 		assert.NoError(t, err)
 		i++
 	}
-	<-time.After(aggregator.DefaultInterval * 2) // give it some time to catch all metrics
+	<-time.After(aggregator.DefaultInterval * 4) // give it some time to catch all metrics
 
 	err = prof.Stop()
 	require.NoError(t, err)
