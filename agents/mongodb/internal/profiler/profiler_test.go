@@ -70,7 +70,7 @@ func TestProfiler(t *testing.T) {
 	dbsCount := 10
 	docsCount := float32(10)
 
-	ticker := time.NewTicker(time.Millisecond * 1)
+	ticker := time.NewTicker(time.Millisecond)
 	i := 0
 	// It's done to create Databases.
 	for i < dbsCount {
@@ -92,7 +92,7 @@ func TestProfiler(t *testing.T) {
 	err = prof.Start()
 	defer prof.Stop()
 	require.NoError(t, err)
-	<-time.After(aggregator.DefaultInterval * 3) // give it some time to start profiler
+	<-time.After(aggregator.DefaultInterval * 2) // give it some time to start profiler
 
 	i = 0
 	for i < dbsCount*int(docsCount) {
@@ -109,7 +109,7 @@ func TestProfiler(t *testing.T) {
 		assert.NoError(t, err)
 		i++
 	}
-	<-time.After(aggregator.DefaultInterval * 4) // give it some time to catch all metrics
+	<-time.After(aggregator.DefaultInterval * 6) // give it some time to catch all metrics
 
 	err = prof.Stop()
 	require.NoError(t, err)
