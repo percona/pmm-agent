@@ -1,7 +1,6 @@
 {
   "tables": [
-    "accounts",
-    "employees"
+    "order_line1"
   ],
   "error": ""
 }
