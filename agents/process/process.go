@@ -1,25 +1,26 @@
 // pmm-agent
-// Copyright (C) 2018 Percona LLC
+// Copyright 2019 Percona LLC
 //
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
 //
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Affero General Public License for more details.
+//  http://www.apache.org/licenses/LICENSE-2.0
 //
-// You should have received a copy of the GNU Affero General Public License
-// along with this program. If not, see <https://www.gnu.org/licenses/>.
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 // Package process runs Agent processes.
 package process
 
 import (
 	"context"
+	"fmt"
 	"os/exec"
+	"strings"
 	"time"
 
 	"github.com/percona/pmm/api/inventorypb"
@@ -71,12 +72,21 @@ type Params struct {
 	Env  []string
 }
 
+func (p *Params) String() string {
+	res := p.Path + " " + strings.Join(p.Args, " ")
+	if len(p.Env) > 0 {
+		res += " (environment: " + strings.Join(p.Env, ", ") + ")"
+	}
+
+	return res
+}
+
 // New creates new process.
-func New(params *Params, l *logrus.Entry) *Process {
+func New(params *Params, redactWords []string, l *logrus.Entry) *Process {
 	return &Process{
 		params:  params,
 		l:       l,
-		pl:      newProcessLogger(l, keepLogLines),
+		pl:      newProcessLogger(l, keepLogLines, redactWords),
 		changes: make(chan inventorypb.AgentStatus, 10),
 		backoff: backoff.New(backoffMinDelay, backoffMaxDelay),
 		ctxDone: make(chan struct{}),
@@ -95,7 +105,7 @@ func (p *Process) Run(ctx context.Context) {
 // STARTING -> RUNNING
 // STARTING -> WAITING
 func (p *Process) toStarting() {
-	p.l.Infof("Process: starting.")
+	p.l.Tracef("Process: starting.")
 	p.changes <- inventorypb.AgentStatus_STARTING
 
 	p.cmd = exec.Command(p.params.Path, p.params.Args...) //nolint:gosec
@@ -138,7 +148,7 @@ func (p *Process) toStarting() {
 // RUNNING -> STOPPING
 // RUNNING -> WAITING
 func (p *Process) toRunning() {
-	p.l.Infof("Process: running.")
+	p.l.Tracef("Process: running.")
 	p.changes <- inventorypb.AgentStatus_RUNNING
 
 	p.backoff.Reset()
@@ -172,7 +182,7 @@ func (p *Process) toWaiting() {
 
 // STOPPING -> DONE
 func (p *Process) toStopping() {
-	p.l.Infof("Process: stopping (sending SIGTERM)...")
+	p.l.Tracef("Process: stopping (sending SIGTERM)...")
 	p.changes <- inventorypb.AgentStatus_STOPPING
 
 	if err := p.cmd.Process.Signal(unix.SIGTERM); err != nil {
@@ -197,7 +207,7 @@ func (p *Process) toStopping() {
 }
 
 func (p *Process) toDone() {
-	p.l.Info("Process: done.")
+	p.l.Trace("Process: done.")
 	p.changes <- inventorypb.AgentStatus_DONE
 
 	close(p.changes)
@@ -212,3 +222,8 @@ func (p *Process) Changes() <-chan inventorypb.AgentStatus {
 func (p *Process) Logs() []string {
 	return p.pl.Latest()
 }
+
+// check interfaces
+var (
+	_ fmt.Stringer = (*Params)(nil)
+)

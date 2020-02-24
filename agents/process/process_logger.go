@@ -1,18 +1,17 @@
 // pmm-agent
-// Copyright (C) 2018 Percona LLC
+// Copyright 2019 Percona LLC
 //
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
 //
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Affero General Public License for more details.
+//  http://www.apache.org/licenses/LICENSE-2.0
 //
-// You should have received a copy of the GNU Affero General Public License
-// along with this program. If not, see <https://www.gnu.org/licenses/>.
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 package process
 
@@ -34,14 +33,24 @@ type processLogger struct {
 	buf  []byte
 	i    int
 	data []*string
+
+	replacer *strings.Replacer
 }
 
 // newProcessLogger creates new processLogger with a given logger and a given amount of lines to keep.
-func newProcessLogger(l *logrus.Entry, lines int) *processLogger {
-	return &processLogger{
+func newProcessLogger(l *logrus.Entry, lines int, redactWords []string) *processLogger {
+	pl := &processLogger{
 		l:    l,
 		data: make([]*string, lines),
 	}
+
+	if l != nil && l.Logger.GetLevel() >= logrus.DebugLevel {
+		l.Debug("Logs redactor disabled in debug mode.")
+	} else {
+		pl.replacer = replacer(redactWords)
+	}
+
+	return pl
 }
 
 // Write implements io.Writer.
@@ -65,6 +74,9 @@ func (pl *processLogger) Write(p []byte) (n int, err error) {
 			return
 		}
 		line = strings.TrimSuffix(line, "\n")
+		if pl.replacer != nil {
+			line = pl.replacer.Replace(line)
+		}
 		if pl.l != nil {
 			pl.l.Infoln(line)
 		}
@@ -87,6 +99,21 @@ func (pl *processLogger) Latest() []string {
 		}
 	}
 	return result
+}
+
+func replacer(redactWords []string) *strings.Replacer {
+	if len(redactWords) == 0 {
+		return nil
+	}
+
+	r := make([]string, 0, len(redactWords)*2)
+	for _, w := range redactWords {
+		if w == "" {
+			panic("redact word can't be empty")
+		}
+		r = append(r, w, "***")
+	}
+	return strings.NewReplacer(r...)
 }
 
 // check interfaces

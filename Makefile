@@ -3,11 +3,13 @@ help:                           ## Display this help message.
 	@grep '^[a-zA-Z]' $(MAKEFILE_LIST) | \
 		awk -F ':.*?## ' 'NF==2 {printf "  %-26s%s\n", $$1, $$2}'
 
+# `cut` is used to remove first `v` from `git describe` output
 PMM_RELEASE_PATH ?= bin
-PMM_RELEASE_VERSION ?= 2.0.0-dev
+PMM_RELEASE_VERSION ?= $(shell git describe --always --dirty | cut -b2-)
 PMM_RELEASE_TIMESTAMP ?= $(shell date '+%s')
 PMM_RELEASE_FULLCOMMIT ?= $(shell git rev-parse HEAD)
-PMM_RELEASE_BRANCH ?= $(shell git describe --all --contains --dirty HEAD)
+PMM_RELEASE_BRANCH ?= $(shell git describe --always --contains --all)
+PMM_DEV_SERVER_PORT ?= 443
 
 VERSION_FLAGS = -X 'github.com/percona/pmm-agent/vendor/github.com/percona/pmm/version.ProjectName=pmm-agent' \
 				-X 'github.com/percona/pmm-agent/vendor/github.com/percona/pmm/version.Version=$(PMM_RELEASE_VERSION)' \
@@ -37,6 +39,7 @@ gen:                            ## Generate files.
 	go generate ./...
 	make format
 
+# generate stub models for perfschema QAN agent; hidden from help as it is not generally useful
 gen-init:
 	go install ./vendor/gopkg.in/reform.v1/reform-db
 	mkdir tmp-mysql
@@ -48,19 +51,24 @@ install:                        ## Install pmm-agent binary.
 install-race:                   ## Install pmm-agent binary with race detector.
 	go install -ldflags "$(VERSION_FLAGS)" -race ./...
 
+# TODO https://jira.percona.com/browse/PMM-4681
+# TEST_PARALLEL_PACKAGES ?= foo bar
+# go test $(TEST_FLAGS) $(TEST_PARALLEL_PACKAGES) - without `-p 1`
+
+TEST_PACKAGES ?= ./...
 TEST_FLAGS ?= -timeout=20s
 
 test:                           ## Run tests.
-	go test $(TEST_FLAGS) ./...
+	go test $(TEST_FLAGS) -p 1 $(TEST_PACKAGES)
 
 test-race:                      ## Run tests with race detector.
-	go test $(TEST_FLAGS) -race ./...
+	go test $(TEST_FLAGS) -p 1 -race $(TEST_PACKAGES)
 
 test-cover:                     ## Run tests and collect per-package coverage information.
-	go test $(TEST_FLAGS) -coverprofile=cover.out -covermode=count ./...
+	go test $(TEST_FLAGS) -p 1 -coverprofile=cover.out -covermode=count $(TEST_PACKAGES)
 
 test-crosscover:                ## Run tests and collect cross-package coverage information.
-	go test $(TEST_FLAGS) -coverprofile=crosscover.out -covermode=count -coverpkg=./... ./...
+	go test $(TEST_FLAGS) -p 1 -coverprofile=crosscover.out -covermode=count -coverpkg=./... $(TEST_PACKAGES)
 
 fuzz-slowlog-parser:            ## Run fuzzer for agents/mysql/slowlog/parser package.
 	# go get -u github.com/dvyukov/go-fuzz/go-fuzz github.com/dvyukov/go-fuzz/go-fuzz-build
@@ -69,9 +77,21 @@ fuzz-slowlog-parser:            ## Run fuzzer for agents/mysql/slowlog/parser pa
 	cd agents/mysql/slowlog/parser && go-fuzz-build
 	cd agents/mysql/slowlog/parser && go-fuzz
 
+fuzz-postgres-parser:   ## Run fuzzer for agents/postgres/parser package.
+	# FIXME see https://github.com/AlekSi/go-fuzz/pull/1
+
+	# go get -u github.com/dvyukov/go-fuzz/go-fuzz github.com/dvyukov/go-fuzz/go-fuzz-build
+	mkdir -p agents/postgres/parser/fuzzing/corpus
+	cp agents/postgres/parser/testdata/*.sql agents/postgres/parser/fuzzing/corpus/
+	cd agents/postgres/parser && go-fuzz-build
+	cd agents/postgres/parser && go-fuzz -workdir fuzzing
+
 bench:                          ## Run benchmarks.
-	go test -bench=. -benchtime=1s -count=3 -cpu=1 -failfast github.com/percona/pmm-agent/agents/mysql/slowlog/parser | tee slowlog_parser_new.bench
+	go test -bench=. -benchtime=3s -count=5 -cpu=1 -timeout=20m -failfast github.com/percona/pmm-agent/agents/mysql/slowlog/parser | tee slowlog_parser_new.bench
 	benchstat slowlog_parser_old.bench slowlog_parser_new.bench
+
+	go test -bench=. -benchtime=3s -count=5 -cpu=1 -timeout=20m -failfast github.com/percona/pmm-agent/agents/postgres/parser | tee postgres_parser_new.bench
+	benchstat postgres_parser_old.bench postgres_parser_new.bench
 
 check:                          ## Run required checkers and linters.
 	go run .github/check-license.go
@@ -99,8 +119,36 @@ run-race-cover: install-race    ## Run pmm-agent with race detector and collect 
 _run:
 	pmm-agent $(RUN_FLAGS)
 
+ENV_UP_FLAGS ?= --force-recreate --renew-anon-volumes --remove-orphans
+
 env-up:                         ## Start development environment.
-	docker-compose up --force-recreate --renew-anon-volumes --remove-orphans
+	# to make slowlog rotation tests work
+	rm -fr testdata
+	mkdir -p testdata/mysql/slowlogs
+	chmod -R 0777 testdata
+
+	docker-compose up $(ENV_UP_FLAGS)
 
 env-down:                       ## Stop development environment.
 	docker-compose down --volumes --remove-orphans
+
+setup-dev: install              ## Run pmm-agent setup in development environment.
+	pmm-agent setup $(RUN_FLAGS) --server-insecure-tls --server-address=127.0.0.1:${PMM_DEV_SERVER_PORT} --server-username=admin --server-password=admin --paths-exporters_base=$(GOPATH)/bin
+
+env-mysql:                      ## Run mysql client.
+	docker exec -ti pmm-agent_mysql mysql --host=127.0.0.1 --user=root --password=root-password
+
+env-psql:                       ## Run psql client.
+	docker exec -ti pmm-agent_postgres env PGPASSWORD=pmm-agent-password psql --username=pmm-agent
+
+env-sysbench-prepare:
+	docker-compose exec --workdir=/sysbench/sysbench-tpcc sysbench ./tpcc.lua \
+		--db-driver=pgsql --pgsql-host=postgres --pgsql-user=pmm-agent --pgsql-password=pmm-agent-password --pgsql-db=pmm-agent \
+		--threads=1 --time=0 --report-interval=10 \
+		--tables=1 --scale=10  --use_fk=0 --enable_purge=yes prepare
+
+env-sysbench-run:
+	docker-compose exec --workdir=/sysbench/sysbench-tpcc sysbench ./tpcc.lua \
+		--db-driver=pgsql --pgsql-host=postgres --pgsql-user=pmm-agent --pgsql-password=pmm-agent-password --pgsql-db=pmm-agent \
+		--threads=4 --time=0 --rate=10 --report-interval=10 --percentile=99 \
+		--tables=1 --scale=10  --use_fk=0 --enable_purge=yes run

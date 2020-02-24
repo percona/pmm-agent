@@ -1,18 +1,17 @@
 // pmm-agent
-// Copyright (C) 2018 Percona LLC
+// Copyright 2019 Percona LLC
 //
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
 //
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Affero General Public License for more details.
+//  http://www.apache.org/licenses/LICENSE-2.0
 //
-// You should have received a copy of the GNU Affero General Public License
-// along with this program. If not, see <https://www.gnu.org/licenses/>.
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 package process
 
@@ -73,7 +72,7 @@ func setup(t *testing.T) (context.Context, context.CancelFunc, *logrus.Entry) {
 func TestProcess(t *testing.T) {
 	t.Run("Normal", func(t *testing.T) {
 		ctx, cancel, l := setup(t)
-		p := New(&Params{Path: "sleep", Args: []string{"100500"}}, l)
+		p := New(&Params{Path: "sleep", Args: []string{"100500"}}, nil, l)
 		go p.Run(ctx)
 
 		assertStates(t, p, inventorypb.AgentStatus_STARTING, inventorypb.AgentStatus_RUNNING)
@@ -83,7 +82,7 @@ func TestProcess(t *testing.T) {
 
 	t.Run("FailedToStart", func(t *testing.T) {
 		ctx, cancel, l := setup(t)
-		p := New(&Params{Path: "no_such_command"}, l)
+		p := New(&Params{Path: "no_such_command"}, nil, l)
 		go p.Run(ctx)
 
 		assertStates(t, p, inventorypb.AgentStatus_STARTING, inventorypb.AgentStatus_WAITING, inventorypb.AgentStatus_STARTING, inventorypb.AgentStatus_WAITING)
@@ -94,7 +93,7 @@ func TestProcess(t *testing.T) {
 	t.Run("ExitedEarly", func(t *testing.T) {
 		sleep := strconv.FormatFloat(runningT.Seconds()-0.5, 'f', -1, 64)
 		ctx, cancel, l := setup(t)
-		p := New(&Params{Path: "sleep", Args: []string{sleep}}, l)
+		p := New(&Params{Path: "sleep", Args: []string{sleep}}, nil, l)
 		go p.Run(ctx)
 
 		assertStates(t, p, inventorypb.AgentStatus_STARTING, inventorypb.AgentStatus_WAITING, inventorypb.AgentStatus_STARTING, inventorypb.AgentStatus_WAITING)
@@ -105,7 +104,7 @@ func TestProcess(t *testing.T) {
 	t.Run("CancelStarting", func(t *testing.T) {
 		sleep := strconv.FormatFloat(runningT.Seconds()-0.5, 'f', -1, 64)
 		ctx, cancel, l := setup(t)
-		p := New(&Params{Path: "sleep", Args: []string{sleep}}, l)
+		p := New(&Params{Path: "sleep", Args: []string{sleep}}, nil, l)
 		go p.Run(ctx)
 
 		assertStates(t, p, inventorypb.AgentStatus_STARTING, inventorypb.AgentStatus_WAITING, inventorypb.AgentStatus_STARTING)
@@ -116,7 +115,7 @@ func TestProcess(t *testing.T) {
 	t.Run("Exited", func(t *testing.T) {
 		sleep := strconv.FormatFloat(runningT.Seconds()+0.5, 'f', -1, 64)
 		ctx, cancel, l := setup(t)
-		p := New(&Params{Path: "sleep", Args: []string{sleep}}, l)
+		p := New(&Params{Path: "sleep", Args: []string{sleep}}, nil, l)
 		go p.Run(ctx)
 
 		assertStates(t, p, inventorypb.AgentStatus_STARTING, inventorypb.AgentStatus_RUNNING, inventorypb.AgentStatus_WAITING)
@@ -135,7 +134,7 @@ func TestProcess(t *testing.T) {
 		build(t, "", "process_noterm.go", f.Name())
 
 		ctx, cancel, l := setup(t)
-		p := New(&Params{Path: f.Name()}, l)
+		p := New(&Params{Path: f.Name()}, nil, l)
 		go p.Run(ctx)
 
 		assertStates(t, p, inventorypb.AgentStatus_STARTING, inventorypb.AgentStatus_RUNNING)
@@ -160,7 +159,7 @@ func TestProcess(t *testing.T) {
 		ctx, cancel, l := setup(t)
 		defer cancel()
 
-		logger := newProcessLogger(l, 2)
+		logger := newProcessLogger(l, 2, nil)
 
 		pCmd := exec.CommandContext(ctx, f.Name()) //nolint:gosec
 		pCmd.Stdout = logger

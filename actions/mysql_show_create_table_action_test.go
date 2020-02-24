@@ -1,18 +1,17 @@
 // pmm-agent
-// Copyright (C) 2018 Percona LLC
+// Copyright 2019 Percona LLC
 //
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
 //
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Affero General Public License for more details.
+//  http://www.apache.org/licenses/LICENSE-2.0
 //
-// You should have received a copy of the GNU Affero General Public License
-// along with this program. If not, see <https://www.gnu.org/licenses/>.
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 package actions
 
@@ -35,7 +34,7 @@ func TestMySQLShowCreateTable(t *testing.T) {
 	dsn := tests.GetTestMySQLDSN(t)
 	db := tests.OpenTestMySQL(t)
 	defer db.Close() //nolint:errcheck
-	_, mySQLVendor := tests.MySQLVersion(t, db)
+	mySQLVersion, mySQLVendor := tests.MySQLVersion(t, db)
 
 	t.Run("Default", func(t *testing.T) {
 		params := &agentpb.StartActionRequest_MySQLShowCreateTableParams{
@@ -50,8 +49,25 @@ func TestMySQLShowCreateTable(t *testing.T) {
 		require.NoError(t, err)
 
 		var expected string
-		switch mySQLVendor {
-		case tests.MariaDBMySQL:
+		switch {
+		case mySQLVersion == "8.0" && mySQLVendor == tests.OracleMySQL:
+			// https://dev.mysql.com/doc/relnotes/mysql/8.0/en/news-8-0-19.html
+			// Display width specification for integer data types was deprecated in MySQL 8.0.17,
+			// and now statements that include data type definitions in their output no longer
+			// show the display width for integer types [...]
+			expected = strings.TrimSpace(`
+CREATE TABLE "city" (
+  "ID" int NOT NULL AUTO_INCREMENT,
+  "Name" char(35) NOT NULL DEFAULT '',
+  "CountryCode" char(3) NOT NULL DEFAULT '',
+  "District" char(20) NOT NULL DEFAULT '',
+  "Population" int NOT NULL DEFAULT '0',
+  PRIMARY KEY ("ID"),
+  KEY "CountryCode" ("CountryCode"),
+  CONSTRAINT "city_ibfk_1" FOREIGN KEY ("CountryCode") REFERENCES "country" ("Code")
+) ENGINE=InnoDB AUTO_INCREMENT=4080 DEFAULT CHARSET=latin1
+			`)
+		case mySQLVendor == tests.MariaDBMySQL:
 			// `DEFAULT 0` for Population
 			expected = strings.TrimSpace(`
 CREATE TABLE "city" (

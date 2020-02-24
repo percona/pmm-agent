@@ -1,18 +1,17 @@
 // pmm-agent
-// Copyright (C) 2018 Percona LLC
+// Copyright 2019 Percona LLC
 //
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
 //
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Affero General Public License for more details.
+//  http://www.apache.org/licenses/LICENSE-2.0
 //
-// You should have received a copy of the GNU Affero General Public License
-// along with this program. If not, see <https://www.gnu.org/licenses/>.
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 // Package perfschema runs built-in QAN Agent for MySQL performance schema.
 package perfschema
@@ -28,6 +27,7 @@ import (
 	_ "github.com/go-sql-driver/mysql" // register SQL driver
 	"github.com/percona/pmm/api/agentpb"
 	"github.com/percona/pmm/api/inventorypb"
+	"github.com/percona/pmm/utils/sqlmetrics"
 	"github.com/sirupsen/logrus"
 	"gopkg.in/reform.v1"
 	"gopkg.in/reform.v1/dialects/mysql"
@@ -45,19 +45,21 @@ const (
 
 // PerfSchema QAN services connects to MySQL and extracts performance data.
 type PerfSchema struct {
-	q            *reform.Querier
-	dbCloser     io.Closer
-	agentID      string
-	l            *logrus.Entry
-	changes      chan agents.Change
-	historyCache *historyCache
-	summaryCache *summaryCache
+	q                    *reform.Querier
+	dbCloser             io.Closer
+	agentID              string
+	disableQueryExamples bool
+	l                    *logrus.Entry
+	changes              chan agents.Change
+	historyCache         *historyCache
+	summaryCache         *summaryCache
 }
 
 // Params represent Agent parameters.
 type Params struct {
-	DSN     string
-	AgentID string
+	DSN                  string
+	AgentID              string
+	DisableQueryExamples bool
 }
 
 const queryTag = "pmm-agent:perfschema"
@@ -71,7 +73,9 @@ func New(params *Params, l *logrus.Entry) (*PerfSchema, error) {
 	sqlDB.SetMaxIdleConns(1)
 	sqlDB.SetMaxOpenConns(1)
 	sqlDB.SetConnMaxLifetime(0)
-	q := reform.NewDB(sqlDB, mysql.Dialect, reform.NewPrintfLogger(l.Tracef)).WithTag(queryTag)
+	reformL := sqlmetrics.NewReform("mysql", params.AgentID, l.Tracef)
+	// TODO register reformL metrics https://jira.percona.com/browse/PMM-4087
+	q := reform.NewDB(sqlDB, mysql.Dialect, reformL).WithTag(queryTag)
 	return newPerfSchema(q, sqlDB, params.AgentID, l), nil
 }
 
@@ -205,11 +209,13 @@ func (m *PerfSchema) getNewBuckets(periodStart time.Time, periodLengthSecs uint3
 
 		if esh := history[b.Common.Queryid]; esh != nil {
 			// TODO test if we really need that
+			// If we don't need it, we can avoid polling events_statements_history completely
+			// if query examples are disabled.
 			if b.Common.Schema == "" {
 				b.Common.Schema = pointer.GetString(esh.CurrentSchema)
 			}
 
-			if esh.SQLText != nil {
+			if !m.disableQueryExamples && esh.SQLText != nil {
 				b.Common.Example = *esh.SQLText
 				b.Common.ExampleFormat = agentpb.ExampleFormat_EXAMPLE
 				b.Common.ExampleType = agentpb.ExampleType_RANDOM
@@ -220,6 +226,14 @@ func (m *PerfSchema) getNewBuckets(periodStart time.Time, periodLengthSecs uint3
 	}
 
 	return buckets, nil
+}
+
+// inc returns increment from prev to current, or 0, if there was a wrap-around.
+func inc(current, prev uint64) float32 {
+	if current <= prev {
+		return 0
+	}
+	return float32(current - prev)
 }
 
 // makeBuckets uses current state of events_statements_summary_by_digest table and accumulated previous state
@@ -234,34 +248,33 @@ func makeBuckets(current, prev map[string]*eventsStatementsSummaryByDigest, l *l
 		if prevESS == nil {
 			prevESS = new(eventsStatementsSummaryByDigest)
 		}
-		count := float32(currentESS.CountStar - prevESS.CountStar)
+
 		switch {
-		case count == 0:
-			// TODO
+		case currentESS.CountStar == prevESS.CountStar:
 			// Another way how this is possible is if events_statements_summary_by_digest was truncated,
 			// and then the same number of queries were made.
 			// Currently, we can't differentiate between those situations.
-			// We probably could by using first_seen/last_seen columns.
-			l.Debugf("Skipped due to the same number of queries: %s.", currentESS)
+			// TODO We probably could by using first_seen/last_seen columns.
+			l.Tracef("Skipped due to the same number of queries: %s.", currentESS)
 			continue
-		case count < 0:
+		case currentESS.CountStar < prevESS.CountStar:
 			l.Debugf("Truncate detected. Treating as a new query: %s.", currentESS)
 			prevESS = new(eventsStatementsSummaryByDigest)
-			count = float32(currentESS.CountStar)
 		case prevESS.CountStar == 0:
 			l.Debugf("New query: %s.", currentESS)
 		default:
 			l.Debugf("Normal query: %s.", currentESS)
 		}
 
+		count := inc(currentESS.CountStar, prevESS.CountStar)
 		mb := &agentpb.MetricsBucket{
 			Common: &agentpb.MetricsBucket_Common{
 				Schema:                 pointer.GetString(currentESS.SchemaName), // TODO can it be NULL?
 				Queryid:                *currentESS.Digest,
 				Fingerprint:            *currentESS.DigestText,
 				NumQueries:             count,
-				NumQueriesWithErrors:   float32(currentESS.SumErrors - prevESS.SumErrors),
-				NumQueriesWithWarnings: float32(currentESS.SumWarnings - prevESS.SumWarnings),
+				NumQueriesWithErrors:   inc(currentESS.SumErrors, prevESS.SumErrors),
+				NumQueriesWithWarnings: inc(currentESS.SumWarnings, prevESS.SumWarnings),
 				AgentType:              inventorypb.AgentType_QAN_MYSQL_PERFSCHEMA_AGENT,
 			},
 			Mysql: &agentpb.MetricsBucket_MySQL{},
@@ -275,28 +288,28 @@ func makeBuckets(current, prev map[string]*eventsStatementsSummaryByDigest, l *l
 			// in order of events_statements_summary_by_digest columns
 
 			// convert picoseconds to seconds
-			{float32(currentESS.SumTimerWait-prevESS.SumTimerWait) / 1e12, &mb.Common.MQueryTimeSum, &mb.Common.MQueryTimeCnt},
-			{float32(currentESS.SumLockTime-prevESS.SumLockTime) / 1e12, &mb.Mysql.MLockTimeSum, &mb.Mysql.MLockTimeCnt},
+			{inc(currentESS.SumTimerWait, prevESS.SumTimerWait) / 1e12, &mb.Common.MQueryTimeSum, &mb.Common.MQueryTimeCnt},
+			{inc(currentESS.SumLockTime, prevESS.SumLockTime) / 1e12, &mb.Mysql.MLockTimeSum, &mb.Mysql.MLockTimeCnt},
 
-			{float32(currentESS.SumRowsAffected - prevESS.SumRowsAffected), &mb.Mysql.MRowsAffectedSum, &mb.Mysql.MRowsAffectedCnt},
-			{float32(currentESS.SumRowsSent - prevESS.SumRowsSent), &mb.Mysql.MRowsSentSum, &mb.Mysql.MRowsSentCnt},
-			{float32(currentESS.SumRowsExamined - prevESS.SumRowsExamined), &mb.Mysql.MRowsExaminedSum, &mb.Mysql.MRowsExaminedCnt},
+			{inc(currentESS.SumRowsAffected, prevESS.SumRowsAffected), &mb.Mysql.MRowsAffectedSum, &mb.Mysql.MRowsAffectedCnt},
+			{inc(currentESS.SumRowsSent, prevESS.SumRowsSent), &mb.Mysql.MRowsSentSum, &mb.Mysql.MRowsSentCnt},
+			{inc(currentESS.SumRowsExamined, prevESS.SumRowsExamined), &mb.Mysql.MRowsExaminedSum, &mb.Mysql.MRowsExaminedCnt},
 
-			{float32(currentESS.SumCreatedTmpDiskTables - prevESS.SumCreatedTmpDiskTables), &mb.Mysql.MTmpDiskTablesSum, &mb.Mysql.MTmpDiskTablesCnt},
-			{float32(currentESS.SumCreatedTmpTables - prevESS.SumCreatedTmpTables), &mb.Mysql.MTmpTablesSum, &mb.Mysql.MTmpTablesCnt},
-			{float32(currentESS.SumSelectFullJoin - prevESS.SumSelectFullJoin), &mb.Mysql.MFullJoinSum, &mb.Mysql.MFullJoinCnt},
-			{float32(currentESS.SumSelectFullRangeJoin - prevESS.SumSelectFullRangeJoin), &mb.Mysql.MSelectFullRangeJoinSum, &mb.Mysql.MSelectFullRangeJoinCnt},
-			{float32(currentESS.SumSelectRange - prevESS.SumSelectRange), &mb.Mysql.MSelectRangeSum, &mb.Mysql.MSelectRangeCnt},
-			{float32(currentESS.SumSelectRangeCheck - prevESS.SumSelectRangeCheck), &mb.Mysql.MSelectRangeCheckSum, &mb.Mysql.MSelectRangeCheckCnt},
-			{float32(currentESS.SumSelectScan - prevESS.SumSelectScan), &mb.Mysql.MFullScanSum, &mb.Mysql.MFullScanCnt},
+			{inc(currentESS.SumCreatedTmpDiskTables, prevESS.SumCreatedTmpDiskTables), &mb.Mysql.MTmpDiskTablesSum, &mb.Mysql.MTmpDiskTablesCnt},
+			{inc(currentESS.SumCreatedTmpTables, prevESS.SumCreatedTmpTables), &mb.Mysql.MTmpTablesSum, &mb.Mysql.MTmpTablesCnt},
+			{inc(currentESS.SumSelectFullJoin, prevESS.SumSelectFullJoin), &mb.Mysql.MFullJoinSum, &mb.Mysql.MFullJoinCnt},
+			{inc(currentESS.SumSelectFullRangeJoin, prevESS.SumSelectFullRangeJoin), &mb.Mysql.MSelectFullRangeJoinSum, &mb.Mysql.MSelectFullRangeJoinCnt},
+			{inc(currentESS.SumSelectRange, prevESS.SumSelectRange), &mb.Mysql.MSelectRangeSum, &mb.Mysql.MSelectRangeCnt},
+			{inc(currentESS.SumSelectRangeCheck, prevESS.SumSelectRangeCheck), &mb.Mysql.MSelectRangeCheckSum, &mb.Mysql.MSelectRangeCheckCnt},
+			{inc(currentESS.SumSelectScan, prevESS.SumSelectScan), &mb.Mysql.MFullScanSum, &mb.Mysql.MFullScanCnt},
 
-			{float32(currentESS.SumSortMergePasses - prevESS.SumSortMergePasses), &mb.Mysql.MMergePassesSum, &mb.Mysql.MMergePassesCnt},
-			{float32(currentESS.SumSortRange - prevESS.SumSortRange), &mb.Mysql.MSortRangeSum, &mb.Mysql.MSortRangeCnt},
-			{float32(currentESS.SumSortRows - prevESS.SumSortRows), &mb.Mysql.MSortRowsSum, &mb.Mysql.MSortRowsCnt},
-			{float32(currentESS.SumSortScan - prevESS.SumSortScan), &mb.Mysql.MSortScanSum, &mb.Mysql.MSortScanCnt},
+			{inc(currentESS.SumSortMergePasses, prevESS.SumSortMergePasses), &mb.Mysql.MMergePassesSum, &mb.Mysql.MMergePassesCnt},
+			{inc(currentESS.SumSortRange, prevESS.SumSortRange), &mb.Mysql.MSortRangeSum, &mb.Mysql.MSortRangeCnt},
+			{inc(currentESS.SumSortRows, prevESS.SumSortRows), &mb.Mysql.MSortRowsSum, &mb.Mysql.MSortRowsCnt},
+			{inc(currentESS.SumSortScan, prevESS.SumSortScan), &mb.Mysql.MSortScanSum, &mb.Mysql.MSortScanCnt},
 
-			{float32(currentESS.SumNoIndexUsed - prevESS.SumNoIndexUsed), &mb.Mysql.MNoIndexUsedSum, &mb.Mysql.MNoIndexUsedCnt},
-			{float32(currentESS.SumNoGoodIndexUsed - prevESS.SumNoGoodIndexUsed), &mb.Mysql.MNoGoodIndexUsedSum, &mb.Mysql.MNoGoodIndexUsedCnt},
+			{inc(currentESS.SumNoIndexUsed, prevESS.SumNoIndexUsed), &mb.Mysql.MNoIndexUsedSum, &mb.Mysql.MNoIndexUsedCnt},
+			{inc(currentESS.SumNoGoodIndexUsed, prevESS.SumNoGoodIndexUsed), &mb.Mysql.MNoGoodIndexUsedSum, &mb.Mysql.MNoGoodIndexUsedCnt},
 		} {
 			if p.value != 0 {
 				*p.sum = p.value
