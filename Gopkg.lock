@@ -341,17 +341,18 @@
   revision = "33a08ed8301ca0dd24269e3ebd903106a99d7492"
 
 [[projects]]
-  digest = "1:77cb45821a5a85abbad09ac1ccac715427735aab867245e6424630d092a39d60"
+  branch = "3.0"
+  digest = "1:11c79f9172581ec1ab93eb98724fd5a4facfd33e8b073b1d5e00215673bffb33"
   name = "github.com/percona/percona-toolkit"
   packages = [
+    "src/go/mongolib/explain",
     "src/go/mongolib/fingerprinter",
     "src/go/mongolib/proto",
     "src/go/mongolib/stats",
     "src/go/mongolib/util",
   ]
   pruneopts = "NUT"
-  revision = "210433269ca3422711bd2af46bedd5a66c8a9b93"
-  version = "v3.1.1"
+  revision = "8abdc070501191bd4688a9e5baf28ccac97020e8"
 
 [[projects]]
   branch = "PMM-4192"
@@ -769,6 +770,7 @@
     "github.com/percona/go-mysql/event",
     "github.com/percona/go-mysql/log",
     "github.com/percona/go-mysql/query",
+    "github.com/percona/percona-toolkit/src/go/mongolib/explain",
     "github.com/percona/percona-toolkit/src/go/mongolib/fingerprinter",
     "github.com/percona/percona-toolkit/src/go/mongolib/proto",
     "github.com/percona/percona-toolkit/src/go/mongolib/stats",
