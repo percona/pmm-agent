@@ -204,7 +204,7 @@
   version = "v1.3.1"
 
 [[projects]]
-  digest = "1:c1d3f945cf852aefbd54f7d77140b5a6cf6ab4dab88d02f8d734ea452586427d"
+  digest = "1:8ebe051a4e858b5b020a62e2b1454c746c81000bdd73005fdd4416b2cd151433"
   name = "github.com/golang/protobuf"
   packages = [
     "descriptor",
@@ -219,8 +219,8 @@
     "ptypes/wrappers",
   ]
   pruneopts = "NUT"
-  revision = "6c65a5562fc06764971b7c5d05c76c75e84bdbf7"
-  version = "v1.3.2"
+  revision = "d23c5127dc24889085f8ccea5c9d560a57a879d8"
+  version = "v1.3.3"
 
 [[projects]]
   branch = "master"
@@ -231,7 +231,7 @@
   revision = "ff6b7dc882cf4cfba7ee0b9f7dcc1ac096c554aa"
 
 [[projects]]
-  digest = "1:0e9cbfec30fcfc81f61217ff68650703bf0d5fa10f33d59ae19415a0dffda90d"
+  digest = "1:a0aaaf3b716956ad0ee091533c277fe3a8eb2f6bd5f1647803d73f0040bdbf12"
   name = "github.com/grpc-ecosystem/grpc-gateway"
   packages = [
     "internal",
@@ -240,8 +240,8 @@
     "utilities",
   ]
   pruneopts = "NUT"
-  revision = "f7120437bb4f6c71f7f5076ad65a45310de2c009"
-  version = "v1.12.1"
+  revision = "e16fcd495a18ea01dbc6f5b6ac2956a94e1981a2"
+  version = "v1.12.2"
 
 [[projects]]
   digest = "1:58999a98719fddbac6303cb17e8d85b945f60b72f48e3a2df6b950b97fa926f1"
@@ -344,7 +344,6 @@
   digest = "1:77cb45821a5a85abbad09ac1ccac715427735aab867245e6424630d092a39d60"
   name = "github.com/percona/percona-toolkit"
   packages = [
-    "src/go/mongolib/explain",
     "src/go/mongolib/fingerprinter",
     "src/go/mongolib/proto",
     "src/go/mongolib/stats",
@@ -355,8 +354,8 @@
   version = "v3.1.1"
 
 [[projects]]
-  branch = "PMM-2.0"
-  digest = "1:0624da7f1d7cdf3bf5f2a77193ad9bc513328f0e40a05cc7e7c112784bd474c9"
+  branch = "PMM-4192"
+  digest = "1:35008ab8034a1194d748d35429406e9146e4affe59f24db94d3a090409583214"
   name = "github.com/percona/pmm"
   packages = [
     "api/agentlocalpb",
@@ -380,7 +379,7 @@
     "version",
   ]
   pruneopts = "NUT"
-  revision = "f450b597482b991a3425805ba5d6ad78055e2697"
+  revision = "423885215867a4291105d1c278f95ef81a55d7a8"
 
 [[projects]]
   digest = "1:14715f705ff5dfe0ffd6571d7d201dd8e921030f8070321a79380d8ca4ec1a24"
@@ -666,10 +665,11 @@
   revision = "16a3f7862a1a494c52b23987ef8a993fd3f9a85e"
 
 [[projects]]
-  digest = "1:67f75ba614a831d72be6218ec5fea66ef86957631ff84e11bf1a30b024e70477"
+  digest = "1:e0c24777dd6afea52d7e0ddde80da46d6d08a3420a7622c0643be92f92f44dba"
   name = "google.golang.org/grpc"
   packages = [
     ".",
+    "attributes",
     "backoff",
     "balancer",
     "balancer/base",
@@ -710,8 +710,8 @@
     "tap",
   ]
   pruneopts = "NUT"
-  revision = "1a3960e4bd028ac0cec0a2afd27d7d8e67c11514"
-  version = "v1.25.1"
+  revision = "f495f5b15ae7ccda3b38c53a1bfcde4c1a58a2bc"
+  version = "v1.27.1"
 
 [[projects]]
   branch = "v2.2.6-no-dots"
@@ -769,7 +769,6 @@
     "github.com/percona/go-mysql/event",
     "github.com/percona/go-mysql/log",
     "github.com/percona/go-mysql/query",
-    "github.com/percona/percona-toolkit/src/go/mongolib/explain",
     "github.com/percona/percona-toolkit/src/go/mongolib/fingerprinter",
     "github.com/percona/percona-toolkit/src/go/mongolib/proto",
     "github.com/percona/percona-toolkit/src/go/mongolib/stats",

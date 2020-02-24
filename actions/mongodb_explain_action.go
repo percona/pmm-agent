@@ -18,11 +18,12 @@ package actions
 
 import (
 	"context"
-	"strings"
+	"fmt"
 
-	"github.com/percona/percona-toolkit/src/go/mongolib/explain"
+	"github.com/percona/percona-toolkit/src/go/mongolib/proto"
 	"github.com/percona/pmm/api/agentpb"
 	"github.com/pkg/errors"
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
@@ -53,24 +54,41 @@ func (a *mongodbExplainAction) Type() string {
 // Run runs an Action and returns output and error.
 func (a *mongodbExplainAction) Run(ctx context.Context) ([]byte, error) {
 	dsn := a.params.Dsn
-	if !strings.HasPrefix(dsn, "mongodb://") {
-		dsn = "mongodb://" + dsn
-	}
-	client, err := mongo.Connect(context.TODO(), options.Client().ApplyURI(dsn))
-
+	client, err := mongo.Connect(ctx, options.Client().ApplyURI(dsn))
 	if err != nil {
 		return nil, err
 	}
 
 	// Check the connection
-	err = client.Ping(context.TODO(), nil)
+	err = client.Ping(ctx, nil)
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot connect to the database. Ping failed")
 	}
 	defer client.Disconnect(ctx) //nolint:errcheck
 
-	ex := explain.New(ctx, client)
-	return ex.Run(a.params.Database, []byte(a.params.Query))
+	var eq proto.ExampleQuery
+
+	err = bson.UnmarshalExtJSON([]byte(a.params.Query), true, &eq)
+	if err != nil {
+		return nil, fmt.Errorf("explain: unable to decode query %s: %s", a.params.Query, err)
+	}
+
+	var result bson.D
+	res := client.Database(eq.Db()).RunCommand(ctx, eq.ExplainCmd())
+	if res.Err() != nil {
+		return nil, res.Err()
+	}
+
+	if err := res.Decode(&result); err != nil {
+		return nil, err
+	}
+
+	resultJSON, err := bson.MarshalExtJSON(result, true, true)
+	if err != nil {
+		return nil, fmt.Errorf("explain: unable to encode explain result of %s: %s", a.params.Query, err)
+	}
+
+	return resultJSON, nil
 }
 
 func (a *mongodbExplainAction) sealed() {}
