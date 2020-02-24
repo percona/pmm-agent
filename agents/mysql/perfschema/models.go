@@ -1,18 +1,17 @@
 // pmm-agent
-// Copyright (C) 2018 Percona LLC
+// Copyright 2019 Percona LLC
 //
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
 //
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Affero General Public License for more details.
+//  http://www.apache.org/licenses/LICENSE-2.0
 //
-// You should have received a copy of the GNU Affero General Public License
-// along with this program. If not, see <https://www.gnu.org/licenses/>.
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 package perfschema
 
@@ -24,30 +23,30 @@ type eventsStatementsSummaryByDigest struct {
 	SchemaName              *string `reform:"SCHEMA_NAME"`
 	Digest                  *string `reform:"DIGEST"`      // MD5 of DigestText
 	DigestText              *string `reform:"DIGEST_TEXT"` // query without values
-	CountStar               int64   `reform:"COUNT_STAR"`
-	SumTimerWait            int64   `reform:"SUM_TIMER_WAIT"`
-	MinTimerWait            int64   `reform:"MIN_TIMER_WAIT"`
-	AvgTimerWait            int64   `reform:"AVG_TIMER_WAIT"`
-	MaxTimerWait            int64   `reform:"MAX_TIMER_WAIT"`
-	SumLockTime             int64   `reform:"SUM_LOCK_TIME"`
-	SumErrors               int64   `reform:"SUM_ERRORS"`
-	SumWarnings             int64   `reform:"SUM_WARNINGS"`
-	SumRowsAffected         int64   `reform:"SUM_ROWS_AFFECTED"`
-	SumRowsSent             int64   `reform:"SUM_ROWS_SENT"`
-	SumRowsExamined         int64   `reform:"SUM_ROWS_EXAMINED"`
-	SumCreatedTmpDiskTables int64   `reform:"SUM_CREATED_TMP_DISK_TABLES"`
-	SumCreatedTmpTables     int64   `reform:"SUM_CREATED_TMP_TABLES"`
-	SumSelectFullJoin       int64   `reform:"SUM_SELECT_FULL_JOIN"`
-	SumSelectFullRangeJoin  int64   `reform:"SUM_SELECT_FULL_RANGE_JOIN"`
-	SumSelectRange          int64   `reform:"SUM_SELECT_RANGE"`
-	SumSelectRangeCheck     int64   `reform:"SUM_SELECT_RANGE_CHECK"`
-	SumSelectScan           int64   `reform:"SUM_SELECT_SCAN"`
-	SumSortMergePasses      int64   `reform:"SUM_SORT_MERGE_PASSES"`
-	SumSortRange            int64   `reform:"SUM_SORT_RANGE"`
-	SumSortRows             int64   `reform:"SUM_SORT_ROWS"`
-	SumSortScan             int64   `reform:"SUM_SORT_SCAN"`
-	SumNoIndexUsed          int64   `reform:"SUM_NO_INDEX_USED"`
-	SumNoGoodIndexUsed      int64   `reform:"SUM_NO_GOOD_INDEX_USED"`
+	CountStar               uint64  `reform:"COUNT_STAR"`
+	SumTimerWait            uint64  `reform:"SUM_TIMER_WAIT"`
+	MinTimerWait            uint64  `reform:"MIN_TIMER_WAIT"`
+	AvgTimerWait            uint64  `reform:"AVG_TIMER_WAIT"`
+	MaxTimerWait            uint64  `reform:"MAX_TIMER_WAIT"`
+	SumLockTime             uint64  `reform:"SUM_LOCK_TIME"`
+	SumErrors               uint64  `reform:"SUM_ERRORS"`
+	SumWarnings             uint64  `reform:"SUM_WARNINGS"`
+	SumRowsAffected         uint64  `reform:"SUM_ROWS_AFFECTED"`
+	SumRowsSent             uint64  `reform:"SUM_ROWS_SENT"`
+	SumRowsExamined         uint64  `reform:"SUM_ROWS_EXAMINED"`
+	SumCreatedTmpDiskTables uint64  `reform:"SUM_CREATED_TMP_DISK_TABLES"`
+	SumCreatedTmpTables     uint64  `reform:"SUM_CREATED_TMP_TABLES"`
+	SumSelectFullJoin       uint64  `reform:"SUM_SELECT_FULL_JOIN"`
+	SumSelectFullRangeJoin  uint64  `reform:"SUM_SELECT_FULL_RANGE_JOIN"`
+	SumSelectRange          uint64  `reform:"SUM_SELECT_RANGE"`
+	SumSelectRangeCheck     uint64  `reform:"SUM_SELECT_RANGE_CHECK"`
+	SumSelectScan           uint64  `reform:"SUM_SELECT_SCAN"`
+	SumSortMergePasses      uint64  `reform:"SUM_SORT_MERGE_PASSES"`
+	SumSortRange            uint64  `reform:"SUM_SORT_RANGE"`
+	SumSortRows             uint64  `reform:"SUM_SORT_ROWS"`
+	SumSortScan             uint64  `reform:"SUM_SORT_SCAN"`
+	SumNoIndexUsed          uint64  `reform:"SUM_NO_INDEX_USED"`
+	SumNoGoodIndexUsed      uint64  `reform:"SUM_NO_GOOD_INDEX_USED"`
 	// FirstSeen               time.Time `reform:"FIRST_SEEN"`
 	// LastSeen                time.Time `reform:"LAST_SEEN"`
 }

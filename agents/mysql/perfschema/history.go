@@ -1,18 +1,17 @@
 // pmm-agent
-// Copyright (C) 2018 Percona LLC
+// Copyright 2019 Percona LLC
 //
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
 //
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Affero General Public License for more details.
+//  http://www.apache.org/licenses/LICENSE-2.0
 //
-// You should have received a copy of the GNU Affero General Public License
-// along with this program. If not, see <https://www.gnu.org/licenses/>.
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 package perfschema
 
@@ -25,15 +24,22 @@ import (
 )
 
 func getHistory(q *reform.Querier) (map[string]*eventsStatementsHistory, error) {
-	structs, err := q.SelectAllFrom(eventsStatementsHistoryView, "WHERE DIGEST IS NOT NULL AND SQL_TEXT IS NOT NULL")
+	rows, err := q.SelectRows(eventsStatementsHistoryView, "WHERE DIGEST IS NOT NULL AND SQL_TEXT IS NOT NULL")
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to query events_statements_history")
 	}
+	defer rows.Close() //nolint:errcheck
 
-	res := make(map[string]*eventsStatementsHistory, len(structs))
-	for _, str := range structs {
-		esh := str.(*eventsStatementsHistory)
-		res[*esh.Digest] = esh
+	res := make(map[string]*eventsStatementsHistory)
+	for {
+		var esh eventsStatementsHistory
+		if err = q.NextRow(&esh, rows); err != nil {
+			break
+		}
+		res[*esh.Digest] = &esh
+	}
+	if err != reform.ErrNoRows {
+		return nil, errors.Wrap(err, "failed to fetch events_statements_history")
 	}
 	return res, nil
 }

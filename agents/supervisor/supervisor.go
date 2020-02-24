@@ -1,18 +1,17 @@
 // pmm-agent
-// Copyright (C) 2018 Percona LLC
+// Copyright 2019 Percona LLC
 //
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
 //
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Affero General Public License for more details.
+//  http://www.apache.org/licenses/LICENSE-2.0
 //
-// You should have received a copy of the GNU Affero General Public License
-// along with this program. If not, see <https://www.gnu.org/licenses/>.
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 // Package supervisor provides supervisor for running Agents.
 package supervisor
@@ -20,7 +19,6 @@ package supervisor
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -121,7 +119,6 @@ func (s *Supervisor) AgentsList() []*agentlocalpb.AgentInfo {
 			AgentId:   id,
 			AgentType: agent.requestedState.Type,
 			Status:    s.lastStatuses[id],
-			Logs:      nil, // TODO https://jira.percona.com/browse/PMM-3758
 		}
 		res = append(res, info)
 	}
@@ -131,7 +128,6 @@ func (s *Supervisor) AgentsList() []*agentlocalpb.AgentInfo {
 			AgentId:   id,
 			AgentType: agent.requestedState.Type,
 			Status:    s.lastStatuses[id],
-			Logs:      nil, // TODO https://jira.percona.com/browse/PMM-3758
 		}
 		res = append(res, info)
 	}
@@ -324,8 +320,8 @@ func filter(existing, new map[string]agentpb.AgentParams) (toStart, toRestart, t
 
 //nolint:golint
 const (
-	type_TEST_SLEEP agentpb.Type = 998 // process
-	type_TEST_NOOP  agentpb.Type = 999 // built-in
+	type_TEST_SLEEP inventorypb.AgentType = 998 // process
+	type_TEST_NOOP  inventorypb.AgentType = 999 // built-in
 )
 
 // startProcess starts Agent's process.
@@ -343,13 +339,15 @@ func (s *Supervisor) startProcess(agentID string, agentProcess *agentpb.SetState
 		"agentID":   agentID,
 		"type":      agentType,
 	})
-	process := process.New(processParams, l)
+	l.Debugf("Starting: %s.", processParams)
+	process := process.New(processParams, agentProcess.RedactWords, l)
 	go pprof.Do(ctx, pprof.Labels("agentID", agentID, "type", agentType), process.Run)
 
 	done := make(chan struct{})
 	go func() {
 		for status := range process.Changes() {
 			s.storeLastStatus(agentID, status)
+			l.Infof("Sending status: %s (port %d).", status, port)
 			s.changes <- agentpb.StateChangedRequest{
 				AgentId:    agentID,
 				Status:     status,
@@ -383,29 +381,32 @@ func (s *Supervisor) startBuiltin(agentID string, builtinAgent *agentpb.SetState
 	var agent agents.BuiltinAgent
 	var err error
 	switch builtinAgent.Type {
-	case agentpb.Type_QAN_MYSQL_PERFSCHEMA_AGENT:
+	case inventorypb.AgentType_QAN_MYSQL_PERFSCHEMA_AGENT:
 		params := &perfschema.Params{
-			DSN:     builtinAgent.Dsn,
-			AgentID: agentID,
+			DSN:                  builtinAgent.Dsn,
+			AgentID:              agentID,
+			DisableQueryExamples: builtinAgent.DisableQueryExamples,
 		}
 		agent, err = perfschema.New(params, l)
 
-	case agentpb.Type_QAN_MONGODB_PROFILER_AGENT:
+	case inventorypb.AgentType_QAN_MONGODB_PROFILER_AGENT:
 		params := &mongodb.Params{
 			DSN:     builtinAgent.Dsn,
 			AgentID: agentID,
 		}
 		agent, err = mongodb.New(params, l)
 
-	case agentpb.Type_QAN_MYSQL_SLOWLOG_AGENT:
+	case inventorypb.AgentType_QAN_MYSQL_SLOWLOG_AGENT:
 		params := &slowlog.Params{
-			DSN:               builtinAgent.Dsn,
-			AgentID:           agentID,
-			SlowLogFilePrefix: s.paths.SlowLogFilePrefix,
+			DSN:                  builtinAgent.Dsn,
+			AgentID:              agentID,
+			SlowLogFilePrefix:    s.paths.SlowLogFilePrefix,
+			DisableQueryExamples: builtinAgent.DisableQueryExamples,
+			MaxSlowlogFileSize:   builtinAgent.MaxQueryLogSize,
 		}
 		agent, err = slowlog.New(params, l)
 
-	case agentpb.Type_QAN_POSTGRESQL_PGSTATEMENTS_AGENT:
+	case inventorypb.AgentType_QAN_POSTGRESQL_PGSTATEMENTS_AGENT:
 		params := &pgstatstatements.Params{
 			DSN:     builtinAgent.Dsn,
 			AgentID: agentID,
@@ -430,12 +431,14 @@ func (s *Supervisor) startBuiltin(agentID string, builtinAgent *agentpb.SetState
 		for change := range agent.Changes() {
 			if change.Status != inventorypb.AgentStatus_AGENT_STATUS_INVALID {
 				s.storeLastStatus(agentID, change.Status)
+				l.Infof("Sending status: %s.", change.Status)
 				s.changes <- agentpb.StateChangedRequest{
 					AgentId: agentID,
 					Status:  change.Status,
 				}
 			}
 			if change.MetricsBucket != nil {
+				l.Infof("Sending %d buckets.", len(change.MetricsBucket))
 				s.qanRequests <- agentpb.QANCollectRequest{
 					MetricsBucket: change.MetricsBucket,
 				}
@@ -459,20 +462,26 @@ var textFileRE = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9_]*$`) //nolint:gocheckn
 func (s *Supervisor) processParams(agentID string, agentProcess *agentpb.SetStateRequest_AgentProcess, port uint16) (*process.Params, error) {
 	var processParams process.Params
 	switch agentProcess.Type {
-	case agentpb.Type_NODE_EXPORTER:
+	case inventorypb.AgentType_NODE_EXPORTER:
 		processParams.Path = s.paths.NodeExporter
-	case agentpb.Type_MYSQLD_EXPORTER:
+	case inventorypb.AgentType_MYSQLD_EXPORTER:
 		processParams.Path = s.paths.MySQLdExporter
-	case agentpb.Type_MONGODB_EXPORTER:
+	case inventorypb.AgentType_MONGODB_EXPORTER:
 		processParams.Path = s.paths.MongoDBExporter
-	case agentpb.Type_POSTGRES_EXPORTER:
+	case inventorypb.AgentType_POSTGRES_EXPORTER:
 		processParams.Path = s.paths.PostgresExporter
-	case agentpb.Type_PROXYSQL_EXPORTER:
+	case inventorypb.AgentType_PROXYSQL_EXPORTER:
 		processParams.Path = s.paths.ProxySQLExporter
+	case inventorypb.AgentType_RDS_EXPORTER:
+		processParams.Path = s.paths.RDSExporter
 	case type_TEST_SLEEP:
 		processParams.Path = "sleep"
 	default:
 		return nil, errors.Errorf("unhandled agent type %[1]s (%[1]d).", agentProcess.Type)
+	}
+
+	if processParams.Path == "" {
+		return nil, errors.Errorf("no path for agent type %[1]s (%[1]d).", agentProcess.Type)
 	}
 
 	renderTemplate := func(name, text string, params map[string]interface{}) ([]byte, error) {
@@ -496,7 +505,7 @@ func (s *Supervisor) processParams(agentID string, agentProcess *agentpb.SetStat
 
 	// render files only if they are present to avoid creating temporary directory for every agent
 	if len(agentProcess.TextFiles) > 0 {
-		dir := filepath.Join(s.paths.TempDir, fmt.Sprintf("%s-%s", strings.ToLower(agentProcess.Type.String()), agentID))
+		dir := filepath.Join(s.paths.TempDir, strings.ToLower(agentProcess.Type.String()), agentID)
 		if err := os.RemoveAll(dir); err != nil {
 			return nil, errors.WithStack(err)
 		}

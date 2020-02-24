@@ -1,6 +1,14 @@
 ---
-version: '3'
+version: '3.7'
+
 services:
+  pmm-server:
+    image: ${PMM_SERVER_IMAGE:-perconalab/pmm-server:dev-latest}
+    container_name: pmm-agent_pmm-server
+    ports:
+      - 127.0.0.1:80:80
+      - 127.0.0.1:443:443
+
   test_db:
     image: aleksi/test_db:1.1.0
     container_name: pmm-agent_test_db
@@ -8,25 +16,29 @@ services:
       - test_db_mysql:/test_db/mysql/world:ro
       - test_db_postgres:/test_db/postgresql/world:ro
 
+  # It is essential to have an extra directory `/slowlogs/` between host and container;
+  # and to not have a trailing slash at `./testdata/mysql`.
+  # Otherwise, MySQL in Docker for Mac completely locks during/after slowlog rotation tests.
   mysql:
     image: ${MYSQL_IMAGE:-percona:5.7}
     container_name: pmm-agent_mysql
     command: >
       --sql-mode="ANSI_QUOTES"
       --performance-schema --innodb_monitor_enable=all
-      --slow_query_log --slow_query_log_file=/slowlogs/slow.log --long_query_time=0
+      --slow_query_log --slow_query_log_file=/mysql/slowlogs/slow.log --long_query_time=0
     ports:
       - 127.0.0.1:3306:3306
     environment:
       - MYSQL_ROOT_PASSWORD=root-password
       - MYSQL_USER=pmm-agent
       - MYSQL_PASSWORD=pmm-agent-password
+      - UMASK=0777  # for slowlog file
     volumes:
       - test_db_mysql:/docker-entrypoint-initdb.d/:ro
-      - ./testdata/slowlogs:/slowlogs
+      - ./testdata/mysql:/mysql
 
   mongo:
-    image: ${MONGO_IMAGE:-percona/percona-server-mongodb:4.0}
+    image: ${MONGO_IMAGE:-percona/percona-server-mongodb:4.2}
     container_name: pmm-agent_mongo
     command: --profile 2
     ports:
@@ -40,6 +52,7 @@ services:
     container_name: pmm-agent_postgres
     command: >
       -c shared_preload_libraries=pg_stat_statements
+      -c track_activity_query_size=2048
       -c pg_stat_statements.max=10000
       -c pg_stat_statements.track=all
       -c pg_stat_statements.save=off
@@ -50,6 +63,10 @@ services:
       - POSTGRES_PASSWORD=pmm-agent-password
     volumes:
       - test_db_postgres:/docker-entrypoint-initdb.d/
+
+  sysbench:
+    image: perconalab/sysbench
+    container_name: pmm-agent_sysbench
 
 volumes:
   test_db_mysql:

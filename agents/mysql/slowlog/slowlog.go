@@ -1,18 +1,17 @@
 // pmm-agent
-// Copyright (C) 2018 Percona LLC
+// Copyright 2019 Percona LLC
 //
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
 //
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Affero General Public License for more details.
+//  http://www.apache.org/licenses/LICENSE-2.0
 //
-// You should have received a copy of the GNU Affero General Public License
-// along with this program. If not, see <https://www.gnu.org/licenses/>.
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 // Package slowlog runs built-in QAN Agent for MySQL slow log.
 package slowlog
@@ -23,6 +22,7 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"os"
 	"path/filepath"
 	"time"
 
@@ -43,24 +43,24 @@ import (
 const (
 	backoffMinDelay   = 1 * time.Second
 	backoffMaxDelay   = 5 * time.Second
-	recheckInterval   = 5 * time.Second
+	recheckInterval   = 10 * time.Second
 	aggregateInterval = time.Minute
 )
 
 // SlowLog extracts performance data from MySQL slow log.
 type SlowLog struct {
-	dsn               string
-	agentID           string
-	slowLogFilePrefix string
-	l                 *logrus.Entry
-	changes           chan agents.Change
+	params  *Params
+	l       *logrus.Entry
+	changes chan agents.Change
 }
 
 // Params represent Agent parameters.
 type Params struct {
-	DSN               string
-	AgentID           string
-	SlowLogFilePrefix string // for development and testing
+	DSN                  string
+	AgentID              string
+	DisableQueryExamples bool
+	MaxSlowlogFileSize   int64
+	SlowLogFilePrefix    string // for development and testing
 }
 
 const queryTag = "pmm-agent:slowlog"
@@ -73,11 +73,9 @@ type slowLogInfo struct {
 // New creates new SlowLog QAN service.
 func New(params *Params, l *logrus.Entry) (*SlowLog, error) {
 	return &SlowLog{
-		dsn:               params.DSN,
-		agentID:           params.AgentID,
-		slowLogFilePrefix: params.SlowLogFilePrefix,
-		l:                 l,
-		changes:           make(chan agents.Change, 10),
+		params:  params,
+		l:       l,
+		changes: make(chan agents.Change, 10),
 	}, nil
 }
 
@@ -96,20 +94,15 @@ func (s *SlowLog) Run(ctx context.Context) {
 
 		var oldInfo slowLogInfo
 		for {
-			newInfo, err := s.getSlowLogInfo(ctx)
-			if err == nil {
-				if s.slowLogFilePrefix != "" {
-					newInfo.path = filepath.Join(s.slowLogFilePrefix, newInfo.path)
-				}
-				if oldInfo == *newInfo {
-					s.l.Tracef("Sloglow information not changed.")
-				} else {
+			newInfo := s.recheck(ctx)
+			if newInfo != nil {
+				if *newInfo != oldInfo {
 					s.l.Debugf("Sloglow information changed: old = %+v, new = %+v.", oldInfo, *newInfo)
 					fileInfos <- newInfo
 					oldInfo = *newInfo
+				} else {
+					s.l.Tracef("Sloglow information not changed.")
 				}
-			} else {
-				s.l.Error(err)
 			}
 
 			select {
@@ -156,9 +149,39 @@ func (s *SlowLog) Run(ctx context.Context) {
 	}
 }
 
+// recheck returns new slowlog information, and rotates slowlog file if needed.
+func (s *SlowLog) recheck(ctx context.Context) (newInfo *slowLogInfo) {
+	var err error
+	if newInfo, err = s.getSlowLogInfo(ctx); err != nil {
+		s.l.Error(err)
+		return
+	}
+	if s.params.SlowLogFilePrefix != "" {
+		newInfo.path = filepath.Join(s.params.SlowLogFilePrefix, newInfo.path)
+	}
+
+	maxSize := s.params.MaxSlowlogFileSize
+	if maxSize <= 0 {
+		return
+	}
+
+	fi, err := os.Stat(newInfo.path)
+	if err != nil {
+		s.l.Errorf("Failed to stat file: %s", err)
+		return
+	}
+	if size := fi.Size(); size > maxSize {
+		s.l.Infof("Rotating slowlog file: %d > %d.", size, maxSize)
+		if err = s.rotateSlowLog(ctx, newInfo.path); err != nil {
+			s.l.Error(err)
+		}
+	}
+	return
+}
+
 // getSlowLogInfo returns information about slowlog settings.
 func (s *SlowLog) getSlowLogInfo(ctx context.Context) (*slowLogInfo, error) {
-	db, err := sql.Open("mysql", s.dsn)
+	db, err := sql.Open("mysql", s.params.DSN)
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot open database connection")
 	}
@@ -211,8 +234,39 @@ func (s *SlowLog) getSlowLogInfo(ctx context.Context) (*slowLogInfo, error) {
 	}, nil
 }
 
-// processFile extracts performance data from given file and sends it to the channel until ctx is canceled,
-// or fatal error is encountered.
+// rotateSlowLog removes slowlog file and calls FLUSH LOGS.
+func (s *SlowLog) rotateSlowLog(ctx context.Context, slowLogPath string) error {
+	db, err := sql.Open("mysql", s.params.DSN)
+	if err != nil {
+		return errors.Wrap(err, "cannot open database connection")
+	}
+	defer db.Close() //nolint:errcheck
+
+	old := slowLogPath + ".old"
+	if err = os.Remove(old); err != nil && !os.IsNotExist(err) {
+		s.l.Warnf("Cannot remove previous old slowlog file: %s.", err)
+	}
+
+	// We have to rename slowlog file, not remove it, before flushing logs:
+	// https://www.percona.com/blog/2007/12/09/be-careful-rotating-mysql-logs/
+	// This problem is especially bad with MySQL in Docker - it locks completely even on small files.
+	//
+	// Reader will continue to read old file from open file descriptor until EOF.
+	if err = os.Rename(slowLogPath, old); err != nil {
+		return errors.Wrap(err, "cannot rename old slowlog file")
+	}
+
+	_, err = db.ExecContext(ctx, fmt.Sprintf("FLUSH LOGS /* %s */", queryTag)) //nolint:gosec
+	if err != nil {
+		return errors.Wrap(err, "cannot flush logs")
+	}
+
+	// keep one old file around, remove it on next iteration
+
+	return nil
+}
+
+// processFile extracts performance data from given file and sends it to the channel until ctx is canceled.
 func (s *SlowLog) processFile(ctx context.Context, file string, outlierTime float64) error {
 	rl := s.l.WithField("component", "slowlog/reader").WithField("file", file)
 	reader, err := parser.NewContinuousFileReader(file, rl)
@@ -232,6 +286,7 @@ func (s *SlowLog) processFile(ctx context.Context, file string, outlierTime floa
 		opts.Debugf = s.l.WithField("component", "slowlog/parser").WithField("file", file).Tracef
 	}
 
+	// send events to the channel, close it when parser is done
 	parser := parser.NewSlowLogParser(reader, opts)
 	go parser.Run()
 	events := make(chan *log.Event, 1000)
@@ -266,12 +321,13 @@ func (s *SlowLog) processFile(ctx context.Context, file string, outlierTime floa
 	for {
 		select {
 		case <-ctxDone:
-			err = reader.Close()
+			err = reader.Close() // that will let parser to stop
 			s.l.Infof("Context done with %s. Reader closed with %v.", ctx.Err(), err)
 			ctxDone = nil
 
 		case e, ok := <-events:
 			if !ok {
+				// parser is done
 				return nil
 			}
 
@@ -283,7 +339,7 @@ func (s *SlowLog) processFile(ctx context.Context, file string, outlierTime floa
 		case <-t.C:
 			lengthS := uint32(math.Round(wait.Seconds())) // round 59.9s/60.1s to 60s
 			res := aggregator.Finalize()
-			buckets := makeBuckets(s.agentID, res, start, lengthS)
+			buckets := makeBuckets(s.params.AgentID, res, start, lengthS, s.params.DisableQueryExamples)
 			s.l.Debugf("Made %d buckets out of %d classes in %s+%d interval. Wait time: %s.",
 				len(buckets), len(res.Class), start.Format("15:04:05"), lengthS, time.Since(start))
 
@@ -299,10 +355,14 @@ func (s *SlowLog) processFile(ctx context.Context, file string, outlierTime floa
 }
 
 // makeBuckets is a pure function for easier testing.
-func makeBuckets(agentID string, res event.Result, periodStart time.Time, periodLengthSecs uint32) []*agentpb.MetricsBucket {
+func makeBuckets(agentID string, res event.Result, periodStart time.Time, periodLengthSecs uint32, disableQueryExamples bool) []*agentpb.MetricsBucket {
 	buckets := make([]*agentpb.MetricsBucket, 0, len(res.Class))
 
 	for _, v := range res.Class {
+		if v.Metrics == nil {
+			continue
+		}
+
 		mb := &agentpb.MetricsBucket{
 			Common: &agentpb.MetricsBucket_Common{
 				Queryid:              v.Id,
@@ -315,14 +375,17 @@ func makeBuckets(agentID string, res event.Result, periodStart time.Time, period
 				AgentType:            inventorypb.AgentType_QAN_MYSQL_SLOWLOG_AGENT,
 				PeriodStartUnixSecs:  uint32(periodStart.Unix()),
 				PeriodLengthSecs:     periodLengthSecs,
-				Example:              v.Example.Query,
-				ExampleFormat:        agentpb.ExampleFormat_EXAMPLE,
-				ExampleType:          agentpb.ExampleType_RANDOM,
 				NumQueries:           float32(v.TotalQueries),
 				Errors:               errListsToMap(v.ErrorsCode, v.ErrorsCount),
 				NumQueriesWithErrors: v.NumQueriesWithErrors,
 			},
 			Mysql: &agentpb.MetricsBucket_MySQL{},
+		}
+
+		if v.Example != nil && !disableQueryExamples {
+			mb.Common.Example = v.Example.Query
+			mb.Common.ExampleFormat = agentpb.ExampleFormat_EXAMPLE
+			mb.Common.ExampleType = agentpb.ExampleType_RANDOM
 		}
 
 		// If key has suffix _time or _wait than field is TimeMetrics.

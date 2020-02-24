@@ -1,18 +1,17 @@
 // pmm-agent
-// Copyright (C) 2018 Percona LLC
+// Copyright 2019 Percona LLC
 //
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
 //
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Affero General Public License for more details.
+//  http://www.apache.org/licenses/LICENSE-2.0
 //
-// You should have received a copy of the GNU Affero General Public License
-// along with this program. If not, see <https://www.gnu.org/licenses/>.
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 package slowlog
 
@@ -51,7 +50,7 @@ func TestSlowLogMakeBuckets(t *testing.T) {
 	parsingResult := event.Result{}
 	getDataFromFile(t, "slowlog_fixture.json", &parsingResult)
 
-	actualBuckets := makeBuckets(agentID, parsingResult, periodStart, 60)
+	actualBuckets := makeBuckets(agentID, parsingResult, periodStart, 60, false)
 
 	expectedBuckets := []*agentpb.MetricsBucket{}
 	getDataFromFile(t, "slowlog_expected.json", &expectedBuckets)
@@ -74,20 +73,21 @@ func TestSlowLog(t *testing.T) {
 	defer db.Close() //nolint:errcheck
 	_, vendor := tests.MySQLVersion(t, db)
 
+	testdata, err := filepath.Abs(filepath.Join("..", "..", "..", "testdata"))
+	require.NoError(t, err)
+
 	t.Run("Normal", func(t *testing.T) {
 		t.Parallel()
 
-		wd, err := os.Getwd()
-		require.NoError(t, err)
 		params := &Params{
 			DSN:               tests.GetTestMySQLDSN(t),
-			SlowLogFilePrefix: filepath.Join(wd, "..", "..", "..", "testdata"),
+			SlowLogFilePrefix: testdata,
 		}
 		s, err := New(params, logrus.WithField("test", t.Name()))
 		require.NoError(t, err)
 
 		expectedInfo := &slowLogInfo{
-			path: "/slowlogs/slow.log",
+			path: "/mysql/slowlogs/slow.log",
 		}
 		if vendor == tests.PerconaMySQL {
 			expectedInfo.outlierTime = 10
@@ -97,10 +97,10 @@ func TestSlowLog(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, expectedInfo, actualInfo)
 
-		_, err = os.Stat(filepath.Join(params.SlowLogFilePrefix, "/slowlogs/slow.log"))
+		_, err = os.Stat(filepath.Join(params.SlowLogFilePrefix, "/mysql/slowlogs/slow.log"))
 		require.NoError(t, err)
 
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 		go s.Run(ctx)
 
 		// collect first 3 status changes, skip QAN data
@@ -130,13 +130,14 @@ func TestSlowLog(t *testing.T) {
 		t.Parallel()
 
 		params := &Params{
-			DSN: tests.GetTestMySQLDSN(t),
+			DSN:               tests.GetTestMySQLDSN(t),
+			SlowLogFilePrefix: "nonexistent",
 		}
 		s, err := New(params, logrus.WithField("test", t.Name()))
 		require.NoError(t, err)
 
 		expectedInfo := &slowLogInfo{
-			path: "/slowlogs/slow.log",
+			path: "/mysql/slowlogs/slow.log",
 		}
 		if vendor == tests.PerconaMySQL {
 			expectedInfo.outlierTime = 10
@@ -146,11 +147,11 @@ func TestSlowLog(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, expectedInfo, actualInfo)
 
-		_, err = os.Stat(filepath.Join(params.SlowLogFilePrefix, "/slowlogs/slow.log"))
+		_, err = os.Stat(filepath.Join(params.SlowLogFilePrefix, "/mysql/slowlogs/slow.log"))
 		require.Error(t, err)
 		assert.True(t, os.IsNotExist(err))
 
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 		go s.Run(ctx)
 
 		// collect first 3 status changes, skip QAN data
@@ -168,6 +169,55 @@ func TestSlowLog(t *testing.T) {
 			inventorypb.AgentStatus_STARTING,
 			inventorypb.AgentStatus_WAITING,
 			inventorypb.AgentStatus_STARTING,
+		}
+		assert.Equal(t, expected, actual)
+
+		cancel()
+		for range s.Changes() {
+		}
+	})
+
+	t.Run("NormalWithRotation", func(t *testing.T) {
+		params := &Params{
+			DSN:                tests.GetTestMySQLDSN(t),
+			MaxSlowlogFileSize: 1,
+			SlowLogFilePrefix:  testdata,
+		}
+		s, err := New(params, logrus.WithField("test", t.Name()))
+		require.NoError(t, err)
+
+		expectedInfo := &slowLogInfo{
+			path: "/mysql/slowlogs/slow.log",
+		}
+		if vendor == tests.PerconaMySQL {
+			expectedInfo.outlierTime = 10
+		}
+
+		actualInfo, err := s.getSlowLogInfo(context.Background())
+		require.NoError(t, err)
+		assert.Equal(t, expectedInfo, actualInfo)
+
+		_, err = os.Stat(filepath.Join(params.SlowLogFilePrefix, "/mysql/slowlogs/slow.log"))
+		require.NoError(t, err)
+
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		go s.Run(ctx)
+
+		// collect first 3 status changes, skip QAN data
+		var actual []inventorypb.AgentStatus
+		for c := range s.Changes() {
+			if c.Status != inventorypb.AgentStatus_AGENT_STATUS_INVALID {
+				actual = append(actual, c.Status)
+				if len(actual) == 3 {
+					break
+				}
+			}
+		}
+
+		expected := []inventorypb.AgentStatus{
+			inventorypb.AgentStatus_STARTING,
+			inventorypb.AgentStatus_RUNNING,
+			inventorypb.AgentStatus_WAITING,
 		}
 		assert.Equal(t, expected, actual)
 

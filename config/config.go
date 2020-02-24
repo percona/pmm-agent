@@ -1,18 +1,17 @@
 // pmm-agent
-// Copyright (C) 2018 Percona LLC
+// Copyright 2019 Percona LLC
 //
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
 //
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Affero General Public License for more details.
+//  http://www.apache.org/licenses/LICENSE-2.0
 //
-// You should have received a copy of the GNU Affero General Public License
-// along with this program. If not, see <https://www.gnu.org/licenses/>.
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 // Package config provides access to pmm-agent configuration.
 package config
@@ -20,9 +19,9 @@ package config
 import (
 	"fmt"
 	"io/ioutil"
+	"net"
 	"net/url"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 
@@ -64,29 +63,34 @@ func (s *Server) URL() *url.URL {
 	}
 }
 
+// FilteredURL returns URL with redacted password.
+func (s *Server) FilteredURL() string {
+	u := s.URL()
+	if u == nil {
+		return ""
+	}
+
+	if _, ps := u.User.Password(); ps {
+		u.User = url.UserPassword(u.User.Username(), "***")
+	}
+
+	// unescape ***; url.unescape and url.encodeUserPassword are not exported, so use strings.Replace
+	return strings.Replace(u.String(), ":%2A%2A%2A@", ":***@", -1)
+}
+
 // Paths represents binaries paths configuration.
 type Paths struct {
+	ExportersBase    string `yaml:"exporters_base"`
 	NodeExporter     string `yaml:"node_exporter"`
 	MySQLdExporter   string `yaml:"mysqld_exporter"`
 	MongoDBExporter  string `yaml:"mongodb_exporter"`
 	PostgresExporter string `yaml:"postgres_exporter"`
 	ProxySQLExporter string `yaml:"proxysql_exporter"`
-	PtSummary        string `yaml:"pt_summary"`
-	PtMySQLSummary   string `yaml:"pt_mysql_summary"`
-	TempDir          string `yaml:"tempdir"`
+	RDSExporter      string `yaml:"rds_exporter"`
+
+	TempDir string `yaml:"tempdir"`
 
 	SlowLogFilePrefix string `yaml:"slowlog_file_prefix,omitempty"` // for development and testing
-}
-
-// lookup replaces paths with absolute paths.
-func (p *Paths) lookup() {
-	p.NodeExporter, _ = exec.LookPath(p.NodeExporter)
-	p.MySQLdExporter, _ = exec.LookPath(p.MySQLdExporter)
-	p.MongoDBExporter, _ = exec.LookPath(p.MongoDBExporter)
-	p.PostgresExporter, _ = exec.LookPath(p.PostgresExporter)
-	p.ProxySQLExporter, _ = exec.LookPath(p.ProxySQLExporter)
-	p.PtSummary, _ = exec.LookPath(p.PtSummary)
-	p.PtMySQLSummary, _ = exec.LookPath(p.PtMySQLSummary)
 }
 
 // Ports represents ports configuration.
@@ -107,8 +111,7 @@ type Setup struct {
 	NodeModel     string
 	Region        string
 	Az            string
-	// TODO CustomLabels  string
-	Address string
+	Address       string
 
 	Force            bool
 	SkipRegistration bool
@@ -147,49 +150,102 @@ func (e ErrConfigFileDoesNotExist) Error() string {
 // but file itself does not exist. Configuration from command-line flags and environment variables
 // is still returned in this case.
 func Get(l *logrus.Entry) (*Config, string, error) {
-	cfg, configFileF, err := get(os.Args[1:], l)
-	if cfg != nil {
-		cfg.Paths.lookup()
-	}
-	return cfg, configFileF, err
+	return get(os.Args[1:], l)
 }
 
-// get is Get for unit tests: parses args instead of command-line, and does not lookups paths.
-func get(args []string, l *logrus.Entry) (*Config, string, error) {
+// get is Get for unit tests: it parses args instead of command-line.
+func get(args []string, l *logrus.Entry) (cfg *Config, configFileF string, err error) {
+	// tweak configuration on exit to cover all return points
+	defer func() {
+		if cfg == nil {
+			return
+		}
+
+		// set default values
+		if cfg.ListenPort == 0 {
+			cfg.ListenPort = 7777
+		}
+		if cfg.Ports.Min == 0 {
+			cfg.Ports.Min = 42000 // for minimal compatibility with PMM Client 1.x firewall rules and documentation
+		}
+		if cfg.Ports.Max == 0 {
+			cfg.Ports.Max = 51999
+		}
+		for sp, v := range map[*string]string{
+			&cfg.Paths.ExportersBase:    "/usr/local/percona/pmm2/exporters",
+			&cfg.Paths.NodeExporter:     "node_exporter",
+			&cfg.Paths.MySQLdExporter:   "mysqld_exporter",
+			&cfg.Paths.MongoDBExporter:  "mongodb_exporter",
+			&cfg.Paths.PostgresExporter: "postgres_exporter",
+			&cfg.Paths.ProxySQLExporter: "proxysql_exporter",
+			&cfg.Paths.RDSExporter:      "rds_exporter",
+			&cfg.Paths.TempDir:          os.TempDir(),
+		} {
+			if *sp == "" {
+				*sp = v
+			}
+		}
+
+		if cfg.Paths.ExportersBase != "" {
+			if abs, _ := filepath.Abs(cfg.Paths.ExportersBase); abs != "" {
+				cfg.Paths.ExportersBase = abs
+			}
+		}
+
+		for _, sp := range []*string{
+			&cfg.Paths.NodeExporter,
+			&cfg.Paths.MySQLdExporter,
+			&cfg.Paths.MongoDBExporter,
+			&cfg.Paths.PostgresExporter,
+			&cfg.Paths.ProxySQLExporter,
+			&cfg.Paths.RDSExporter,
+		} {
+			if cfg.Paths.ExportersBase != "" && !filepath.IsAbs(*sp) {
+				*sp = filepath.Join(cfg.Paths.ExportersBase, *sp)
+			}
+			l.Infof("Using %s", *sp)
+		}
+
+		if cfg.Server.Address != "" {
+			if _, _, e := net.SplitHostPort(cfg.Server.Address); e != nil {
+				host := cfg.Server.Address
+				cfg.Server.Address = net.JoinHostPort(host, "443")
+				l.Infof("Updating PMM Server address from %q to %q.", host, cfg.Server.Address)
+			}
+		}
+	}()
+
 	// parse command-line flags and environment variables
-	cfg := new(Config)
-	app, configFileF := Application(cfg)
-	if _, err := app.Parse(args); err != nil {
-		return nil, "", err
+	cfg = new(Config)
+	app, cfgFileF := Application(cfg)
+	if _, err = app.Parse(args); err != nil {
+		return
 	}
-	if *configFileF == "" {
-		return cfg, "", nil
+	if *cfgFileF == "" {
+		return
 	}
 
-	absConfigFileF, err := filepath.Abs(*configFileF)
-	if err != nil {
-		return nil, "", err
+	if configFileF, err = filepath.Abs(*cfgFileF); err != nil {
+		return
 	}
-	*configFileF = absConfigFileF
-	l.Debugf("Loading configuration file %s.", *configFileF)
-	fileCfg, err := loadFromFile(*configFileF)
-	if _, ok := err.(ErrConfigFileDoesNotExist); ok {
-		return cfg, *configFileF, err
-	}
+	l.Infof("Loading configuration file %s.", configFileF)
+	fileCfg, err := loadFromFile(configFileF)
 	if err != nil {
-		return nil, "", err
+		return
 	}
 
 	// re-parse flags into configuration from file
 	app, _ = Application(fileCfg)
 	if _, err = app.Parse(args); err != nil {
-		return nil, "", err
+		return
 	}
-	return fileCfg, *configFileF, nil
+
+	cfg = fileCfg
+	return //nolint:nakedret
 }
 
 // Application returns kingpin application that will parse command-line flags and environment variables
-// into cfg except --config-file/PMM_AGENT_CONFIG_FILE that is returned separately.
+// (but not configuration file) into cfg except --config-file/PMM_AGENT_CONFIG_FILE that is returned separately.
 func Application(cfg *Config) (*kingpin.Application, *string) {
 	app := kingpin.New("pmm-agent", fmt.Sprintf("Version %s", version.Version))
 	app.HelpFlag.Short('h')
@@ -197,14 +253,18 @@ func Application(cfg *Config) (*kingpin.Application, *string) {
 
 	app.Command("run", "Run pmm-agent (default command)").Default()
 
-	// this flags has to be optional and has empty default value for `pmm-agent setup`
+	// All `app` flags should be optional and should not have non-zero default values for:
+	// * `pmm-agent setup` to work;
+	// * correct configuration file loading.
+	// See `get` above for the actual default values.
+
 	configFileF := app.Flag("config-file", "Configuration file path [PMM_AGENT_CONFIG_FILE]").
 		Envar("PMM_AGENT_CONFIG_FILE").PlaceHolder("</path/to/pmm-agent.yaml>").String()
 
 	app.Flag("id", "ID of this pmm-agent [PMM_AGENT_ID]").
 		Envar("PMM_AGENT_ID").PlaceHolder("</agent_id/...>").StringVar(&cfg.ID)
 	app.Flag("listen-port", "Agent local API port [PMM_AGENT_LISTEN_PORT]").
-		Envar("PMM_AGENT_LISTEN_PORT").Default("7777").Uint16Var(&cfg.ListenPort)
+		Envar("PMM_AGENT_LISTEN_PORT").Uint16Var(&cfg.ListenPort)
 
 	app.Flag("server-address", "PMM Server address [PMM_AGENT_SERVER_ADDRESS]").
 		Envar("PMM_AGENT_SERVER_ADDRESS").PlaceHolder("<host:port>").StringVar(&cfg.Server.Address)
@@ -216,29 +276,26 @@ func Application(cfg *Config) (*kingpin.Application, *string) {
 		Envar("PMM_AGENT_SERVER_INSECURE_TLS").BoolVar(&cfg.Server.InsecureTLS)
 	// no flag for WithoutTLS - it is only for development and testing
 
+	app.Flag("paths-exporters_base", "Base path for exporters to use [PMM_AGENT_PATHS_EXPORTERS_BASE]").
+		Envar("PMM_AGENT_PATHS_EXPORTERS_BASE").StringVar(&cfg.Paths.ExportersBase)
 	app.Flag("paths-node_exporter", "Path to node_exporter to use [PMM_AGENT_PATHS_NODE_EXPORTER]").
-		Envar("PMM_AGENT_PATHS_NODE_EXPORTER").Default("node_exporter").StringVar(&cfg.Paths.NodeExporter)
+		Envar("PMM_AGENT_PATHS_NODE_EXPORTER").StringVar(&cfg.Paths.NodeExporter)
 	app.Flag("paths-mysqld_exporter", "Path to mysqld_exporter to use [PMM_AGENT_PATHS_MYSQLD_EXPORTER]").
-		Envar("PMM_AGENT_PATHS_MYSQLD_EXPORTER").Default("mysqld_exporter").StringVar(&cfg.Paths.MySQLdExporter)
+		Envar("PMM_AGENT_PATHS_MYSQLD_EXPORTER").StringVar(&cfg.Paths.MySQLdExporter)
 	app.Flag("paths-mongodb_exporter", "Path to mongodb_exporter to use [PMM_AGENT_PATHS_MONGODB_EXPORTER]").
-		Envar("PMM_AGENT_PATHS_MONGODB_EXPORTER").Default("mongodb_exporter").StringVar(&cfg.Paths.MongoDBExporter)
+		Envar("PMM_AGENT_PATHS_MONGODB_EXPORTER").StringVar(&cfg.Paths.MongoDBExporter)
 	app.Flag("paths-postgres_exporter", "Path to postgres_exporter to use [PMM_AGENT_PATHS_POSTGRES_EXPORTER]").
-		Envar("PMM_AGENT_PATHS_POSTGRES_EXPORTER").Default("postgres_exporter").StringVar(&cfg.Paths.PostgresExporter)
+		Envar("PMM_AGENT_PATHS_POSTGRES_EXPORTER").StringVar(&cfg.Paths.PostgresExporter)
 	app.Flag("paths-proxysql_exporter", "Path to proxysql_exporter to use [PMM_AGENT_PATHS_PROXYSQL_EXPORTER]").
-		Envar("PMM_AGENT_PATHS_PROXYSQL_EXPORTER").Default("proxysql_exporter").StringVar(&cfg.Paths.ProxySQLExporter)
-	app.Flag("paths-pt-summary", "Path to pt-summary to use [PMM_AGENT_PATHS_PT_SUMMARY]").
-		Envar("PMM_AGENT_PATHS_PT_SUMMARY").Default("pt-summary").StringVar(&cfg.Paths.PtSummary)
-	app.Flag("paths-pt-mysql-summary", "Path to pt-mysql-summary to use [PMM_AGENT_PATHS_PT_MYSQL_SUMMARY]").
-		Envar("PMM_AGENT_PATHS_PT_MYSQL_SUMMARY").Default("pt-mysql-summary").StringVar(&cfg.Paths.PtMySQLSummary)
+		Envar("PMM_AGENT_PATHS_PROXYSQL_EXPORTER").StringVar(&cfg.Paths.ProxySQLExporter)
 	app.Flag("paths-tempdir", "Temporary directory for exporters [PMM_AGENT_PATHS_TEMPDIR]").
-		Envar("PMM_AGENT_PATHS_TEMPDIR").Default(os.TempDir()).StringVar(&cfg.Paths.TempDir)
+		Envar("PMM_AGENT_PATHS_TEMPDIR").StringVar(&cfg.Paths.TempDir)
 	// no flag for SlowLogFilePrefix - it is only for development and testing
 
-	// start from 42000 for minimal compatibility with PMM Client 1.x firewall rules and documentation
 	app.Flag("ports-min", "Minimal allowed port number for listening sockets [PMM_AGENT_PORTS_MIN]").
-		Envar("PMM_AGENT_PORTS_MIN").Default("42000").Uint16Var(&cfg.Ports.Min)
+		Envar("PMM_AGENT_PORTS_MIN").Uint16Var(&cfg.Ports.Min)
 	app.Flag("ports-max", "Maximal allowed port number for listening sockets [PMM_AGENT_PORTS_MAX]").
-		Envar("PMM_AGENT_PORTS_MAX").Default("51999").Uint16Var(&cfg.Ports.Max)
+		Envar("PMM_AGENT_PORTS_MAX").Uint16Var(&cfg.Ports.Max)
 
 	app.Flag("debug", "Enable debug output [PMM_AGENT_DEBUG]").
 		Envar("PMM_AGENT_DEBUG").BoolVar(&cfg.Debug)
@@ -249,10 +306,13 @@ func Application(cfg *Config) (*kingpin.Application, *string) {
 	nodeinfo := nodeinfo.Get()
 
 	if nodeinfo.PublicAddress == "" {
-		setupCmd.Arg("node-address", "Node address").Required().StringVar(&cfg.Setup.Address)
+		help := "Node address [PMM_AGENT_SETUP_NODE_ADDRESS]"
+		setupCmd.Arg("node-address", help).Required().
+			Envar("PMM_AGENT_SETUP_NODE_ADDRESS").StringVar(&cfg.Setup.Address)
 	} else {
-		help := fmt.Sprintf("Node address (autodetected default: %s)", nodeinfo.PublicAddress)
-		setupCmd.Arg("node-address", help).Default(nodeinfo.PublicAddress).StringVar(&cfg.Setup.Address)
+		help := fmt.Sprintf("Node address (autodetected default: %s) [PMM_AGENT_SETUP_NODE_ADDRESS]", nodeinfo.PublicAddress)
+		setupCmd.Arg("node-address", help).Default(nodeinfo.PublicAddress).
+			Envar("PMM_AGENT_SETUP_NODE_ADDRESS").StringVar(&cfg.Setup.Address)
 	}
 
 	nodeTypeKeys := []string{"generic", "container"}
@@ -260,28 +320,38 @@ func Application(cfg *Config) (*kingpin.Application, *string) {
 	if nodeinfo.Container {
 		nodeTypeDefault = "container"
 	}
-	nodeTypeHelp := fmt.Sprintf("Node type, one of: %s (default: %s)", strings.Join(nodeTypeKeys, ", "), nodeTypeDefault)
-	setupCmd.Arg("node-type", nodeTypeHelp).Default(nodeTypeDefault).EnumVar(&cfg.Setup.NodeType, nodeTypeKeys...)
+	nodeTypeHelp := fmt.Sprintf("Node type, one of: %s (default: %s) [PMM_AGENT_SETUP_NODE_TYPE]", strings.Join(nodeTypeKeys, ", "), nodeTypeDefault)
+	setupCmd.Arg("node-type", nodeTypeHelp).Default(nodeTypeDefault).
+		Envar("PMM_AGENT_SETUP_NODE_TYPE").EnumVar(&cfg.Setup.NodeType, nodeTypeKeys...)
 
 	hostname, _ := os.Hostname()
-	nodeNameHelp := fmt.Sprintf("Node name (autodetected default: %s)", hostname)
-	setupCmd.Arg("node-name", nodeNameHelp).Default(hostname).StringVar(&cfg.Setup.NodeName)
+	nodeNameHelp := fmt.Sprintf("Node name (autodetected default: %s) [PMM_AGENT_SETUP_NODE_NAME]", hostname)
+	setupCmd.Arg("node-name", nodeNameHelp).Default(hostname).
+		Envar("PMM_AGENT_SETUP_NODE_NAME").StringVar(&cfg.Setup.NodeName)
 
 	var defaultMachineID string
 	if nodeinfo.MachineID != "" {
 		defaultMachineID = "/machine_id/" + nodeinfo.MachineID
 	}
-	setupCmd.Flag("machine-id", "Node machine-id (default is autodetected)").Default(defaultMachineID).StringVar(&cfg.Setup.MachineID)
-	setupCmd.Flag("distro", "Node OS distribution (default is autodetected)").Default(nodeinfo.Distro).StringVar(&cfg.Setup.Distro)
-	setupCmd.Flag("container-id", "Container ID").StringVar(&cfg.Setup.ContainerID)
-	setupCmd.Flag("container-name", "Container name").StringVar(&cfg.Setup.ContainerName)
-	setupCmd.Flag("node-model", "Node model").StringVar(&cfg.Setup.NodeModel)
-	setupCmd.Flag("region", "Node region").StringVar(&cfg.Setup.Region)
-	setupCmd.Flag("az", "Node availability zone").StringVar(&cfg.Setup.Az)
-	// TODO setupCmd.Flag("custom-labels", "Custom user-assigned labels").StringVar(&cfg.Setup.CustomLabels)
+	setupCmd.Flag("machine-id", "Node machine-id (default is autodetected) [PMM_AGENT_SETUP_MACHINE_ID]").Default(defaultMachineID).
+		Envar("PMM_AGENT_SETUP_MACHINE_ID").StringVar(&cfg.Setup.MachineID)
+	setupCmd.Flag("distro", "Node OS distribution (default is autodetected) [PMM_AGENT_SETUP_DISTRO]").Default(nodeinfo.Distro).
+		Envar("PMM_AGENT_SETUP_DISTRO").StringVar(&cfg.Setup.Distro)
+	setupCmd.Flag("container-id", "Container ID [PMM_AGENT_SETUP_CONTAINER_ID]").
+		Envar("PMM_AGENT_SETUP_CONTAINER_ID").StringVar(&cfg.Setup.ContainerID)
+	setupCmd.Flag("container-name", "Container name [PMM_AGENT_SETUP_CONTAINER_NAME]").
+		Envar("PMM_AGENT_SETUP_CONTAINER_NAME").StringVar(&cfg.Setup.ContainerName)
+	setupCmd.Flag("node-model", "Node model [PMM_AGENT_SETUP_NODE_MODEL]").
+		Envar("PMM_AGENT_SETUP_NODE_MODEL").StringVar(&cfg.Setup.NodeModel)
+	setupCmd.Flag("region", "Node region [PMM_AGENT_SETUP_REGION]").
+		Envar("PMM_AGENT_SETUP_REGION").StringVar(&cfg.Setup.Region)
+	setupCmd.Flag("az", "Node availability zone [PMM_AGENT_SETUP_AZ]").
+		Envar("PMM_AGENT_SETUP_AZ").StringVar(&cfg.Setup.Az)
 
-	setupCmd.Flag("force", "Remove Node with that name with all dependent Services and Agents if one exist").BoolVar(&cfg.Setup.Force)
-	setupCmd.Flag("skip-registration", "Skip registration on PMM Server").BoolVar(&cfg.Setup.SkipRegistration)
+	setupCmd.Flag("force", "Remove Node with that name with all dependent Services and Agents if one exist [PMM_AGENT_SETUP_FORCE]").
+		Envar("PMM_AGENT_SETUP_FORCE").BoolVar(&cfg.Setup.Force)
+	setupCmd.Flag("skip-registration", "Skip registration on PMM Server [PMM_AGENT_SETUP_SKIP_REGISTRATION]").
+		Envar("PMM_AGENT_SETUP_SKIP_REGISTRATION").BoolVar(&cfg.Setup.SkipRegistration)
 
 	return app, configFileF
 }

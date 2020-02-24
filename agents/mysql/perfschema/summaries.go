@@ -1,18 +1,17 @@
 // pmm-agent
-// Copyright (C) 2018 Percona LLC
+// Copyright 2019 Percona LLC
 //
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
 //
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Affero General Public License for more details.
+//  http://www.apache.org/licenses/LICENSE-2.0
 //
-// You should have received a copy of the GNU Affero General Public License
-// along with this program. If not, see <https://www.gnu.org/licenses/>.
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 package perfschema
 
@@ -26,20 +25,27 @@ import (
 )
 
 func getSummaries(q *reform.Querier) (map[string]*eventsStatementsSummaryByDigest, error) {
-	structs, err := q.SelectAllFrom(eventsStatementsSummaryByDigestView, "WHERE DIGEST IS NOT NULL AND DIGEST_TEXT IS NOT NULL")
+	rows, err := q.SelectRows(eventsStatementsSummaryByDigestView, "WHERE DIGEST IS NOT NULL AND DIGEST_TEXT IS NOT NULL")
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to query events_statements_summary_by_digest")
 	}
+	defer rows.Close() //nolint:errcheck
 
-	res := make(map[string]*eventsStatementsSummaryByDigest, len(structs))
-	for _, str := range structs {
-		ess := str.(*eventsStatementsSummaryByDigest)
+	res := make(map[string]*eventsStatementsSummaryByDigest)
+	for {
+		var ess eventsStatementsSummaryByDigest
+		if err = q.NextRow(&ess, rows); err != nil {
+			break
+		}
 
 		// From https://dev.mysql.com/doc/relnotes/mysql/8.0/en/news-8-0-11.html:
 		// > The Performance Schema could produce DIGEST_TEXT values with a trailing space. […] (Bug #26908015)
 		*ess.DigestText = strings.TrimSpace(*ess.DigestText)
 
-		res[*ess.Digest] = ess
+		res[*ess.Digest] = &ess
+	}
+	if err != reform.ErrNoRows {
+		return nil, errors.Wrap(err, "failed to fetch events_statements_summary_by_digest")
 	}
 	return res, nil
 }

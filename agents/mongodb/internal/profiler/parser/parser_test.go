@@ -1,27 +1,28 @@
 // pmm-agent
-// Copyright (C) 2018 Percona LLC
+// Copyright 2019 Percona LLC
 //
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
 //
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Affero General Public License for more details.
+//  http://www.apache.org/licenses/LICENSE-2.0
 //
-// You should have received a copy of the GNU Affero General Public License
-// along with this program. If not, see <https://www.gnu.org/licenses/>.
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 package parser
 
 import (
+	"context"
 	"reflect"
 	"testing"
 	"time"
 
 	pm "github.com/percona/percona-toolkit/src/go/mongolib/proto"
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -31,7 +32,7 @@ import (
 
 func TestNew(t *testing.T) {
 	docsChan := make(chan pm.SystemProfile)
-	a := aggregator.New(time.Now(), "test-id")
+	a := aggregator.New(time.Now(), "test-id", logrus.WithField("component", "aggregator"))
 
 	type args struct {
 		docsChan   <-chan pm.SystemProfile
@@ -48,12 +49,12 @@ func TestNew(t *testing.T) {
 				docsChan:   docsChan,
 				aggregator: a,
 			},
-			want: New(docsChan, a),
+			want: New(docsChan, a, logrus.WithField("component", "test-parser")),
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := New(tt.args.docsChan, tt.args.aggregator); !reflect.DeepEqual(got, tt.want) {
+			if got := New(tt.args.docsChan, tt.args.aggregator, logrus.WithField("component", "test-parser")); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("New(%v, %v) = %v, want %v", tt.args.docsChan, tt.args.aggregator, got, tt.want)
 			}
 		})
@@ -63,14 +64,15 @@ func TestNew(t *testing.T) {
 func TestParserStartStop(t *testing.T) {
 	var err error
 	docsChan := make(chan pm.SystemProfile)
-	a := aggregator.New(time.Now(), "test-id")
+	a := aggregator.New(time.Now(), "test-id", logrus.WithField("component", "aggregator"))
 
-	parser1 := New(docsChan, a)
-	err = parser1.Start()
+	ctx := context.TODO()
+	parser1 := New(docsChan, a, logrus.WithField("component", "test-parser"))
+	err = parser1.Start(ctx)
 	require.NoError(t, err)
 
 	// running multiple Start() should be idempotent
-	err = parser1.Start()
+	err = parser1.Start(ctx)
 	require.NoError(t, err)
 
 	// running multiple Stop() should be idempotent
@@ -78,15 +80,15 @@ func TestParserStartStop(t *testing.T) {
 	parser1.Stop()
 }
 
-func TestParserrunning(t *testing.T) {
+func TestParserRunning(t *testing.T) {
 	docsChan := make(chan pm.SystemProfile)
-	a := aggregator.New(time.Now(), "test-id")
+	a := aggregator.New(time.Now(), "test-id", logrus.WithField("component", "aggregator"))
 	reportChan := a.Start()
 	defer a.Stop()
 	d := aggregator.DefaultInterval
 
-	parser1 := New(docsChan, a)
-	err := parser1.Start()
+	parser1 := New(docsChan, a, logrus.WithField("component", "test-parser"))
+	err := parser1.Start(context.TODO())
 	require.NoError(t, err)
 
 	now := time.Now().UTC()

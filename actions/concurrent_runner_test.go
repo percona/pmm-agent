@@ -1,18 +1,17 @@
 // pmm-agent
-// Copyright (C) 2018 Percona LLC
+// Copyright 2019 Percona LLC
 //
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
 //
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Affero General Public License for more details.
+//  http://www.apache.org/licenses/LICENSE-2.0
 //
-// You should have received a copy of the GNU Affero General Public License
-// along with this program. If not, see <https://www.gnu.org/licenses/>.
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 package actions
 
@@ -46,7 +45,7 @@ func assertResults(t *testing.T, cr *ConcurrentRunner, expected ...ActionResult)
 func TestConcurrentRunnerRun(t *testing.T) {
 	t.Parallel()
 
-	cr := NewConcurrentRunner(context.Background(), 0)
+	cr := NewConcurrentRunner(context.Background(), 5*time.Second)
 	a1 := NewProcessAction("/action_id/6a479303-5081-46d0-baa0-87d6248c987b", "echo", []string{"test"})
 	a2 := NewProcessAction("/action_id/84140ab2-612d-4d93-9360-162a4bd5de14", "echo", []string{"test2"})
 
@@ -83,7 +82,7 @@ func TestConcurrentRunnerTimeout(t *testing.T) {
 func TestConcurrentRunnerStop(t *testing.T) {
 	t.Parallel()
 
-	cr := NewConcurrentRunner(context.Background(), 0)
+	cr := NewConcurrentRunner(context.Background(), 5*time.Second)
 	a1 := NewProcessAction("/action_id/6a479303-5081-46d0-baa0-87d6248c987b", "sleep", []string{"20"})
 	a2 := NewProcessAction("/action_id/84140ab2-612d-4d93-9360-162a4bd5de14", "sleep", []string{"30"})
 
@@ -108,7 +107,7 @@ func TestConcurrentRunnerCancel(t *testing.T) {
 	t.Parallel()
 
 	ctx, cancel := context.WithCancel(context.Background())
-	cr := NewConcurrentRunner(ctx, 0)
+	cr := NewConcurrentRunner(ctx, 5*time.Second)
 	a1 := NewProcessAction("/action_id/6a479303-5081-46d0-baa0-87d6248c987b", "sleep", []string{"20"})
 	a2 := NewProcessAction("/action_id/84140ab2-612d-4d93-9360-162a4bd5de14", "sleep", []string{"30"})
 
@@ -135,7 +134,7 @@ func TestConcurrentRunnerCancelEmpty(t *testing.T) {
 	t.Parallel()
 
 	ctx, cancel := context.WithCancel(context.Background())
-	cr := NewConcurrentRunner(ctx, 0)
+	cr := NewConcurrentRunner(ctx, 5*time.Second)
 	a := NewProcessAction("/action_id/6a479303-5081-46d0-baa0-87d6248c987b", "sleep", []string{"20"})
 
 	go cancel()

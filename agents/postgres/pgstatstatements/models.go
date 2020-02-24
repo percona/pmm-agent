@@ -1,20 +1,23 @@
 // pmm-agent
-// Copyright (C) 2018 Percona LLC
+// Copyright 2019 Percona LLC
 //
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
 //
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Affero General Public License for more details.
+//  http://www.apache.org/licenses/LICENSE-2.0
 //
-// You should have received a copy of the GNU Affero General Public License
-// along with this program. If not, see <https://www.gnu.org/licenses/>.
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 package pgstatstatements
+
+import (
+	"fmt"
+)
 
 //go:generate reform
 
@@ -37,8 +40,8 @@ type pgUser struct {
 type pgStatStatements struct {
 	UserID    int64   `reform:"userid"`
 	DBID      int64   `reform:"dbid"`
-	QueryID   *int64  `reform:"queryid"`
-	Query     *string `reform:"query"`
+	QueryID   int64   `reform:"queryid"` // we select only non-NULL rows
+	Query     string  `reform:"query"`   // we select only non-NULL rows
 	Calls     int64   `reform:"calls"`
 	TotalTime float64 `reform:"total_time"`
 	//MinTime           *float64 `reform:"min_time"`
@@ -63,8 +66,15 @@ type pgStatStatements struct {
 // pgStatStatementsExtended contains pgStatStatements data and extends it with database, username and tables data.
 // It's made for performance reason.
 type pgStatStatementsExtended struct {
-	PgStatStatements *pgStatStatements
-	Database         *string
-	Username         *string
+	pgStatStatements
+
+	Database         string
+	Username         string
 	Tables           []string
+	IsQueryTruncated bool
+}
+
+func (e *pgStatStatementsExtended) String() string {
+	return fmt.Sprintf("%q %q %v: %d: %s (truncated = %t)",
+		e.Database, e.Username, e.Tables, e.QueryID, e.Query, e.IsQueryTruncated)
 }
