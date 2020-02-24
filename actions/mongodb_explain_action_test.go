@@ -68,9 +68,8 @@ func TestMongoDBExplain(t *testing.T) {
 	buf, _ := bson.MarshalExtJSON(eq, true, true)
 
 	params := &agentpb.StartActionRequest_MongoDBExplainParams{
-		Dsn:      tests.MongoDBDSN(),
-		Database: database,
-		Query:    string(buf),
+		Dsn:   tests.MongoDBDSN(),
+		Query: string(buf),
 	}
 
 	ex := NewMongoDBExplain(id, params)
