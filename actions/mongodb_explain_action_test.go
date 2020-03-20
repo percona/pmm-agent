@@ -48,7 +48,7 @@ func TestMongoDBExplain(t *testing.T) {
 		Query: `{"ns":"test.coll","op":"query","query":{"k":{"$lte":{"$numberInt":"1"}}}}`,
 	}
 
-	ex := NewMongoDBExplain(id, params)
+	ex := NewMongoDBExplainAction(id, params)
 	res, err := ex.Run(ctx)
 	assert.Nil(t, err)
 

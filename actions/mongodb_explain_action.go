@@ -27,31 +27,31 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-type mongodbExplainAction struct {
+type MongodbExplainAction struct {
 	id     string
 	params *agentpb.StartActionRequest_MongoDBExplainParams
 }
 
 // NewMongoDBExplain creates a MongoDB  EXPLAIN query Action.
-func NewMongoDBExplain(id string, params *agentpb.StartActionRequest_MongoDBExplainParams) Action {
-	return &mongodbExplainAction{
+func NewMongoDBExplainAction(id string, params *agentpb.StartActionRequest_MongoDBExplainParams) Action {
+	return &MongodbExplainAction{
 		id:     id,
 		params: params,
 	}
 }
 
 // ID returns an Action ID.
-func (a *mongodbExplainAction) ID() string {
+func (a *MongodbExplainAction) ID() string {
 	return a.id
 }
 
 // Type returns an Action type.
-func (a *mongodbExplainAction) Type() string {
+func (a *MongodbExplainAction) Type() string {
 	return "mongodb-explain"
 }
 
 // Run runs an Action and returns output and error.
-func (a *mongodbExplainAction) Run(ctx context.Context) ([]byte, error) {
+func (a *MongodbExplainAction) Run(ctx context.Context) ([]byte, error) {
 	dsn := a.params.Dsn
 	client, err := mongo.Connect(ctx, options.Client().ApplyURI(dsn))
 	if err != nil {
@@ -90,4 +90,4 @@ func (a *mongodbExplainAction) Run(ctx context.Context) ([]byte, error) {
 	return resultJSON, nil
 }
 
-func (a *mongodbExplainAction) sealed() {}
+func (a *MongodbExplainAction) sealed() {}
