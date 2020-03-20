@@ -72,7 +72,7 @@ func (a *MongodbExplainAction) Run(ctx context.Context) ([]byte, error) {
 		return nil, fmt.Errorf("explain: unable to decode query %s: %s", a.params.Query, err)
 	}
 
-	res := client.Database(eq.Db()).RunCommand(ctx, eq.ExplainCmd())
+	res := client.Database("admin").RunCommand(ctx, eq.ExplainCmd())
 	if res.Err() != nil {
 		return nil, res.Err()
 	}
