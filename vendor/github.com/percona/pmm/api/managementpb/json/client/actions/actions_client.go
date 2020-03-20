@@ -91,7 +91,7 @@ func (a *Client) GetAction(params *GetActionParams) (*GetActionOK, error) {
 }
 
 /*
-StartMongoDBExplainAction starts mongo DB explain action starts postgre SQL e x p l a i n action
+StartMongoDBExplainAction starts mongo DB explain action starts mongo DB e x p l a i n action
 */
 func (a *Client) StartMongoDBExplainAction(params *StartMongoDBExplainActionParams) (*StartMongoDBExplainActionOK, error) {
 	// TODO: Validate the params before sending
@@ -102,7 +102,7 @@ func (a *Client) StartMongoDBExplainAction(params *StartMongoDBExplainActionPara
 	result, err := a.transport.Submit(&runtime.ClientOperation{
 		ID:                 "StartMongoDBExplainAction",
 		Method:             "POST",
-		PathPattern:        "/v0/management/Actions/StartMongoDBExplain",
+		PathPattern:        "/v1/management/Actions/StartMongoDBExplain",
 		ProducesMediaTypes: []string{"application/json"},
 		ConsumesMediaTypes: []string{"application/json"},
 		Schemes:            []string{"http", "https"},

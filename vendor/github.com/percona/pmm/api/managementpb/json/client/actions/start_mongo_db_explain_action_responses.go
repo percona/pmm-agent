@@ -8,7 +8,9 @@ package actions
 import (
 	"fmt"
 	"io"
+	"strconv"
 
+	"github.com/go-openapi/errors"
 	"github.com/go-openapi/runtime"
 	"github.com/go-openapi/swag"
 
@@ -55,7 +57,7 @@ type StartMongoDBExplainActionOK struct {
 }
 
 func (o *StartMongoDBExplainActionOK) Error() string {
-	return fmt.Sprintf("[POST /v0/management/Actions/StartMongoDBExplain][%d] startMongoDbExplainActionOk  %+v", 200, o.Payload)
+	return fmt.Sprintf("[POST /v1/management/Actions/StartMongoDBExplain][%d] startMongoDbExplainActionOk  %+v", 200, o.Payload)
 }
 
 func (o *StartMongoDBExplainActionOK) GetPayload() *StartMongoDBExplainActionOKBody {
@@ -83,7 +85,7 @@ func NewStartMongoDBExplainActionDefault(code int) *StartMongoDBExplainActionDef
 
 /*StartMongoDBExplainActionDefault handles this case with default header values.
 
-An error response.
+An unexpected error response
 */
 type StartMongoDBExplainActionDefault struct {
 	_statusCode int
@@ -97,7 +99,7 @@ func (o *StartMongoDBExplainActionDefault) Code() int {
 }
 
 func (o *StartMongoDBExplainActionDefault) Error() string {
-	return fmt.Sprintf("[POST /v0/management/Actions/StartMongoDBExplain][%d] StartMongoDBExplainAction default  %+v", o._statusCode, o.Payload)
+	return fmt.Sprintf("[POST /v1/management/Actions/StartMongoDBExplain][%d] StartMongoDBExplainAction default  %+v", o._statusCode, o.Payload)
 }
 
 func (o *StartMongoDBExplainActionDefault) GetPayload() *StartMongoDBExplainActionDefaultBody {
@@ -127,7 +129,7 @@ type StartMongoDBExplainActionBody struct {
 	// Service ID for this Action. Required.
 	ServiceID string `json:"service_id,omitempty"`
 
-	// SQL query. Required.
+	// Query. Required.
 	Query string `json:"query,omitempty"`
 
 	// Database name. Required if it can't be deduced from the query.
@@ -157,23 +159,60 @@ func (o *StartMongoDBExplainActionBody) UnmarshalBinary(b []byte) error {
 	return nil
 }
 
-/*StartMongoDBExplainActionDefaultBody ErrorResponse is a message returned on HTTP error.
+/*StartMongoDBExplainActionDefaultBody start mongo DB explain action default body
 swagger:model StartMongoDBExplainActionDefaultBody
 */
 type StartMongoDBExplainActionDefaultBody struct {
 
-	// code
-	Code int32 `json:"code,omitempty"`
-
 	// error
 	Error string `json:"error,omitempty"`
 
+	// code
+	Code int32 `json:"code,omitempty"`
+
 	// message
 	Message string `json:"message,omitempty"`
+
+	// details
+	Details []*DetailsItems0 `json:"details"`
 }
 
 // Validate validates this start mongo DB explain action default body
 func (o *StartMongoDBExplainActionDefaultBody) Validate(formats strfmt.Registry) error {
+	var res []error
+
+	if err := o.validateDetails(formats); err != nil {
+		res = append(res, err)
+	}
+
+	if len(res) > 0 {
+		return errors.CompositeValidationError(res...)
+	}
+	return nil
+}
+
+func (o *StartMongoDBExplainActionDefaultBody) validateDetails(formats strfmt.Registry) error {
+
+	if swag.IsZero(o.Details) { // not required
+		return nil
+	}
+
+	for i := 0; i < len(o.Details); i++ {
+		if swag.IsZero(o.Details[i]) { // not required
+			continue
+		}
+
+		if o.Details[i] != nil {
+			if err := o.Details[i].Validate(formats); err != nil {
+				if ve, ok := err.(*errors.Validation); ok {
+					return ve.ValidateName("StartMongoDBExplainAction default" + "." + "details" + "." + strconv.Itoa(i))
+				}
+				return err
+			}
+		}
+
+	}
+
 	return nil
 }
 
