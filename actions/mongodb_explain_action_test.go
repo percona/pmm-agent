@@ -52,7 +52,8 @@ func TestMongoDBExplain(t *testing.T) {
 	res, err := ex.Run(ctx)
 	assert.Nil(t, err)
 
-	want := map[string]interface{}{
+	want := map[string]interface{}{"indexFilterSet": false,
+		"namespace": "admin.coll",
 		"parsedQuery": map[string]interface{}{
 			"k": map[string]interface{}{
 				"$lte": map[string]interface{}{
@@ -60,23 +61,16 @@ func TestMongoDBExplain(t *testing.T) {
 				},
 			},
 		},
-		"winningPlan": map[string]interface{}{
-			"stage": "EOF",
-		},
-		"rejectedPlans": []interface{}{},
-		"plannerVersion": map[string]interface{}{
-			"$numberInt": "1",
-		},
-		"namespace":      "test.coll",
-		"indexFilterSet": bool(false),
-	}
+		"plannerVersion": map[string]interface{}{"$numberInt": "1"},
+		"rejectedPlans":  []interface{}{},
+		"winningPlan":    map[string]interface{}{"stage": "EOF"}}
 	explainM := make(map[string]interface{})
 	err = json.Unmarshal(res, &explainM)
 	assert.Nil(t, err)
 	queryPlanner, ok := explainM["queryPlanner"]
 	assert.Equal(t, ok, true)
 	assert.NotEmpty(t, queryPlanner)
-	assert.Equal(t, queryPlanner, want)
+	assert.Equal(t, want, queryPlanner)
 
 	if err := client.Database(database).Drop(ctx); err != nil {
 		t.Errorf("Cannot drop testing database for cleanup")
