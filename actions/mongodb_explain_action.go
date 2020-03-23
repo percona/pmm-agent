@@ -27,12 +27,13 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
+// MongodbExplainAction holds unexported fields and implements the Action interface
 type MongodbExplainAction struct {
 	id     string
 	params *agentpb.StartActionRequest_MongoDBExplainParams
 }
 
-// NewMongoDBExplain creates a MongoDB  EXPLAIN query Action.
+// NewMongoDBExplainAction creates a MongoDB  EXPLAIN query Action.
 func NewMongoDBExplainAction(id string, params *agentpb.StartActionRequest_MongoDBExplainParams) Action {
 	return &MongodbExplainAction{
 		id:     id,
