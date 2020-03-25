@@ -58,13 +58,13 @@ func (a *MongodbExplainAction) Run(ctx context.Context) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer client.Disconnect(ctx) //nolint:errcheck
 
 	// Check the connection
 	err = client.Ping(ctx, nil)
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot connect to the database. Ping failed")
 	}
-	defer client.Disconnect(ctx) //nolint:errcheck
 
 	var eq proto.ExampleQuery
 
