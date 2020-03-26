@@ -27,32 +27,31 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-// MongodbExplainAction holds unexported fields and implements the Action interface
-type MongodbExplainAction struct {
+type mongodbExplainAction struct {
 	id     string
 	params *agentpb.StartActionRequest_MongoDBExplainParams
 }
 
 // NewMongoDBExplainAction creates a MongoDB EXPLAIN query Action.
 func NewMongoDBExplainAction(id string, params *agentpb.StartActionRequest_MongoDBExplainParams) Action {
-	return &MongodbExplainAction{
+	return &mongodbExplainAction{
 		id:     id,
 		params: params,
 	}
 }
 
 // ID returns an Action ID.
-func (a *MongodbExplainAction) ID() string {
+func (a *mongodbExplainAction) ID() string {
 	return a.id
 }
 
 // Type returns an Action type.
-func (a *MongodbExplainAction) Type() string {
+func (a *mongodbExplainAction) Type() string {
 	return "mongodb-explain"
 }
 
 // Run runs an Action and returns output and error.
-func (a *MongodbExplainAction) Run(ctx context.Context) ([]byte, error) {
+func (a *mongodbExplainAction) Run(ctx context.Context) ([]byte, error) {
 	dsn := a.params.Dsn
 	client, err := mongo.Connect(ctx, options.Client().ApplyURI(dsn))
 	if err != nil {
@@ -82,13 +81,8 @@ func (a *MongodbExplainAction) Run(ctx context.Context) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	resultJSON, err := bson.MarshalExtJSON(result, true, true)
-	if err != nil {
-		return nil, fmt.Errorf("explain: unable to encode explain result of %s: %s", a.params.Query, err)
-	}
-
-	return resultJSON, nil
+	// We need it because result
+	return []byte(result.String()), nil
 }
 
-func (a *MongodbExplainAction) sealed() {}
+func (a *mongodbExplainAction) sealed() {}

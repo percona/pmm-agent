@@ -37,14 +37,15 @@ func TestMongoDBExplain(t *testing.T) {
 	id := "abcd1234"
 	ctx := context.TODO()
 
-	client, err := mongo.Connect(ctx, options.Client().ApplyURI(tests.MongoDBDSN()))
+	client, err := mongo.Connect(ctx, options.Client().ApplyURI(tests.GetTestMongoDBDSN()))
 	require.NoError(t, err)
+	defer client.Database(database).Drop(ctx)
 
 	err = prepareData(ctx, client, database, collection)
 	require.NoError(t, err)
 
 	params := &agentpb.StartActionRequest_MongoDBExplainParams{
-		Dsn:   tests.MongoDBDSN(),
+		Dsn:   tests.GetTestMongoDBDSN(),
 		Query: `{"ns":"test.coll","op":"query","query":{"k":{"$lte":{"$numberInt":"1"}}}}`,
 	}
 
@@ -71,10 +72,6 @@ func TestMongoDBExplain(t *testing.T) {
 	assert.Equal(t, ok, true)
 	assert.NotEmpty(t, queryPlanner)
 	assert.Equal(t, want, queryPlanner)
-
-	if err := client.Database(database).Drop(ctx); err != nil {
-		t.Errorf("Cannot drop testing database for cleanup")
-	}
 }
 
 func prepareData(ctx context.Context, client *mongo.Client, database, collection string) error {
