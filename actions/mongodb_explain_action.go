@@ -33,7 +33,7 @@ type MongodbExplainAction struct {
 	params *agentpb.StartActionRequest_MongoDBExplainParams
 }
 
-// NewMongoDBExplainAction creates a MongoDB  EXPLAIN query Action.
+// NewMongoDBExplainAction creates a MongoDB EXPLAIN query Action.
 func NewMongoDBExplainAction(id string, params *agentpb.StartActionRequest_MongoDBExplainParams) Action {
 	return &MongodbExplainAction{
 		id:     id,
