@@ -26,7 +26,8 @@ required = [
 
 [[constraint]]
   name = "github.com/percona/pmm"
-  branch = "PMM-2.0"
+  branch = "SAAS-20-query-api"
+  # branch = "PMM-2.0"
 
 [[constraint]]
   name = "github.com/percona/go-mysql"
@@ -36,6 +37,11 @@ required = [
 [[constraint]]
   name = "github.com/percona/exporter_shared"
   version = "0.7.2"
+
+# FIXME remove once https://github.com/percona/percona-toolkit/pull/441 is merged
+[[override]]
+  name = "github.com/pkg/errors"
+  version = "0.9.1"
 
 # what we really need is 3.1.1, but it was pulled off:
 # https://jira.percona.com/browse/PT-1797?focusedCommentId=249015&page=com.atlassian.jira.plugin.system.issuetabpanels%3Acomment-tabpanel#comment-249015
