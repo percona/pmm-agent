@@ -90,7 +90,7 @@ func (a *mysqlExplainAction) explainDefault(ctx context.Context, conn *sql.Conn)
 		return nil, err
 	}
 
-	columns, dataRows, err := readRows(rows)
+	columns, dataRows, err := readRows(rows, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -163,7 +163,7 @@ func (a *mysqlExplainAction) explainTraditionalJSON(ctx context.Context, conn *s
 		return nil, err
 	}
 
-	columns, dataRows, err := readRows(rows)
+	columns, dataRows, err := readRows(rows, nil)
 	if err != nil {
 		return nil, err
 	}
