@@ -78,7 +78,7 @@ func (a *postgresqlQuerySelectAction) Run(ctx context.Context) ([]byte, error) {
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
-	return agentpb.MarshalActionQueryResult(convertRows(columns, dataRows))
+	return agentpb.MarshalActionQuerySQLResult(columns, dataRows)
 }
 
 func (a *postgresqlQuerySelectAction) sealed() {}

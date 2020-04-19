@@ -65,7 +65,7 @@ func (a *mongodbQueryGetparameterAction) Run(ctx context.Context) ([]byte, error
 	}
 
 	data := []map[string]interface{}{doc}
-	return agentpb.MarshalActionQueryResult(data)
+	return agentpb.MarshalActionQueryDocsResult(data)
 }
 
 func (a *mongodbQueryGetparameterAction) sealed() {}

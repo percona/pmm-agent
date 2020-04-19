@@ -45,7 +45,7 @@ func TestPostgreSQLQuerySelect(t *testing.T) {
 
 		b, err := a.Run(ctx)
 		require.NoError(t, err)
-		assert.InDelta(t, 145, len(b), 1)
+		assert.InDelta(t, 130, len(b), 1)
 
 		data, err := agentpb.UnmarshalActionQueryResult(b)
 		require.NoError(t, err)
@@ -73,7 +73,7 @@ func TestPostgreSQLQuerySelect(t *testing.T) {
 
 		b, err := a.Run(ctx)
 		require.NoError(t, err)
-		assert.InDelta(t, 19, len(b), 1)
+		assert.InDelta(t, 17, len(b), 1)
 
 		data, err := agentpb.UnmarshalActionQueryResult(b)
 		require.NoError(t, err)

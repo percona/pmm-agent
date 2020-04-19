@@ -89,21 +89,6 @@ func readRows(rows *sql.Rows, params *readRowsParams) (columns []string, dataRow
 	return //nolint:nakedret
 }
 
-func convertRows(columns []string, dataRows [][]interface{}) []map[string]interface{} {
-	res := make([]map[string]interface{}, len(dataRows))
-	for i, row := range dataRows {
-		resRow := make(map[string]interface{}, len(columns))
-
-		for j, column := range columns {
-			resRow[column] = row[j]
-		}
-
-		res[i] = resRow
-	}
-
-	return res
-}
-
 // jsonRows converts input to JSON array:
 // [
 //   ["column 1", "column 2", …],

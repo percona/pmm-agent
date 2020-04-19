@@ -44,7 +44,7 @@ func TestPostgreSQLQueryShow(t *testing.T) {
 
 		b, err := a.Run(ctx)
 		require.NoError(t, err)
-		assert.InDelta(t, 36966, len(b), 1)
+		assert.InDelta(t, 26895, len(b), 1)
 
 		data, err := agentpb.UnmarshalActionQueryResult(b)
 		require.NoError(t, err)
