@@ -279,14 +279,18 @@ func (c *Client) processChannelRequests() {
 			case *agentpb.StartActionRequest_MongodbExplainParams:
 				action = actions.NewMongoDBExplainAction(p.ActionId, params.MongodbExplainParams)
 
+			// TODO
 			//	*StartActionRequest_MysqlQueryShowParams
 			//	*StartActionRequest_MysqlQuerySelectParams
 
 			case *agentpb.StartActionRequest_PostgresqlQueryShowParams:
 				action = actions.NewPostgreSQLQueryShowAction(p.ActionId, params.PostgresqlQueryShowParams)
 
-			//	*StartActionRequest_PostgresqlQuerySelectParams
-			//	*StartActionRequest_MongodbQueryGetparameterParams
+			case *agentpb.StartActionRequest_PostgresqlQuerySelectParams:
+				action = actions.NewPostgreSQLQuerySelectAction(p.ActionId, params.PostgresqlQuerySelectParams)
+
+			case *agentpb.StartActionRequest_MongodbQueryGetparameterParams:
+				action = actions.NewMongoDBQueryGetparameterAction(p.ActionId, params.MongodbQueryGetparameterParams)
 
 			case nil:
 				// Requests() is not closed, so exit early to break channel
