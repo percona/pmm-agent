@@ -45,17 +45,17 @@ func TestPostgreSQLQuerySelect(t *testing.T) {
 
 		b, err := a.Run(ctx)
 		require.NoError(t, err)
-		assert.InDelta(t, 130, len(b), 1)
+		assert.InDelta(t, 187, len(b), 1)
 
 		data, err := agentpb.UnmarshalActionQueryResult(b)
 		require.NoError(t, err)
-		assert.InDelta(t, 1, len(data), 0)
+		assert.Len(t, data, 2)
 		expected := map[string]interface{}{
-			"extname":        []byte("plpgsql"), // name type
-			"extowner":       []byte("10"),      // oid type
-			"extnamespace":   []byte("11"),      // oid type
+			"extname":        []byte("plpgsql"),
+			"extowner":       []byte("10"),
+			"extnamespace":   []byte("11"),
 			"extrelocatable": false,
-			"extversion":     "1.0", // text type
+			"extversion":     []byte("1.0"),
 			"extconfig":      nil,
 			"extcondition":   nil,
 		}

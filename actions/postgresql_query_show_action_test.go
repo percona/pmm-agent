@@ -50,10 +50,17 @@ func TestPostgreSQLQueryShow(t *testing.T) {
 		require.NoError(t, err)
 		assert.InDelta(t, 294, len(data), 1)
 		expected := map[string]interface{}{
-			"name":        "allow_system_table_mods",
-			"setting":     "off",
-			"description": "Allows modifications of the structure of system tables.",
+			"name":        []byte("allow_system_table_mods"),
+			"setting":     []byte("off"),
+			"description": []byte("Allows modifications of the structure of system tables."),
 		}
 		assert.Equal(t, expected, data[0])
+
+		expected = map[string]interface{}{
+			"name":        []byte("autovacuum_freeze_max_age"),
+			"setting":     []byte("200000000"),
+			"description": []byte("Age at which to autovacuum a table to prevent transaction ID wraparound."),
+		}
+		assert.Equal(t, expected, data[10])
 	})
 }

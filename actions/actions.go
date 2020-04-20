@@ -36,17 +36,8 @@ type Action interface {
 	sealed()
 }
 
-type readRowsParams struct {
-	// do not convert []byte to string
-	keepBytes bool
-}
-
 // readRows reads and closes given *sql.Rows, returning columns, data rows, and first encountered error.
-func readRows(rows *sql.Rows, params *readRowsParams) (columns []string, dataRows [][]interface{}, err error) {
-	if params == nil {
-		params = new(readRowsParams)
-	}
-
+func readRows(rows *sql.Rows) (columns []string, dataRows [][]interface{}, err error) {
 	defer func() {
 		// overwrite err with e only if err does not already contains (more interesting) error
 		if e := rows.Close(); err == nil {
@@ -71,14 +62,13 @@ func readRows(rows *sql.Rows, params *readRowsParams) (columns []string, dataRow
 
 		// Each dest element is an *interface{} (&ei above) which always contain some typed data
 		// (in particular, it can contain typed nil). Dereference it for easier manipulations by the caller.
+		// As a special case, convert []byte values to strings. That does not change semantics of this function
+		// (Go string can contain any byte sequence), but prevents json.Marshal (at jsonRows) from encoding
+		// them as base64 strings.
 		for i, d := range dest {
 			ei := *(d.(*interface{}))
 			dest[i] = ei
-
-			// As a special case, convert []byte values to strings unless caller requested to keep []byte.
-			// QAN Actions prefer strings to avoid base64 output from jsonRows;
-			// Query Actions prefer []byte to avoid `proto: field XXX contains invalid UTF-8` error from protobuf.
-			if b, ok := (ei).([]byte); ok && !params.keepBytes {
+			if b, ok := (ei).([]byte); ok {
 				dest[i] = string(b)
 			}
 		}

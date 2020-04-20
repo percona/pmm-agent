@@ -63,7 +63,7 @@ func (a *postgresqlShowIndexAction) Run(ctx context.Context) ([]byte, error) {
 		return nil, errors.WithStack(err)
 	}
 
-	columns, dataRows, err := readRows(rows, nil)
+	columns, dataRows, err := readRows(rows)
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}

@@ -74,9 +74,7 @@ func (a *mysqlQuerySelectAction) Run(ctx context.Context) ([]byte, error) {
 		return nil, errors.WithStack(err)
 	}
 
-	columns, dataRows, err := readRows(rows, &readRowsParams{
-		keepBytes: true,
-	})
+	columns, dataRows, err := readRows(rows)
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
