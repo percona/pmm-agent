@@ -279,8 +279,8 @@ func (c *Client) processChannelRequests() {
 			case *agentpb.StartActionRequest_MongodbExplainParams:
 				action = actions.NewMongoDBExplainAction(p.ActionId, params.MongodbExplainParams)
 
-				// TODO
-				//	*StartActionRequest_MysqlQueryShowParams
+			case *agentpb.StartActionRequest_MysqlQueryShowParams:
+				action = actions.NewMySQLQueryShowAction(p.ActionId, params.MysqlQueryShowParams)
 
 			case *agentpb.StartActionRequest_MysqlQuerySelectParams:
 				action = actions.NewMySQLQuerySelectAction(p.ActionId, params.MysqlQuerySelectParams)
