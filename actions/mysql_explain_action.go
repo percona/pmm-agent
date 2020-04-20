@@ -24,7 +24,7 @@ import (
 	"strings"
 	"text/tabwriter"
 
-	_ "github.com/go-sql-driver/mysql" // register SQL driver
+	"github.com/go-sql-driver/mysql"
 	"github.com/percona/pmm/api/agentpb"
 	"github.com/pkg/errors"
 )
@@ -55,13 +55,17 @@ func (a *mysqlExplainAction) Type() string {
 
 // Run runs an Action and returns output and error.
 func (a *mysqlExplainAction) Run(ctx context.Context) ([]byte, error) {
-	// TODO Use sql.OpenDB with ctx when https://github.com/go-sql-driver/mysql/issues/671 is released
-	// (likely in version 1.5.0).
-
-	db, err := sql.Open("mysql", a.params.Dsn)
+	cfg, err := mysql.ParseDSN(a.params.Dsn)
 	if err != nil {
 		return nil, err
 	}
+
+	connector, err := mysql.NewConnector(cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	db := sql.OpenDB(connector)
 	defer db.Close() //nolint:errcheck
 
 	conn, err := db.Conn(ctx)

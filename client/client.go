@@ -283,7 +283,7 @@ func (c *Client) processChannelRequests() {
 				//	*StartActionRequest_MysqlQueryShowParams
 
 			case *agentpb.StartActionRequest_MysqlQuerySelectParams:
-				action = actions.NewPostgreSQLQueryShowAction(p.ActionId, params.StartActionRequest_MysqlQuerySelectParams)
+				action = actions.NewMySQLQuerySelectAction(p.ActionId, params.MysqlQuerySelectParams)
 
 			case *agentpb.StartActionRequest_PostgresqlQueryShowParams:
 				action = actions.NewPostgreSQLQueryShowAction(p.ActionId, params.PostgresqlQueryShowParams)

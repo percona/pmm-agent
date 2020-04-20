@@ -22,7 +22,7 @@ import (
 	"fmt"
 	"math"
 
-	_ "github.com/go-sql-driver/mysql" // register SQL driver
+	"github.com/go-sql-driver/mysql"
 	"github.com/golang/protobuf/ptypes"
 	"github.com/lib/pq"
 	"github.com/percona/pmm/api/agentpb"
@@ -76,13 +76,19 @@ func sqlPing(ctx context.Context, db *sql.DB) error {
 func checkMySQLConnection(ctx context.Context, dsn string) *agentpb.CheckConnectionResponse {
 	var res agentpb.CheckConnectionResponse
 
-	// TODO Use sql.OpenDB with ctx when https://github.com/go-sql-driver/mysql/issues/671 is released
-	// (likely in version 1.5.0).
-	db, err := sql.Open("mysql", dsn)
+	cfg, err := mysql.ParseDSN(dsn)
 	if err != nil {
 		res.Error = err.Error()
 		return &res
 	}
+
+	connector, err := mysql.NewConnector(cfg)
+	if err != nil {
+		res.Error = err.Error()
+		return &res
+	}
+
+	db := sql.OpenDB(connector)
 	defer db.Close() //nolint:errcheck
 
 	if err = sqlPing(ctx, db); err != nil {
@@ -146,13 +152,19 @@ func checkPostgreSQLConnection(ctx context.Context, dsn string) *agentpb.CheckCo
 func checkProxySQLConnection(ctx context.Context, dsn string) *agentpb.CheckConnectionResponse {
 	var res agentpb.CheckConnectionResponse
 
-	// TODO Use sql.OpenDB with ctx when https://github.com/go-sql-driver/mysql/issues/671 is released
-	// (likely in version 1.5.0).
-	db, err := sql.Open("mysql", dsn)
+	cfg, err := mysql.ParseDSN(dsn)
 	if err != nil {
 		res.Error = err.Error()
 		return &res
 	}
+
+	connector, err := mysql.NewConnector(cfg)
+	if err != nil {
+		res.Error = err.Error()
+		return &res
+	}
+
+	db := sql.OpenDB(connector)
 	defer db.Close() //nolint:errcheck
 
 	if err = sqlPing(ctx, db); err != nil {
