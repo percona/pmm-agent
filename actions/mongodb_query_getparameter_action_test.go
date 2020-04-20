@@ -52,7 +52,8 @@ func TestMongoDBGetparameter(t *testing.T) {
 		m := objx.Map(data[0])
 		assert.Equal(t, 1.0, m.Get("ok").Data())
 		assert.Less(t, int64(1024), m.Get("transactionSizeLimitBytes").Int64())
-		assert.Equal(t, []interface{}{"MONGODB-X509", "SCRAM-SHA-1", "SCRAM-SHA-256"}, m.Get("authenticationMechanisms").Data())
-		assert.Equal(t, "4.2", m.Get("featureCompatibilityVersion.version").String())
+		authenticationMechanisms := []interface{}{[]byte("MONGODB-X509"), []byte("SCRAM-SHA-1"), []byte("SCRAM-SHA-256")}
+		assert.Equal(t, authenticationMechanisms, m.Get("authenticationMechanisms").Data())
+		assert.Equal(t, []byte("4.2"), m.Get("featureCompatibilityVersion.version").Data())
 	})
 }
