@@ -357,7 +357,7 @@
     "src/go/mongolib/util",
   ]
   pruneopts = "NUT"
-  revision = "8abdc070501191bd4688a9e5baf28ccac97020e8"
+  revision = "e20e3c879bc3417848ce5192ff7e3a1a70a6703c"
 
 [[projects]]
   branch = "SAAS-20-query-api"
