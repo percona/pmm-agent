@@ -25,38 +25,42 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-type mongodbQueryBuildinfoAction struct {
-	id     string
-	params *agentpb.StartActionRequest_MongoDBQueryBuildInfoParams
+type mongodbQueryAdmincommandAction struct {
+	id      string
+	dsn     string
+	command string
+	arg     interface{}
 }
 
-// NewMongoDBQueryBuildinfoAction creates a MongoDB Buildinfo query Action.
-func NewMongoDBQueryBuildinfoAction(id string, params *agentpb.StartActionRequest_MongoDBQueryBuildInfoParams) Action {
-	return &mongodbQueryBuildinfoAction{
-		id:     id,
-		params: params,
+// NewMongoDBQueryAdmincommandAction creates a MongoDB adminCommand query Action.
+func NewMongoDBQueryAdmincommandAction(id string, dsn, command string, arg interface{}) Action {
+	return &mongodbQueryAdmincommandAction{
+		id:      id,
+		dsn:     dsn,
+		command: command,
+		arg:     arg,
 	}
 }
 
 // ID returns an Action ID.
-func (a *mongodbQueryBuildinfoAction) ID() string {
+func (a *mongodbQueryAdmincommandAction) ID() string {
 	return a.id
 }
 
 // Type returns an Action type.
-func (a *mongodbQueryBuildinfoAction) Type() string {
-	return "mongodb-query-buildinfo"
+func (a *mongodbQueryAdmincommandAction) Type() string {
+	return "mongodb-query-admincommand"
 }
 
 // Run runs an Action and returns output and error.
-func (a *mongodbQueryBuildinfoAction) Run(ctx context.Context) ([]byte, error) {
-	client, err := mongo.Connect(ctx, options.Client().ApplyURI(a.params.Dsn))
+func (a *mongodbQueryAdmincommandAction) Run(ctx context.Context) ([]byte, error) {
+	client, err := mongo.Connect(ctx, options.Client().ApplyURI(a.dsn))
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
 	defer client.Disconnect(ctx) //nolint:errcheck
 
-	runCommand := bson.D{{"buildInfo", 1}} //nolint:govet
+	runCommand := bson.D{{a.command, a.arg}} //nolint:govet
 	res := client.Database("admin").RunCommand(ctx, runCommand)
 
 	var doc map[string]interface{}
@@ -68,4 +72,4 @@ func (a *mongodbQueryBuildinfoAction) Run(ctx context.Context) ([]byte, error) {
 	return agentpb.MarshalActionQueryDocsResult(data)
 }
 
-func (a *mongodbQueryBuildinfoAction) sealed() {}
+func (a *mongodbQueryAdmincommandAction) sealed() {}

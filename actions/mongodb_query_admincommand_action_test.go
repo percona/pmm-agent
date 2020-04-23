@@ -28,17 +28,14 @@ import (
 	"github.com/percona/pmm-agent/utils/tests"
 )
 
-func TestMongoDBGetparameter(t *testing.T) {
+func TestMongoDBBuildinfo(t *testing.T) {
 	t.Parallel()
 
 	client := tests.OpenTestMongoDB(t)
 	defer client.Disconnect(context.Background()) //nolint:errcheck
 
-	t.Run("Default", func(t *testing.T) {
-		params := &agentpb.StartActionRequest_MongoDBQueryGetParameterParams{
-			Dsn: tests.GetTestMongoDBDSN(t),
-		}
-		a := NewMongoDBQueryGetparameterAction("", params)
+	t.Run("getParameter", func(t *testing.T) {
+		a := NewMongoDBQueryAdmincommandAction("", tests.GetTestMongoDBDSN(t), "getParameter", "*")
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 		defer cancel()
 
@@ -56,5 +53,24 @@ func TestMongoDBGetparameter(t *testing.T) {
 		authenticationMechanisms := []interface{}{[]byte("MONGODB-X509"), []byte("SCRAM-SHA-1"), []byte("SCRAM-SHA-256")}
 		assert.Equal(t, authenticationMechanisms, m.Get("authenticationMechanisms").Data())
 		assert.Equal(t, []byte("4.2"), m.Get("featureCompatibilityVersion.version").Data())
+	})
+
+	t.Run("buildInfo", func(t *testing.T) {
+		a := NewMongoDBQueryAdmincommandAction("", tests.GetTestMongoDBDSN(t), "buildInfo", 1)
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+
+		b, err := a.Run(ctx)
+		require.NoError(t, err)
+		assert.LessOrEqual(t, 1446, len(b))
+		assert.LessOrEqual(t, len(b), 1446)
+
+		data, err := agentpb.UnmarshalActionQueryResult(b)
+		require.NoError(t, err)
+		assert.Len(t, data, 1)
+		m := objx.Map(data[0])
+		assert.Equal(t, 1.0, m.Get("ok").Data())
+		assert.Equal(t, []byte("mozjs"), m.Get("javascriptEngine").Data())
+		assert.Equal(t, []byte("x86_64"), m.Get("buildEnvironment.distarch").Data())
 	})
 }
