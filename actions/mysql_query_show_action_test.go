@@ -45,11 +45,13 @@ func TestMySQLQueryShow(t *testing.T) {
 
 		b, err := a.Run(ctx)
 		require.NoError(t, err)
-		assert.InDelta(t, 21942, len(b), 1)
+		assert.LessOrEqual(t, 21941, len(b))
+		assert.LessOrEqual(t, len(b), 21942)
 
 		data, err := agentpb.UnmarshalActionQueryResult(b)
 		require.NoError(t, err)
-		assert.InDelta(t, 589, len(data), 1)
+		assert.LessOrEqual(t, 589, len(data))
+		assert.LessOrEqual(t, len(data), 589)
 		expected := map[string]interface{}{
 			"Variable_name": []byte("auto_generate_certs"),
 			"Value":         []byte("ON"),

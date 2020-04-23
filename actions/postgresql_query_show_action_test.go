@@ -44,11 +44,14 @@ func TestPostgreSQLQueryShow(t *testing.T) {
 
 		b, err := a.Run(ctx)
 		require.NoError(t, err)
-		assert.InDelta(t, 26895, len(b), 1)
+		assert.LessOrEqual(t, 26895, len(b))
+		assert.LessOrEqual(t, len(b), 26895)
 
 		data, err := agentpb.UnmarshalActionQueryResult(b)
 		require.NoError(t, err)
-		assert.InDelta(t, 294, len(data), 1)
+		assert.LessOrEqual(t, 294, len(data))
+		assert.LessOrEqual(t, len(data), 294)
+
 		expected := map[string]interface{}{
 			"name":        []byte("allow_system_table_mods"),
 			"setting":     []byte("off"),
