@@ -58,12 +58,12 @@ func TestMySQLQueryShow(t *testing.T) {
 		var found int
 		for _, m := range data {
 			value := m["Value"]
-			switch string(m["Variable_name"].([]byte)) {
+			switch m["Variable_name"].(string) {
 			case "auto_generate_certs":
-				assert.Equal(t, []byte("ON"), value)
+				assert.Equal(t, "ON", value)
 				found++
 			case "auto_increment_increment":
-				assert.Equal(t, []byte("1"), value)
+				assert.Equal(t, "1", value)
 				found++
 			}
 		}

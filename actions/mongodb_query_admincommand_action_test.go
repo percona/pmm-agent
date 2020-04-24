@@ -51,7 +51,7 @@ func TestMongoDBBuildinfo(t *testing.T) {
 		assert.Len(t, data, 1)
 		m := objx.Map(data[0])
 		assert.Equal(t, 1.0, m.Get("ok").Data())
-		assert.Contains(t, m.Get("authenticationMechanisms").Data(), []byte("SCRAM-SHA-1"))
+		assert.Contains(t, m.Get("authenticationMechanisms").Data(), "SCRAM-SHA-1")
 	})
 
 	t.Run("buildInfo", func(t *testing.T) {
@@ -70,7 +70,7 @@ func TestMongoDBBuildinfo(t *testing.T) {
 		assert.Len(t, data, 1)
 		m := objx.Map(data[0])
 		assert.Equal(t, 1.0, m.Get("ok").Data())
-		assert.Equal(t, []byte("mozjs"), m.Get("javascriptEngine").Data())
-		assert.Equal(t, []byte("x86_64"), m.Get("buildEnvironment.distarch").Data())
+		assert.Equal(t, "mozjs", m.Get("javascriptEngine").Data())
+		assert.Equal(t, "x86_64", m.Get("buildEnvironment.distarch").Data())
 	})
 }

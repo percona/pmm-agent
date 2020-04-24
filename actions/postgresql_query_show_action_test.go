@@ -58,14 +58,14 @@ func TestPostgreSQLQueryShow(t *testing.T) {
 		for _, m := range data {
 			setting := m["setting"]
 			description := m["description"]
-			switch string(m["name"].([]byte)) {
+			switch m["name"].(string) {
 			case "allow_system_table_mods":
-				assert.Equal(t, []byte("off"), setting)
-				assert.Equal(t, []byte("Allows modifications of the structure of system tables."), description)
+				assert.Equal(t, "off", setting)
+				assert.Equal(t, "Allows modifications of the structure of system tables.", description)
 				found++
 			case "autovacuum_freeze_max_age":
-				assert.Equal(t, []byte("200000000"), setting)
-				assert.Equal(t, []byte("Age at which to autovacuum a table to prevent transaction ID wraparound."), description)
+				assert.Equal(t, "200000000", setting)
+				assert.Equal(t, "Age at which to autovacuum a table to prevent transaction ID wraparound.", description)
 				found++
 			}
 		}

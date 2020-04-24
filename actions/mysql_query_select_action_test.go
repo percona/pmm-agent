@@ -73,7 +73,7 @@ func TestMySQLQuerySelect(t *testing.T) {
 		t.Log(spew.Sdump(data))
 		assert.InDelta(t, 1, len(data), 0)
 		expected := map[string]interface{}{
-			"bytes": []byte{0x00, 0x01, 0xfe, 0xff},
+			"bytes": "\x00\x01\xfe\xff",
 		}
 		assert.Equal(t, expected, data[0])
 	})

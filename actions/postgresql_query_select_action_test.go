@@ -56,11 +56,11 @@ func TestPostgreSQLQuerySelect(t *testing.T) {
 		assert.LessOrEqual(t, len(data), 2)
 		delete(data[0], "oid")
 		expected := map[string]interface{}{
-			"extname":        []byte("plpgsql"),
-			"extowner":       []byte("10"),
-			"extnamespace":   []byte("11"),
+			"extname":        "plpgsql",
+			"extowner":       "10",
+			"extnamespace":   "11",
 			"extrelocatable": false,
-			"extversion":     []byte("1.0"),
+			"extversion":     "1.0",
 			"extconfig":      nil,
 			"extcondition":   nil,
 		}
@@ -85,7 +85,7 @@ func TestPostgreSQLQuerySelect(t *testing.T) {
 		t.Log(spew.Sdump(data))
 		assert.InDelta(t, 1, len(data), 0)
 		expected := map[string]interface{}{
-			"bytes": []byte{0x00, 0x01, 0xfe, 0xff},
+			"bytes": "\x00\x01\xfe\xff",
 		}
 		assert.Equal(t, expected, data[0])
 	})
