@@ -347,7 +347,6 @@
   revision = "33a08ed8301ca0dd24269e3ebd903106a99d7492"
 
 [[projects]]
-  branch = "3.0"
   digest = "1:77cb45821a5a85abbad09ac1ccac715427735aab867245e6424630d092a39d60"
   name = "github.com/percona/percona-toolkit"
   packages = [
@@ -357,7 +356,8 @@
     "src/go/mongolib/util",
   ]
   pruneopts = "NUT"
-  revision = "e20e3c879bc3417848ce5192ff7e3a1a70a6703c"
+  revision = "cc3ace2b6d8f629418c8f9468a63828f9b828b68"
+  version = "v3.2.0"
 
 [[projects]]
   branch = "SAAS-20-query-api"
