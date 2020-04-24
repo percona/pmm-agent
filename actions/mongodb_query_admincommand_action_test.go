@@ -41,7 +41,7 @@ func TestMongoDBBuildinfo(t *testing.T) {
 
 		b, err := a.Run(ctx)
 		require.NoError(t, err)
-		assert.LessOrEqual(t, 10518, len(b))
+		assert.LessOrEqual(t, 7421, len(b))
 		assert.LessOrEqual(t, len(b), 10518)
 
 		data, err := agentpb.UnmarshalActionQueryResult(b)
@@ -62,7 +62,7 @@ func TestMongoDBBuildinfo(t *testing.T) {
 
 		b, err := a.Run(ctx)
 		require.NoError(t, err)
-		assert.LessOrEqual(t, 1446, len(b))
+		assert.LessOrEqual(t, 1283, len(b))
 		assert.LessOrEqual(t, len(b), 1446)
 
 		data, err := agentpb.UnmarshalActionQueryResult(b)
