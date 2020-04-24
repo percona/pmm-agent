@@ -17,9 +17,7 @@ package actions
 
 import (
 	"context"
-	"database/sql"
 
-	"github.com/go-sql-driver/mysql"
 	"github.com/percona/pmm/api/agentpb"
 	"github.com/pkg/errors"
 )
@@ -49,17 +47,10 @@ func (a *mysqlQueryShowAction) Type() string {
 
 // Run runs an Action and returns output and error.
 func (a *mysqlQueryShowAction) Run(ctx context.Context) ([]byte, error) {
-	cfg, err := mysql.ParseDSN(a.params.Dsn)
+	db, err := mysqlOpen(a.params.Dsn)
 	if err != nil {
-		return nil, errors.WithStack(err)
+		return nil, err
 	}
-
-	connector, err := mysql.NewConnector(cfg)
-	if err != nil {
-		return nil, errors.WithStack(err)
-	}
-
-	db := sql.OpenDB(connector)
 	defer db.Close() //nolint:errcheck
 
 	// use prepared statement to force binary protocol usage that returns correct types

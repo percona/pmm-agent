@@ -17,10 +17,8 @@ package actions
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 
-	"github.com/go-sql-driver/mysql"
 	"github.com/percona/pmm/api/agentpb"
 )
 
@@ -50,17 +48,10 @@ func (a *mysqlShowCreateTableAction) Type() string {
 
 // Run runs an Action and returns output and error.
 func (a *mysqlShowCreateTableAction) Run(ctx context.Context) ([]byte, error) {
-	cfg, err := mysql.ParseDSN(a.params.Dsn)
+	db, err := mysqlOpen(a.params.Dsn)
 	if err != nil {
 		return nil, err
 	}
-
-	connector, err := mysql.NewConnector(cfg)
-	if err != nil {
-		return nil, err
-	}
-
-	db := sql.OpenDB(connector)
 	defer db.Close() //nolint:errcheck
 
 	// use %#q to convert "table" to `"table"` and `table` to "`table`" to avoid SQL injections

@@ -17,9 +17,7 @@ package actions
 
 import (
 	"context"
-	"database/sql"
 
-	"github.com/go-sql-driver/mysql"
 	"github.com/percona/pmm/api/agentpb"
 	"github.com/pkg/errors"
 )
@@ -50,17 +48,10 @@ func (a *mysqlShowTableStatusAction) Type() string {
 
 // Run runs an Action and returns output and error.
 func (a *mysqlShowTableStatusAction) Run(ctx context.Context) ([]byte, error) {
-	cfg, err := mysql.ParseDSN(a.params.Dsn)
+	db, err := mysqlOpen(a.params.Dsn)
 	if err != nil {
 		return nil, err
 	}
-
-	connector, err := mysql.NewConnector(cfg)
-	if err != nil {
-		return nil, err
-	}
-
-	db := sql.OpenDB(connector)
 	defer db.Close() //nolint:errcheck
 
 	rows, err := db.QueryContext(ctx, "SHOW /* pmm-agent */ TABLE STATUS WHERE Name = ?", a.params.Table)

@@ -20,6 +20,9 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+
+	"github.com/go-sql-driver/mysql"
+	"github.com/pkg/errors"
 )
 
 //go-sumtype:decl Action
@@ -99,4 +102,19 @@ func jsonRows(columns []string, dataRows [][]interface{}) ([]byte, error) {
 	}
 
 	return json.Marshal(res)
+}
+
+// mysqlOpen returns *sql.DB for given MySQL DSN.
+func mysqlOpen(dsn string) (*sql.DB, error) {
+	cfg, err := mysql.ParseDSN(dsn)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+	connector, err := mysql.NewConnector(cfg)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+	return sql.OpenDB(connector), nil
 }
