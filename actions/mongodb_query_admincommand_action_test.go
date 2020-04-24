@@ -20,6 +20,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/percona/pmm/api/agentpb"
 	"github.com/stretchr/objx"
 	"github.com/stretchr/testify/assert"
@@ -46,13 +47,11 @@ func TestMongoDBBuildinfo(t *testing.T) {
 
 		data, err := agentpb.UnmarshalActionQueryResult(b)
 		require.NoError(t, err)
+		t.Log(spew.Sdump(data))
 		assert.Len(t, data, 1)
 		m := objx.Map(data[0])
 		assert.Equal(t, 1.0, m.Get("ok").Data())
-		assert.Less(t, int64(1024), m.Get("transactionSizeLimitBytes").Int64())
-		authenticationMechanisms := []interface{}{[]byte("MONGODB-X509"), []byte("SCRAM-SHA-1"), []byte("SCRAM-SHA-256")}
-		assert.Equal(t, authenticationMechanisms, m.Get("authenticationMechanisms").Data())
-		assert.Equal(t, []byte("4.2"), m.Get("featureCompatibilityVersion.version").Data())
+		assert.Contains(t, m.Get("authenticationMechanisms").Data(), []byte("SCRAM-SHA-1"))
 	})
 
 	t.Run("buildInfo", func(t *testing.T) {
@@ -67,6 +66,7 @@ func TestMongoDBBuildinfo(t *testing.T) {
 
 		data, err := agentpb.UnmarshalActionQueryResult(b)
 		require.NoError(t, err)
+		t.Log(spew.Sdump(data))
 		assert.Len(t, data, 1)
 		m := objx.Map(data[0])
 		assert.Equal(t, 1.0, m.Get("ok").Data())

@@ -20,6 +20,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/percona/pmm/api/agentpb"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -49,11 +50,9 @@ func TestMySQLQuerySelect(t *testing.T) {
 
 		data, err := agentpb.UnmarshalActionQueryResult(b)
 		require.NoError(t, err)
+		t.Log(spew.Sdump(data))
 		assert.InDelta(t, 1, len(data), 0)
-		expected := map[string]interface{}{
-			"count": int64(4),
-		}
-		assert.Equal(t, expected, data[0])
+		assert.GreaterOrEqual(t, data[0]["count"].(int64), int64(3))
 	})
 
 	t.Run("Binary", func(t *testing.T) {
@@ -71,6 +70,7 @@ func TestMySQLQuerySelect(t *testing.T) {
 
 		data, err := agentpb.UnmarshalActionQueryResult(b)
 		require.NoError(t, err)
+		t.Log(spew.Sdump(data))
 		assert.InDelta(t, 1, len(data), 0)
 		expected := map[string]interface{}{
 			"bytes": []byte{0x00, 0x01, 0xfe, 0xff},

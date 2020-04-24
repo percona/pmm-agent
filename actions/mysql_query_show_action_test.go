@@ -20,6 +20,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/percona/pmm/api/agentpb"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -45,17 +46,27 @@ func TestMySQLQueryShow(t *testing.T) {
 
 		b, err := a.Run(ctx)
 		require.NoError(t, err)
-		assert.LessOrEqual(t, 16346, len(b))
+		assert.LessOrEqual(t, 16345, len(b))
 		assert.LessOrEqual(t, len(b), 21942)
 
 		data, err := agentpb.UnmarshalActionQueryResult(b)
 		require.NoError(t, err)
+		t.Log(spew.Sdump(data))
 		assert.LessOrEqual(t, 456, len(data))
 		assert.LessOrEqual(t, len(data), 589)
-		expected := map[string]interface{}{
-			"Variable_name": []byte("auto_generate_certs"),
-			"Value":         []byte("ON"),
+
+		var found int
+		for _, m := range data {
+			value := m["Value"]
+			switch string(m["Variable_name"].([]byte)) {
+			case "auto_generate_certs":
+				assert.Equal(t, []byte("auto_generate_certs"), value)
+				found++
+			case "auto_increment_increment":
+				assert.Equal(t, []byte("1"), value)
+				found++
+			}
 		}
-		assert.Equal(t, expected, data[0])
+		assert.Equal(t, 1, found)
 	})
 }

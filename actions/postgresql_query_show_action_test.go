@@ -20,6 +20,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/percona/pmm/api/agentpb"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -44,12 +45,13 @@ func TestPostgreSQLQueryShow(t *testing.T) {
 
 		b, err := a.Run(ctx)
 		require.NoError(t, err)
-		assert.LessOrEqual(t, 26895, len(b))
+		assert.LessOrEqual(t, 25235, len(b))
 		assert.LessOrEqual(t, len(b), 26895)
 
 		data, err := agentpb.UnmarshalActionQueryResult(b)
 		require.NoError(t, err)
-		assert.LessOrEqual(t, 294, len(data))
+		t.Log(spew.Sdump(data))
+		assert.LessOrEqual(t, 274, len(data))
 		assert.LessOrEqual(t, len(data), 294)
 
 		expected := map[string]interface{}{
