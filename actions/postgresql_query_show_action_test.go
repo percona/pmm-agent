@@ -46,26 +46,29 @@ func TestPostgreSQLQueryShow(t *testing.T) {
 		b, err := a.Run(ctx)
 		require.NoError(t, err)
 		assert.LessOrEqual(t, 25235, len(b))
-		assert.LessOrEqual(t, len(b), 26895)
+		assert.LessOrEqual(t, len(b), 29156)
 
 		data, err := agentpb.UnmarshalActionQueryResult(b)
 		require.NoError(t, err)
 		t.Log(spew.Sdump(data))
 		assert.LessOrEqual(t, 274, len(data))
-		assert.LessOrEqual(t, len(data), 294)
+		assert.LessOrEqual(t, len(data), 318)
 
-		expected := map[string]interface{}{
-			"name":        []byte("allow_system_table_mods"),
-			"setting":     []byte("off"),
-			"description": []byte("Allows modifications of the structure of system tables."),
+		var found int
+		for _, m := range data {
+			setting := m["setting"]
+			description := m["description"]
+			switch string(m["name"].([]byte)) {
+			case "allow_system_table_mods":
+				assert.Equal(t, []byte("off"), setting)
+				assert.Equal(t, []byte("Allows modifications of the structure of system tables."), description)
+				found++
+			case "autovacuum_freeze_max_age":
+				assert.Equal(t, []byte("200000000"), setting)
+				assert.Equal(t, []byte("Age at which to autovacuum a table to prevent transaction ID wraparound."), description)
+				found++
+			}
 		}
-		assert.Equal(t, expected, data[0])
-
-		expected = map[string]interface{}{
-			"name":        []byte("autovacuum_freeze_max_age"),
-			"setting":     []byte("200000000"),
-			"description": []byte("Age at which to autovacuum a table to prevent transaction ID wraparound."),
-		}
-		assert.Equal(t, expected, data[10])
+		assert.Equal(t, 2, found)
 	})
 }

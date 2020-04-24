@@ -47,13 +47,14 @@ func TestPostgreSQLQuerySelect(t *testing.T) {
 		b, err := a.Run(ctx)
 		require.NoError(t, err)
 		assert.LessOrEqual(t, 130, len(b))
-		assert.LessOrEqual(t, len(b), 187)
+		assert.LessOrEqual(t, len(b), 210)
 
 		data, err := agentpb.UnmarshalActionQueryResult(b)
 		require.NoError(t, err)
 		t.Log(spew.Sdump(data))
 		assert.LessOrEqual(t, 1, len(data))
 		assert.LessOrEqual(t, len(data), 2)
+		delete(data[0], "oid")
 		expected := map[string]interface{}{
 			"extname":        []byte("plpgsql"),
 			"extowner":       []byte("10"),

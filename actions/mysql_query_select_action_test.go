@@ -52,7 +52,7 @@ func TestMySQLQuerySelect(t *testing.T) {
 		require.NoError(t, err)
 		t.Log(spew.Sdump(data))
 		assert.InDelta(t, 1, len(data), 0)
-		assert.GreaterOrEqual(t, data[0]["count"].(int64), int64(3))
+		assert.Contains(t, data[0], "count")
 	})
 
 	t.Run("Binary", func(t *testing.T) {
