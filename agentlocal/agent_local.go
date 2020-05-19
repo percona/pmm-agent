@@ -34,6 +34,7 @@ import (
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"github.com/percona/pmm/api/agentlocalpb"
 	"github.com/percona/pmm/api/agentpb"
+	"github.com/percona/pmm/version"
 	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -135,10 +136,11 @@ func (s *Server) Status(ctx context.Context, req *agentlocalpb.StatusRequest) (*
 	var serverInfo *agentlocalpb.ServerInfo
 	if u := s.cfg.Server.URL(); u != nil {
 		serverInfo = &agentlocalpb.ServerInfo{
-			Url:         u.String(),
-			InsecureTls: s.cfg.Server.InsecureTLS,
-			Connected:   connected,
-			Version:     md.ServerVersion,
+			Url:          u.String(),
+			InsecureTls:  s.cfg.Server.InsecureTLS,
+			Connected:    connected,
+			Version:      md.ServerVersion,
+			AgentVersion: version.Version,
 		}
 
 		if req.GetNetworkInfo && connected {
