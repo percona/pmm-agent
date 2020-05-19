@@ -128,6 +128,7 @@ type Config struct {
 
 	Server Server `yaml:"server"`
 	Paths  Paths  `yaml:"paths"`
+	BindIP string `yaml:"bind-ip"`
 	Ports  Ports  `yaml:"ports"`
 
 	Debug bool `yaml:"debug"`
