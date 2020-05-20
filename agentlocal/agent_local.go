@@ -136,11 +136,10 @@ func (s *Server) Status(ctx context.Context, req *agentlocalpb.StatusRequest) (*
 	var serverInfo *agentlocalpb.ServerInfo
 	if u := s.cfg.Server.URL(); u != nil {
 		serverInfo = &agentlocalpb.ServerInfo{
-			Url:          u.String(),
-			InsecureTls:  s.cfg.Server.InsecureTLS,
-			Connected:    connected,
-			Version:      md.ServerVersion,
-			AgentVersion: version.Version,
+			Url:         u.String(),
+			InsecureTls: s.cfg.Server.InsecureTLS,
+			Connected:   connected,
+			Version:     md.ServerVersion,
 		}
 
 		if req.GetNetworkInfo && connected {
@@ -162,6 +161,7 @@ func (s *Server) Status(ctx context.Context, req *agentlocalpb.StatusRequest) (*
 		ServerInfo:     serverInfo,
 		AgentsInfo:     agentsInfo,
 		ConfigFilepath: s.configFilepath,
+		AgentVersion:   version.Version,
 	}, nil
 }
 
