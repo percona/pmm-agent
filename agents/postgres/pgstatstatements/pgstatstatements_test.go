@@ -162,6 +162,8 @@ func TestPGStatStatementsQAN(t *testing.T) {
 				MQueryTimeSum:       actual.Common.MQueryTimeSum,
 			},
 			Postgresql: &agentpb.MetricsBucket_PostgreSQL{
+				MBlkReadTimeCnt:    actual.Postgresql.MBlkReadTimeCnt,
+				MBlkReadTimeSum:    actual.Postgresql.MBlkReadTimeSum,
 				MSharedBlksReadCnt: actual.Postgresql.MSharedBlksReadCnt,
 				MSharedBlksReadSum: actual.Postgresql.MSharedBlksReadSum,
 				MSharedBlksHitCnt:  actual.Postgresql.MSharedBlksHitCnt,
@@ -203,6 +205,8 @@ func TestPGStatStatementsQAN(t *testing.T) {
 				MSharedBlksHitSum: 33,
 				MRowsCnt:          1,
 				MRowsSum:          4079,
+				MBlkReadTimeCnt:   actual.Postgresql.MBlkReadTimeCnt,
+				MBlkReadTimeSum:   actual.Postgresql.MBlkReadTimeSum,
 			},
 		}
 		expected.Common.Queryid = digests[expected.Common.Fingerprint]
@@ -248,6 +252,8 @@ func TestPGStatStatementsQAN(t *testing.T) {
 				MQueryTimeSum:       actual.Common.MQueryTimeSum,
 			},
 			Postgresql: &agentpb.MetricsBucket_PostgreSQL{
+				MBlkReadTimeCnt:    actual.Postgresql.MBlkReadTimeCnt,
+				MBlkReadTimeSum:    actual.Postgresql.MBlkReadTimeSum,
 				MSharedBlksReadCnt: actual.Postgresql.MSharedBlksReadCnt,
 				MSharedBlksReadSum: actual.Postgresql.MSharedBlksReadSum,
 				MSharedBlksHitCnt:  actual.Postgresql.MSharedBlksHitCnt,
@@ -270,6 +276,7 @@ func TestPGStatStatementsQAN(t *testing.T) {
 
 		actual = buckets[0]
 		assert.InDelta(t, 0, actual.Common.MQueryTimeSum, 0.09)
+		assert.InDelta(t, 0, actual.Postgresql.MBlkReadTimeCnt, 1)
 		assert.InDelta(t, 1007, actual.Postgresql.MSharedBlksHitSum, 2)
 		expected = &agentpb.MetricsBucket{
 			Common: &agentpb.MetricsBucket_Common{
@@ -287,6 +294,8 @@ func TestPGStatStatementsQAN(t *testing.T) {
 				MQueryTimeSum:       actual.Common.MQueryTimeSum,
 			},
 			Postgresql: &agentpb.MetricsBucket_PostgreSQL{
+				MBlkReadTimeCnt:   actual.Postgresql.MBlkReadTimeCnt,
+				MBlkReadTimeSum:   actual.Postgresql.MBlkReadTimeSum,
 				MSharedBlksHitCnt: 1,
 				MSharedBlksHitSum: actual.Postgresql.MSharedBlksHitSum,
 				MRowsCnt:          1,
@@ -295,5 +304,6 @@ func TestPGStatStatementsQAN(t *testing.T) {
 		}
 		expected.Common.Queryid = digests[expected.Common.Fingerprint]
 		tests.AssertBucketsEqual(t, expected, actual)
+		assert.LessOrEqual(t, actual.Postgresql.MBlkReadTimeSum, actual.Common.MQueryTimeSum)
 	})
 }
