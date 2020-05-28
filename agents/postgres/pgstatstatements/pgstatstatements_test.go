@@ -174,6 +174,7 @@ func TestPGStatStatementsQAN(t *testing.T) {
 		}
 		expected.Common.Queryid = digests[expected.Common.Fingerprint]
 		tests.AssertBucketsEqual(t, expected, actual)
+		assert.LessOrEqual(t, actual.Postgresql.MBlkReadTimeSum, actual.Common.MQueryTimeSum)
 
 		_, err = db.Exec(selectAllCities)
 		require.NoError(t, err)
@@ -211,6 +212,7 @@ func TestPGStatStatementsQAN(t *testing.T) {
 		}
 		expected.Common.Queryid = digests[expected.Common.Fingerprint]
 		tests.AssertBucketsEqual(t, expected, actual)
+		assert.LessOrEqual(t, actual.Postgresql.MBlkReadTimeSum, actual.Common.MQueryTimeSum)
 	})
 
 	t.Run("AllCitiesTruncated", func(t *testing.T) {
@@ -264,6 +266,7 @@ func TestPGStatStatementsQAN(t *testing.T) {
 		}
 		expected.Common.Queryid = digests[expected.Common.Fingerprint]
 		tests.AssertBucketsEqual(t, expected, actual)
+		assert.LessOrEqual(t, actual.Postgresql.MBlkReadTimeSum, actual.Common.MQueryTimeSum)
 
 		_, err = db.Exec(q, args...)
 		require.NoError(t, err)
