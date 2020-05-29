@@ -21,10 +21,12 @@ import (
 	"database/sql"
 	"io"
 	"math"
+	"strings"
 	"time"
 
 	"github.com/AlekSi/pointer"
 	_ "github.com/go-sql-driver/mysql" // register SQL driver
+	"github.com/percona/go-mysql/event"
 	"github.com/percona/pmm/api/agentpb"
 	"github.com/percona/pmm/api/inventorypb"
 	"github.com/percona/pmm/utils/sqlmetrics"
@@ -217,6 +219,7 @@ func (m *PerfSchema) getNewBuckets(periodStart time.Time, periodLengthSecs uint3
 
 			if !m.disableQueryExamples && esh.SQLText != nil {
 				b.Common.Example = *esh.SQLText
+				b.Common.IsTruncated = strings.HasSuffix(*esh.SQLText, event.TruncatedExampleSuffix)
 				b.Common.ExampleFormat = agentpb.ExampleFormat_EXAMPLE
 				b.Common.ExampleType = agentpb.ExampleType_RANDOM
 			}

@@ -24,6 +24,7 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	_ "github.com/go-sql-driver/mysql" // register SQL driver
@@ -384,6 +385,7 @@ func makeBuckets(agentID string, res event.Result, periodStart time.Time, period
 
 		if v.Example != nil && !disableQueryExamples {
 			mb.Common.Example = v.Example.Query
+			mb.Common.IsTruncated = strings.HasSuffix(v.Example.Query, event.TruncatedExampleSuffix)
 			mb.Common.ExampleFormat = agentpb.ExampleFormat_EXAMPLE
 			mb.Common.ExampleType = agentpb.ExampleType_RANDOM
 		}
