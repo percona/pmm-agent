@@ -360,8 +360,8 @@
   version = "v3.2.0"
 
 [[projects]]
-  branch = "PMM-2.0"
-  digest = "1:3c48ae372fbe2b91978acfd5309f3953d1faf10b4655ad156ac631baa6450d79"
+  branch = "SAAS-126-mongodb-action"
+  digest = "1:3c110e8b55238e22a0c8ac43739dc33a8db09ede29e3c5338e1314b05394c615"
   name = "github.com/percona/pmm"
   packages = [
     "api/agentlocalpb",
@@ -372,6 +372,7 @@
     "api/managementpb/json/client",
     "api/managementpb/json/client/actions",
     "api/managementpb/json/client/annotation",
+    "api/managementpb/json/client/external",
     "api/managementpb/json/client/mongo_db",
     "api/managementpb/json/client/my_sql",
     "api/managementpb/json/client/node",
@@ -386,7 +387,7 @@
     "version",
   ]
   pruneopts = "NUT"
-  revision = "db7a94d3e8b41915ab277ead4294913537865778"
+  revision = "db69b20d46febed77e698ba70e53ac07772f2c95"
 
 [[projects]]
   digest = "1:4047c378584616813d610c9f993bf90dd0d07aed8d94bd3bc299cd35ececdcba"

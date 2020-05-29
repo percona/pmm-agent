@@ -73,4 +73,45 @@ func TestMongoDBBuildinfo(t *testing.T) {
 		assert.Equal(t, "mozjs", m.Get("javascriptEngine").Data())
 		assert.Equal(t, "x86_64", m.Get("buildEnvironment.distarch").Data())
 	})
+
+	t.Run("getCmdLineOpts", func(t *testing.T) {
+		a := NewMongoDBQueryAdmincommandAction("", tests.GetTestMongoDBDSN(t), "getCmdLineOpts", 1)
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+
+		b, err := a.Run(ctx)
+		require.NoError(t, err)
+
+		data, err := agentpb.UnmarshalActionQueryResult(b)
+		require.NoError(t, err)
+		assert.Len(t, data, 1)
+		t.Log(spew.Sdump(data))
+
+		m := objx.Map(data[0])
+
+		argv := m.Get("argv").InterSlice()
+		assert.Len(t,  argv, 5)
+		assert.Equal(t, "mongod", argv[0])
+		assert.Equal(t, "--profile", argv[1])
+		assert.Equal(t, "2", argv[2])
+		assert.Equal(t, "--auth", argv[3])
+		assert.Equal(t, "--bind_ip_all", argv[4])
+
+		parsed := m.Get("parsed").ObjxMap()
+		assert.Len(t, parsed, 3)
+
+		net := parsed.Get("net").ObjxMap()
+		assert.Len(t, parsed, 3)
+		assert.Equal(t, "*", net.Get("bindIp").String())
+
+		operationProfiling := parsed.Get("operationProfiling").ObjxMap()
+		assert.Len(t, operationProfiling, 1)
+		assert.Equal(t, "all", operationProfiling.Get("mode").String())
+
+		security := parsed.Get("security").ObjxMap()
+		assert.Len(t, security, 1)
+		assert.Equal(t, "enabled", security.Get("authorization").String())
+
+		assert.Equal(t, "1", m.Get("ok").String())
+	})
 }
