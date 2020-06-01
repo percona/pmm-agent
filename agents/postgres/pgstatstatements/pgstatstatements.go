@@ -242,6 +242,7 @@ func makeBuckets(current, prev map[int64]*pgStatStatementsExtended, l *logrus.En
 			{float32(currentPSS.TempBlksRead - prevPSS.TempBlksRead), &mb.Postgresql.MTempBlksReadSum, &mb.Postgresql.MTempBlksReadCnt},
 			{float32(currentPSS.TempBlksWritten - prevPSS.TempBlksWritten), &mb.Postgresql.MTempBlksWrittenSum, &mb.Postgresql.MTempBlksWrittenCnt},
 
+			// convert milliseconds to seconds
 			{float32(currentPSS.BlkReadTime-prevPSS.BlkReadTime) / 1000, &mb.Postgresql.MBlkReadTimeSum, &mb.Postgresql.MBlkReadTimeCnt},
 			{float32(currentPSS.BlkWriteTime-prevPSS.BlkWriteTime) / 1000, &mb.Postgresql.MBlkWriteTimeSum, &mb.Postgresql.MBlkWriteTimeCnt},
 		} {
