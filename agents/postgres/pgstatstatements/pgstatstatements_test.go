@@ -347,12 +347,13 @@ func TestPGStatStatementsQAN(t *testing.T) {
 		t.Logf("Actual:\n%s", tests.FormatBuckets(buckets))
 		require.Len(t, buckets, 1)
 
+		placeholders := db.Placeholders(1, 4)
 		actual := buckets[0]
 		assert.NotZero(t, actual.Postgresql.MBlkReadTimeSum)
-		expected := &agentpb.MetricsBucket{
+		var expected = &agentpb.MetricsBucket{
 			Common: &agentpb.MetricsBucket_Common{
 				Queryid:             actual.Common.Queryid,
-				Fingerprint:         fmt.Sprintf(`INSERT /* CheckMBlkReadTime */ INTO %s (customer_id, first_name, last_name, active) VALUES (?, ?, ?, ?)`, tableName),
+				Fingerprint:         fmt.Sprintf(`INSERT /* CheckMBlkReadTime */ INTO %s (customer_id, first_name, last_name, active) VALUES (%s)`, tableName, strings.Join(placeholders, ", ")),
 				Database:            "pmm-agent",
 				Tables:              []string{tableName},
 				Username:            "pmm-agent",
