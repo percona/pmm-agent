@@ -18,7 +18,9 @@ package pgstatstatements
 import (
 	"context"
 	"fmt"
+	"math/rand"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -306,6 +308,75 @@ func TestPGStatStatementsQAN(t *testing.T) {
 			},
 		}
 		expected.Common.Queryid = digests[expected.Common.Fingerprint]
+		tests.AssertBucketsEqual(t, expected, actual)
+		assert.LessOrEqual(t, actual.Postgresql.MBlkReadTimeSum, actual.Common.MQueryTimeSum)
+	})
+
+	t.Run("CheckMBlkReadTime", func(t *testing.T) {
+		r := rand.New(rand.NewSource(time.Now().Unix()))
+		tableName := fmt.Sprintf("customer%d", r.Int())
+		db.Exec(fmt.Sprintf(`
+		CREATE TABLE %s (
+			customer_id integer NOT NULL,
+			first_name character varying(45) NOT NULL,
+			last_name character varying(45) NOT NULL,
+			active boolean
+		);`, tableName))
+		defer db.Exec(fmt.Sprintf(`DROP TABLE %s;`, tableName))
+		m := setup(t, db)
+
+		waitGroup := sync.WaitGroup{}
+		n := 1000
+		for i := 0; i < n; i++ {
+			id := i
+			waitGroup.Add(1)
+			go func() {
+				defer waitGroup.Done()
+				_, err := db.Exec(fmt.Sprintf(`INSERT /* CheckMBlkReadTime */ INTO %s (customer_id, first_name, last_name, active) VALUES (%d, 'John', 'Dow', TRUE)`, tableName, id))
+				require.NoError(t, err)
+			}()
+		}
+		waitGroup.Wait()
+
+		_, err = db.Exec(fmt.Sprintf("CHECKPOINT /* %s */", queryTag))
+		require.NoError(t, err)
+
+		buckets, err := m.getNewBuckets(context.Background(), time.Date(2020, 5, 25, 10, 59, 0, 0, time.UTC), 60)
+		require.NoError(t, err)
+		buckets = filter(buckets)
+		t.Logf("Actual:\n%s", tests.FormatBuckets(buckets))
+		require.Len(t, buckets, 1)
+
+		actual := buckets[0]
+		assert.NotZero(t, actual.Postgresql.MBlkReadTimeSum)
+		expected := &agentpb.MetricsBucket{
+			Common: &agentpb.MetricsBucket_Common{
+				Queryid:             actual.Common.Queryid,
+				Fingerprint:         fmt.Sprintf(`INSERT /* CheckMBlkReadTime */ INTO %s (customer_id, first_name, last_name, active) VALUES (?, ?, ?, ?)`, tableName),
+				Database:            "pmm-agent",
+				Tables:              []string{tableName},
+				Username:            "pmm-agent",
+				AgentId:             "agent_id",
+				PeriodStartUnixSecs: 1590404340,
+				PeriodLengthSecs:    60,
+				AgentType:           inventorypb.AgentType_QAN_POSTGRESQL_PGSTATEMENTS_AGENT,
+				NumQueries:          float32(n),
+				MQueryTimeCnt:       float32(n),
+				MQueryTimeSum:       actual.Common.MQueryTimeSum,
+			},
+			Postgresql: &agentpb.MetricsBucket_PostgreSQL{
+				MBlkReadTimeCnt:       float32(n),
+				MBlkReadTimeSum:       actual.Postgresql.MBlkReadTimeSum,
+				MSharedBlksReadCnt:    float32(n),
+				MSharedBlksReadSum:    actual.Postgresql.MSharedBlksReadSum,
+				MSharedBlksDirtiedCnt: float32(n),
+				MSharedBlksDirtiedSum: actual.Postgresql.MSharedBlksDirtiedSum,
+				MSharedBlksHitCnt:     float32(n),
+				MSharedBlksHitSum:     actual.Postgresql.MSharedBlksHitSum,
+				MRowsCnt:              float32(n),
+				MRowsSum:              float32(n),
+			},
+		}
 		tests.AssertBucketsEqual(t, expected, actual)
 		assert.LessOrEqual(t, actual.Postgresql.MBlkReadTimeSum, actual.Common.MQueryTimeSum)
 	})
