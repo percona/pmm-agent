@@ -90,7 +90,7 @@ func TestMongoDBBuildinfo(t *testing.T) {
 		m := objx.Map(data[0])
 
 		argv := m.Get("argv").InterSlice()
-		assert.Len(t,  argv, 5)
+		assert.Len(t, argv, 5)
 		assert.Equal(t, "mongod", argv[0])
 		assert.Equal(t, "--profile", argv[1])
 		assert.Equal(t, "2", argv[2])
