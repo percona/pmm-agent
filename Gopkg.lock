@@ -361,7 +361,7 @@
 
 [[projects]]
   branch = "SAAS-126-mongodb-action"
-  digest = "1:1194201dcad0c64ac9eee6824ea93f9fd0bc2b273a33ddd12e38839d972e2182"
+  digest = "1:0e0948b8fb265270c969c0b98eccde7045c79979da65a748acd712fe7b542708"
   name = "github.com/percona/pmm"
   packages = [
     "api/agentlocalpb",
@@ -379,6 +379,7 @@
     "api/managementpb/json/client/postgre_sql",
     "api/managementpb/json/client/proxy_sql",
     "api/managementpb/json/client/rds",
+    "api/managementpb/json/client/security_checks",
     "api/managementpb/json/client/service",
     "utils/nodeinfo",
     "utils/pdeathsig",
@@ -387,7 +388,7 @@
     "version",
   ]
   pruneopts = "NUT"
-  revision = "65bdd209781c2b4480fc9a45a3c190f14f00ae7f"
+  revision = "67e5fbbe902fb9704529f5bea4085852f65efba1"
 
 [[projects]]
   digest = "1:4047c378584616813d610c9f993bf90dd0d07aed8d94bd3bc299cd35ececdcba"
