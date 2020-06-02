@@ -95,7 +95,6 @@ func TestMongoDBBuildinfo(t *testing.T) {
 		}
 
 		parsed := m.Get("parsed").ObjxMap()
-		assert.Len(t, parsed, 3)
 
 		operationProfiling := parsed.Get("operationProfiling").ObjxMap()
 		assert.Len(t, operationProfiling, 1)
