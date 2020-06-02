@@ -323,7 +323,7 @@ func TestPGStatStatementsMakeBuckets(t *testing.T) {
 					Tables:      []string{"cities"},
 					Username:    "root",
 					Queryid:     "0",
-					Fingerprint: "SELECT '\ufffd'",
+					Fingerprint: "SELECT ''",
 					AgentType:   inventorypb.AgentType_QAN_POSTGRESQL_PGSTATEMENTS_AGENT,
 					NumQueries:  1,
 				},

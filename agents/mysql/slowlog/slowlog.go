@@ -39,7 +39,6 @@ import (
 	"github.com/percona/pmm-agent/agents"
 	"github.com/percona/pmm-agent/agents/mysql/slowlog/parser"
 	"github.com/percona/pmm-agent/utils/backoff"
-	"github.com/percona/pmm-agent/utils/truncate"
 )
 
 const (
@@ -365,11 +364,10 @@ func makeBuckets(agentID string, res event.Result, periodStart time.Time, period
 			continue
 		}
 
-		fingerprint, _ := truncate.Query(v.Fingerprint)
 		mb := &agentpb.MetricsBucket{
 			Common: &agentpb.MetricsBucket_Common{
 				Queryid:              v.Id,
-				Fingerprint:          fingerprint,
+				Fingerprint:          strings.ToValidUTF8(v.Fingerprint, ""),
 				Database:             "",
 				Schema:               v.Db,
 				Username:             v.User,
@@ -386,8 +384,7 @@ func makeBuckets(agentID string, res event.Result, periodStart time.Time, period
 		}
 
 		if v.Example != nil && !disableQueryExamples {
-			example, _ := truncate.Query(v.Example.Query)
-			mb.Common.Example = strings.ToValidUTF8(example, "*")
+			mb.Common.Example = strings.ToValidUTF8(v.Example.Query, "")
 			mb.Common.ExampleFormat = agentpb.ExampleFormat_EXAMPLE
 			mb.Common.ExampleType = agentpb.ExampleType_RANDOM
 		}

@@ -108,7 +108,7 @@ func TestAggregator(t *testing.T) {
 			NscannedObjects: 2,
 			Nreturned:       3,
 			Ns:              "collection.people\xff",
-			Op:              "insert",
+			Op:              "insert\xff",
 		})
 		require.NoError(t, err)
 
@@ -120,14 +120,14 @@ func TestAggregator(t *testing.T) {
 		tests.AssertBucketsEqual(t, &agentpb.MetricsBucket{
 			Common: &agentpb.MetricsBucket_Common{
 				Queryid:             result.Buckets[0].Common.Queryid,
-				Fingerprint:         "INSERT people\ufffd",
+				Fingerprint:         "INSERT people",
 				Database:            "collection",
-				Tables:              []string{"people\ufffd"},
+				Tables:              []string{"people"},
 				AgentId:             agentID,
 				AgentType:           inventorypb.AgentType_QAN_MONGODB_PROFILER_AGENT,
 				PeriodStartUnixSecs: uint32(startPeriod.Truncate(DefaultInterval).Unix()),
 				PeriodLengthSecs:    60,
-				Example:             `{"ns":"collection.people\ufffd","op":"insert"}`,
+				Example:             `{"ns":"collection.people","op":"insert"}`,
 				ExampleFormat:       agentpb.ExampleFormat_EXAMPLE,
 				ExampleType:         agentpb.ExampleType_RANDOM,
 				NumQueries:          1,

@@ -181,7 +181,7 @@ func TestPerfSchemaMakeBuckets(t *testing.T) {
 			{
 				Common: &agentpb.MetricsBucket_Common{
 					Queryid:     "Normal",
-					Fingerprint: "SELECT '\ufffd'",
+					Fingerprint: "SELECT ''",
 					AgentType:   inventorypb.AgentType_QAN_MYSQL_PERFSCHEMA_AGENT,
 					NumQueries:  5,
 				},
