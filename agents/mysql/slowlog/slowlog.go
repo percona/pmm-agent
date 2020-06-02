@@ -24,7 +24,6 @@ import (
 	"math"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
 	_ "github.com/go-sql-driver/mysql" // register SQL driver
@@ -39,6 +38,7 @@ import (
 	"github.com/percona/pmm-agent/agents"
 	"github.com/percona/pmm-agent/agents/mysql/slowlog/parser"
 	"github.com/percona/pmm-agent/utils/backoff"
+	"github.com/percona/pmm-agent/utils/truncate"
 )
 
 const (
@@ -384,7 +384,8 @@ func makeBuckets(agentID string, res event.Result, periodStart time.Time, period
 		}
 
 		if v.Example != nil && !disableQueryExamples {
-			mb.Common.Example = strings.ToValidUTF8(v.Example.Query, "")
+			example, _ := truncate.Query(v.Example.Query)
+			mb.Common.Example = example
 			mb.Common.ExampleFormat = agentpb.ExampleFormat_EXAMPLE
 			mb.Common.ExampleType = agentpb.ExampleType_RANDOM
 		}
