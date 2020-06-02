@@ -89,16 +89,13 @@ func TestMongoDBBuildinfo(t *testing.T) {
 
 		m := objx.Map(data[0])
 
-		expectedArgv := []interface{}{"mongod", "--profile", "2", "--auth", "--bind_ip_all"}
 		argv := m.Get("argv").InterSlice()
-		assert.ElementsMatch(t, expectedArgv, argv)
+		for _, v := range []interface{}{"mongod", "--profile", "2", "--auth"} {
+			assert.Contains(t, argv, v)
+		}
 
 		parsed := m.Get("parsed").ObjxMap()
 		assert.Len(t, parsed, 3)
-
-		net := parsed.Get("net").ObjxMap()
-		assert.Len(t, net, 1)
-		assert.Equal(t, "*", net.Get("bindIp").String())
 
 		operationProfiling := parsed.Get("operationProfiling").ObjxMap()
 		assert.Len(t, operationProfiling, 1)
