@@ -252,14 +252,15 @@ func (a *Aggregator) createResult(ctx context.Context) *report.Result {
 		s := strings.SplitN(v.Namespace, ".", 2)
 		if len(s) == 2 {
 			db = s[0]
-			collection = s[1]
+			collection, _ = truncate.Query(s[1])
 		}
 
 		example, _ := truncate.Query(v.Query)
+		fingerprint, _ := truncate.Query(v.Fingerprint)
 		bucket := &agentpb.MetricsBucket{
 			Common: &agentpb.MetricsBucket_Common{
 				Queryid:             v.ID,
-				Fingerprint:         v.Fingerprint,
+				Fingerprint:         fingerprint,
 				Database:            db,
 				Tables:              []string{collection},
 				Username:            "",

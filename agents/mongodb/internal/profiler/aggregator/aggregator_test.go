@@ -19,12 +19,14 @@ import (
 	"context"
 	"testing"
 	"time"
+	"unicode/utf8"
 
 	"github.com/percona/pmm/api/agentpb"
 	"github.com/percona/pmm/api/inventorypb"
 	"github.com/stretchr/testify/require"
 
 	"github.com/percona/pmm-agent/agents/mongodb/internal/report"
+	"github.com/percona/pmm-agent/utils/tests"
 
 	"github.com/percona/percona-toolkit/src/go/mongolib/proto"
 	"github.com/sirupsen/logrus"
@@ -93,5 +95,57 @@ func TestAggregator(t *testing.T) {
 				},
 			},
 		}, *result)
+	})
+
+	t.Run("createResultInvalidUTF8", func(t *testing.T) {
+		agentID := "test-agent"
+		startPeriod := time.Now()
+		aggregator := New(startPeriod, agentID, logrus.WithField("component", "test"))
+		aggregator.Start()
+		defer aggregator.Stop()
+		ctx := context.TODO()
+		err := aggregator.Add(ctx, proto.SystemProfile{
+			NscannedObjects: 2,
+			Nreturned:       3,
+			Ns:              "collection.people\xff",
+			Op:              "insert",
+		})
+		require.NoError(t, err)
+
+		result := aggregator.createResult(ctx)
+
+		require.Equal(t, 1, len(result.Buckets))
+		assert.Equal(t, true, utf8.ValidString(result.Buckets[0].Common.Fingerprint))
+		assert.Equal(t, true, utf8.ValidString(result.Buckets[0].Common.Example))
+		tests.AssertBucketsEqual(t, &agentpb.MetricsBucket{
+			Common: &agentpb.MetricsBucket_Common{
+				Queryid:             result.Buckets[0].Common.Queryid,
+				Fingerprint:         "INSERT people\ufffd",
+				Database:            "collection",
+				Tables:              []string{"people\ufffd"},
+				AgentId:             agentID,
+				AgentType:           inventorypb.AgentType_QAN_MONGODB_PROFILER_AGENT,
+				PeriodStartUnixSecs: uint32(startPeriod.Truncate(DefaultInterval).Unix()),
+				PeriodLengthSecs:    60,
+				Example:             `{"ns":"collection.people\ufffd","op":"insert"}`,
+				ExampleFormat:       agentpb.ExampleFormat_EXAMPLE,
+				ExampleType:         agentpb.ExampleType_RANDOM,
+				NumQueries:          1,
+				MQueryTimeCnt:       1,
+			},
+			Mongodb: &agentpb.MetricsBucket_MongoDB{
+				MDocsReturnedCnt:   1,
+				MDocsReturnedSum:   3,
+				MDocsReturnedMin:   3,
+				MDocsReturnedMax:   3,
+				MDocsReturnedP99:   3,
+				MResponseLengthCnt: 1,
+				MDocsScannedCnt:    1,
+				MDocsScannedSum:    2,
+				MDocsScannedMin:    2,
+				MDocsScannedMax:    2,
+				MDocsScannedP99:    2,
+			},
+		}, result.Buckets[0])
 	})
 }
