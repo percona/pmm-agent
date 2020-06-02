@@ -321,7 +321,7 @@ func TestPGStatStatementsQAN(t *testing.T) {
 			first_name character varying(45) NOT NULL,
 			last_name character varying(45) NOT NULL,
 			active boolean
-		);`, tableName))
+		)`, tableName))
 		require.NoError(t, err)
 		defer func() {
 			_, err := db.Exec(fmt.Sprintf(`DROP TABLE %s;`, tableName))
@@ -329,7 +329,7 @@ func TestPGStatStatementsQAN(t *testing.T) {
 		}()
 		m := setup(t, db)
 
-		waitGroup := sync.WaitGroup{}
+		var waitGroup sync.WaitGroup
 		n := 1000
 		for i := 0; i < n; i++ {
 			id := i
