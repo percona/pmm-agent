@@ -315,14 +315,18 @@ func TestPGStatStatementsQAN(t *testing.T) {
 	t.Run("CheckMBlkReadTime", func(t *testing.T) {
 		r := rand.New(rand.NewSource(time.Now().Unix()))
 		tableName := fmt.Sprintf("customer%d", r.Int())
-		db.Exec(fmt.Sprintf(`
+		_, err := db.Exec(fmt.Sprintf(`
 		CREATE TABLE %s (
 			customer_id integer NOT NULL,
 			first_name character varying(45) NOT NULL,
 			last_name character varying(45) NOT NULL,
 			active boolean
 		);`, tableName))
-		defer db.Exec(fmt.Sprintf(`DROP TABLE %s;`, tableName))
+		require.NoError(t, err)
+		defer func() {
+			_, err := db.Exec(fmt.Sprintf(`DROP TABLE %s;`, tableName))
+			require.NoError(t, err)
+		}()
 		m := setup(t, db)
 
 		waitGroup := sync.WaitGroup{}
@@ -338,22 +342,26 @@ func TestPGStatStatementsQAN(t *testing.T) {
 		}
 		waitGroup.Wait()
 
-		_, err = db.Exec(fmt.Sprintf("CHECKPOINT /* %s */", queryTag))
-		require.NoError(t, err)
-
 		buckets, err := m.getNewBuckets(context.Background(), time.Date(2020, 5, 25, 10, 59, 0, 0, time.UTC), 60)
 		require.NoError(t, err)
 		buckets = filter(buckets)
 		t.Logf("Actual:\n%s", tests.FormatBuckets(buckets))
 		require.Len(t, buckets, 1)
 
-		placeholders := db.Placeholders(1, 4)
+		var fingerprint string
+		switch engineVersion {
+		case "9.4", "9.5", "9.6":
+			fingerprint = fmt.Sprintf(`INSERT /* CheckMBlkReadTime */ INTO %s (customer_id, first_name, last_name, active) VALUES (?, ?, ?, ?)`, tableName)
+
+		default:
+			fingerprint = fmt.Sprintf(`INSERT /* CheckMBlkReadTime */ INTO %s (customer_id, first_name, last_name, active) VALUES ($1, $2, $3, $4)`, tableName)
+		}
 		actual := buckets[0]
 		assert.NotZero(t, actual.Postgresql.MBlkReadTimeSum)
 		var expected = &agentpb.MetricsBucket{
 			Common: &agentpb.MetricsBucket_Common{
 				Queryid:             actual.Common.Queryid,
-				Fingerprint:         fmt.Sprintf(`INSERT /* CheckMBlkReadTime */ INTO %s (customer_id, first_name, last_name, active) VALUES (%s)`, tableName, strings.Join(placeholders, ", ")),
+				Fingerprint:         fingerprint,
 				Database:            "pmm-agent",
 				Tables:              []string{tableName},
 				Username:            "pmm-agent",
@@ -368,11 +376,13 @@ func TestPGStatStatementsQAN(t *testing.T) {
 			Postgresql: &agentpb.MetricsBucket_PostgreSQL{
 				MBlkReadTimeCnt:       float32(n),
 				MBlkReadTimeSum:       actual.Postgresql.MBlkReadTimeSum,
-				MSharedBlksReadCnt:    float32(n),
+				MSharedBlksReadCnt:    actual.Postgresql.MSharedBlksReadCnt,
 				MSharedBlksReadSum:    actual.Postgresql.MSharedBlksReadSum,
-				MSharedBlksDirtiedCnt: float32(n),
+				MSharedBlksWrittenCnt: actual.Postgresql.MSharedBlksWrittenCnt,
+				MSharedBlksWrittenSum: actual.Postgresql.MSharedBlksWrittenSum,
+				MSharedBlksDirtiedCnt: actual.Postgresql.MSharedBlksDirtiedCnt,
 				MSharedBlksDirtiedSum: actual.Postgresql.MSharedBlksDirtiedSum,
-				MSharedBlksHitCnt:     float32(n),
+				MSharedBlksHitCnt:     actual.Postgresql.MSharedBlksHitCnt,
 				MSharedBlksHitSum:     actual.Postgresql.MSharedBlksHitSum,
 				MRowsCnt:              float32(n),
 				MRowsSum:              float32(n),
