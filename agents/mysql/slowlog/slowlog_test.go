@@ -52,7 +52,7 @@ func TestSlowLogMakeBucketsInvalidUTF8(t *testing.T) {
 				Metrics:     &event.Metrics{},
 				Fingerprint: "set lock_wait_timeout=?\xff",
 				Example: &event.Example{
-					Query: "ping \xff",
+					Query: "set lock_wait_timeout=5\xff",
 				},
 			},
 		},
@@ -67,7 +67,7 @@ func TestSlowLogMakeBucketsInvalidUTF8(t *testing.T) {
 				PeriodStartUnixSecs: 1557137220,
 				PeriodLengthSecs:    60,
 				Fingerprint:         "set lock_wait_timeout=?",
-				Example:             "ping ",
+				Example:             "set lock_wait_timeout=5",
 				ExampleFormat:       agentpb.ExampleFormat_EXAMPLE,
 				ExampleType:         agentpb.ExampleType_RANDOM,
 			},
