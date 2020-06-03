@@ -31,7 +31,6 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"github.com/percona/pmm-agent/agents/mongodb/internal/report"
-	"github.com/percona/pmm-agent/utils/truncate"
 )
 
 var DefaultInterval = time.Duration(time.Minute)
@@ -100,8 +99,8 @@ func (a *Aggregator) Add(ctx context.Context, doc proto.SystemProfile) error {
 	// we had some activity so reset timer
 	a.t.Reset(a.d)
 
-	doc.Ns, _ = truncate.Query(doc.Ns)
-	doc.Op, _ = truncate.Query(doc.Op)
+	doc.Ns = strings.ToValidUTF8(doc.Ns, "")
+	doc.Op = strings.ToValidUTF8(doc.Op, "")
 
 	// add new doc to stats
 	return a.mongostats.Add(doc)

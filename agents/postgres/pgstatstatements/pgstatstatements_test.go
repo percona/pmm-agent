@@ -21,6 +21,7 @@ import (
 	"strings"
 	"testing"
 	"time"
+	"unicode/utf8"
 
 	"github.com/percona/pmm/api/agentpb"
 	"github.com/percona/pmm/api/inventorypb"
@@ -295,5 +296,45 @@ func TestPGStatStatementsQAN(t *testing.T) {
 		}
 		expected.Common.Queryid = digests[expected.Common.Fingerprint]
 		tests.AssertBucketsEqual(t, expected, actual)
+	})
+}
+
+func TestPGStatStatementsMakeBuckets(t *testing.T) {
+	t.Run("NewInvalidUTF8", func(t *testing.T) {
+		prev := map[int64]*pgStatStatementsExtended{}
+		current := map[int64]*pgStatStatementsExtended{
+			1: {
+				pgStatStatements: pgStatStatements{
+					Query: "SELECT '\xff'",
+					Calls: 1,
+				},
+				Database:         "pmm-agent",
+				IsQueryTruncated: false,
+				Tables:           []string{"cities"},
+				Username:         "root",
+			},
+		}
+		actual := makeBuckets(current, prev, logrus.WithField("test", t.Name()))
+		require.Len(t, actual, 1)
+		expected := []*agentpb.MetricsBucket{
+			{
+				Common: &agentpb.MetricsBucket_Common{
+					Database:    "pmm-agent",
+					Tables:      []string{"cities"},
+					Username:    "root",
+					Queryid:     "0",
+					Fingerprint: "SELECT ''",
+					AgentType:   inventorypb.AgentType_QAN_POSTGRESQL_PGSTATEMENTS_AGENT,
+					NumQueries:  1,
+				},
+				Postgresql: &agentpb.MetricsBucket_PostgreSQL{},
+			},
+		}
+		require.Equal(t, 1, len(actual))
+		for i := range actual {
+			assert.Equal(t, true, utf8.ValidString(actual[i].Common.Fingerprint))
+			assert.Equal(t, true, utf8.ValidString(actual[i].Common.Example))
+			tests.AssertBucketsEqual(t, expected[i], actual[i])
+		}
 	})
 }
