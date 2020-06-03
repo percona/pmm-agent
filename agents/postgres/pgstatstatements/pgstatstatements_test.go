@@ -218,7 +218,7 @@ func TestPGStatStatementsQAN(t *testing.T) {
 		for i := 0; i < n; i++ {
 			args[i] = i
 		}
-		q := fmt.Sprintf("SELECT /* AllCitiesTruncated */ * FROM city\xff WHERE id IN (%s)", strings.Join(placeholders, ", ")) //nolint:gosec
+		q := fmt.Sprintf("SELECT /* AllCitiesTruncated */ * FROM city WHERE id IN (%s)", strings.Join(placeholders, ", ")) //nolint:gosec
 		_, err := db.Exec(q, args...)
 		require.NoError(t, err)
 
