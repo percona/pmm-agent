@@ -245,6 +245,7 @@ func makeBuckets(current, prev map[string]*eventsStatementsSummaryByDigest, l *l
 	res := make([]*agentpb.MetricsBucket, 0, len(current))
 
 	for digest, currentESS := range current {
+		var isTruncated bool
 		prevESS := prev[digest]
 		if prevESS == nil {
 			prevESS = new(eventsStatementsSummaryByDigest)
@@ -267,7 +268,10 @@ func makeBuckets(current, prev map[string]*eventsStatementsSummaryByDigest, l *l
 			l.Debugf("Normal query: %s.", currentESS)
 		}
 
-		fingerprint, _ := truncate.Query(*currentESS.DigestText)
+		fingerprint, truncated := truncate.Query(*currentESS.DigestText)
+		if truncated {
+			isTruncated = truncated
+		}
 		count := inc(currentESS.CountStar, prevESS.CountStar)
 		mb := &agentpb.MetricsBucket{
 			Common: &agentpb.MetricsBucket_Common{
@@ -278,6 +282,7 @@ func makeBuckets(current, prev map[string]*eventsStatementsSummaryByDigest, l *l
 				NumQueriesWithErrors:   inc(currentESS.SumErrors, prevESS.SumErrors),
 				NumQueriesWithWarnings: inc(currentESS.SumWarnings, prevESS.SumWarnings),
 				AgentType:              inventorypb.AgentType_QAN_MYSQL_PERFSCHEMA_AGENT,
+				IsTruncated:            isTruncated,
 			},
 			Mysql: &agentpb.MetricsBucket_MySQL{},
 		}

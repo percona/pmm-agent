@@ -250,15 +250,23 @@ func (a *Aggregator) createResult(ctx context.Context) *report.Result {
 	a.logger.Tracef("Query Stats: %#v", queryStats)
 
 	for _, v := range queryStats {
+		var isTruncated bool
 		db := ""
 		collection := ""
 		s := strings.SplitN(v.Namespace, ".", 2)
 		if len(s) == 2 {
+			var truncated bool
 			db = s[0]
-			collection, _ = truncate.Query(s[1])
+			collection, truncated = truncate.Query(s[1])
+			if truncated {
+				isTruncated = truncated
+			}
 		}
 
-		fingerprint, _ := truncate.Query(v.Fingerprint)
+		fingerprint, truncated := truncate.Query(v.Fingerprint)
+		if truncated {
+			isTruncated = truncated
+		}
 		example, _ := truncate.Query(v.Query)
 		bucket := &agentpb.MetricsBucket{
 			Common: &agentpb.MetricsBucket_Common{
@@ -276,6 +284,7 @@ func (a *Aggregator) createResult(ctx context.Context) *report.Result {
 				ExampleFormat:       agentpb.ExampleFormat_EXAMPLE,
 				ExampleType:         agentpb.ExampleType_RANDOM,
 				NumQueries:          float32(v.Count),
+				IsTruncated:         isTruncated,
 			},
 			Mongodb: &agentpb.MetricsBucket_MongoDB{},
 		}

@@ -360,11 +360,15 @@ func makeBuckets(agentID string, res event.Result, periodStart time.Time, period
 	buckets := make([]*agentpb.MetricsBucket, 0, len(res.Class))
 
 	for _, v := range res.Class {
+		var isTruncated bool
 		if v.Metrics == nil {
 			continue
 		}
 
-		fingerprint, _ := truncate.Query(v.Fingerprint)
+		fingerprint, truncated := truncate.Query(v.Fingerprint)
+		if truncated {
+			isTruncated = truncated
+		}
 		mb := &agentpb.MetricsBucket{
 			Common: &agentpb.MetricsBucket_Common{
 				Queryid:              v.Id,
@@ -380,12 +384,16 @@ func makeBuckets(agentID string, res event.Result, periodStart time.Time, period
 				NumQueries:           float32(v.TotalQueries),
 				Errors:               errListsToMap(v.ErrorsCode, v.ErrorsCount),
 				NumQueriesWithErrors: v.NumQueriesWithErrors,
+				IsTruncated:          isTruncated,
 			},
 			Mysql: &agentpb.MetricsBucket_MySQL{},
 		}
 
 		if v.Example != nil && !disableQueryExamples {
-			example, _ := truncate.Query(v.Example.Query)
+			example, truncated := truncate.Query(v.Example.Query)
+			if truncated {
+				mb.Common.IsTruncated = truncated
+			}
 			mb.Common.Example = example
 			mb.Common.ExampleFormat = agentpb.ExampleFormat_EXAMPLE
 			mb.Common.ExampleType = agentpb.ExampleType_RANDOM
