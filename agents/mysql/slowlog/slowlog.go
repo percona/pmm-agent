@@ -364,11 +364,7 @@ func makeBuckets(agentID string, res event.Result, periodStart time.Time, period
 			continue
 		}
 
-		var isTruncated bool
 		fingerprint, truncated := truncate.Query(v.Fingerprint)
-		if truncated {
-			isTruncated = truncated
-		}
 		mb := &agentpb.MetricsBucket{
 			Common: &agentpb.MetricsBucket_Common{
 				Queryid:              v.Id,
@@ -384,7 +380,7 @@ func makeBuckets(agentID string, res event.Result, periodStart time.Time, period
 				NumQueries:           float32(v.TotalQueries),
 				Errors:               errListsToMap(v.ErrorsCode, v.ErrorsCount),
 				NumQueriesWithErrors: v.NumQueriesWithErrors,
-				IsTruncated:          isTruncated,
+				IsTruncated:          truncated,
 			},
 			Mysql: &agentpb.MetricsBucket_MySQL{},
 		}
