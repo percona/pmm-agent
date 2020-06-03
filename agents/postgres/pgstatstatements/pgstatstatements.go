@@ -22,7 +22,6 @@ import (
 	"io"
 	"math"
 	"strconv"
-	"strings"
 	"time"
 
 	_ "github.com/lib/pq" // register SQL driver
@@ -213,7 +212,7 @@ func makeBuckets(current, prev map[int64]*pgStatStatementsExtended, l *logrus.En
 				Tables:      currentPSS.Tables,
 				Username:    currentPSS.Username,
 				Queryid:     strconv.FormatInt(currentPSS.QueryID, 10),
-				Fingerprint: strings.ToValidUTF8(currentPSS.Query, ""),
+				Fingerprint: currentPSS.Query,
 				NumQueries:  count,
 				AgentType:   inventorypb.AgentType_QAN_POSTGRESQL_PGSTATEMENTS_AGENT,
 				IsTruncated: currentPSS.IsQueryTruncated,
