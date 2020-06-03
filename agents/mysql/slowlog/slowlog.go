@@ -360,11 +360,11 @@ func makeBuckets(agentID string, res event.Result, periodStart time.Time, period
 	buckets := make([]*agentpb.MetricsBucket, 0, len(res.Class))
 
 	for _, v := range res.Class {
-		var isTruncated bool
 		if v.Metrics == nil {
 			continue
 		}
 
+		var isTruncated bool
 		fingerprint, truncated := truncate.Query(v.Fingerprint)
 		if truncated {
 			isTruncated = truncated

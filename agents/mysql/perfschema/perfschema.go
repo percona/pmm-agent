@@ -245,7 +245,6 @@ func makeBuckets(current, prev map[string]*eventsStatementsSummaryByDigest, l *l
 	res := make([]*agentpb.MetricsBucket, 0, len(current))
 
 	for digest, currentESS := range current {
-		var isTruncated bool
 		prevESS := prev[digest]
 		if prevESS == nil {
 			prevESS = new(eventsStatementsSummaryByDigest)
@@ -268,6 +267,7 @@ func makeBuckets(current, prev map[string]*eventsStatementsSummaryByDigest, l *l
 			l.Debugf("Normal query: %s.", currentESS)
 		}
 
+		var isTruncated bool
 		fingerprint, truncated := truncate.Query(*currentESS.DigestText)
 		if truncated {
 			isTruncated = truncated
