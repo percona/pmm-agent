@@ -38,8 +38,8 @@ func TestQuery(t *testing.T) {
 		"абвгдеё": {"а ...", true},
 
 		// Unicode replacement characters
-		"\xff\xff\xff\xff\xff":     {"\uFFFD\uFFFD\uFFFD\uFFFD\uFFFD", false},
-		"\xff\xff\xff\xff\xff\xff": {"\uFFFD ...", true},
+		"\xff\xff\xff\xff\xff":     {"", false},
+		"\xff\xff\xff\xff\xff\xff": {"", false},
 	} {
 		query, truncated := Query(q)
 		assert.Equal(t, expected.query, query)
