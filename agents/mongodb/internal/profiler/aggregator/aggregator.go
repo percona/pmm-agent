@@ -250,28 +250,18 @@ func (a *Aggregator) createResult(ctx context.Context) *report.Result {
 	a.logger.Tracef("Query Stats: %#v", queryStats)
 
 	for _, v := range queryStats {
-		var isTruncated bool
 		db := ""
 		collection := ""
 		s := strings.SplitN(v.Namespace, ".", 2)
 		if len(s) == 2 {
-			var truncated bool
 			db = s[0]
-			collection, truncated = truncate.Query(s[1])
-			if truncated {
-				isTruncated = truncated
-			}
+			collection = s[1]
 		}
 
-		fingerprint, truncated := truncate.Query(v.Fingerprint)
-		if truncated {
-			isTruncated = truncated
-		}
-		example, _ := truncate.Query(v.Query)
 		bucket := &agentpb.MetricsBucket{
 			Common: &agentpb.MetricsBucket_Common{
 				Queryid:             v.ID,
-				Fingerprint:         fingerprint,
+				Fingerprint:         v.Fingerprint,
 				Database:            db,
 				Tables:              []string{collection},
 				Username:            "",
@@ -280,11 +270,10 @@ func (a *Aggregator) createResult(ctx context.Context) *report.Result {
 				AgentType:           inventorypb.AgentType_QAN_MONGODB_PROFILER_AGENT,
 				PeriodStartUnixSecs: uint32(a.timeStart.Truncate(1 * time.Minute).Unix()),
 				PeriodLengthSecs:    uint32(a.d.Seconds()),
-				Example:             example,
+				Example:             v.Query,
 				ExampleFormat:       agentpb.ExampleFormat_EXAMPLE,
 				ExampleType:         agentpb.ExampleType_RANDOM,
-				NumQueries:          float32(v.Count),
-				IsTruncated:         isTruncated,
+				NumQueries:          float32(v.Count)
 			},
 			Mongodb: &agentpb.MetricsBucket_MongoDB{},
 		}
