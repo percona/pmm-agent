@@ -273,7 +273,7 @@ func (a *Aggregator) createResult(ctx context.Context) *report.Result {
 				Example:             v.Query,
 				ExampleFormat:       agentpb.ExampleFormat_EXAMPLE,
 				ExampleType:         agentpb.ExampleType_RANDOM,
-				NumQueries:          float32(v.Count)
+				NumQueries:          float32(v.Count),
 			},
 			Mongodb: &agentpb.MetricsBucket_MongoDB{},
 		}
