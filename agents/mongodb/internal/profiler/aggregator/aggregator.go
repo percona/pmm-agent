@@ -31,6 +31,7 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"github.com/percona/pmm-agent/agents/mongodb/internal/report"
+	"github.com/percona/pmm-agent/utils/truncate"
 )
 
 var DefaultInterval = time.Duration(time.Minute)
@@ -99,8 +100,8 @@ func (a *Aggregator) Add(ctx context.Context, doc proto.SystemProfile) error {
 	// we had some activity so reset timer
 	a.t.Reset(a.d)
 
-	doc.Ns = strings.ToValidUTF8(doc.Ns, "")
-	doc.Op = strings.ToValidUTF8(doc.Op, "")
+	doc.Ns, _ = truncate.Query(doc.Ns)
+	doc.Op, _ = truncate.Query(doc.Op)
 
 	// add new doc to stats
 	return a.mongostats.Add(doc)
@@ -254,13 +255,15 @@ func (a *Aggregator) createResult(ctx context.Context) *report.Result {
 		s := strings.SplitN(v.Namespace, ".", 2)
 		if len(s) == 2 {
 			db = s[0]
-			collection = strings.ToValidUTF8(s[1], "")
+			collection, _ = truncate.Query(s[1])
 		}
 
+		fingerprint, _ := truncate.Query(v.Fingerprint)
+		example, _ := truncate.Query(v.Query)
 		bucket := &agentpb.MetricsBucket{
 			Common: &agentpb.MetricsBucket_Common{
 				Queryid:             v.ID,
-				Fingerprint:         strings.ToValidUTF8(v.Fingerprint, ""),
+				Fingerprint:         fingerprint,
 				Database:            db,
 				Tables:              []string{collection},
 				Username:            "",
@@ -269,7 +272,7 @@ func (a *Aggregator) createResult(ctx context.Context) *report.Result {
 				AgentType:           inventorypb.AgentType_QAN_MONGODB_PROFILER_AGENT,
 				PeriodStartUnixSecs: uint32(a.timeStart.Truncate(1 * time.Minute).Unix()),
 				PeriodLengthSecs:    uint32(a.d.Seconds()),
-				Example:             strings.ToValidUTF8(v.Query, ""),
+				Example:             example,
 				ExampleFormat:       agentpb.ExampleFormat_EXAMPLE,
 				ExampleType:         agentpb.ExampleType_RANDOM,
 				NumQueries:          float32(v.Count),

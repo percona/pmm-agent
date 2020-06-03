@@ -21,7 +21,6 @@ import (
 	"database/sql"
 	"io"
 	"math"
-	"strings"
 	"time"
 
 	"github.com/AlekSi/pointer"
@@ -34,6 +33,7 @@ import (
 	"gopkg.in/reform.v1/dialects/mysql"
 
 	"github.com/percona/pmm-agent/agents"
+	"github.com/percona/pmm-agent/utils/truncate"
 )
 
 const (
@@ -267,12 +267,13 @@ func makeBuckets(current, prev map[string]*eventsStatementsSummaryByDigest, l *l
 			l.Debugf("Normal query: %s.", currentESS)
 		}
 
+		fingerprint, _ := truncate.Query(*currentESS.DigestText)
 		count := inc(currentESS.CountStar, prevESS.CountStar)
 		mb := &agentpb.MetricsBucket{
 			Common: &agentpb.MetricsBucket_Common{
 				Schema:                 pointer.GetString(currentESS.SchemaName), // TODO can it be NULL?
 				Queryid:                *currentESS.Digest,
-				Fingerprint:            strings.ToValidUTF8(*currentESS.DigestText, ""),
+				Fingerprint:            fingerprint,
 				NumQueries:             count,
 				NumQueriesWithErrors:   inc(currentESS.SumErrors, prevESS.SumErrors),
 				NumQueriesWithWarnings: inc(currentESS.SumWarnings, prevESS.SumWarnings),

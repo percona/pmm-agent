@@ -22,7 +22,6 @@ import (
 	"io"
 	"math"
 	"strconv"
-	"strings"
 	"time"
 
 	_ "github.com/lib/pq" // register SQL driver
@@ -34,6 +33,7 @@ import (
 	"gopkg.in/reform.v1/dialects/postgresql"
 
 	"github.com/percona/pmm-agent/agents"
+	"github.com/percona/pmm-agent/utils/truncate"
 )
 
 const (
@@ -207,13 +207,14 @@ func makeBuckets(current, prev map[int64]*pgStatStatementsExtended, l *logrus.En
 			l.Debugf("Normal query: %s.", currentPSS)
 		}
 
+		fingerprint, _ := truncate.Query(currentPSS.Query)
 		mb := &agentpb.MetricsBucket{
 			Common: &agentpb.MetricsBucket_Common{
 				Database:    currentPSS.Database,
 				Tables:      currentPSS.Tables,
 				Username:    currentPSS.Username,
 				Queryid:     strconv.FormatInt(currentPSS.QueryID, 10),
-				Fingerprint: strings.ToValidUTF8(currentPSS.Query, ""),
+				Fingerprint: fingerprint,
 				NumQueries:  count,
 				AgentType:   inventorypb.AgentType_QAN_POSTGRESQL_PGSTATEMENTS_AGENT,
 				IsTruncated: currentPSS.IsQueryTruncated,

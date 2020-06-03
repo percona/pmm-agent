@@ -48,12 +48,9 @@ func TestSlowLogMakeBucketsInvalidUTF8(t *testing.T) {
 
 	parsingResult := event.Result{
 		Class: map[string]*event.Class{
-			"fingerprint": {
+			"example": {
 				Metrics:     &event.Metrics{},
 				Fingerprint: "set lock_wait_timeout=?\xff",
-			},
-			"example": {
-				Metrics: &event.Metrics{},
 				Example: &event.Example{
 					Query: "ping \xff",
 				},
@@ -70,15 +67,6 @@ func TestSlowLogMakeBucketsInvalidUTF8(t *testing.T) {
 				PeriodStartUnixSecs: 1557137220,
 				PeriodLengthSecs:    60,
 				Fingerprint:         "set lock_wait_timeout=?",
-			},
-			Mysql: &agentpb.MetricsBucket_MySQL{},
-		},
-		{
-			Common: &agentpb.MetricsBucket_Common{
-				AgentId:             agentID,
-				AgentType:           inventorypb.AgentType_QAN_MYSQL_SLOWLOG_AGENT,
-				PeriodStartUnixSecs: 1557137220,
-				PeriodLengthSecs:    60,
 				Example:             "ping ",
 				ExampleFormat:       agentpb.ExampleFormat_EXAMPLE,
 				ExampleType:         agentpb.ExampleType_RANDOM,
@@ -86,7 +74,7 @@ func TestSlowLogMakeBucketsInvalidUTF8(t *testing.T) {
 			Mysql: &agentpb.MetricsBucket_MySQL{},
 		},
 	}
-	require.Equal(t, 2, len(actualBuckets))
+	require.Equal(t, 1, len(actualBuckets))
 	for i := range actualBuckets {
 		assert.Equal(t, true, utf8.ValidString(actualBuckets[i].Common.Fingerprint))
 		assert.Equal(t, true, utf8.ValidString(actualBuckets[i].Common.Example))

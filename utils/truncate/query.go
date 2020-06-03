@@ -16,11 +16,13 @@
 // Package truncate privides strings truncation utilities.
 package truncate
 
+import "strings"
+
 var maxQueryLength = 2048
 
 // Query limits passed query string to 2048 Unicode runes, truncating it if necessary.
 func Query(q string) (query string, truncated bool) {
-	runes := []rune(q)
+	runes := []rune(strings.ToValidUTF8(q, ""))
 	if len(runes) <= maxQueryLength {
 		return string(runes), false
 	}
