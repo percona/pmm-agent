@@ -360,7 +360,7 @@
   version = "v3.2.0"
 
 [[projects]]
-  branch = "SAAS-126-mongodb-action"
+  branch = "PMM-2.0"
   digest = "1:0e0948b8fb265270c969c0b98eccde7045c79979da65a748acd712fe7b542708"
   name = "github.com/percona/pmm"
   packages = [
@@ -388,7 +388,7 @@
     "version",
   ]
   pruneopts = "NUT"
-  revision = "67e5fbbe902fb9704529f5bea4085852f65efba1"
+  revision = "6dfee9441bcf25192db2f5f638acfc8147b5b4be"
 
 [[projects]]
   digest = "1:4047c378584616813d610c9f993bf90dd0d07aed8d94bd3bc299cd35ececdcba"
