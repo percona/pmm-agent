@@ -22,6 +22,8 @@ var maxQueryLength = 2048
 
 // Query limits passed query string to 2048 Unicode runes, truncating it if necessary.
 func Query(q string) (query string, truncated bool) {
+	// convert invalid UTF-8 chars to unicode causes problem with sending data to pmm-managed
+	// so we delete invalid UTF-8 chars from string completly
 	runes := []rune(strings.ToValidUTF8(q, ""))
 	if len(runes) <= maxQueryLength {
 		return string(runes), false

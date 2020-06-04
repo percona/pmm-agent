@@ -99,7 +99,8 @@ func (a *Aggregator) Add(ctx context.Context, doc proto.SystemProfile) error {
 	// we had some activity so reset timer
 	a.t.Reset(a.d)
 
-	// need call it, because we cant use truncate.Query here (no property to save isTruncated)
+	// convert invalid UTF-8 chars to unicode causes problem with sending data to pmm-managed
+	// so we delete invalid UTF-8 chars from string completly
 	doc.Ns = strings.ToValidUTF8(doc.Ns, "")
 	doc.Op = strings.ToValidUTF8(doc.Op, "")
 
