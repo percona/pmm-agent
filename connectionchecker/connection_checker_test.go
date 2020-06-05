@@ -72,8 +72,7 @@ func TestConnectionChecker(t *testing.T) {
 				Type:    inventorypb.ServiceType_MONGODB_SERVICE,
 				Timeout: ptypes.DurationProto(3 * time.Second),
 			},
-			expectedErr: `.*auth error: sasl conversation error: unable to authenticate using mechanism "[\w-]+": ` +
-				`\(AuthenticationFailed\) Authentication failed.`,
+			expectedErr: `\(Unauthorized\) command serverStatus requires authentication`,
 		}, {
 			name: "MongoDB wrong params",
 			req: &agentpb.CheckConnectionRequest{
