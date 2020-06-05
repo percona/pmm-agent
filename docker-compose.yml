@@ -40,9 +40,7 @@ services:
   mongo:
     image: ${MONGO_IMAGE:-percona/percona-server-mongodb:4.2}
     container_name: pmm-agent_mongo
-    command: >
-      --auth
-      --profile 2
+    command: --profile 2
     ports:
       - 127.0.0.1:27017:27017
     environment:
