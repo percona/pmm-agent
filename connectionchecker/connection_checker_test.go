@@ -66,6 +66,15 @@ func TestConnectionChecker(t *testing.T) {
 				Timeout: ptypes.DurationProto(3 * time.Second),
 			},
 		}, {
+			name: "MongoDB no params",
+			req: &agentpb.CheckConnectionRequest{
+				Dsn:     "mongodb://127.0.0.1:27017/admin?connectTimeoutMS=1000",
+				Type:    inventorypb.ServiceType_MONGODB_SERVICE,
+				Timeout: ptypes.DurationProto(3 * time.Second),
+			},
+			expectedErr: `.*auth error: sasl conversation error: unable to authenticate using mechanism "[\w-]+": ` +
+				`\(AuthenticationFailed\) Authentication failed.`,
+		}, {
 			name: "MongoDB wrong params",
 			req: &agentpb.CheckConnectionRequest{
 				Dsn:     "mongodb://root:root-password-wrong@127.0.0.1:27017/admin?connectTimeoutMS=1000",
@@ -153,6 +162,7 @@ func TestConnectionChecker(t *testing.T) {
 			if tt.expectedErr == "" {
 				assert.Empty(t, resp.Error)
 			} else {
+				require.NotEmpty(t, resp.Error)
 				assert.Regexp(t, `^`+tt.expectedErr+`$`, resp.Error)
 			}
 		})
