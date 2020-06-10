@@ -26,7 +26,9 @@ import (
 
 	"github.com/golang/protobuf/ptypes"
 	"github.com/percona/exporter_shared/helpers"
+	"github.com/percona/pmm-agent/utils/truncate"
 	"github.com/percona/pmm/api/agentpb"
+	"github.com/percona/pmm/api/inventorypb"
 	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/assert"
@@ -89,6 +91,52 @@ func setup(t *testing.T, connect func(agentpb.Agent_ConnectServer) error, expect
 	}
 
 	return
+}
+
+func TestAgentRequestWithTruncatedInvalidUTF8(t *testing.T) {
+	const count = 50
+
+	fingerprint, _ := truncate.Query("SELECT * FROM contacts t0 WHERE t0.person_id = '?';")
+	query, _ := truncate.Query("SELECT * FROM contacts t0 WHERE t0.person_id = '߿�\xff\\uD83D\xdd'")
+
+	require.True(t, count > serverRequestsCap)
+	connect := func(stream agentpb.Agent_ConnectServer) error { //nolint:unparam
+		for i := uint32(1); i <= count; i++ {
+			msg, err := stream.Recv()
+			require.NoError(t, err)
+			assert.Equal(t, i, msg.Id)
+			require.NotNil(t, msg.GetQanCollect())
+			err = stream.Send(&agentpb.ServerMessage{
+				Id:      i,
+				Payload: new(agentpb.QANCollectResponse).ServerMessageResponsePayload(),
+			})
+			assert.NoError(t, err)
+		}
+		return nil
+	}
+	channel, _, teardown := setup(t, connect, io.EOF) // EOF = server exits from handler
+	defer teardown()
+	for i := uint32(1); i <= count; i++ {
+		const agentID = "/agent_id/73ee2f92-d5aa-45f0-8b09-6d3df605fd44"
+		rq := new(agentpb.QANCollectRequest)
+		rq.MetricsBucket = []*agentpb.MetricsBucket{
+			{
+				Common: &agentpb.MetricsBucket_Common{
+					AgentId:             agentID,
+					AgentType:           inventorypb.AgentType_QAN_MYSQL_SLOWLOG_AGENT,
+					PeriodStartUnixSecs: 1557137220,
+					PeriodLengthSecs:    60,
+					Fingerprint:         fingerprint,
+					Example:             query,
+					ExampleFormat:       agentpb.ExampleFormat_EXAMPLE,
+					ExampleType:         agentpb.ExampleType_RANDOM,
+				},
+				Mysql: &agentpb.MetricsBucket_MySQL{},
+			},
+		}
+		resp := channel.SendRequest(rq)
+		assert.NotNil(t, resp)
+	}
 }
 
 func TestAgentRequest(t *testing.T) {

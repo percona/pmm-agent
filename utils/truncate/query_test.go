@@ -38,9 +38,8 @@ func TestQuery(t *testing.T) {
 		"абвгдеё": {"а ...", true},
 
 		// Unicode replacement characters
-		// Invalid chars are replaced by "", so result of all invalid chars is empty string
-		"\xff\xff\xff\xff\xff":     {"", false},
-		"\xff\xff\xff\xff\xff\xff": {"", false},
+		"\xff\xff\xff\xff\xff":     {"\ufffd\ufffd\ufffd\ufffd\ufffd", false},
+		"\xff\xff\xff\xff\xff\xff": {"\ufffd ...", true},
 	} {
 		query, truncated := Query(q)
 		assert.Equal(t, expected.query, query)

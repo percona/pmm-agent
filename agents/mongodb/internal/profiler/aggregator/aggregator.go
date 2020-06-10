@@ -31,6 +31,7 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"github.com/percona/pmm-agent/agents/mongodb/internal/report"
+	"github.com/percona/pmm-agent/utils/truncate"
 )
 
 var DefaultInterval = time.Duration(time.Minute)
@@ -98,11 +99,6 @@ func (a *Aggregator) Add(ctx context.Context, doc proto.SystemProfile) error {
 
 	// we had some activity so reset timer
 	a.t.Reset(a.d)
-
-	// convert invalid UTF-8 chars to unicode causes problem with sending data to pmm-managed
-	// so we delete invalid UTF-8 chars from string completly
-	doc.Ns = strings.ToValidUTF8(doc.Ns, "")
-	doc.Op = strings.ToValidUTF8(doc.Op, "")
 
 	// add new doc to stats
 	return a.mongostats.Add(doc)
@@ -259,10 +255,23 @@ func (a *Aggregator) createResult(ctx context.Context) *report.Result {
 			collection = s[1]
 		}
 
+		var isTruncated bool
+		fingerprint, truncated := truncate.Query(v.Fingerprint)
+		if truncated {
+			isTruncated = truncated
+		}
+		query, truncated := truncate.Query(v.Query)
+		if truncated {
+			isTruncated = truncated
+		}
+		collection, truncated = truncate.Query(collection)
+		if truncated {
+			isTruncated = truncated
+		}
 		bucket := &agentpb.MetricsBucket{
 			Common: &agentpb.MetricsBucket_Common{
 				Queryid:             v.ID,
-				Fingerprint:         v.Fingerprint,
+				Fingerprint:         fingerprint,
 				Database:            db,
 				Tables:              []string{collection},
 				Username:            "",
@@ -271,10 +280,11 @@ func (a *Aggregator) createResult(ctx context.Context) *report.Result {
 				AgentType:           inventorypb.AgentType_QAN_MONGODB_PROFILER_AGENT,
 				PeriodStartUnixSecs: uint32(a.timeStart.Truncate(1 * time.Minute).Unix()),
 				PeriodLengthSecs:    uint32(a.d.Seconds()),
-				Example:             v.Query,
+				Example:             query,
 				ExampleFormat:       agentpb.ExampleFormat_EXAMPLE,
 				ExampleType:         agentpb.ExampleType_RANDOM,
 				NumQueries:          float32(v.Count),
+				IsTruncated:         isTruncated,
 			},
 			Mongodb: &agentpb.MetricsBucket_MongoDB{},
 		}

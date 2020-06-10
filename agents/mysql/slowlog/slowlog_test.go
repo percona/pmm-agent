@@ -33,6 +33,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/percona/pmm-agent/utils/tests"
+	"github.com/percona/pmm-agent/utils/truncate"
 )
 
 func getDataFromFile(t *testing.T, filePath string, data interface{}) {
@@ -46,18 +47,30 @@ func TestSlowLogMakeBucketsInvalidUTF8(t *testing.T) {
 	const agentID = "/agent_id/73ee2f92-d5aa-45f0-8b09-6d3df605fd44"
 	periodStart := time.Unix(1557137220, 0)
 
+	fingerprint := "SELECT * FROM contacts t0 WHERE t0.person_id = '?';"
+	query := "SELECT * FROM contacts t0 WHERE t0.person_id = '߿�\xff\\uD83D\xdd'"
+
 	parsingResult := event.Result{
 		Class: map[string]*event.Class{
 			"example": {
 				Metrics:     &event.Metrics{},
-				Fingerprint: "set lock_wait_timeout=?\xff",
+				Fingerprint: fingerprint,
 				Example: &event.Example{
-					Query: "set lock_wait_timeout=5\xff",
+					Query: query,
 				},
 			},
 		},
 	}
 
+	var isTruncated bool
+	expectedFingerprint, truncated := truncate.Query(fingerprint)
+	if truncated {
+		isTruncated = truncated
+	}
+	expectedQuery, truncated := truncate.Query(query)
+	if truncated {
+		isTruncated = truncated
+	}
 	actualBuckets := makeBuckets(agentID, parsingResult, periodStart, 60, false)
 	expectedBuckets := []*agentpb.MetricsBucket{
 		{
@@ -66,10 +79,11 @@ func TestSlowLogMakeBucketsInvalidUTF8(t *testing.T) {
 				AgentType:           inventorypb.AgentType_QAN_MYSQL_SLOWLOG_AGENT,
 				PeriodStartUnixSecs: 1557137220,
 				PeriodLengthSecs:    60,
-				Fingerprint:         "set lock_wait_timeout=?",
-				Example:             "set lock_wait_timeout=5",
+				Fingerprint:         expectedFingerprint,
+				Example:             expectedQuery,
 				ExampleFormat:       agentpb.ExampleFormat_EXAMPLE,
 				ExampleType:         agentpb.ExampleType_RANDOM,
+				IsTruncated:         isTruncated,
 			},
 			Mysql: &agentpb.MetricsBucket_MySQL{},
 		},
