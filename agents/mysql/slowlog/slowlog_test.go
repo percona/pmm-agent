@@ -49,8 +49,7 @@ func TestSlowLogMakeBucketsInvalidUTF8(t *testing.T) {
 	parsingResult := event.Result{
 		Class: map[string]*event.Class{
 			"example": {
-				Metrics:     &event.Metrics{},
-				Fingerprint: "SELECT * FROM contacts t0 WHERE t0.person_id = '?';",
+				Metrics: &event.Metrics{},
 				Example: &event.Example{
 					Query: "SELECT * FROM contacts t0 WHERE t0.person_id = '߿�\xff\\ud83d\xdd'",
 				},
@@ -66,7 +65,6 @@ func TestSlowLogMakeBucketsInvalidUTF8(t *testing.T) {
 				AgentType:           inventorypb.AgentType_QAN_MYSQL_SLOWLOG_AGENT,
 				PeriodStartUnixSecs: 1557137220,
 				PeriodLengthSecs:    60,
-				Fingerprint:         "SELECT * FROM contacts t0 WHERE t0.person_id = '?';",
 				Example:             "SELECT * FROM contacts t0 WHERE t0.person_id = '߿�\ufffd\\ud83d\ufffd'",
 				ExampleFormat:       agentpb.ExampleFormat_EXAMPLE,
 				ExampleType:         agentpb.ExampleType_RANDOM,
@@ -76,7 +74,6 @@ func TestSlowLogMakeBucketsInvalidUTF8(t *testing.T) {
 	}
 
 	require.Equal(t, 1, len(actualBuckets))
-	assert.True(t, utf8.ValidString(actualBuckets[0].Common.Fingerprint))
 	assert.True(t, utf8.ValidString(actualBuckets[0].Common.Example))
 	tests.AssertBucketsEqual(t, expectedBuckets[0], actualBuckets[0])
 }

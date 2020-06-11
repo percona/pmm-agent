@@ -20,7 +20,6 @@ import (
 	"strings"
 	"testing"
 	"time"
-	"unicode/utf8"
 
 	"github.com/AlekSi/pointer"
 	"github.com/percona/pmm/api/agentpb"
@@ -163,38 +162,6 @@ func TestPerfSchemaMakeBuckets(t *testing.T) {
 			},
 		}
 		tests.AssertBucketsEqual(t, expected, actual[0])
-	})
-
-	t.Run("NewInvalidUTF8", func(t *testing.T) {
-		prev := map[string]*eventsStatementsSummaryByDigest{}
-		current := map[string]*eventsStatementsSummaryByDigest{
-			"Normal": {
-				Digest:          pointer.ToString("Normal"),
-				DigestText:      pointer.ToString("SELECT '\xff'"),
-				CountStar:       5,
-				SumRowsAffected: 10,
-			},
-		}
-		actual := makeBuckets(current, prev, logrus.WithField("test", t.Name()))
-		require.Len(t, actual, 1)
-		expected := []*agentpb.MetricsBucket{
-			{
-				Common: &agentpb.MetricsBucket_Common{
-					Queryid:     "Normal",
-					Fingerprint: "SELECT '\ufffd'",
-					AgentType:   inventorypb.AgentType_QAN_MYSQL_PERFSCHEMA_AGENT,
-					NumQueries:  5,
-				},
-				Mysql: &agentpb.MetricsBucket_MySQL{
-					MRowsAffectedCnt: 5,
-					MRowsAffectedSum: 10,
-				},
-			},
-		}
-		require.Equal(t, 1, len(actual))
-		assert.True(t, utf8.ValidString(actual[0].Common.Fingerprint))
-		assert.True(t, utf8.ValidString(actual[0].Common.Example))
-		tests.AssertBucketsEqual(t, expected[0], actual[0])
 	})
 }
 

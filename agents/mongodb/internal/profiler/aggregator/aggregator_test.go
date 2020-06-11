@@ -115,12 +115,11 @@ func TestAggregator(t *testing.T) {
 		result := aggregator.createResult(ctx)
 
 		require.Equal(t, 1, len(result.Buckets))
-		assert.True(t, utf8.ValidString(result.Buckets[0].Common.Fingerprint))
 		assert.True(t, utf8.ValidString(result.Buckets[0].Common.Example))
 		tests.AssertBucketsEqual(t, &agentpb.MetricsBucket{
 			Common: &agentpb.MetricsBucket_Common{
 				Queryid:             result.Buckets[0].Common.Queryid,
-				Fingerprint:         "INSERT people߿�\ufffd\\ud83d\ufffd",
+				Fingerprint:         "INSERT people߿�\xff\\ud83d\xdd",
 				Database:            "collection",
 				Tables:              []string{"people߿�\ufffd\\ud83d\ufffd"},
 				AgentId:             agentID,

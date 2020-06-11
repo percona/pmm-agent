@@ -255,13 +255,12 @@ func (a *Aggregator) createResult(ctx context.Context) *report.Result {
 			collection = s[1]
 		}
 
-		fingerprint, _ := truncate.Query(v.Fingerprint)
 		query, _ := truncate.Query(v.Query)
 		collection, truncated := truncate.Query(collection)
 		bucket := &agentpb.MetricsBucket{
 			Common: &agentpb.MetricsBucket_Common{
 				Queryid:             v.ID,
-				Fingerprint:         fingerprint,
+				Fingerprint:         v.Fingerprint,
 				Database:            db,
 				Tables:              []string{collection},
 				Username:            "",
