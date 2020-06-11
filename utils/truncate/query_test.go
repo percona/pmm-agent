@@ -18,8 +18,6 @@ package truncate
 import (
 	"testing"
 
-	"github.com/gogo/protobuf/proto"
-	"github.com/percona/pmm/api/agentpb"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -40,23 +38,11 @@ func TestQuery(t *testing.T) {
 		"абвгдеё": {"а ...", true},
 
 		// Unicode replacement characters
-		"\xff\xff\xff\xff\xff":     {"\ufffd\ufffd\ufffd\ufffd\ufffd", false},
-		"\xff\xff\xff\xff\xff\xff": {"\ufffd ...", true},
+		"\xff\xff\xff\xff\xff":     {"\uFFFD\uFFFD\uFFFD\uFFFD\uFFFD", false},
+		"\xff\xff\xff\xff\xff\xff": {"\uFFFD ...", true},
 	} {
 		query, truncated := Query(q)
 		assert.Equal(t, expected.query, query)
 		assert.Equal(t, expected.truncated, truncated)
 	}
-}
-
-func TestProtobuf(t *testing.T) {
-	query, _ := Query("SELECT * FROM contacts t0 WHERE t0.person_id = '߿�\xff\\uD83D\xdd'")
-	bucket := &agentpb.MetricsBucket{
-		Common: &agentpb.MetricsBucket_Common{
-			Example: query,
-		},
-	}
-
-	_, err := proto.Marshal(bucket)
-	assert.NoError(t, err)
 }

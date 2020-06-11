@@ -192,11 +192,9 @@ func TestPerfSchemaMakeBuckets(t *testing.T) {
 			},
 		}
 		require.Equal(t, 1, len(actual))
-		for i := range actual {
-			assert.Equal(t, true, utf8.ValidString(actual[i].Common.Fingerprint))
-			assert.Equal(t, true, utf8.ValidString(actual[i].Common.Example))
-			tests.AssertBucketsEqual(t, expected[i], actual[i])
-		}
+		assert.True(t, utf8.ValidString(actual[0].Common.Fingerprint))
+		assert.True(t, utf8.ValidString(actual[0].Common.Example))
+		tests.AssertBucketsEqual(t, expected[0], actual[0])
 	})
 }
 

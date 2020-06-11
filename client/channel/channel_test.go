@@ -26,7 +26,6 @@ import (
 
 	"github.com/golang/protobuf/ptypes"
 	"github.com/percona/exporter_shared/helpers"
-	"github.com/percona/pmm-agent/utils/truncate"
 	"github.com/percona/pmm/api/agentpb"
 	"github.com/percona/pmm/api/inventorypb"
 	"github.com/pkg/errors"
@@ -36,6 +35,8 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+
+	"github.com/percona/pmm-agent/utils/truncate"
 )
 
 type testServer struct {
@@ -94,12 +95,11 @@ func setup(t *testing.T, connect func(agentpb.Agent_ConnectServer) error, expect
 }
 
 func TestAgentRequestWithTruncatedInvalidUTF8(t *testing.T) {
-	const count = 50
+	const count = 1
 
 	fingerprint, _ := truncate.Query("SELECT * FROM contacts t0 WHERE t0.person_id = '?';")
 	query, _ := truncate.Query("SELECT * FROM contacts t0 WHERE t0.person_id = '߿�\xff\\uD83D\xdd'")
 
-	require.True(t, count > serverRequestsCap)
 	connect := func(stream agentpb.Agent_ConnectServer) error { //nolint:unparam
 		for i := uint32(1); i <= count; i++ {
 			msg, err := stream.Recv()

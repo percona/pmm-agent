@@ -33,7 +33,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/percona/pmm-agent/utils/tests"
-	"github.com/percona/pmm-agent/utils/truncate"
 )
 
 func getDataFromFile(t *testing.T, filePath string, data interface{}) {
@@ -47,30 +46,18 @@ func TestSlowLogMakeBucketsInvalidUTF8(t *testing.T) {
 	const agentID = "/agent_id/73ee2f92-d5aa-45f0-8b09-6d3df605fd44"
 	periodStart := time.Unix(1557137220, 0)
 
-	fingerprint := "SELECT * FROM contacts t0 WHERE t0.person_id = '?';"
-	query := "SELECT * FROM contacts t0 WHERE t0.person_id = '߿�\xff\\uD83D\xdd'"
-
 	parsingResult := event.Result{
 		Class: map[string]*event.Class{
 			"example": {
 				Metrics:     &event.Metrics{},
-				Fingerprint: fingerprint,
+				Fingerprint: "SELECT * FROM contacts t0 WHERE t0.person_id = '?';",
 				Example: &event.Example{
-					Query: query,
+					Query: "SELECT * FROM contacts t0 WHERE t0.person_id = '߿�\xff\\ud83d\xdd'",
 				},
 			},
 		},
 	}
 
-	var isTruncated bool
-	expectedFingerprint, truncated := truncate.Query(fingerprint)
-	if truncated {
-		isTruncated = truncated
-	}
-	expectedQuery, truncated := truncate.Query(query)
-	if truncated {
-		isTruncated = truncated
-	}
 	actualBuckets := makeBuckets(agentID, parsingResult, periodStart, 60, false)
 	expectedBuckets := []*agentpb.MetricsBucket{
 		{
@@ -79,21 +66,19 @@ func TestSlowLogMakeBucketsInvalidUTF8(t *testing.T) {
 				AgentType:           inventorypb.AgentType_QAN_MYSQL_SLOWLOG_AGENT,
 				PeriodStartUnixSecs: 1557137220,
 				PeriodLengthSecs:    60,
-				Fingerprint:         expectedFingerprint,
-				Example:             expectedQuery,
+				Fingerprint:         "SELECT * FROM contacts t0 WHERE t0.person_id = '?';",
+				Example:             "SELECT * FROM contacts t0 WHERE t0.person_id = '߿�\ufffd\\ud83d\ufffd'",
 				ExampleFormat:       agentpb.ExampleFormat_EXAMPLE,
 				ExampleType:         agentpb.ExampleType_RANDOM,
-				IsTruncated:         isTruncated,
 			},
 			Mysql: &agentpb.MetricsBucket_MySQL{},
 		},
 	}
+
 	require.Equal(t, 1, len(actualBuckets))
-	for i := range actualBuckets {
-		assert.Equal(t, true, utf8.ValidString(actualBuckets[i].Common.Fingerprint))
-		assert.Equal(t, true, utf8.ValidString(actualBuckets[i].Common.Example))
-		tests.AssertBucketsEqual(t, expectedBuckets[i], actualBuckets[i])
-	}
+	assert.True(t, utf8.ValidString(actualBuckets[0].Common.Fingerprint))
+	assert.True(t, utf8.ValidString(actualBuckets[0].Common.Example))
+	tests.AssertBucketsEqual(t, expectedBuckets[0], actualBuckets[0])
 }
 
 func TestSlowLogMakeBuckets(t *testing.T) {

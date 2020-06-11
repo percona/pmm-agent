@@ -27,7 +27,6 @@ import (
 
 	"github.com/percona/pmm-agent/agents/mongodb/internal/report"
 	"github.com/percona/pmm-agent/utils/tests"
-	"github.com/percona/pmm-agent/utils/truncate"
 
 	"github.com/percona/percona-toolkit/src/go/mongolib/proto"
 	"github.com/sirupsen/logrus"
@@ -100,10 +99,6 @@ func TestAggregator(t *testing.T) {
 
 	t.Run("createResultInvalidUTF8", func(t *testing.T) {
 		agentID := "test-agent"
-
-		table := "people߿�\xff\\ud83d\xdd"
-		operation := "INSERT"
-
 		startPeriod := time.Now()
 		aggregator := New(startPeriod, agentID, logrus.WithField("component", "test"))
 		aggregator.Start()
@@ -112,42 +107,31 @@ func TestAggregator(t *testing.T) {
 		err := aggregator.Add(ctx, proto.SystemProfile{
 			NscannedObjects: 2,
 			Nreturned:       3,
-			Ns:              "collection." + table,
-			Op:              operation,
+			Ns:              "collection.people߿�\xff\\ud83d\xdd",
+			Op:              "INSERT",
 		})
 		require.NoError(t, err)
 
 		result := aggregator.createResult(ctx)
 
-		var isTruncated bool
-		expectedTable, truncated := truncate.Query(table)
-		if truncated {
-			isTruncated = truncated
-		}
-		expectedOperation, truncated := truncate.Query(operation)
-		if truncated {
-			isTruncated = truncated
-		}
-
 		require.Equal(t, 1, len(result.Buckets))
-		assert.Equal(t, true, utf8.ValidString(result.Buckets[0].Common.Fingerprint))
-		assert.Equal(t, true, utf8.ValidString(result.Buckets[0].Common.Example))
+		assert.True(t, utf8.ValidString(result.Buckets[0].Common.Fingerprint))
+		assert.True(t, utf8.ValidString(result.Buckets[0].Common.Example))
 		tests.AssertBucketsEqual(t, &agentpb.MetricsBucket{
 			Common: &agentpb.MetricsBucket_Common{
 				Queryid:             result.Buckets[0].Common.Queryid,
-				Fingerprint:         expectedOperation + " " + expectedTable,
+				Fingerprint:         "INSERT people߿�\ufffd\\ud83d\ufffd",
 				Database:            "collection",
-				Tables:              []string{expectedTable},
+				Tables:              []string{"people߿�\ufffd\\ud83d\ufffd"},
 				AgentId:             agentID,
 				AgentType:           inventorypb.AgentType_QAN_MONGODB_PROFILER_AGENT,
 				PeriodStartUnixSecs: uint32(startPeriod.Truncate(DefaultInterval).Unix()),
 				PeriodLengthSecs:    60,
-				Example:             `{"ns":"collection.people߿�\ufffd\\ud83d\ufffd","op":"` + expectedOperation + `"}`,
+				Example:             `{"ns":"collection.people߿�\ufffd\\ud83d\ufffd","op":"INSERT"}`,
 				ExampleFormat:       agentpb.ExampleFormat_EXAMPLE,
 				ExampleType:         agentpb.ExampleType_RANDOM,
 				NumQueries:          1,
 				MQueryTimeCnt:       1,
-				IsTruncated:         isTruncated,
 			},
 			Mongodb: &agentpb.MetricsBucket_MongoDB{
 				MDocsReturnedCnt:   1,

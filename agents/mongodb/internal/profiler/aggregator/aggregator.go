@@ -255,19 +255,9 @@ func (a *Aggregator) createResult(ctx context.Context) *report.Result {
 			collection = s[1]
 		}
 
-		var isTruncated bool
-		fingerprint, truncated := truncate.Query(v.Fingerprint)
-		if truncated {
-			isTruncated = truncated
-		}
-		query, truncated := truncate.Query(v.Query)
-		if truncated {
-			isTruncated = truncated
-		}
-		collection, truncated = truncate.Query(collection)
-		if truncated {
-			isTruncated = truncated
-		}
+		fingerprint, _ := truncate.Query(v.Fingerprint)
+		query, _ := truncate.Query(v.Query)
+		collection, truncated := truncate.Query(collection)
 		bucket := &agentpb.MetricsBucket{
 			Common: &agentpb.MetricsBucket_Common{
 				Queryid:             v.ID,
@@ -284,7 +274,7 @@ func (a *Aggregator) createResult(ctx context.Context) *report.Result {
 				ExampleFormat:       agentpb.ExampleFormat_EXAMPLE,
 				ExampleType:         agentpb.ExampleType_RANDOM,
 				NumQueries:          float32(v.Count),
-				IsTruncated:         isTruncated,
+				IsTruncated:         truncated,
 			},
 			Mongodb: &agentpb.MetricsBucket_MongoDB{},
 		}
