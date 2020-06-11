@@ -255,8 +255,7 @@ func (a *Aggregator) createResult(ctx context.Context) *report.Result {
 			collection = s[1]
 		}
 
-		query, _ := truncate.Query(v.Query)
-		collection, truncated := truncate.Query(collection)
+		query, truncated := truncate.Query(v.Query)
 		bucket := &agentpb.MetricsBucket{
 			Common: &agentpb.MetricsBucket_Common{
 				Queryid:             v.ID,

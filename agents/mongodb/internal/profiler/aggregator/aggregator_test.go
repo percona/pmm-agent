@@ -17,6 +17,7 @@ package aggregator
 
 import (
 	"context"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"testing"
 	"time"
 	"unicode/utf8"
@@ -25,10 +26,8 @@ import (
 	"github.com/percona/pmm/api/inventorypb"
 	"github.com/stretchr/testify/require"
 
-	"github.com/percona/pmm-agent/agents/mongodb/internal/report"
-	"github.com/percona/pmm-agent/utils/tests"
-
 	"github.com/percona/percona-toolkit/src/go/mongolib/proto"
+	"github.com/percona/pmm-agent/agents/mongodb/internal/report"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 )
@@ -107,8 +106,9 @@ func TestAggregator(t *testing.T) {
 		err := aggregator.Add(ctx, proto.SystemProfile{
 			NscannedObjects: 2,
 			Nreturned:       3,
-			Ns:              "collection.people߿�\xff\\ud83d\xdd",
-			Op:              "INSERT",
+			Ns:              "collection.people",
+			Op:              "query",
+			Command:         proto.BsonD{primitive.E{Key: "find", Value: "people"}, primitive.E{Key: "filter", Value: proto.BsonD{primitive.E{Key: "name_\xff", Value: "value_\xff"}}}},
 		})
 		require.NoError(t, err)
 
@@ -116,35 +116,39 @@ func TestAggregator(t *testing.T) {
 
 		require.Equal(t, 1, len(result.Buckets))
 		assert.True(t, utf8.ValidString(result.Buckets[0].Common.Example))
-		tests.AssertBucketsEqual(t, &agentpb.MetricsBucket{
-			Common: &agentpb.MetricsBucket_Common{
-				Queryid:             result.Buckets[0].Common.Queryid,
-				Fingerprint:         "INSERT people߿�\xff\\ud83d\xdd",
-				Database:            "collection",
-				Tables:              []string{"people߿�\ufffd\\ud83d\ufffd"},
-				AgentId:             agentID,
-				AgentType:           inventorypb.AgentType_QAN_MONGODB_PROFILER_AGENT,
-				PeriodStartUnixSecs: uint32(startPeriod.Truncate(DefaultInterval).Unix()),
-				PeriodLengthSecs:    60,
-				Example:             `{"ns":"collection.people߿�\ufffd\\ud83d\ufffd","op":"INSERT"}`,
-				ExampleFormat:       agentpb.ExampleFormat_EXAMPLE,
-				ExampleType:         agentpb.ExampleType_RANDOM,
-				NumQueries:          1,
-				MQueryTimeCnt:       1,
+		assert.Equal(t, report.Result{
+			Buckets: []*agentpb.MetricsBucket{
+				{
+					Common: &agentpb.MetricsBucket_Common{
+						Queryid:             result.Buckets[0].Common.Queryid,
+						Fingerprint:         "FIND people name_\377",
+						Database:            "collection",
+						Tables:              []string{"people"},
+						AgentId:             agentID,
+						AgentType:           inventorypb.AgentType_QAN_MONGODB_PROFILER_AGENT,
+						PeriodStartUnixSecs: uint32(startPeriod.Truncate(DefaultInterval).Unix()),
+						PeriodLengthSecs:    60,
+						Example:             "{\"ns\":\"collection.people\",\"op\":\"query\",\"command\":{\"find\":\"people\",\"filter\":{\"name_\\ufffd\":\"value_\\ufffd\"}}}",
+						ExampleFormat:       agentpb.ExampleFormat_EXAMPLE,
+						ExampleType:         agentpb.ExampleType_RANDOM,
+						NumQueries:          1,
+						MQueryTimeCnt:       1,
+					},
+					Mongodb: &agentpb.MetricsBucket_MongoDB{
+						MDocsReturnedCnt:   1,
+						MDocsReturnedSum:   3,
+						MDocsReturnedMin:   3,
+						MDocsReturnedMax:   3,
+						MDocsReturnedP99:   3,
+						MResponseLengthCnt: 1,
+						MDocsScannedCnt:    1,
+						MDocsScannedSum:    2,
+						MDocsScannedMin:    2,
+						MDocsScannedMax:    2,
+						MDocsScannedP99:    2,
+					},
+				},
 			},
-			Mongodb: &agentpb.MetricsBucket_MongoDB{
-				MDocsReturnedCnt:   1,
-				MDocsReturnedSum:   3,
-				MDocsReturnedMin:   3,
-				MDocsReturnedMax:   3,
-				MDocsReturnedP99:   3,
-				MResponseLengthCnt: 1,
-				MDocsScannedCnt:    1,
-				MDocsScannedSum:    2,
-				MDocsScannedMin:    2,
-				MDocsScannedMax:    2,
-				MDocsScannedP99:    2,
-			},
-		}, result.Buckets[0])
+		}, *result)
 	})
 }
