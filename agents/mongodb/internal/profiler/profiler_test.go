@@ -122,8 +122,6 @@ func TestProfiler(t *testing.T) {
 	for _, r := range ms.reports {
 		for _, bucket := range r.Buckets {
 			if bucket.Common.Fingerprint != "INSERT people" {
-				fmt.Println(bucket.Common.Fingerprint)
-				fmt.Println(bucket.Common.Example)
 				continue
 			}
 			key := fmt.Sprintf("%s:%s", bucket.Common.Database, bucket.Common.Fingerprint)

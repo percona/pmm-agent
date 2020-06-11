@@ -17,19 +17,19 @@ package aggregator
 
 import (
 	"context"
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"testing"
 	"time"
 	"unicode/utf8"
 
+	"github.com/percona/percona-toolkit/src/go/mongolib/proto"
 	"github.com/percona/pmm/api/agentpb"
 	"github.com/percona/pmm/api/inventorypb"
-	"github.com/stretchr/testify/require"
-
-	"github.com/percona/percona-toolkit/src/go/mongolib/proto"
-	"github.com/percona/pmm-agent/agents/mongodb/internal/report"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"go.mongodb.org/mongo-driver/bson/primitive"
+
+	"github.com/percona/pmm-agent/agents/mongodb/internal/report"
 )
 
 func TestAggregator(t *testing.T) {
