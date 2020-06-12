@@ -283,7 +283,7 @@ func TestPerfSchema(t *testing.T) {
 		digests = map[string]string{
 			"SELECT `sleep` (?)":                  "af50128de9089f71d749eda5ba3d02cd",
 			"SELECT * FROM `city`":                "2153d686f335a2ca39f3aca05bf9709a",
-			"SELECT * FROM `city` WHERE NAME = ?": "57bba687bbd92b3062e021aa3ac03785",
+			"SELECT * FROM `city` WHERE NAME = ?": "b72eb930fcce55698420229c64e159e8",
 		}
 
 	case "10.4-mariadb":
