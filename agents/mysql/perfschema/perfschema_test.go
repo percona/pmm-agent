@@ -407,6 +407,11 @@ func TestPerfSchema(t *testing.T) {
 			example = "SELECT /* t1 */ * FROM t1 where col1=..."
 		}
 
+		var numQueriesWithWarnings float32
+		if mySQLVendor != "mariadb" {
+			numQueriesWithWarnings = 1
+		}
+
 		buckets, err := m.getNewBuckets(time.Date(2019, 4, 1, 10, 59, 0, 0, time.UTC), 60)
 		require.NoError(t, err)
 		buckets = filter(buckets)
@@ -427,7 +432,7 @@ func TestPerfSchema(t *testing.T) {
 				ExampleFormat:          agentpb.ExampleFormat_EXAMPLE,
 				ExampleType:            agentpb.ExampleType_RANDOM,
 				NumQueries:             1,
-				NumQueriesWithWarnings: 1,
+				NumQueriesWithWarnings: numQueriesWithWarnings,
 				MQueryTimeCnt:          1,
 				MQueryTimeSum:          actual.Common.MQueryTimeSum,
 			},
