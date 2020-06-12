@@ -95,7 +95,7 @@ func setup(t *testing.T, connect func(agentpb.Agent_ConnectServer) error, expect
 
 func TestAgentRequestWithTruncatedInvalidUTF8(t *testing.T) {
 	fingerprint, _ := truncate.Query("SELECT * FROM contacts t0 WHERE t0.person_id = '?';")
-	invalidQuery := "SELECT * FROM contacts t0 WHERE t0.person_id = '߿�\xff\\uD83D\xddÃ¼'"
+	invalidQuery := "SELECT * FROM contacts t0 WHERE t0.person_id = '߿�\xff\\uD83D\xddÃ¼\xf1'"
 	query, _ := truncate.Query(invalidQuery)
 
 	connect := func(stream agentpb.Agent_ConnectServer) error { //nolint:unparam
@@ -104,41 +104,39 @@ func TestAgentRequestWithTruncatedInvalidUTF8(t *testing.T) {
 		assert.Equal(t, uint32(1), msg.Id)
 		require.NotNil(t, msg.GetQanCollect())
 		err = stream.Send(&agentpb.ServerMessage{
-			Id:      1,
+			Id:      uint32(1),
 			Payload: new(agentpb.QANCollectResponse).ServerMessageResponsePayload(),
 		})
 		assert.NoError(t, err)
-		assert.Equal(t, "SELECT * FROM contacts t0 WHERE t0.person_id = '߿��\\uD83D�Ã¼'", msg.GetQanCollect().MetricsBucket[0].Common.Example)
+		assert.Equal(t, "SELECT * FROM contacts t0 WHERE t0.person_id = '߿��\\uD83D�Ã¼�'", msg.GetQanCollect().MetricsBucket[0].Common.Example)
+
+		_, err = stream.Recv()
+		require.EqualError(t, err, "rpc error: code = Canceled desc = context canceled")
 		return nil
 	}
-	channel, _, teardown := setup(t, connect, io.EOF) // EOF = server exits from handler
+	channel, _, teardown := setup(t, connect, status.Error(codes.Internal, `grpc: error while marshaling: proto: field "agent.MetricsBucket.Common.Example" contains invalid UTF-8`))
 	defer teardown()
 	rq := new(agentpb.QANCollectRequest)
-	rq.MetricsBucket = []*agentpb.MetricsBucket{
-		{
-			Common: &agentpb.MetricsBucket_Common{
-				Fingerprint: fingerprint,
-				Example:     query,
-			},
-			Mysql: &agentpb.MetricsBucket_MySQL{},
+	rq.MetricsBucket = []*agentpb.MetricsBucket{{
+		Common: &agentpb.MetricsBucket_Common{
+			Fingerprint: fingerprint,
+			Example:     query,
 		},
-	}
+		Mysql: &agentpb.MetricsBucket_MySQL{},
+	}}
 	resp := channel.SendRequest(rq)
 	assert.NotNil(t, resp)
 
-	rq.MetricsBucket = []*agentpb.MetricsBucket{
-		{
-			Common: &agentpb.MetricsBucket_Common{
-				Fingerprint: fingerprint,
-				Example:     invalidQuery,
-			},
-			Mysql: &agentpb.MetricsBucket_MySQL{},
+	// Testing that it was failing with invalid query
+	rq.MetricsBucket = []*agentpb.MetricsBucket{{
+		Common: &agentpb.MetricsBucket_Common{
+			Fingerprint: fingerprint,
+			Example:     invalidQuery,
 		},
-	}
+		Mysql: &agentpb.MetricsBucket_MySQL{},
+	}}
 	resp = channel.SendRequest(rq)
 	assert.Nil(t, resp)
-	err := channel.Wait()
-	require.EqualError(t, err, "failed to receive message: EOF")
 }
 
 func TestAgentRequest(t *testing.T) {

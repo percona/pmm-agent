@@ -208,6 +208,8 @@ func filter(mb []*agentpb.MetricsBucket) []*agentpb.MetricsBucket {
 			continue
 		case b.Common.Fingerprint == "SELECT COUNT ( * ) FROM `city`": // actions tests
 			continue
+		case b.Common.Fingerprint == "CREATE TABLE IF NOT EXISTS `t1` ( `col1` CHARACTER (?) ) CHARACTER SET `utf32` COLLATE `utf32_general_ci`": // tests for invalid characters
+			continue
 
 		case strings.HasPrefix(b.Common.Fingerprint, "SELECT @@`slow_query_log"): // slowlog
 			continue
@@ -240,57 +242,49 @@ func TestPerfSchema(t *testing.T) {
 	switch fmt.Sprintf("%s-%s", mySQLVersion, mySQLVendor) {
 	case "5.6-oracle":
 		digests = map[string]string{
-			"SELECT `sleep` (?)":                  "192ad18c482d389f36ebb0aa58311236",
-			"SELECT * FROM `city`":                "cf5d7abca54943b1aa9e126c85a7d020",
-			"SELECT * FROM `city` WHERE NAME = ?": "81d2ecd4910b383911ba791640c80cf4",
+			"SELECT `sleep` (?)":   "192ad18c482d389f36ebb0aa58311236",
+			"SELECT * FROM `city`": "cf5d7abca54943b1aa9e126c85a7d020",
 		}
 	case "5.7-oracle":
 		digests = map[string]string{
-			"SELECT `sleep` (?)":                  "52f680b0d3b57c2fa381f52038754db4",
-			"SELECT * FROM `city`":                "05292e6e5fb868ce2864918d5e934cb3",
-			"SELECT * FROM `city` WHERE NAME = ?": "3571e8f8c7f27fc963ced79f4826b810",
+			"SELECT `sleep` (?)":   "52f680b0d3b57c2fa381f52038754db4",
+			"SELECT * FROM `city`": "05292e6e5fb868ce2864918d5e934cb3",
 		}
 
 	case "5.6-percona":
 		digests = map[string]string{
-			"SELECT `sleep` (?)":                  "d8dc769e3126abd5578679f520bad1a5",
-			"SELECT * FROM `city`":                "6d3c8e264bfdd0ce5d3c81d481148a9c",
-			"SELECT * FROM `city` WHERE NAME = ?": "076d9c4f01b830ec9e419958d221f386",
+			"SELECT `sleep` (?)":   "d8dc769e3126abd5578679f520bad1a5",
+			"SELECT * FROM `city`": "6d3c8e264bfdd0ce5d3c81d481148a9c",
 		}
 	case "5.7-percona":
 		digests = map[string]string{
-			"SELECT `sleep` (?)":                  "049a1b20acee144f86b9a1e4aca398d6",
-			"SELECT * FROM `city`":                "9c799bdb2460f79b3423b77cd10403da",
-			"SELECT * FROM `city` WHERE NAME = ?": "57bba687bbd92b3062e021aa3ac03785",
+			"SELECT `sleep` (?)":   "049a1b20acee144f86b9a1e4aca398d6",
+			"SELECT * FROM `city`": "9c799bdb2460f79b3423b77cd10403da",
 		}
 
 	case "8.0-oracle", "8.0-percona":
 		digests = map[string]string{
-			"SELECT `sleep` (?)":                  "0b1b1c39d4ee2dda7df2a532d0a23406d86bd34e2cd7f22e3f7e9dedadff9b69",
-			"SELECT * FROM `city`":                "950bdc225cf73c9096ba499351ed4376f4526abad3d8ceabc168b6b28cfc9eab",
-			"SELECT * FROM `city` WHERE NAME = ?": "b49cb8f3db720a96fb29da86437bd7809ef30463fac88e85ed4f851f96dcaa30",
+			"SELECT `sleep` (?)":   "0b1b1c39d4ee2dda7df2a532d0a23406d86bd34e2cd7f22e3f7e9dedadff9b69",
+			"SELECT * FROM `city`": "950bdc225cf73c9096ba499351ed4376f4526abad3d8ceabc168b6b28cfc9eab",
 		}
 		rowsExamined = 1
 
 	case "10.2-mariadb":
 		digests = map[string]string{
-			"SELECT `sleep` (?)":                  "e58c348e4947db23b7f3ad30b7ed184a",
-			"SELECT * FROM `city`":                "e0f47172152e8750d070a854e607123f",
-			"SELECT * FROM `city` WHERE NAME = ?": "8033f848750a3c0c0ff209320e8b6f54",
+			"SELECT `sleep` (?)":   "e58c348e4947db23b7f3ad30b7ed184a",
+			"SELECT * FROM `city`": "e0f47172152e8750d070a854e607123f",
 		}
 
 	case "10.3-mariadb":
 		digests = map[string]string{
-			"SELECT `sleep` (?)":                  "af50128de9089f71d749eda5ba3d02cd",
-			"SELECT * FROM `city`":                "2153d686f335a2ca39f3aca05bf9709a",
-			"SELECT * FROM `city` WHERE NAME = ?": "b72eb930fcce55698420229c64e159e8",
+			"SELECT `sleep` (?)":   "af50128de9089f71d749eda5ba3d02cd",
+			"SELECT * FROM `city`": "2153d686f335a2ca39f3aca05bf9709a",
 		}
 
 	case "10.4-mariadb":
 		digests = map[string]string{
-			"SELECT `sleep` (?)":                  "84a33aa2dff8b023bfd9c28247516e55",
-			"SELECT * FROM `city`":                "639b3ffc239a110c57ade746773952ab",
-			"SELECT * FROM `city` WHERE NAME = ?": "338e831d9148530b1b1e834e34241611",
+			"SELECT `sleep` (?)":   "84a33aa2dff8b023bfd9c28247516e55",
+			"SELECT * FROM `city`": "639b3ffc239a110c57ade746773952ab",
 		}
 
 	default:
@@ -393,7 +387,14 @@ func TestPerfSchema(t *testing.T) {
 	t.Run("Invalid UTF-8", func(t *testing.T) {
 		m := setup(t, db)
 
-		_, err := db.Exec("SELECT /* AllCities */ * FROM city where Name='BÃ¼rki'")
+		_, err := db.Exec("CREATE TABLE if not exists t1(col1 CHAR(100)) CHARACTER SET utf32 COLLATE utf32_general_ci")
+		require.NoError(t, err)
+		defer func() {
+			_, err := db.Exec("DROP TABLE t1")
+			require.NoError(t, err)
+		}()
+
+		_, err = db.Exec("SELECT /* t1 */ * FROM t1 where col1='Bu\xf1rk'")
 		require.NoError(t, err)
 
 		require.NoError(t, m.refreshHistoryCache())
@@ -408,31 +409,35 @@ func TestPerfSchema(t *testing.T) {
 		assert.InDelta(t, 0, actual.Mysql.MLockTimeSum, 0.09)
 		expected := &agentpb.MetricsBucket{
 			Common: &agentpb.MetricsBucket_Common{
-				Fingerprint:         "SELECT * FROM `city` WHERE NAME = ?",
-				Schema:              "world",
-				AgentId:             "agent_id",
-				PeriodStartUnixSecs: 1554116340,
-				PeriodLengthSecs:    60,
-				AgentType:           inventorypb.AgentType_QAN_MYSQL_PERFSCHEMA_AGENT,
-				Example:             "SELECT /* AllCities */ * FROM city where Name='B\303\203\302\274rki'",
-				ExampleFormat:       agentpb.ExampleFormat_EXAMPLE,
-				ExampleType:         agentpb.ExampleType_RANDOM,
-				NumQueries:          1,
-				MQueryTimeCnt:       1,
-				MQueryTimeSum:       actual.Common.MQueryTimeSum,
+				Fingerprint:            "SELECT * FROM `t1` WHERE `col1` = ?",
+				Schema:                 "world",
+				AgentId:                "agent_id",
+				PeriodStartUnixSecs:    1554116340,
+				PeriodLengthSecs:       60,
+				AgentType:              inventorypb.AgentType_QAN_MYSQL_PERFSCHEMA_AGENT,
+				Example:                "SELECT /* t1 */ * FROM t1 where col1='Bu", // Perf schema truncates queries with non-utf8 characters.
+				ExampleFormat:          agentpb.ExampleFormat_EXAMPLE,
+				ExampleType:            agentpb.ExampleType_RANDOM,
+				NumQueries:             1,
+				NumQueriesWithWarnings: 1,
+				MQueryTimeCnt:          1,
+				MQueryTimeSum:          actual.Common.MQueryTimeSum,
 			},
 			Mysql: &agentpb.MetricsBucket_MySQL{
-				MLockTimeCnt:     1,
-				MLockTimeSum:     actual.Mysql.MLockTimeSum,
-				MRowsExaminedCnt: 1,
-				MRowsExaminedSum: 4079,
-				MFullScanCnt:     1,
-				MFullScanSum:     1,
-				MNoIndexUsedCnt:  1,
-				MNoIndexUsedSum:  1,
+				MLockTimeCnt:    1,
+				MLockTimeSum:    actual.Mysql.MLockTimeSum,
+				MFullScanCnt:    1,
+				MFullScanSum:    1,
+				MNoIndexUsedCnt: 1,
+				MNoIndexUsedSum: 1,
 			},
 		}
-		expected.Common.Queryid = digests[expected.Common.Fingerprint]
+		// We are not testing query id here.
+		actual.Common.Queryid = expected.Common.Queryid
 		tests.AssertBucketsEqual(t, expected, actual)
+
+		structs, err = db.SelectAllFrom(eventsStatementsHistoryView, "ORDER BY SQL_TEXT")
+		require.NoError(t, err)
+		tests.LogTable(t, structs)
 	})
 }
