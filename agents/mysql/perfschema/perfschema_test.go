@@ -208,7 +208,7 @@ func filter(mb []*agentpb.MetricsBucket) []*agentpb.MetricsBucket {
 			continue
 		case b.Common.Fingerprint == "SELECT COUNT ( * ) FROM `city`": // actions tests
 			continue
-		case b.Common.Fingerprint == "CREATE TABLE IF NOT EXISTS `t1` ( `col1` CHARACTER (?) ) CHARACTER SET `utf32` COLLATE `utf32_general_ci`": // tests for invalid characters
+		case b.Common.Fingerprint == "CREATE TABLE IF NOT EXISTS `t1` ( `col1` CHARACTER (?) ) CHARACTER SET `utf8mb4` COLLATE `utf8mb4_general_ci`": // tests for invalid characters
 			continue
 
 		case strings.HasPrefix(b.Common.Fingerprint, "SELECT @@`slow_query_log"): // slowlog
@@ -387,7 +387,7 @@ func TestPerfSchema(t *testing.T) {
 	t.Run("Invalid UTF-8", func(t *testing.T) {
 		m := setup(t, db)
 
-		_, err := db.Exec("CREATE TABLE if not exists t1(col1 CHAR(100)) CHARACTER SET utf32 COLLATE utf32_general_ci")
+		_, err := db.Exec("CREATE TABLE if not exists t1(col1 CHAR(100)) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci")
 		require.NoError(t, err)
 		defer func() {
 			_, err := db.Exec("DROP TABLE t1")
@@ -398,6 +398,14 @@ func TestPerfSchema(t *testing.T) {
 		require.NoError(t, err)
 
 		require.NoError(t, m.refreshHistoryCache())
+		var example string
+		switch mySQLVersion {
+		// Perf schema truncates queries with non-utf8 characters.
+		case "8.0":
+			example = "SELECT /* t1 */ * FROM t1 where col1='Bu"
+		default:
+			example = "SELECT /* t1 */ * FROM t1 where col1=..."
+		}
 
 		buckets, err := m.getNewBuckets(time.Date(2019, 4, 1, 10, 59, 0, 0, time.UTC), 60)
 		require.NoError(t, err)
@@ -415,7 +423,7 @@ func TestPerfSchema(t *testing.T) {
 				PeriodStartUnixSecs:    1554116340,
 				PeriodLengthSecs:       60,
 				AgentType:              inventorypb.AgentType_QAN_MYSQL_PERFSCHEMA_AGENT,
-				Example:                "SELECT /* t1 */ * FROM t1 where col1='Bu", // Perf schema truncates queries with non-utf8 characters.
+				Example:                example,
 				ExampleFormat:          agentpb.ExampleFormat_EXAMPLE,
 				ExampleType:            agentpb.ExampleType_RANDOM,
 				NumQueries:             1,
