@@ -95,7 +95,7 @@ func setup(t *testing.T, connect func(agentpb.Agent_ConnectServer) error, expect
 
 func TestAgentRequestWithTruncatedInvalidUTF8(t *testing.T) {
 	fingerprint, _ := truncate.Query("SELECT * FROM contacts t0 WHERE t0.person_id = '?';")
-	invalidQuery := "SELECT * FROM contacts t0 WHERE t0.person_id = '߿�\xff\\uD83D\xddÃ¼\xf1'"
+	invalidQuery := "SELECT * FROM contacts t0 WHERE t0.person_id = '\u0241\xff\\uD83D\xddÃ¼\xf1'"
 	query, _ := truncate.Query(invalidQuery)
 
 	connect := func(stream agentpb.Agent_ConnectServer) error { //nolint:unparam
@@ -108,7 +108,7 @@ func TestAgentRequestWithTruncatedInvalidUTF8(t *testing.T) {
 			Payload: new(agentpb.QANCollectResponse).ServerMessageResponsePayload(),
 		})
 		assert.NoError(t, err)
-		assert.Equal(t, "SELECT * FROM contacts t0 WHERE t0.person_id = '߿��\\uD83D�Ã¼�'", msg.GetQanCollect().MetricsBucket[0].Common.Example)
+		assert.Equal(t, "SELECT * FROM contacts t0 WHERE t0.person_id = '\u0241\ufffd\\uD83D\ufffdÃ¼\ufffd'", msg.GetQanCollect().MetricsBucket[0].Common.Example)
 
 		_, err = stream.Recv()
 		require.EqualError(t, err, "rpc error: code = Canceled desc = context canceled")
