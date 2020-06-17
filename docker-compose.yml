@@ -11,7 +11,9 @@ services:
     environment:
       - PMM_DEBUG=1
       - PERCONA_TEST_CHECKS_INTERVAL=10s
-      - PERCONA_TEST_CHECKS_FILE=/srv/custom-checks.yml
+      - PERCONA_TEST_CHECKS_FILE=/srv/checks/custom-checks.yml
+    volumes:
+      - ./testdata/checks:/srv/checks
 
   test_db:
     image: aleksi/test_db:1.1.0
