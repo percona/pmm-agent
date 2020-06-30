@@ -97,6 +97,9 @@ check:                          ## Run required checkers and linters.
 	go run .github/check-license.go
 	go-sumtype ./vendor/... ./...
 
+check-all: check                ## Run golang ci linter to check new changes from master.
+	golangci-lint run -c=.golangci.yml --new-from-rev=master
+
 FILES = $(shell find . -type f -name '*.go' -not -path "./vendor/*")
 
 format:                         ## Format source code.
@@ -138,6 +141,9 @@ setup-dev: install              ## Run pmm-agent setup in development environmen
 env-mysql:                      ## Run mysql client.
 	docker exec -ti pmm-agent_mysql mysql --host=127.0.0.1 --user=root --password=root-password
 
+env-mongo:                      ## Run mongo client.
+	docker exec -ti pmm-agent_mongo mongo --username=root --password=root-password
+
 env-psql:                       ## Run psql client.
 	docker exec -ti pmm-agent_postgres env PGPASSWORD=pmm-agent-password psql --username=pmm-agent
 
@@ -152,3 +158,7 @@ env-sysbench-run:
 		--db-driver=pgsql --pgsql-host=postgres --pgsql-user=pmm-agent --pgsql-password=pmm-agent-password --pgsql-db=pmm-agent \
 		--threads=4 --time=0 --rate=10 --report-interval=10 --percentile=99 \
 		--tables=1 --scale=10  --use_fk=0 --enable_purge=yes run
+
+ci-reviewdog:                   ## Runs reviewdog checks.
+	golangci-lint run -c=.golangci-required.yml --out-format=line-number | bin/reviewdog -f=golangci-lint -level=error -reporter=github-pr-check
+	golangci-lint run -c=.golangci.yml --out-format=line-number | bin/reviewdog -f=golangci-lint -level=error -reporter=github-pr-review

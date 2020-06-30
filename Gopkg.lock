@@ -271,7 +271,7 @@
   source = "https://github.com/Percona-Lab/pg_query_go"
 
 [[projects]]
-  digest = "1:16ead65b45fd4467e7ec30a112ce42e6c3ab1cb3b9c038edeb4921663a59501a"
+  digest = "1:c093221d65ee6361ee442c427b6af0d463630abaa5f6e0de0cde1f4f2e51acbb"
   name = "github.com/lib/pq"
   packages = [
     ".",
@@ -279,8 +279,8 @@
     "scram",
   ]
   pruneopts = "NUT"
-  revision = "99274577be97ac9b1d95a2d61d566dc9b7cc6a54"
-  version = "v1.3.0"
+  revision = "c904eabba4136fb97e44adefd2f4f979131242c7"
+  version = "v1.5.1"
 
 [[projects]]
   digest = "1:7bbccd3dd7998f2a180264ec1d12e362ed8e02f55ea7b82ac0d0f48ffa2d8888"
@@ -359,8 +359,8 @@
   revision = "30f3e5b5a93e83cced79c445779843af27d85118"
 
 [[projects]]
-  branch = "PMM-4192"
-  digest = "1:14465a54675cb95fa592f4fbfff32559f93be7535ea41f7290fa5dc8a31019df"
+  branch = "PMM-2.0"
+  digest = "1:0e0948b8fb265270c969c0b98eccde7045c79979da65a748acd712fe7b542708"
   name = "github.com/percona/pmm"
   packages = [
     "api/agentlocalpb",
@@ -370,12 +370,15 @@
     "api/inventorypb",
     "api/managementpb/json/client",
     "api/managementpb/json/client/actions",
+    "api/managementpb/json/client/annotation",
+    "api/managementpb/json/client/external",
     "api/managementpb/json/client/mongo_db",
     "api/managementpb/json/client/my_sql",
     "api/managementpb/json/client/node",
     "api/managementpb/json/client/postgre_sql",
     "api/managementpb/json/client/proxy_sql",
     "api/managementpb/json/client/rds",
+    "api/managementpb/json/client/security_checks",
     "api/managementpb/json/client/service",
     "utils/nodeinfo",
     "utils/pdeathsig",
@@ -384,15 +387,15 @@
     "version",
   ]
   pruneopts = "NUT"
-  revision = "e62c15a934d785314a450c67b892215d5b54674d"
+  revision = "6dfee9441bcf25192db2f5f638acfc8147b5b4be"
 
 [[projects]]
-  digest = "1:14715f705ff5dfe0ffd6571d7d201dd8e921030f8070321a79380d8ca4ec1a24"
+  digest = "1:4047c378584616813d610c9f993bf90dd0d07aed8d94bd3bc299cd35ececdcba"
   name = "github.com/pkg/errors"
   packages = ["."]
   pruneopts = "NUT"
-  revision = "ba968bfe8b2f7e042a574c888954fccecfa385b4"
-  version = "v0.8.1"
+  revision = "614d223910a179a466c1767a985424175c39b465"
+  version = "v0.9.1"
 
 [[projects]]
   digest = "1:0028cb19b2e4c3112225cd871870f2d9cf49b9b4276531f03438a88e94be86fe"
@@ -502,7 +505,7 @@
   revision = "73f8eece6fdcd902c185bf651de50f3828bed5ed"
 
 [[projects]]
-  digest = "1:7beb83d40c6bc2b10bae0c1dc3fad08b1f6362986805b30ed32e3fac972126bb"
+  digest = "1:adb3d9d6cc7546033293b0bde63e38eba2772a6f27fe1ecc57df0113229b508a"
   name = "go.mongodb.org/mongo-driver"
   packages = [
     "bson",
@@ -538,8 +541,8 @@
     "x/mongo/driver/wiremessage",
   ]
   pruneopts = "NUT"
-  revision = "f002b1fa256d7987c03274bab1f4263dbdff0f64"
-  version = "v1.3.0"
+  revision = "dbe9cee06654c7d19e291eb74b9da49b4c6a0fd4"
+  version = "v1.3.2"
 
 [[projects]]
   branch = "master"

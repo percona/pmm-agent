@@ -12,12 +12,15 @@ import (
 	strfmt "github.com/go-openapi/strfmt"
 
 	"github.com/percona/pmm/api/managementpb/json/client/actions"
+	"github.com/percona/pmm/api/managementpb/json/client/annotation"
+	"github.com/percona/pmm/api/managementpb/json/client/external"
 	"github.com/percona/pmm/api/managementpb/json/client/mongo_db"
 	"github.com/percona/pmm/api/managementpb/json/client/my_sql"
 	"github.com/percona/pmm/api/managementpb/json/client/node"
 	"github.com/percona/pmm/api/managementpb/json/client/postgre_sql"
 	"github.com/percona/pmm/api/managementpb/json/client/proxy_sql"
 	"github.com/percona/pmm/api/managementpb/json/client/rds"
+	"github.com/percona/pmm/api/managementpb/json/client/security_checks"
 	"github.com/percona/pmm/api/managementpb/json/client/service"
 )
 
@@ -66,6 +69,10 @@ func New(transport runtime.ClientTransport, formats strfmt.Registry) *PMMManagem
 
 	cli.Actions = actions.New(transport, formats)
 
+	cli.Annotation = annotation.New(transport, formats)
+
+	cli.External = external.New(transport, formats)
+
 	cli.MongoDB = mongo_db.New(transport, formats)
 
 	cli.MySQL = my_sql.New(transport, formats)
@@ -77,6 +84,8 @@ func New(transport runtime.ClientTransport, formats strfmt.Registry) *PMMManagem
 	cli.ProxySQL = proxy_sql.New(transport, formats)
 
 	cli.RDS = rds.New(transport, formats)
+
+	cli.SecurityChecks = security_checks.New(transport, formats)
 
 	cli.Service = service.New(transport, formats)
 
@@ -126,6 +135,10 @@ func (cfg *TransportConfig) WithSchemes(schemes []string) *TransportConfig {
 type PMMManagement struct {
 	Actions *actions.Client
 
+	Annotation *annotation.Client
+
+	External *external.Client
+
 	MongoDB *mongo_db.Client
 
 	MySQL *my_sql.Client
@@ -138,6 +151,8 @@ type PMMManagement struct {
 
 	RDS *rds.Client
 
+	SecurityChecks *security_checks.Client
+
 	Service *service.Client
 
 	Transport runtime.ClientTransport
@@ -148,6 +163,10 @@ func (c *PMMManagement) SetTransport(transport runtime.ClientTransport) {
 	c.Transport = transport
 
 	c.Actions.SetTransport(transport)
+
+	c.Annotation.SetTransport(transport)
+
+	c.External.SetTransport(transport)
 
 	c.MongoDB.SetTransport(transport)
 
@@ -160,6 +179,8 @@ func (c *PMMManagement) SetTransport(transport runtime.ClientTransport) {
 	c.ProxySQL.SetTransport(transport)
 
 	c.RDS.SetTransport(transport)
+
+	c.SecurityChecks.SetTransport(transport)
 
 	c.Service.SetTransport(transport)
 
