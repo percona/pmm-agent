@@ -23,6 +23,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/kr/pretty"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -182,6 +183,7 @@ func TestProfiler(t *testing.T) {
 		}
 		assert.Equalf(t, expected, bucket.Mongodb, "wrong metrics for db %s", bucket.Common.Database)
 	}
+	pretty.Println(buckets)
 	require.NotNil(t, findBucket)
 	assert.Equal(t, "FIND people name_00\ufffd", findBucket.Common.Fingerprint)
 	assert.Equal(t, docsCount, findBucket.Mongodb.MDocsReturnedSum)
