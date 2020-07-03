@@ -126,6 +126,10 @@ func TestProfiler(t *testing.T) {
 
 	var findBucket *agentpb.MetricsBucket
 	bucketsMap := make(map[string]*agentpb.MetricsBucket)
+	fmt.Println(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
+	pretty.Println(ms.reports)
+	fmt.Println("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
+
 	for _, r := range ms.reports {
 		for _, bucket := range r.Buckets {
 			switch bucket.Common.Fingerprint {
@@ -184,6 +188,8 @@ func TestProfiler(t *testing.T) {
 		assert.Equalf(t, expected, bucket.Mongodb, "wrong metrics for db %s", bucket.Common.Database)
 	}
 	pretty.Println(buckets)
+	fmt.Println("findBucket >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
+	pretty.Println(findBucket)
 	require.NotNil(t, findBucket)
 	assert.Equal(t, "FIND people name_00\ufffd", findBucket.Common.Fingerprint)
 	assert.Equal(t, docsCount, findBucket.Mongodb.MDocsReturnedSum)
