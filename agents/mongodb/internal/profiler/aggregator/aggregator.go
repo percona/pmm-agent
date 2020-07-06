@@ -27,7 +27,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/kr/pretty"
 	"github.com/percona/percona-toolkit/src/go/mongolib/fingerprinter"
 	"github.com/percona/percona-toolkit/src/go/mongolib/proto"
 	mongostats "github.com/percona/percona-toolkit/src/go/mongolib/stats"
@@ -107,7 +106,6 @@ func (a *Aggregator) Add(ctx context.Context, doc proto.SystemProfile) error {
 	a.t.Reset(a.d)
 
 	// add new doc to stats
-	pretty.Println(doc)
 	buf, _ := bson.MarshalExtJSON(doc, true, true)
 	fn := filepath.Join("/home/karl/go/src/github.com/percona/pmm-agent/testdata/mongo/", fmt.Sprintf("doc-%04d.bson", rand.Int63n(9999)))
 

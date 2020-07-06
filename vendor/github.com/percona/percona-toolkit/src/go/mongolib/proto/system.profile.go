@@ -4,7 +4,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/kr/pretty"
 	"go.mongodb.org/mongo-driver/bson"
 )
 
@@ -278,13 +277,10 @@ func (self ExampleQuery) ExplainCmd() bson.D {
 		}
 	}
 
-	retDoc := bson.D{
+	return bson.D{
 		{
 			Key:   "explain",
 			Value: cmd,
 		},
 	}
-
-	pretty.Println(retDoc)
-	return retDoc
 }
