@@ -19,15 +19,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
-	"path/filepath"
 	"testing"
 
-	"github.com/percona/percona-toolkit/src/go/mongolib/proto"
 	"github.com/percona/pmm/api/agentpb"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 
@@ -56,18 +52,18 @@ func TestMongoDBExplain(t *testing.T) {
 		res, err := ex.Run(ctx)
 		assert.Nil(t, err)
 
-		want := map[string]interface{}{"indexFilterSet": false,
-			"namespace": "admin.coll",
+		want := map[string]interface{}{
+			"indexFilterSet": false,
+			"namespace":      "admin.coll",
 			"parsedQuery": map[string]interface{}{
 				"k": map[string]interface{}{
-					"$lte": map[string]interface{}{
-						"$numberInt": "1",
-					},
+					"$lte": map[string]interface{}{"$numberInt": "1"},
 				},
 			},
 			"plannerVersion": map[string]interface{}{"$numberInt": "1"},
 			"rejectedPlans":  []interface{}{},
-			"winningPlan":    map[string]interface{}{"stage": "EOF"}}
+			"winningPlan":    map[string]interface{}{"stage": "EOF"},
+		}
 		explainM := make(map[string]interface{})
 		err = json.Unmarshal(res, &explainM)
 		assert.Nil(t, err)
@@ -75,30 +71,6 @@ func TestMongoDBExplain(t *testing.T) {
 		assert.Equal(t, ok, true)
 		assert.NotEmpty(t, queryPlanner)
 		assert.Equal(t, want, queryPlanner)
-	})
-
-	// PMM-4192 When we migrated
-	t.Run("Invalid MongoDB query", func(t *testing.T) {
-		fn := filepath.Join("/home/karl/go/src/github.com/percona/pmm-agent/testdata/mongo/", "doc-0161.bson")
-		buf, err := ioutil.ReadFile(fn)
-		assert.NoError(t, err)
-
-		var doc proto.SystemProfile
-		err = bson.UnmarshalExtJSON(buf, true, &doc)
-		assert.NoError(t, err)
-
-		query := proto.NewExampleQuery(doc)
-		qbytes, err := bson.MarshalExtJSON(query, true, true)
-		assert.NoError(t, err)
-
-		params := &agentpb.StartActionRequest_MongoDBExplainParams{
-			Dsn:   tests.GetTestMongoDBDSN(t),
-			Query: string(qbytes),
-		}
-
-		ex := NewMongoDBExplainAction(id, params)
-		_, err = ex.Run(ctx)
-		assert.NoError(t, err)
 	})
 }
 

@@ -72,7 +72,7 @@ func (a *mongodbExplainAction) Run(ctx context.Context) ([]byte, error) {
 
 	res := client.Database("admin").RunCommand(ctx, eq.ExplainCmd())
 	if res.Err() != nil {
-		return nil, errCannotExplain
+		return nil, errors.Wrap(errCannotExplain, res.Err().Error())
 	}
 
 	result, err := res.DecodeBytes()

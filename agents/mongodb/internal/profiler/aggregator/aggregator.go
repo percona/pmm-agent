@@ -18,10 +18,6 @@ package aggregator
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
-	"math/rand"
-	"os"
-	"path/filepath"
 	"runtime/pprof"
 	"strings"
 	"sync"
@@ -33,7 +29,6 @@ import (
 	"github.com/percona/pmm/api/agentpb"
 	"github.com/percona/pmm/api/inventorypb"
 	"github.com/sirupsen/logrus"
-	"go.mongodb.org/mongo-driver/bson"
 
 	"github.com/percona/pmm-agent/agents/mongodb/internal/report"
 	"github.com/percona/pmm-agent/utils/truncate"
@@ -104,14 +99,6 @@ func (a *Aggregator) Add(ctx context.Context, doc proto.SystemProfile) error {
 
 	// we had some activity so reset timer
 	a.t.Reset(a.d)
-
-	// add new doc to stats
-	buf, _ := bson.MarshalExtJSON(doc, true, true)
-	fn := filepath.Join("/home/karl/go/src/github.com/percona/pmm-agent/testdata/mongo/", fmt.Sprintf("doc-%04d.bson", rand.Int63n(9999)))
-
-	if err := ioutil.WriteFile(fn, buf, os.ModePerm); err != nil {
-		panic(err)
-	}
 
 	return a.mongostats.Add(doc)
 }
