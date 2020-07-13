@@ -19,11 +19,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"path/filepath"
 	"testing"
 
 	"github.com/percona/pmm/api/agentpb"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 
@@ -72,6 +75,73 @@ func TestMongoDBExplain(t *testing.T) {
 		assert.NotEmpty(t, queryPlanner)
 		assert.Equal(t, want, queryPlanner)
 	})
+}
+
+// These tests are based on PMM-2.0 tests. The previous ones are inherited from PMM 1/Toolkit
+func TestNewMongoDBExplain(t *testing.T) {
+	database := "sbtest"
+	id := "abcd1234"
+	ctx := context.TODO()
+
+	client := tests.OpenTestMongoDB(t)
+	defer client.Database(database).Drop(ctx) //nolint:errcheck
+
+	_, err := client.Database(database).Collection("people").InsertOne(ctx, bson.M{"last_name": "Brannigan", "first_name": "Zapp"})
+	require.NoError(t, err)
+
+	_, err = client.Database(database).Collection("orders").InsertOne(ctx, bson.M{"status": "A", "amount": 123.45})
+	require.NoError(t, err)
+
+	testFiles := []struct {
+		in   string
+		want string
+	}{
+		{
+			in:   "distinct.json",
+			want: "distinct_want.json",
+		},
+		{
+			in:   "aggregate.json",
+			want: "aggregate_want.json",
+		},
+		{
+			in:   "count.json",
+			want: "count_want.json",
+		},
+		{
+			in:   "find_and_modify.json",
+			want: "find_and_modify_want.json",
+		},
+	}
+
+	for _, tf := range testFiles {
+		t.Run(tf.in, func(t *testing.T) {
+			query, err := ioutil.ReadFile(filepath.Join("testdata/", filepath.Clean(tf.in)))
+			assert.NoError(t, err)
+			params := &agentpb.StartActionRequest_MongoDBExplainParams{
+				Dsn:   tests.GetTestMongoDBDSN(t),
+				Query: string(query),
+			}
+
+			wantBuf, err := ioutil.ReadFile(filepath.Join("testdata/", filepath.Clean(tf.want)))
+			assert.NoError(t, err)
+			want := make(map[string]interface{})
+			err = json.Unmarshal(wantBuf, &want)
+			assert.NoError(t, err)
+
+			ex := NewMongoDBExplainAction(id, params)
+			res, err := ex.Run(ctx)
+			assert.Nil(t, err)
+
+			explainM := make(map[string]interface{})
+			err = json.Unmarshal(res, &explainM)
+			assert.Nil(t, err)
+
+			// Don't just compare []bytes becuase the response is a map so keys might be in
+			// different order
+			assert.Equal(t, want, explainM)
+		})
+	}
 }
 
 func prepareData(ctx context.Context, client *mongo.Client, database, collection string) error {
