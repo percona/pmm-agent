@@ -19,7 +19,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/kr/pretty"
 	"github.com/percona/percona-toolkit/src/go/mongolib/proto"
 	"github.com/percona/pmm/api/agentpb"
 	"github.com/pkg/errors"
@@ -77,7 +76,6 @@ func (a *mongodbExplainAction) Run(ctx context.Context) ([]byte, error) {
 	}
 	res := client.Database(database).RunCommand(ctx, eq.ExplainCmd())
 	if res.Err() != nil {
-		pretty.Println(eq.ExplainCmd())
 		return nil, errors.Wrap(errCannotExplain, res.Err().Error())
 	}
 

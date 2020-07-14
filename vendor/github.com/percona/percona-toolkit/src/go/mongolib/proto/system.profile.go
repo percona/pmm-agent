@@ -178,7 +178,7 @@ func (self ExampleQuery) ExplainCmd() bson.D {
 					} else {
 						cmd = append(cmd[:i], cmd[i+1:]...)
 					}
-					// break LOOP
+					break
 				}
 			}
 		}
@@ -250,8 +250,6 @@ func (self ExampleQuery) ExplainCmd() bson.D {
 			}
 		}
 	case "command":
-		cmd = sanitizeCommand(cmd)
-
 		if len(cmd) == 0 || cmd[0].Key != "group" {
 			break
 		}
@@ -285,29 +283,4 @@ func (self ExampleQuery) ExplainCmd() bson.D {
 			Value: cmd,
 		},
 	}
-}
-
-func sanitizeCommand(cmd bson.D) bson.D {
-	if len(cmd) < 1 {
-		return cmd
-	}
-
-	key := cmd[0].Key
-	if key != "count" && key != "distinct" {
-		return cmd
-	}
-
-	for i := range cmd {
-		// drop $db param as it is not supported in MongoDB 3.0
-		if cmd[i].Key == "$db" {
-			if len(cmd)-1 == i {
-				cmd = cmd[:i]
-			} else {
-				cmd = append(cmd[:i], cmd[i+1:]...)
-			}
-			break
-		}
-	}
-
-	return cmd
 }
