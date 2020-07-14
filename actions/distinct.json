@@ -1,1 +1,0 @@
-{"ns":"sbtest.people","op":"command","command":{"distinct":"people","key":"dept","query":{}}}

@@ -207,20 +207,20 @@ func TestProfiler(t *testing.T) {
 		assert.Nil(t, err)
 
 		want := map[string]interface{}{
-			"indexFilterSet": bool(false),
+			"indexFilterSet": false,
+			"namespace":      "test_00.people",
 			"parsedQuery": map[string]interface{}{
 				"name_00�": map[string]interface{}{
 					"$eq": "value_00�",
 				},
 			},
+			"plannerVersion": map[string]interface{}{"$numberInt": "1"},
+			"rejectedPlans":  []interface{}{},
 			"winningPlan": map[string]interface{}{
-				"stage": "EOF",
+				"direction": "forward", "filter": map[string]interface{}{
+					"name_00�": map[string]interface{}{"$eq": "value_00�"}},
+				"stage": "COLLSCAN",
 			},
-			"rejectedPlans": []interface{}{},
-			"plannerVersion": map[string]interface{}{
-				"$numberInt": "1",
-			},
-			"namespace": "admin.people",
 		}
 
 		explainM := make(map[string]interface{})

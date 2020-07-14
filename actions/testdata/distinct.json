@@ -1,9 +1,10 @@
 {
-    "ns": "sbtest.people",
+    "ns": "sbtest.inventory",
     "op": "command",
     "command": {
-        "distinct": "people",
+        "distinct": "inventory",
         "key": "dept",
-        "query": {}
+        "query": {},
+        "$db": "sbtest"
     }
 }

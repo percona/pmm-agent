@@ -20,6 +20,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -57,16 +58,15 @@ func TestMongoDBExplain(t *testing.T) {
 
 		want := map[string]interface{}{
 			"indexFilterSet": false,
-			"namespace":      "admin.coll",
+			"namespace":      "test.coll",
 			"parsedQuery": map[string]interface{}{
-				"k": map[string]interface{}{
-					"$lte": map[string]interface{}{"$numberInt": "1"},
-				},
+				"k": map[string]interface{}{"$lte": map[string]interface{}{"$numberInt": "1"}},
 			},
 			"plannerVersion": map[string]interface{}{"$numberInt": "1"},
 			"rejectedPlans":  []interface{}{},
 			"winningPlan":    map[string]interface{}{"stage": "EOF"},
 		}
+
 		explainM := make(map[string]interface{})
 		err = json.Unmarshal(res, &explainM)
 		assert.Nil(t, err)
@@ -77,7 +77,7 @@ func TestMongoDBExplain(t *testing.T) {
 	})
 }
 
-// These tests are based on PMM-2.0 tests. The previous ones are inherited from PMM 1/Toolkit
+// These tests are based on PMM-2.0 tests. The previous ones are inherited from PMM 1/Toolkit.
 func TestNewMongoDBExplain(t *testing.T) {
 	database := "sbtest"
 	id := "abcd1234"
@@ -123,21 +123,33 @@ func TestNewMongoDBExplain(t *testing.T) {
 				Query: string(query),
 			}
 
-			wantBuf, err := ioutil.ReadFile(filepath.Join("testdata/", filepath.Clean(tf.want)))
+			wantFile := filepath.Join("testdata/", filepath.Clean(tf.want))
+			wantBuf, err := ioutil.ReadFile(wantFile) //nolint:gosec
 			assert.NoError(t, err)
+
 			want := make(map[string]interface{})
 			err = json.Unmarshal(wantBuf, &want)
 			assert.NoError(t, err)
 
 			ex := NewMongoDBExplainAction(id, params)
 			res, err := ex.Run(ctx)
-			assert.Nil(t, err)
+			assert.NoError(t, err)
+
+			if err == nil && os.Getenv("UPDATE_SAMPLES") == "1" {
+				err := ioutil.WriteFile(wantFile, res, os.ModePerm)
+				assert.NoError(t, err)
+			}
 
 			explainM := make(map[string]interface{})
 			err = json.Unmarshal(res, &explainM)
 			assert.Nil(t, err)
 
-			// Don't just compare []bytes becuase the response is a map so keys might be in
+			// Server info is being manually removed because it depends on the docker sandbox version,
+			// hostname, etc, and that's variable
+			delete(want, "serverInfo")
+			delete(explainM, "serverInfo")
+
+			// Don't just compare []bytes because the response is a map so keys might be in
 			// different order
 			assert.Equal(t, want, explainM)
 		})

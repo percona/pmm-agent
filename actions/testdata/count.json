@@ -4,6 +4,7 @@
     "command": {
         "count": "people",
         "query": {},
-        "fields": {}
+        "fields": {},
+        "$db": "sbtest"
     }
 }
