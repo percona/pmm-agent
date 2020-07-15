@@ -21,8 +21,11 @@ import (
 	"fmt"
 	"io/ioutil"
 	"path/filepath"
+	"strings"
 	"testing"
 
+	"github.com/Masterminds/semver"
+	"github.com/percona/percona-toolkit/src/go/mongolib/proto"
 	"github.com/percona/pmm/api/agentpb"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -92,28 +95,43 @@ func TestNewMongoDBExplain(t *testing.T) {
 	require.NoError(t, err)
 
 	testFiles := []struct {
-		in   string
-		want string
+		in         string
+		constraint string
 	}{
 		{
-			in:   "distinct.json",
-			want: "distinct_want.json",
+			in: "distinct.json",
 		},
 		{
-			in:   "aggregate.json",
-			want: "aggregate_want.json",
+			in:         "aggregate.json",
+			constraint: "> 3.4",
 		},
 		{
-			in:   "count.json",
-			want: "count_want.json",
+			in: "count.json",
 		},
 		{
-			in:   "find_and_modify.json",
-			want: "find_and_modify_want.json",
+			in: "find_and_modify.json",
 		},
 	}
 
+	res := client.Database("admin").RunCommand(ctx, primitive.M{"buildInfo": 1})
+	if res.Err() != nil {
+		t.Fatalf("Cannot get buildInfo: %s", err)
+	}
+	bi := proto.BuildInfo{}
+	if err := res.Decode(&bi); err != nil {
+		t.Fatalf("Cannot decode buildInfo response: %s", err)
+	}
+
 	for _, tf := range testFiles {
+		// Not all MongoDB versions allow explaining all commands
+		if tf.constraint != "" {
+			c, err := constraint(tf.constraint, bi.Version)
+			require.NoError(t, err)
+			if !c {
+				continue
+			}
+		}
+
 		t.Run(tf.in, func(t *testing.T) {
 			query, err := ioutil.ReadFile(filepath.Join("testdata/", filepath.Clean(tf.in)))
 			assert.NoError(t, err)
@@ -151,4 +169,26 @@ func prepareData(ctx context.Context, client *mongo.Client, database, collection
 	}
 
 	return nil
+}
+
+func constraint(constraint, version string) (bool, error) {
+	// Drop everything after first dash.
+	// Version with dash is considered a pre-release
+	// but some MongoDB builds add additional information after dash
+	// even though it's not considered a pre-release but a release.
+	s := strings.SplitN(version, "-", 2)
+	version = s[0]
+
+	// Create new version
+	v, err := semver.NewVersion(version)
+	if err != nil {
+		return false, err
+	}
+
+	// Check if version matches constraint
+	constraints, err := semver.NewConstraint(constraint)
+	if err != nil {
+		return false, err
+	}
+	return constraints.Check(v), nil
 }
