@@ -24,9 +24,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Masterminds/semver"
 	"github.com/percona/percona-toolkit/src/go/mongolib/proto"
 	"github.com/percona/pmm/api/agentpb"
+	"github.com/percona/pmm/version"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.mongodb.org/mongo-driver/bson"
@@ -103,7 +103,7 @@ func TestNewMongoDBExplain(t *testing.T) {
 		},
 		{
 			in:         "aggregate.json",
-			constraint: "> 3.4",
+			constraint: "3.6.0",
 		},
 		{
 			in: "count.json",
@@ -125,7 +125,7 @@ func TestNewMongoDBExplain(t *testing.T) {
 	for _, tf := range testFiles {
 		// Not all MongoDB versions allow explaining all commands
 		if tf.constraint != "" {
-			c, err := constraint(tf.constraint, bi.Version)
+			c, err := notLessThan(tf.constraint, bi.Version)
 			require.NoError(t, err)
 			if !c {
 				continue
@@ -171,24 +171,24 @@ func prepareData(ctx context.Context, client *mongo.Client, database, collection
 	return nil
 }
 
-func constraint(constraint, version string) (bool, error) {
+func notLessThan(constraint, vin string) (bool, error) {
 	// Drop everything after first dash.
 	// Version with dash is considered a pre-release
 	// but some MongoDB builds add additional information after dash
 	// even though it's not considered a pre-release but a release.
-	s := strings.SplitN(version, "-", 2)
-	version = s[0]
+	s := strings.SplitN(vin, "-", 2)
+	vin = s[0]
 
 	// Create new version
-	v, err := semver.NewVersion(version)
+	v, err := version.Parse(vin)
 	if err != nil {
 		return false, err
 	}
 
 	// Check if version matches constraint
-	constraints, err := semver.NewConstraint(constraint)
+	constraints, err := version.Parse(constraint)
 	if err != nil {
 		return false, err
 	}
-	return constraints.Check(v), nil
+	return !constraints.Less(v), nil
 }
