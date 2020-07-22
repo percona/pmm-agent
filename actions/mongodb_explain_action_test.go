@@ -103,7 +103,7 @@ func TestNewMongoDBExplain(t *testing.T) {
 		},
 		{
 			in:         "aggregate.json",
-			constraint: "3.6.0",
+			constraint: "3.4.0",
 		},
 		{
 			in: "count.json",
