@@ -43,7 +43,7 @@ func TestMongoDBExplain(t *testing.T) {
 	ctx := context.TODO()
 
 	client := tests.OpenTestMongoDB(t)
-	defer client.Database(database).Drop(ctx)
+	defer client.Database(database).Drop(ctx) //nolint:errcheck
 
 	err := prepareData(ctx, client, database, collection)
 	require.NoError(t, err)
@@ -96,14 +96,14 @@ func TestNewMongoDBExplain(t *testing.T) {
 
 	testFiles := []struct {
 		in         string
-		constraint string
+		minVersion string
 	}{
 		{
 			in: "distinct.json",
 		},
 		{
 			in:         "aggregate.json",
-			constraint: "3.4.0",
+			minVersion: "3.4.0",
 		},
 		{
 			in: "count.json",
@@ -124,8 +124,8 @@ func TestNewMongoDBExplain(t *testing.T) {
 
 	for _, tf := range testFiles {
 		// Not all MongoDB versions allow explaining all commands
-		if tf.constraint != "" {
-			c, err := notLessThan(tf.constraint, bi.Version)
+		if tf.minVersion != "" {
+			c, err := notLessThan(tf.minVersion, bi.Version)
 			require.NoError(t, err)
 			if !c {
 				continue
@@ -171,7 +171,7 @@ func prepareData(ctx context.Context, client *mongo.Client, database, collection
 	return nil
 }
 
-func notLessThan(constraint, vin string) (bool, error) {
+func notLessThan(minVersionStr, vin string) (bool, error) {
 	// Drop everything after first dash.
 	// Version with dash is considered a pre-release
 	// but some MongoDB builds add additional information after dash
@@ -185,10 +185,10 @@ func notLessThan(constraint, vin string) (bool, error) {
 		return false, err
 	}
 
-	// Check if version matches constraint
-	constraints, err := version.Parse(constraint)
+	// Check if version meets the conditions
+	minVersion, err := version.Parse(minVersionStr)
 	if err != nil {
 		return false, err
 	}
-	return !constraints.Less(v), nil
+	return !minVersion.Less(v), nil
 }
