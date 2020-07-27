@@ -105,7 +105,7 @@ func TestProfiler(t *testing.T) {
 		fieldsCount := dbNumber + 1
 		doc := bson.M{}
 		for j := 0; j < fieldsCount; j++ {
-			doc[fmt.Sprintf("name_%02d", j)] = fmt.Sprintf("value_%02d", j) // to generate different fingerprints
+			doc[fmt.Sprintf("name_%02d\xff", j)] = fmt.Sprintf("value_%02d\xff", j) // to generate different fingerprints
 		}
 		dbName := fmt.Sprintf("test_%02d", dbNumber)
 		logrus.Tracef("inserting value %d to %s", i, dbName)
@@ -113,7 +113,7 @@ func TestProfiler(t *testing.T) {
 		assert.NoError(t, err)
 		i++
 	}
-	cursor, err := sess.Database("test_00").Collection("people").Find(context.TODO(), bson.M{"name_00": "value_00"})
+	cursor, err := sess.Database("test_00").Collection("people").Find(context.TODO(), bson.M{"name_00\xff": "value_00\xff"})
 	require.NoError(t, err)
 	defer cursor.Close(context.TODO())
 
@@ -142,7 +142,7 @@ func TestProfiler(t *testing.T) {
 				} else {
 					bucketsMap[key] = bucket
 				}
-			case "FIND people name_00":
+			case "FIND people name_00\ufffd":
 				findBucket = bucket
 			}
 		}
@@ -187,7 +187,7 @@ func TestProfiler(t *testing.T) {
 		assert.Equalf(t, expected, bucket.Mongodb, "wrong metrics for db %s", bucket.Common.Database)
 	}
 	require.NotNil(t, findBucket)
-	assert.Equal(t, "FIND people name_00", findBucket.Common.Fingerprint)
+	assert.Equal(t, "FIND people name_00\ufffd", findBucket.Common.Fingerprint)
 	assert.Equal(t, docsCount, findBucket.Mongodb.MDocsReturnedSum)
 
 	// PMM-4192 This seems to be out of place because it is an Explain test but there was a problem with
@@ -210,15 +210,15 @@ func TestProfiler(t *testing.T) {
 			"indexFilterSet": false,
 			"namespace":      "test_00.people",
 			"parsedQuery": map[string]interface{}{
-				"name_00": map[string]interface{}{
-					"$eq": "value_00",
+				"name_00�": map[string]interface{}{
+					"$eq": "value_00�",
 				},
 			},
 			"plannerVersion": map[string]interface{}{"$numberInt": "1"},
 			"rejectedPlans":  []interface{}{},
 			"winningPlan": map[string]interface{}{
 				"direction": "forward", "filter": map[string]interface{}{
-					"name_00": map[string]interface{}{"$eq": "value_00"}},
+					"name_00�": map[string]interface{}{"$eq": "value_00�"}},
 				"stage": "COLLSCAN",
 			},
 		}
