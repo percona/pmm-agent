@@ -105,7 +105,7 @@ func TestProfiler(t *testing.T) {
 		fieldsCount := dbNumber + 1
 		doc := bson.M{}
 		for j := 0; j < fieldsCount; j++ {
-			doc[fmt.Sprintf("name_%02d\xff", j)] = fmt.Sprintf("value_%02d\xff", j) // to generate different fingerprints
+			doc[fmt.Sprintf("name_%02d\xff", j)] = fmt.Sprintf("value_%02d\xff", j) // to generate different fingerprints and test UTF8
 		}
 		dbName := fmt.Sprintf("test_%02d", dbNumber)
 		logrus.Tracef("inserting value %d to %s", i, dbName)
