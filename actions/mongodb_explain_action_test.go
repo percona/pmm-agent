@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/percona/percona-toolkit/src/go/mongolib/proto"
@@ -171,19 +170,12 @@ func prepareData(ctx context.Context, client *mongo.Client, database, collection
 	return nil
 }
 
-func notLessThan(minVersionStr, vin string) (bool, error) {
-	// Drop everything after first dash.
-	// Version with dash is considered a pre-release
-	// but some MongoDB builds add additional information after dash
-	// even though it's not considered a pre-release but a release.
-	s := strings.SplitN(vin, "-", 2)
-	vin = s[0]
-
-	// Create new version
-	v, err := version.Parse(vin)
+func notLessThan(minVersionStr, inVersion string) (bool, error) {
+	v, err := version.Parse(inVersion)
 	if err != nil {
 		return false, err
 	}
+	v.Rest = ""
 
 	// Check if version meets the conditions
 	minVersion, err := version.Parse(minVersionStr)
