@@ -210,15 +210,15 @@ func TestProfiler(t *testing.T) {
 			"indexFilterSet": false,
 			"namespace":      "test_00.people",
 			"parsedQuery": map[string]interface{}{
-				"name_00�": map[string]interface{}{
-					"$eq": "value_00�",
+				"name_00\ufffd": map[string]interface{}{
+					"$eq": "value_00\ufffd",
 				},
 			},
 			"plannerVersion": map[string]interface{}{"$numberInt": "1"},
 			"rejectedPlans":  []interface{}{},
 			"winningPlan": map[string]interface{}{
 				"direction": "forward", "filter": map[string]interface{}{
-					"name_00�": map[string]interface{}{"$eq": "value_00�"}},
+					"name_00\ufffd": map[string]interface{}{"$eq": "value_00\ufffd"}},
 				"stage": "COLLSCAN",
 			},
 		}
