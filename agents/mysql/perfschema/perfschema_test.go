@@ -165,7 +165,7 @@ func TestPerfSchemaMakeBuckets(t *testing.T) {
 	})
 }
 
-func setup(t *testing.T, db *reform.DB) *PerfSchema {
+func setup(t *testing.T, db *reform.DB, disableQueryExamples bool) *PerfSchema {
 	t.Helper()
 
 	truncateQuery := fmt.Sprintf("TRUNCATE /* %s */ ", queryTag) //nolint:gosec
@@ -174,7 +174,7 @@ func setup(t *testing.T, db *reform.DB) *PerfSchema {
 	_, err = db.Exec(truncateQuery + "performance_schema.events_statements_summary_by_digest")
 	require.NoError(t, err)
 
-	p := newPerfSchema(db.WithTag(queryTag), nil, "agent_id", logrus.WithField("test", t.Name()))
+	p := newPerfSchema(db.WithTag(queryTag), nil, "agent_id", logrus.WithField("test", t.Name()), disableQueryExamples)
 	require.NoError(t, p.refreshHistoryCache())
 	return p
 }
@@ -296,7 +296,7 @@ func TestPerfSchema(t *testing.T) {
 	}
 
 	t.Run("Sleep", func(t *testing.T) {
-		m := setup(t, db)
+		m := setup(t, db, false)
 
 		_, err := db.Exec("SELECT /* Sleep */ sleep(0.1)")
 		require.NoError(t, err)
@@ -337,7 +337,7 @@ func TestPerfSchema(t *testing.T) {
 	})
 
 	t.Run("AllCities", func(t *testing.T) {
-		m := setup(t, db)
+		m := setup(t, db, false)
 
 		_, err := db.Exec("SELECT /* AllCities */ * FROM city")
 		require.NoError(t, err)
@@ -385,7 +385,7 @@ func TestPerfSchema(t *testing.T) {
 	})
 
 	t.Run("Invalid UTF-8", func(t *testing.T) {
-		m := setup(t, db)
+		m := setup(t, db, false)
 
 		_, err := db.Exec("CREATE TABLE if not exists t1(col1 CHAR(100)) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci")
 		require.NoError(t, err)
@@ -452,5 +452,20 @@ func TestPerfSchema(t *testing.T) {
 		structs, err = db.SelectAllFrom(eventsStatementsHistoryView, "ORDER BY SQL_TEXT")
 		require.NoError(t, err)
 		tests.LogTable(t, structs)
+	})
+
+	t.Run("DisableQueryExamples", func(t *testing.T) {
+		m := setup(t, db, true)
+		_, err = db.Exec("SELECT 1, 2, 3, 4, id FROM city WHERE id = 1")
+		require.NoError(t, err)
+
+		require.NoError(t, m.refreshHistoryCache())
+
+		buckets, err := m.getNewBuckets(time.Date(2019, 4, 1, 10, 59, 0, 0, time.UTC), 60)
+		require.NoError(t, err)
+
+		for _, b := range buckets {
+			assert.Empty(t, b.Common.Example)
+		}
 	})
 }
