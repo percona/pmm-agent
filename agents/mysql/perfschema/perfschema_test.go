@@ -174,7 +174,7 @@ func setup(t *testing.T, db *reform.DB, disableQueryExamples bool) *PerfSchema {
 	_, err = db.Exec(truncateQuery + "performance_schema.events_statements_summary_by_digest")
 	require.NoError(t, err)
 
-	p := newPerfSchema(db.WithTag(queryTag), nil, "agent_id", logrus.WithField("test", t.Name()), disableQueryExamples)
+	p := newPerfSchema(db.WithTag(queryTag), nil, "agent_id", disableQueryExamples, logrus.WithField("test", t.Name()))
 	require.NoError(t, p.refreshHistoryCache())
 	return p
 }

@@ -77,10 +77,10 @@ func New(params *Params, l *logrus.Entry) (*PerfSchema, error) {
 	reformL := sqlmetrics.NewReform("mysql", params.AgentID, l.Tracef)
 	// TODO register reformL metrics https://jira.percona.com/browse/PMM-4087
 	q := reform.NewDB(sqlDB, mysql.Dialect, reformL).WithTag(queryTag)
-	return newPerfSchema(q, sqlDB, params.AgentID, l, params.DisableQueryExamples), nil
+	return newPerfSchema(q, sqlDB, params.AgentID, params.DisableQueryExamples, l), nil
 }
 
-func newPerfSchema(q *reform.Querier, dbCloser io.Closer, agentID string, l *logrus.Entry, disableQueryExamples bool) *PerfSchema {
+func newPerfSchema(q *reform.Querier, dbCloser io.Closer, agentID string, disableQueryExamples bool, l *logrus.Entry) *PerfSchema {
 	return &PerfSchema{
 		q:                    q,
 		dbCloser:             dbCloser,
