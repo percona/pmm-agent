@@ -33,6 +33,11 @@ import (
 	"github.com/percona/pmm-agent/utils/tests"
 )
 
+const (
+	disableQueryExamples = true
+	enableQueryExamples  = false
+)
+
 func TestPerfSchemaMakeBuckets(t *testing.T) {
 	t.Run("Normal", func(t *testing.T) {
 		prev := map[string]*eventsStatementsSummaryByDigest{
@@ -168,7 +173,7 @@ func TestPerfSchemaMakeBuckets(t *testing.T) {
 func setup(t *testing.T, db *reform.DB, disableQueryExamples bool) *PerfSchema {
 	t.Helper()
 
-	truncateQuery := fmt.Sprintf("TRUNCATE /* %s */ ", queryTag) //nolint:gosec
+	truncateQuery := fmt.Sprintf("TRUNCATE /* %s */ ", queryTag)
 	_, err := db.Exec(truncateQuery + "performance_schema.events_statements_history")
 	require.NoError(t, err)
 	_, err = db.Exec(truncateQuery + "performance_schema.events_statements_summary_by_digest")
@@ -183,7 +188,6 @@ func setup(t *testing.T, db *reform.DB, disableQueryExamples bool) *PerfSchema {
 	}
 
 	p := newPerfSchema(newParams)
-	//p := newPerfSchema(db.WithTag(queryTag), nil, "agent_id", disableQueryExamples, logrus.WithField("test", t.Name()))
 	require.NoError(t, p.refreshHistoryCache())
 	return p
 }
@@ -305,7 +309,7 @@ func TestPerfSchema(t *testing.T) {
 	}
 
 	t.Run("Sleep", func(t *testing.T) {
-		m := setup(t, db, false)
+		m := setup(t, db, disableQueryExamples)
 
 		_, err := db.Exec("SELECT /* Sleep */ sleep(0.1)")
 		require.NoError(t, err)
@@ -346,7 +350,7 @@ func TestPerfSchema(t *testing.T) {
 	})
 
 	t.Run("AllCities", func(t *testing.T) {
-		m := setup(t, db, false)
+		m := setup(t, db, enableQueryExamples)
 
 		_, err := db.Exec("SELECT /* AllCities */ * FROM city")
 		require.NoError(t, err)
@@ -394,7 +398,7 @@ func TestPerfSchema(t *testing.T) {
 	})
 
 	t.Run("Invalid UTF-8", func(t *testing.T) {
-		m := setup(t, db, false)
+		m := setup(t, db, enableQueryExamples)
 
 		_, err := db.Exec("CREATE TABLE if not exists t1(col1 CHAR(100)) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci")
 		require.NoError(t, err)
@@ -464,7 +468,7 @@ func TestPerfSchema(t *testing.T) {
 	})
 
 	t.Run("DisableQueryExamples", func(t *testing.T) {
-		m := setup(t, db, true)
+		m := setup(t, db, disableQueryExamples)
 		_, err = db.Exec("SELECT 1, 2, 3, 4, id FROM city WHERE id = 1")
 		require.NoError(t, err)
 
