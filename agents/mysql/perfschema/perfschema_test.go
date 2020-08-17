@@ -174,7 +174,16 @@ func setup(t *testing.T, db *reform.DB, disableQueryExamples bool) *PerfSchema {
 	_, err = db.Exec(truncateQuery + "performance_schema.events_statements_summary_by_digest")
 	require.NoError(t, err)
 
-	p := newPerfSchema(db.WithTag(queryTag), nil, "agent_id", disableQueryExamples, logrus.WithField("test", t.Name()))
+	newParams := &NewPerfSchemaParams{
+		Querier:              db.WithTag(queryTag),
+		DBCloser:             nil,
+		AgentID:              "agent_id",
+		DisableQueryExamples: disableQueryExamples,
+		LogEntry:             logrus.WithField("test", t.Name()),
+	}
+
+	p := newPerfSchema(newParams)
+	//p := newPerfSchema(db.WithTag(queryTag), nil, "agent_id", disableQueryExamples, logrus.WithField("test", t.Name()))
 	require.NoError(t, p.refreshHistoryCache())
 	return p
 }
@@ -465,6 +474,8 @@ func TestPerfSchema(t *testing.T) {
 		require.NoError(t, err)
 
 		for _, b := range buckets {
+			assert.NotEmpty(t, b.Common.Queryid)
+			assert.NotEmpty(t, b.Common.Fingerprint)
 			assert.Empty(t, b.Common.Example)
 		}
 	})
