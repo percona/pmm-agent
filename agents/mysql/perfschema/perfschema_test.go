@@ -309,7 +309,7 @@ func TestPerfSchema(t *testing.T) {
 	}
 
 	t.Run("Sleep", func(t *testing.T) {
-		m := setup(t, db, disableQueryExamples)
+		m := setup(t, db, enableQueryExamples)
 
 		_, err := db.Exec("SELECT /* Sleep */ sleep(0.1)")
 		require.NoError(t, err)
