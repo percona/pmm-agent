@@ -179,7 +179,7 @@ func setup(t *testing.T, db *reform.DB, disableQueryExamples bool) *PerfSchema {
 	_, err = db.Exec(truncateQuery + "performance_schema.events_statements_summary_by_digest")
 	require.NoError(t, err)
 
-	newParams := &NewPerfSchemaParams{
+	newParams := &newPerfSchemaParams{
 		Querier:              db.WithTag(queryTag),
 		DBCloser:             nil,
 		AgentID:              "agent_id",
@@ -477,6 +477,7 @@ func TestPerfSchema(t *testing.T) {
 		buckets, err := m.getNewBuckets(time.Date(2019, 4, 1, 10, 59, 0, 0, time.UTC), 60)
 		require.NoError(t, err)
 
+		require.NotEmpty(t, buckets)
 		for _, b := range buckets {
 			assert.NotEmpty(t, b.Common.Queryid)
 			assert.NotEmpty(t, b.Common.Fingerprint)

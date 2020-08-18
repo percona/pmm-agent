@@ -63,8 +63,8 @@ type Params struct {
 	DisableQueryExamples bool
 }
 
-// NewPerfSchemaParams holds all required parameters to instantiate a new PerfSchema
-type NewPerfSchemaParams struct {
+// newPerfSchemaParams holds all required parameters to instantiate a new PerfSchema
+type newPerfSchemaParams struct {
 	Querier              *reform.Querier
 	DBCloser             io.Closer
 	AgentID              string
@@ -87,7 +87,7 @@ func New(params *Params, l *logrus.Entry) (*PerfSchema, error) {
 	// TODO register reformL metrics https://jira.percona.com/browse/PMM-4087
 	q := reform.NewDB(sqlDB, mysql.Dialect, reformL).WithTag(queryTag)
 
-	newParams := &NewPerfSchemaParams{
+	newParams := &newPerfSchemaParams{
 		Querier:              q,
 		DBCloser:             sqlDB,
 		AgentID:              params.AgentID,
@@ -98,7 +98,7 @@ func New(params *Params, l *logrus.Entry) (*PerfSchema, error) {
 
 }
 
-func newPerfSchema(params *NewPerfSchemaParams) *PerfSchema {
+func newPerfSchema(params *newPerfSchemaParams) *PerfSchema {
 	return &PerfSchema{
 		q:                    params.Querier,
 		dbCloser:             params.DBCloser,
