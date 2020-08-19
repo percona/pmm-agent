@@ -258,6 +258,11 @@ func (c *Client) processChannelRequests() {
 		case *agentpb.StartActionRequest:
 			var action actions.Action
 			actionTimeout := p.GetTimeout()
+			if actionTimeout == ptypes.DurationProto(0) {
+				// default timeout for compatibility with an older server.
+				actionTimeout = ptypes.DurationProto(10 * time.Second)
+			}
+
 			switch params := p.Params.(type) {
 			case *agentpb.StartActionRequest_MysqlExplainParams:
 				action = actions.NewMySQLExplainAction(p.ActionId, params.MysqlExplainParams)
