@@ -92,7 +92,7 @@ func New(cfg *config.Config, supervisor supervisor, connectionChecker connection
 func (c *Client) Run(ctx context.Context) error {
 	c.l.Info("Starting...")
 
-	c.runner = actions.NewConcurrentRunner(ctx, 10*time.Second)
+	c.runner = actions.NewConcurrentRunner(ctx)
 
 	// do nothing until ctx is canceled if config misses critical info
 	var missing string
@@ -257,6 +257,7 @@ func (c *Client) processChannelRequests() {
 
 		case *agentpb.StartActionRequest:
 			var action actions.Action
+			actionTimeout := p.GetTimeout()
 			switch params := p.Params.(type) {
 			case *agentpb.StartActionRequest_MysqlExplainParams:
 				action = actions.NewMySQLExplainAction(p.ActionId, params.MysqlExplainParams)
@@ -306,7 +307,7 @@ func (c *Client) processChannelRequests() {
 				return
 			}
 
-			c.runner.Start(action)
+			c.runner.Start(action, actionTimeout)
 			responsePayload = new(agentpb.StartActionResponse)
 
 		case *agentpb.StopActionRequest:
