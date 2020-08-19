@@ -23,11 +23,11 @@ import (
 
 type ptSummaryAction struct {
 	id     string
-	params *agentpb.StartActionRequest_PtSummaryParams
+	params *agentpb.StartActionRequest_ProcessParams
 }
 
 // NewPTSummaryAction creates a MongoDB adminCommand query Action.
-func NewPTSummaryAction(id string, params *agentpb.StartActionRequest_PtSummaryParams) Action {
+func NewPTSummaryAction(id string, params *agentpb.StartActionRequest_ProcessParams) Action {
 	return &ptSummaryAction{
 		id:     id,
 		params: params,
