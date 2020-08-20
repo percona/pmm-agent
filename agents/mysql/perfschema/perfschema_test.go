@@ -479,7 +479,7 @@ func TestPerfSchema(t *testing.T) {
 	t.Run("DisableQueryExamples", func(t *testing.T) {
 		m := setup(t, &setupParams{
 			db:                   db,
-			disableQueryExamples: false,
+			disableQueryExamples: true,
 		})
 		_, err = db.Exec("SELECT 1, 2, 3, 4, id FROM city WHERE id = 1")
 		require.NoError(t, err)
