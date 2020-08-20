@@ -33,11 +33,6 @@ import (
 	"github.com/percona/pmm-agent/utils/tests"
 )
 
-const (
-	disableQueryExamples = true
-	enableQueryExamples  = false
-)
-
 func TestPerfSchemaMakeBuckets(t *testing.T) {
 	t.Run("Normal", func(t *testing.T) {
 		prev := map[string]*eventsStatementsSummaryByDigest{
@@ -170,20 +165,25 @@ func TestPerfSchemaMakeBuckets(t *testing.T) {
 	})
 }
 
-func setup(t *testing.T, db *reform.DB, disableQueryExamples bool) *PerfSchema {
+type setupParams struct {
+	db                   *reform.DB
+	disableQueryExamples bool
+}
+
+func setup(t *testing.T, sp *setupParams) *PerfSchema {
 	t.Helper()
 
 	truncateQuery := fmt.Sprintf("TRUNCATE /* %s */ ", queryTag)
-	_, err := db.Exec(truncateQuery + "performance_schema.events_statements_history")
+	_, err := sp.db.Exec(truncateQuery + "performance_schema.events_statements_history")
 	require.NoError(t, err)
-	_, err = db.Exec(truncateQuery + "performance_schema.events_statements_summary_by_digest")
+	_, err = sp.db.Exec(truncateQuery + "performance_schema.events_statements_summary_by_digest")
 	require.NoError(t, err)
 
 	newParams := &newPerfSchemaParams{
-		Querier:              db.WithTag(queryTag),
+		Querier:              sp.db.WithTag(queryTag),
 		DBCloser:             nil,
 		AgentID:              "agent_id",
-		DisableQueryExamples: disableQueryExamples,
+		DisableQueryExamples: sp.disableQueryExamples,
 		LogEntry:             logrus.WithField("test", t.Name()),
 	}
 
@@ -309,7 +309,10 @@ func TestPerfSchema(t *testing.T) {
 	}
 
 	t.Run("Sleep", func(t *testing.T) {
-		m := setup(t, db, enableQueryExamples)
+		m := setup(t, &setupParams{
+			db:                   db,
+			disableQueryExamples: false,
+		})
 
 		_, err := db.Exec("SELECT /* Sleep */ sleep(0.1)")
 		require.NoError(t, err)
@@ -350,7 +353,10 @@ func TestPerfSchema(t *testing.T) {
 	})
 
 	t.Run("AllCities", func(t *testing.T) {
-		m := setup(t, db, enableQueryExamples)
+		m := setup(t, &setupParams{
+			db:                   db,
+			disableQueryExamples: false,
+		})
 
 		_, err := db.Exec("SELECT /* AllCities */ * FROM city")
 		require.NoError(t, err)
@@ -398,7 +404,10 @@ func TestPerfSchema(t *testing.T) {
 	})
 
 	t.Run("Invalid UTF-8", func(t *testing.T) {
-		m := setup(t, db, enableQueryExamples)
+		m := setup(t, &setupParams{
+			db:                   db,
+			disableQueryExamples: false,
+		})
 
 		_, err := db.Exec("CREATE TABLE if not exists t1(col1 CHAR(100)) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci")
 		require.NoError(t, err)
@@ -468,7 +477,10 @@ func TestPerfSchema(t *testing.T) {
 	})
 
 	t.Run("DisableQueryExamples", func(t *testing.T) {
-		m := setup(t, db, disableQueryExamples)
+		m := setup(t, &setupParams{
+			db:                   db,
+			disableQueryExamples: false,
+		})
 		_, err = db.Exec("SELECT 1, 2, 3, 4, id FROM city WHERE id = 1")
 		require.NoError(t, err)
 
