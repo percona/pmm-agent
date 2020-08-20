@@ -21,31 +21,31 @@ import (
 	"github.com/percona/pmm/api/agentpb"
 )
 
-type ptSummaryAction struct {
+type ptMySQLSummaryAction struct {
 	id     string
-	params *agentpb.StartActionRequest_PTSummaryParams
+	params *agentpb.StartActionRequest_PTMySQLSummaryParams
 }
 
-// NewPTSummaryAction creates a PT summary Action.
-func NewPTSummaryAction(id string, params *agentpb.StartActionRequest_PTSummaryParams) Action {
-	return &ptSummaryAction{
+// NewPTMySQLSummaryAction creates a MongoDB adminCommand query Action.
+func NewPTMySQLSummaryAction(id string, params *agentpb.StartActionRequest_PTMySQLSummaryParams) Action {
+	return &ptMySQLSummaryAction{
 		id:     id,
 		params: params,
 	}
 }
 
 // ID returns an Action ID.
-func (a *ptSummaryAction) ID() string {
+func (a *ptMySQLSummaryAction) ID() string {
 	return a.id
 }
 
 // Type returns an Action type.
-func (a *ptSummaryAction) Type() string {
-	return "pt-summary"
+func (a *ptMySQLSummaryAction) Type() string {
+	return "pt-mysql-summary"
 }
 
 // Run runs an Action and returns output and error.
-func (a *ptSummaryAction) Run(ctx context.Context) ([]byte, error) {
+func (a *ptMySQLSummaryAction) Run(ctx context.Context) ([]byte, error) {
 	test := make(map[string]interface{})
 	test["test"] = "test string"
 
@@ -54,4 +54,4 @@ func (a *ptSummaryAction) Run(ctx context.Context) ([]byte, error) {
 	return agentpb.MarshalActionQueryDocsResult(data)
 }
 
-func (a *ptSummaryAction) sealed() {}
+func (a *ptMySQLSummaryAction) sealed() {}

@@ -303,6 +303,9 @@ func (c *Client) processChannelRequests() {
 			case *agentpb.StartActionRequest_PtSummaryParams:
 				action = actions.NewPTSummaryAction(p.ActionId, params.PtSummaryParams)
 
+			case *agentpb.StartActionRequest_PtMysqlSummaryParams:
+				action = actions.NewPTMySQLSummaryAction(p.ActionId, params.PtMysqlSummaryParams)
+
 			case nil:
 				// Requests() is not closed, so exit early to break channel
 				c.l.Errorf("Unhandled StartAction request: %v.", req)
