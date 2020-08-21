@@ -19,9 +19,8 @@ import (
 	"context"
 	"runtime/pprof"
 	"sync"
+	"time"
 
-	"github.com/golang/protobuf/ptypes"
-	"github.com/golang/protobuf/ptypes/duration"
 	"github.com/sirupsen/logrus"
 )
 
@@ -70,7 +69,7 @@ func NewConcurrentRunner(ctx context.Context) *ConcurrentRunner {
 }
 
 // Start starts an Action in a separate goroutine.
-func (r *ConcurrentRunner) Start(a Action, timeout *duration.Duration) {
+func (r *ConcurrentRunner) Start(a Action, timeout time.Duration) {
 	if err := r.ctx.Err(); err != nil {
 		r.l.Errorf("Ignoring Start: %s.", err)
 		return
@@ -87,12 +86,8 @@ func (r *ConcurrentRunner) Start(a Action, timeout *duration.Duration) {
 	// https://jira.percona.com/browse/PMM-4112
 	r.runningActions.Add(1)
 	actionID, actionType := a.ID(), a.Type()
-	timeoutDuration, err := ptypes.Duration(timeout)
-	if err != nil {
-		r.l.Errorf("Invalid timeout duration: %s", err)
-	}
 
-	ctx, cancel := context.WithTimeout(r.ctx, timeoutDuration)
+	ctx, cancel := context.WithTimeout(r.ctx, timeout)
 	run := func(ctx context.Context) {
 		defer r.runningActions.Done()
 		defer cancel()

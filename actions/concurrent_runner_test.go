@@ -21,7 +21,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang/protobuf/ptypes"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -50,7 +49,7 @@ func TestConcurrentRunnerRun(t *testing.T) {
 	a1 := NewProcessAction("/action_id/6a479303-5081-46d0-baa0-87d6248c987b", "echo", []string{"test"})
 	a2 := NewProcessAction("/action_id/84140ab2-612d-4d93-9360-162a4bd5de14", "echo", []string{"test2"})
 
-	actionTimeout := ptypes.DurationProto(time.Second)
+	actionTimeout := time.Duration(5 * time.Second)
 	cr.Start(a1, actionTimeout)
 	cr.Start(a2, actionTimeout)
 
@@ -69,7 +68,7 @@ func TestConcurrentRunnerTimeout(t *testing.T) {
 	a1 := NewProcessAction("/action_id/6a479303-5081-46d0-baa0-87d6248c987b", "sleep", []string{"20"})
 	a2 := NewProcessAction("/action_id/84140ab2-612d-4d93-9360-162a4bd5de14", "sleep", []string{"30"})
 
-	actionTimeout := ptypes.DurationProto(time.Second)
+	actionTimeout := time.Duration(time.Second)
 	cr.Start(a1, actionTimeout)
 	cr.Start(a2, actionTimeout)
 
@@ -89,7 +88,7 @@ func TestConcurrentRunnerStop(t *testing.T) {
 	a1 := NewProcessAction("/action_id/6a479303-5081-46d0-baa0-87d6248c987b", "sleep", []string{"20"})
 	a2 := NewProcessAction("/action_id/84140ab2-612d-4d93-9360-162a4bd5de14", "sleep", []string{"30"})
 
-	actionTimeout := ptypes.DurationProto(5 * time.Second)
+	actionTimeout := time.Duration(5 * time.Second)
 	cr.Start(a1, actionTimeout)
 	cr.Start(a2, actionTimeout)
 
@@ -115,7 +114,7 @@ func TestConcurrentRunnerCancel(t *testing.T) {
 	a1 := NewProcessAction("/action_id/6a479303-5081-46d0-baa0-87d6248c987b", "sleep", []string{"20"})
 	a2 := NewProcessAction("/action_id/84140ab2-612d-4d93-9360-162a4bd5de14", "sleep", []string{"30"})
 
-	actionTimeout := ptypes.DurationProto(5 * time.Second)
+	actionTimeout := time.Duration(5 * time.Second)
 	cr.Start(a1, actionTimeout)
 	cr.Start(a2, actionTimeout)
 
@@ -143,7 +142,7 @@ func TestConcurrentRunnerCancelEmpty(t *testing.T) {
 	a := NewProcessAction("/action_id/6a479303-5081-46d0-baa0-87d6248c987b", "sleep", []string{"20"})
 
 	go cancel()
-	cr.Start(a, ptypes.DurationProto(5*time.Second))
+	cr.Start(a, time.Duration(5*time.Second))
 
 	expected := []ActionResult{
 		{ID: "/action_id/6a479303-5081-46d0-baa0-87d6248c987b", Error: context.Canceled.Error()},

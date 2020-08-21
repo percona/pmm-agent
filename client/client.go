@@ -257,12 +257,6 @@ func (c *Client) processChannelRequests() {
 
 		case *agentpb.StartActionRequest:
 			var action actions.Action
-			actionTimeout := p.GetTimeout()
-			if actionTimeout == ptypes.DurationProto(0) {
-				// default timeout for compatibility with an older server.
-				actionTimeout = ptypes.DurationProto(10 * time.Second)
-			}
-
 			switch params := p.Params.(type) {
 			case *agentpb.StartActionRequest_MysqlExplainParams:
 				action = actions.NewMySQLExplainAction(p.ActionId, params.MysqlExplainParams)
@@ -310,6 +304,17 @@ func (c *Client) processChannelRequests() {
 				// Requests() is not closed, so exit early to break channel
 				c.l.Errorf("Unhandled StartAction request: %v.", req)
 				return
+			}
+
+			timeout := p.GetTimeout()
+			if timeout == ptypes.DurationProto(0) {
+				// default timeout for compatibility with an older server.
+				timeout = ptypes.DurationProto(10 * time.Second)
+			}
+
+			actionTimeout, err := ptypes.Duration(timeout)
+			if err != nil {
+				c.l.Errorf("Invalid timeout: %s", err)
 			}
 
 			c.runner.Start(action, actionTimeout)

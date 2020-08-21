@@ -358,7 +358,7 @@
   revision = "002303fc2e97085915b305c44053e8f022a1f8b3"
 
 [[projects]]
-  branch = "SAAS-93-Configurable-Action-Timeout"
+  branch = "PMM-2.0"
   digest = "1:6349403665839357b302fa71bf133b888d66cbe0230ca582db4820757354820b"
   name = "github.com/percona/pmm"
   packages = [
@@ -386,7 +386,7 @@
     "version",
   ]
   pruneopts = "NUT"
-  revision = "1528ccb53c54206c03c41d1582ecc0f77c7555f1"
+  revision = "bd122591cd51bc2c34b81eddb5773d0042b4d5a6"
 
 [[projects]]
   digest = "1:4047c378584616813d610c9f993bf90dd0d07aed8d94bd3bc299cd35ececdcba"
