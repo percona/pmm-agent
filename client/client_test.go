@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/golang/protobuf/ptypes"
+	"github.com/golang/protobuf/ptypes/duration"
 	"github.com/percona/pmm/api/agentpb"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
@@ -186,4 +187,31 @@ func TestClient(t *testing.T) {
 			assert.EqualError(t, err, "failed to get server metadata: rpc error: code = Canceled desc = context canceled", "%+v", err)
 		})
 	})
+}
+
+func TestGetActionTimeout(t *testing.T) {
+	type testStartActionReq struct {
+		req             *agentpb.StartActionRequest
+		expectedTimeout *duration.Duration
+	}
+
+	testCases := []*testStartActionReq{
+		{
+			req:             &agentpb.StartActionRequest{Timeout: ptypes.DurationProto(0 * time.Second)},
+			expectedTimeout: ptypes.DurationProto(10 * time.Second),
+		},
+		{
+			req:             &agentpb.StartActionRequest{Timeout: nil},
+			expectedTimeout: ptypes.DurationProto(10 * time.Second),
+		},
+		{
+			req:             &agentpb.StartActionRequest{Timeout: ptypes.DurationProto(15 * time.Second)},
+			expectedTimeout: ptypes.DurationProto(15 * time.Second),
+		},
+	}
+
+	for _, tc := range testCases {
+		client := New(nil, nil, nil)
+		assert.Equal(t, client.getActionTimeout(tc.req), tc.expectedTimeout)
+	}
 }

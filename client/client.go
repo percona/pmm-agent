@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/golang/protobuf/ptypes"
+	"github.com/golang/protobuf/ptypes/duration"
 	"github.com/percona/pmm/api/agentpb"
 	"github.com/percona/pmm/utils/tlsconfig"
 	"github.com/percona/pmm/version"
@@ -306,17 +307,12 @@ func (c *Client) processChannelRequests() {
 				return
 			}
 
-			timeout := p.GetTimeout()
-			if timeout == ptypes.DurationProto(0) {
-				// default timeout for compatibility with an older server.
-				timeout = ptypes.DurationProto(10 * time.Second)
-			}
-
+			timeout := c.getActionTimeout(p)
 			actionTimeout, err := ptypes.Duration(timeout)
 			if err != nil {
 				c.l.Errorf("Invalid timeout: %s", err)
+				return
 			}
-
 			c.runner.Start(action, actionTimeout)
 			responsePayload = new(agentpb.StartActionResponse)
 
@@ -344,6 +340,15 @@ func (c *Client) processChannelRequests() {
 		return
 	}
 	c.l.Debug("Channel closed.")
+}
+
+func (c *Client) getActionTimeout(req *agentpb.StartActionRequest) *duration.Duration {
+	timeout := req.GetTimeout()
+	if timeout == ptypes.DurationProto(0) || timeout == nil {
+		// default timeout for compatibility with an older server.
+		timeout = ptypes.DurationProto(10 * time.Second)
+	}
+	return timeout
 }
 
 type dialResult struct {
