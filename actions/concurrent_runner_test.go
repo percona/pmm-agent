@@ -49,9 +49,8 @@ func TestConcurrentRunnerRun(t *testing.T) {
 	a1 := NewProcessAction("/action_id/6a479303-5081-46d0-baa0-87d6248c987b", "echo", []string{"test"})
 	a2 := NewProcessAction("/action_id/84140ab2-612d-4d93-9360-162a4bd5de14", "echo", []string{"test2"})
 
-	actionTimeout := time.Duration(5 * time.Second)
-	cr.Start(a1, actionTimeout)
-	cr.Start(a2, actionTimeout)
+	cr.Start(a1, 5*time.Second)
+	cr.Start(a2, 5*time.Second)
 
 	expected := []ActionResult{
 		{ID: "/action_id/6a479303-5081-46d0-baa0-87d6248c987b", Output: []byte("test\n")},
@@ -68,9 +67,8 @@ func TestConcurrentRunnerTimeout(t *testing.T) {
 	a1 := NewProcessAction("/action_id/6a479303-5081-46d0-baa0-87d6248c987b", "sleep", []string{"20"})
 	a2 := NewProcessAction("/action_id/84140ab2-612d-4d93-9360-162a4bd5de14", "sleep", []string{"30"})
 
-	actionTimeout := time.Duration(time.Second)
-	cr.Start(a1, actionTimeout)
-	cr.Start(a2, actionTimeout)
+	cr.Start(a1, 1*time.Second)
+	cr.Start(a2, 1*time.Second)
 
 	// https://github.com/golang/go/issues/21880
 	expected := []ActionResult{
@@ -88,9 +86,8 @@ func TestConcurrentRunnerStop(t *testing.T) {
 	a1 := NewProcessAction("/action_id/6a479303-5081-46d0-baa0-87d6248c987b", "sleep", []string{"20"})
 	a2 := NewProcessAction("/action_id/84140ab2-612d-4d93-9360-162a4bd5de14", "sleep", []string{"30"})
 
-	actionTimeout := time.Duration(5 * time.Second)
-	cr.Start(a1, actionTimeout)
-	cr.Start(a2, actionTimeout)
+	cr.Start(a1, 5*time.Second)
+	cr.Start(a2, 5*time.Second)
 
 	<-time.After(time.Second)
 
@@ -114,9 +111,8 @@ func TestConcurrentRunnerCancel(t *testing.T) {
 	a1 := NewProcessAction("/action_id/6a479303-5081-46d0-baa0-87d6248c987b", "sleep", []string{"20"})
 	a2 := NewProcessAction("/action_id/84140ab2-612d-4d93-9360-162a4bd5de14", "sleep", []string{"30"})
 
-	actionTimeout := time.Duration(5 * time.Second)
-	cr.Start(a1, actionTimeout)
-	cr.Start(a2, actionTimeout)
+	cr.Start(a1, 5*time.Second)
+	cr.Start(a2, 5*time.Second)
 
 	cancel()
 
@@ -142,7 +138,7 @@ func TestConcurrentRunnerCancelEmpty(t *testing.T) {
 	a := NewProcessAction("/action_id/6a479303-5081-46d0-baa0-87d6248c987b", "sleep", []string{"20"})
 
 	go cancel()
-	cr.Start(a, time.Duration(5*time.Second))
+	cr.Start(a, 5*time.Second)
 
 	expected := []ActionResult{
 		{ID: "/action_id/6a479303-5081-46d0-baa0-87d6248c987b", Error: context.Canceled.Error()},
