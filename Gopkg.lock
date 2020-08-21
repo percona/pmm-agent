@@ -785,7 +785,6 @@
     "github.com/go-sql-driver/mysql",
     "github.com/golang/protobuf/proto",
     "github.com/golang/protobuf/ptypes",
-    "github.com/golang/protobuf/ptypes/duration",
     "github.com/grpc-ecosystem/grpc-gateway/runtime",
     "github.com/lfittl/pg_query_go",
     "github.com/lfittl/pg_query_go/nodes",
