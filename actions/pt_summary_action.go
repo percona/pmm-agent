@@ -17,6 +17,8 @@ package actions
 
 import (
 	"context"
+	"os"
+	"os/exec"
 
 	"github.com/percona/pmm/api/agentpb"
 )
@@ -46,12 +48,17 @@ func (a *ptSummaryAction) Type() string {
 
 // Run runs an Action and returns output and error.
 func (a *ptSummaryAction) Run(ctx context.Context) ([]byte, error) {
-	test := make(map[string]interface{})
-	test["test"] = "test string"
+	dir, err := os.Getwd()
+	if err != nil {
+		return nil, err
+	}
+	cmd := exec.Command(dir + "/../utils/pt-summary")
+	b, err := cmd.CombinedOutput()
+	if err != nil {
+		return nil, err
+	}
 
-	data := []map[string]interface{}{}
-	data = append(data, test)
-	return agentpb.MarshalActionQueryDocsResult(data)
+	return b, nil
 }
 
 func (a *ptSummaryAction) sealed() {}
