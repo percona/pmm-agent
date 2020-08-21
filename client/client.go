@@ -19,6 +19,7 @@ package client
 import (
 	"context"
 	"net"
+	"reflect"
 	"strings"
 	"sync"
 	"time"
@@ -344,7 +345,7 @@ func (c *Client) processChannelRequests() {
 
 func (c *Client) getActionTimeout(req *agentpb.StartActionRequest) *duration.Duration {
 	timeout := req.GetTimeout()
-	if timeout == ptypes.DurationProto(0) || timeout == nil {
+	if reflect.DeepEqual(timeout, ptypes.DurationProto(0*time.Second)) || timeout == nil {
 		// default timeout for compatibility with an older server.
 		timeout = ptypes.DurationProto(10 * time.Second)
 	}

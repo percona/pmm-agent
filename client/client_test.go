@@ -212,6 +212,6 @@ func TestGetActionTimeout(t *testing.T) {
 
 	for _, tc := range testCases {
 		client := New(nil, nil, nil)
-		assert.Equal(t, client.getActionTimeout(tc.req), tc.expectedTimeout)
+		assert.Equal(t, tc.expectedTimeout, client.getActionTimeout(tc.req))
 	}
 }
