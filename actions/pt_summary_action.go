@@ -19,20 +19,16 @@ import (
 	"context"
 	"os"
 	"os/exec"
-
-	"github.com/percona/pmm/api/agentpb"
 )
 
 type ptSummaryAction struct {
-	id     string
-	params *agentpb.StartActionRequest_PTSummaryParams
+	id string
 }
 
 // NewPTSummaryAction creates a PT summary Action.
-func NewPTSummaryAction(id string, params *agentpb.StartActionRequest_PTSummaryParams) Action {
+func NewPTSummaryAction(id string) Action {
 	return &ptSummaryAction{
-		id:     id,
-		params: params,
+		id: id,
 	}
 }
 

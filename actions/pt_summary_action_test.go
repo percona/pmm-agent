@@ -17,24 +17,20 @@ package actions
 
 import (
 	"context"
+	"regexp"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
-
-	"github.com/percona/pmm/api/agentpb"
 )
 
 func TestPTSummaryAction(t *testing.T) {
-	params := &agentpb.StartActionRequest_PTSummaryParams{
-		PmmAgentId: "pmm",
-		NodeId:     "node",
-	}
-	a := NewPTSummaryAction("", params)
+	a := NewPTSummaryAction("")
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
 	res, err := a.Run(ctx)
 	require.NoError(t, err)
 	require.NotEmpty(t, res)
+	require.Regexp(t, regexp.MustCompile("# Percona Toolkit System Summary Report ######################"), string(res))
 }

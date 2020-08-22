@@ -301,7 +301,7 @@ func (c *Client) processChannelRequests() {
 				action = actions.NewMongoDBQueryAdmincommandAction(p.ActionId, params.MongodbQueryGetcmdlineoptsParams.Dsn, "getCmdLineOpts", 1)
 
 			case *agentpb.StartActionRequest_PtSummaryParams:
-				action = actions.NewPTSummaryAction(p.ActionId, params.PtSummaryParams)
+				action = actions.NewPTSummaryAction(p.ActionId)
 
 			case nil:
 				// Requests() is not closed, so exit early to break channel
