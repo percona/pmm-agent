@@ -16,6 +16,7 @@
 package actions
 
 import (
+	"bytes"
 	"context"
 	"os/exec"
 
@@ -47,14 +48,21 @@ func (a *ptSummaryAction) Type() string {
 // Run runs an Action and returns output and error.
 func (a *ptSummaryAction) Run(ctx context.Context) ([]byte, error) {
 	l := logrus.WithField("component", "pt-summary")
-	cfg, _, _ := config.Get(l)
-	cmd := exec.Command(cfg.Paths.PTSummary)
-	b, err := cmd.CombinedOutput()
+	cfg, _, err := config.Get(l)
 	if err != nil {
 		return nil, err
 	}
 
-	return b, nil
+	buf := new(bytes.Buffer)
+	cmd := exec.CommandContext(ctx, "pt-summary")
+	cmd.Dir = cfg.Paths.PTSummary
+	cmd.Stdout = buf
+	cmd.Stderr = new(bytes.Buffer)
+	if err := cmd.Run(); err != nil {
+		return nil, err
+	}
+
+	return buf.Bytes(), nil
 }
 
 func (a *ptSummaryAction) sealed() {}
