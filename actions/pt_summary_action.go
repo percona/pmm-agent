@@ -17,8 +17,10 @@ package actions
 
 import (
 	"context"
-	"os"
 	"os/exec"
+
+	"github.com/percona/pmm-agent/config"
+	"github.com/sirupsen/logrus"
 )
 
 type ptSummaryAction struct {
@@ -44,11 +46,9 @@ func (a *ptSummaryAction) Type() string {
 
 // Run runs an Action and returns output and error.
 func (a *ptSummaryAction) Run(ctx context.Context) ([]byte, error) {
-	dir, err := os.Getwd()
-	if err != nil {
-		return nil, err
-	}
-	cmd := exec.Command(dir + "/../utils/pt-summary")
+	l := logrus.WithField("component", "pt-summary")
+	cfg, _, _ := config.Get(l)
+	cmd := exec.Command(cfg.Paths.PTSummary)
 	b, err := cmd.CombinedOutput()
 	if err != nil {
 		return nil, err
