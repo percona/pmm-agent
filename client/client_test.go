@@ -193,25 +193,31 @@ func TestGetActionTimeout(t *testing.T) {
 	type testStartActionReq struct {
 		req             *agentpb.StartActionRequest
 		expectedTimeout *duration.Duration
+		name            string
 	}
 
 	testCases := []*testStartActionReq{
 		{
-			req:             &agentpb.StartActionRequest{Timeout: ptypes.DurationProto(0 * time.Second)},
+			req:             &agentpb.StartActionRequest{Timeout: ptypes.DurationProto(0)},
 			expectedTimeout: ptypes.DurationProto(10 * time.Second),
+			name:            "Request with 0 timeout",
 		},
 		{
 			req:             &agentpb.StartActionRequest{Timeout: nil},
 			expectedTimeout: ptypes.DurationProto(10 * time.Second),
+			name:            "Request with nil timeout",
 		},
 		{
 			req:             &agentpb.StartActionRequest{Timeout: ptypes.DurationProto(15 * time.Second)},
 			expectedTimeout: ptypes.DurationProto(15 * time.Second),
+			name:            "Request with 15s timeout",
 		},
 	}
 
 	for _, tc := range testCases {
-		client := New(nil, nil, nil)
-		assert.Equal(t, tc.expectedTimeout, client.getActionTimeout(tc.req))
+		t.Run(tc.name, func(t *testing.T) {
+			client := New(nil, nil, nil)
+			assert.Equal(t, tc.expectedTimeout, client.getActionTimeout(tc.req))
+		})
 	}
 }
