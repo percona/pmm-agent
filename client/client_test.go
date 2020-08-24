@@ -22,8 +22,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes"
-	"github.com/golang/protobuf/ptypes/duration"
 	"github.com/percona/pmm/api/agentpb"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
@@ -191,27 +191,27 @@ func TestClient(t *testing.T) {
 
 func TestGetActionTimeout(t *testing.T) {
 	type testStartActionReq struct {
-		req             *agentpb.StartActionRequest
-		expectedTimeout *duration.Duration
+		req      *agentpb.StartActionRequest
+		expected time.Duration
 	}
 
-	testCases := []*testStartActionReq{
-		{
-			req:             &agentpb.StartActionRequest{Timeout: ptypes.DurationProto(0 * time.Second)},
-			expectedTimeout: ptypes.DurationProto(10 * time.Second),
-		},
-		{
-			req:             &agentpb.StartActionRequest{Timeout: nil},
-			expectedTimeout: ptypes.DurationProto(10 * time.Second),
-		},
-		{
-			req:             &agentpb.StartActionRequest{Timeout: ptypes.DurationProto(15 * time.Second)},
-			expectedTimeout: ptypes.DurationProto(15 * time.Second),
-		},
-	}
+	testCases := []*testStartActionReq{{
+		req:      &agentpb.StartActionRequest{Timeout: ptypes.DurationProto(0 * time.Second)},
+		expected: 10 * time.Second,
+	}, {
+		req:      &agentpb.StartActionRequest{Timeout: nil},
+		expected: 10 * time.Second,
+	}, {
+		req:      &agentpb.StartActionRequest{Timeout: ptypes.DurationProto(15 * time.Second)},
+		expected: 15 * time.Second,
+	}}
 
 	for _, tc := range testCases {
-		client := New(nil, nil, nil)
-		assert.Equal(t, tc.expectedTimeout, client.getActionTimeout(tc.req))
+		tc := tc
+		t.Run(proto.CompactTextString(tc.req), func(t *testing.T) {
+			client := New(nil, nil, nil)
+			actual := client.getActionTimeout(tc.req)
+			assert.Equal(t, tc.expected, actual)
+		})
 	}
 }

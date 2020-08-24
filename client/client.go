@@ -19,13 +19,11 @@ package client
 import (
 	"context"
 	"net"
-	"reflect"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/golang/protobuf/ptypes"
-	"github.com/golang/protobuf/ptypes/duration"
 	"github.com/percona/pmm/api/agentpb"
 	"github.com/percona/pmm/utils/tlsconfig"
 	"github.com/percona/pmm/version"
@@ -43,10 +41,11 @@ import (
 )
 
 const (
-	dialTimeout       = 5 * time.Second
-	backoffMinDelay   = 1 * time.Second
-	backoffMaxDelay   = 15 * time.Second
-	clockDriftWarning = 5 * time.Second
+	dialTimeout          = 5 * time.Second
+	backoffMinDelay      = 1 * time.Second
+	backoffMaxDelay      = 15 * time.Second
+	clockDriftWarning    = 5 * time.Second
+	defaultActionTimeout = 10 * time.Second // default timeout for compatibility with an older server
 )
 
 // Client represents pmm-agent's connection to nginx/pmm-managed.
@@ -308,13 +307,7 @@ func (c *Client) processChannelRequests() {
 				return
 			}
 
-			timeout := c.getActionTimeout(p)
-			actionTimeout, err := ptypes.Duration(timeout)
-			if err != nil {
-				c.l.Errorf("Invalid timeout: %s", err)
-				return
-			}
-			c.runner.Start(action, actionTimeout)
+			c.runner.Start(action, c.getActionTimeout(p))
 			responsePayload = new(agentpb.StartActionResponse)
 
 		case *agentpb.StopActionRequest:
@@ -343,13 +336,16 @@ func (c *Client) processChannelRequests() {
 	c.l.Debug("Channel closed.")
 }
 
-func (c *Client) getActionTimeout(req *agentpb.StartActionRequest) *duration.Duration {
-	timeout := req.GetTimeout()
-	if reflect.DeepEqual(timeout, ptypes.DurationProto(0*time.Second)) || timeout == nil {
-		// default timeout for compatibility with an older server.
-		timeout = ptypes.DurationProto(10 * time.Second)
+func (c *Client) getActionTimeout(req *agentpb.StartActionRequest) time.Duration {
+	d, err := ptypes.Duration(req.Timeout)
+	if d == 0 {
+		err = errors.New("timeout can't be zero")
 	}
-	return timeout
+	if err != nil {
+		c.l.Warnf("Invalid timeout, using default value instead: %s.", err)
+		d = defaultActionTimeout
+	}
+	return d
 }
 
 type dialResult struct {
