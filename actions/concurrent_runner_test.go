@@ -67,8 +67,8 @@ func TestConcurrentRunnerTimeout(t *testing.T) {
 	a1 := NewProcessAction("/action_id/6a479303-5081-46d0-baa0-87d6248c987b", "sleep", []string{"20"})
 	a2 := NewProcessAction("/action_id/84140ab2-612d-4d93-9360-162a4bd5de14", "sleep", []string{"30"})
 
-	cr.Start(a1, 1*time.Second)
-	cr.Start(a2, 1*time.Second)
+	cr.Start(a1, time.Second)
+	cr.Start(a2, time.Second)
 
 	// https://github.com/golang/go/issues/21880
 	expected := []ActionResult{
