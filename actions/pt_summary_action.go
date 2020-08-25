@@ -20,7 +20,9 @@ import (
 	"context"
 	"os/exec"
 
+	"github.com/percona/pmm/utils/pdeathsig"
 	"github.com/sirupsen/logrus"
+	"golang.org/x/sys/unix"
 
 	"github.com/percona/pmm-agent/config"
 )
@@ -59,6 +61,7 @@ func (a *ptSummaryAction) Run(ctx context.Context) ([]byte, error) {
 	cmd.Dir = cfg.Paths.PTSummary
 	cmd.Stdout = buf
 	cmd.Stderr = new(bytes.Buffer)
+	pdeathsig.Set(cmd, unix.SIGKILL)
 	if err := cmd.Run(); err != nil {
 		return nil, err
 	}

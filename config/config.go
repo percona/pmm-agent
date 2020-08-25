@@ -89,7 +89,8 @@ type Paths struct {
 	ProxySQLExporter string `yaml:"proxysql_exporter"`
 	RDSExporter      string `yaml:"rds_exporter"`
 
-	TempDir   string `yaml:"tempdir"`
+	TempDir string `yaml:"tempdir"`
+
 	PTSummary string `yaml:"pt_summary"`
 
 	SlowLogFilePrefix string `yaml:"slowlog_file_prefix,omitempty"` // for development and testing

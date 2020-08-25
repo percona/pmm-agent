@@ -17,7 +17,7 @@ package actions
 
 import (
 	"context"
-	"regexp"
+	"strings"
 	"testing"
 	"time"
 
@@ -25,8 +25,6 @@ import (
 )
 
 func TestPTSummaryAction(t *testing.T) {
-	t.Skip()
-
 	a := NewPTSummaryAction("")
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
@@ -34,5 +32,5 @@ func TestPTSummaryAction(t *testing.T) {
 	res, err := a.Run(ctx)
 	require.NoError(t, err)
 	require.NotEmpty(t, res)
-	require.Regexp(t, regexp.MustCompile("# Percona Toolkit System Summary Report ######################"), string(res))
+	require.True(t, strings.Contains(string(res), "# Percona Toolkit System Summary Report ######################"))
 }
