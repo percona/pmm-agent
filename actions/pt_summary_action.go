@@ -20,8 +20,9 @@ import (
 	"context"
 	"os/exec"
 
-	"github.com/percona/pmm-agent/config"
 	"github.com/sirupsen/logrus"
+
+	"github.com/percona/pmm-agent/config"
 )
 
 type ptSummaryAction struct {
