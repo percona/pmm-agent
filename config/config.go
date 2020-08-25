@@ -183,6 +183,7 @@ func get(args []string, l *logrus.Entry) (cfg *Config, configFileF string, err e
 			&cfg.Paths.ProxySQLExporter: "proxysql_exporter",
 			&cfg.Paths.RDSExporter:      "rds_exporter",
 			&cfg.Paths.TempDir:          os.TempDir(),
+			&cfg.Paths.PTSummary:        "/usr/local/percona/pmm2/pt-summary",
 		} {
 			if *sp == "" {
 				*sp = v

@@ -84,7 +84,6 @@ func TestGet(t *testing.T) {
 		actual, configFilepath, err := get([]string{
 			"--id=agent-id",
 			"--server-address=127.0.0.1",
-			"--paths-pt-summary=/usr/local/percona/pmm2/pt-summary",
 		}, logrus.WithField("test", t.Name()))
 		require.NoError(t, err)
 
@@ -120,9 +119,6 @@ func TestGet(t *testing.T) {
 			Server: Server{
 				Address: "127.0.0.1",
 			},
-			Paths: Paths{
-				PTSummary: "/user/local/percona/pmm2/pt-summary",
-			},
 		})
 		defer removeConfig(t, name)
 
@@ -146,7 +142,7 @@ func TestGet(t *testing.T) {
 				ProxySQLExporter: "/usr/local/percona/pmm2/exporters/proxysql_exporter",
 				RDSExporter:      "/usr/local/percona/pmm2/exporters/rds_exporter",
 				TempDir:          os.TempDir(),
-				PTSummary:        "/user/local/percona/pmm2/pt-summary",
+				PTSummary:        "/usr/local/percona/pmm2/pt-summary",
 			},
 			Ports: Ports{
 				Min: 42000,
