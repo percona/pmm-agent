@@ -338,7 +338,7 @@ func (c *Client) processChannelRequests() {
 
 func (c *Client) getActionTimeout(req *agentpb.StartActionRequest) time.Duration {
 	d, err := ptypes.Duration(req.Timeout)
-	if d == 0 {
+	if err == nil && d == 0 {
 		err = errors.New("timeout can't be zero")
 	}
 	if err != nil {
