@@ -38,7 +38,8 @@ required = [
   version = "0.7.2"
 [[constraint]]
   name = "github.com/percona/percona-toolkit"
-  version = "3.2.0"
+  # version = "3.1.1"
+  branch = "3.0"
 
 # https://jira.percona.com/browse/PMM-4081
 [[constraint]]

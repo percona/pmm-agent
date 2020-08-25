@@ -17,7 +17,9 @@ package profiler
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -31,8 +33,10 @@ import (
 	"github.com/percona/pmm/api/agentpb"
 	"github.com/percona/pmm/api/inventorypb"
 
+	"github.com/percona/pmm-agent/actions"
 	"github.com/percona/pmm-agent/agents/mongodb/internal/profiler/aggregator"
 	"github.com/percona/pmm-agent/agents/mongodb/internal/report"
+	"github.com/percona/pmm-agent/utils/tests"
 )
 
 type MongoVersion struct {
@@ -101,14 +105,18 @@ func TestProfiler(t *testing.T) {
 		fieldsCount := dbNumber + 1
 		doc := bson.M{}
 		for j := 0; j < fieldsCount; j++ {
-			doc[fmt.Sprintf("name_%05d", j)] = fmt.Sprintf("value_%05d", j) // to generate different fingerprints
+			doc[fmt.Sprintf("name_%02d\xff", j)] = fmt.Sprintf("value_%02d\xff", j) // to generate different fingerprints and test UTF8
 		}
 		dbName := fmt.Sprintf("test_%02d", dbNumber)
 		logrus.Tracef("inserting value %d to %s", i, dbName)
-		_, err = sess.Database(dbName).Collection("people").InsertOne(context.TODO(), doc)
+		_, err := sess.Database(dbName).Collection("people").InsertOne(context.TODO(), doc)
 		assert.NoError(t, err)
 		i++
 	}
+	cursor, err := sess.Database("test_00").Collection("people").Find(context.TODO(), bson.M{"name_00\xff": "value_00\xff"})
+	require.NoError(t, err)
+	defer cursor.Close(context.TODO())
+
 	<-time.After(aggregator.DefaultInterval * 6) // give it some time to catch all metrics
 
 	err = prof.Stop()
@@ -118,20 +126,24 @@ func TestProfiler(t *testing.T) {
 
 	require.GreaterOrEqual(t, len(ms.reports), 1)
 
-	buckets := make(map[string]*agentpb.MetricsBucket)
+	var findBucket *agentpb.MetricsBucket
+	bucketsMap := make(map[string]*agentpb.MetricsBucket)
+
 	for _, r := range ms.reports {
 		for _, bucket := range r.Buckets {
-			if bucket.Common.Fingerprint != "INSERT people" {
-				continue
-			}
-			key := fmt.Sprintf("%s:%s", bucket.Common.Database, bucket.Common.Fingerprint)
-			if b, ok := buckets[key]; ok {
-				b.Mongodb.MDocsReturnedCnt += bucket.Mongodb.MDocsReturnedCnt
-				b.Mongodb.MResponseLengthCnt += bucket.Mongodb.MResponseLengthCnt
-				b.Mongodb.MResponseLengthSum += bucket.Mongodb.MResponseLengthSum
-				b.Mongodb.MDocsScannedCnt += bucket.Mongodb.MDocsScannedCnt
-			} else {
-				buckets[key] = bucket
+			switch bucket.Common.Fingerprint {
+			case "INSERT people":
+				key := fmt.Sprintf("%s:%s", bucket.Common.Database, bucket.Common.Fingerprint)
+				if b, ok := bucketsMap[key]; ok {
+					b.Mongodb.MDocsReturnedCnt += bucket.Mongodb.MDocsReturnedCnt
+					b.Mongodb.MResponseLengthCnt += bucket.Mongodb.MResponseLengthCnt
+					b.Mongodb.MResponseLengthSum += bucket.Mongodb.MResponseLengthSum
+					b.Mongodb.MDocsScannedCnt += bucket.Mongodb.MDocsScannedCnt
+				} else {
+					bucketsMap[key] = bucket
+				}
+			case "FIND people name_00\ufffd":
+				findBucket = bucket
 			}
 		}
 	}
@@ -149,14 +161,21 @@ func TestProfiler(t *testing.T) {
 		responseLength = 45
 	}
 
-	assert.Equal(t, dbsCount, len(buckets)) // 300 sample docs / 10 = different database names
-	for _, bucket := range buckets {
-		assert.True(t, strings.HasPrefix(bucket.Common.Database, "test_"), fmt.Sprintf("database name %s should have prefix test_", bucket.Common.Database))
+	assert.Equal(t, dbsCount, len(bucketsMap)) // 300 sample docs / 10 = different database names
+	var buckets []*agentpb.MetricsBucket
+	for _, bucket := range bucketsMap {
+		buckets = append(buckets, bucket)
+	}
+	sort.Slice(buckets, func(i, j int) bool {
+		return buckets[i].Common.Database < buckets[j].Common.Database
+	})
+	for i, bucket := range buckets {
+		assert.Equal(t, bucket.Common.Database, fmt.Sprintf("test_%02d", i))
 		assert.Equal(t, "INSERT people", bucket.Common.Fingerprint)
 		assert.Equal(t, []string{"people"}, bucket.Common.Tables)
 		assert.Equal(t, "test-id", bucket.Common.AgentId)
 		assert.Equal(t, inventorypb.AgentType(9), bucket.Common.AgentType)
-		wantMongoDB := &agentpb.MetricsBucket_MongoDB{
+		expected := &agentpb.MetricsBucket_MongoDB{
 			MDocsReturnedCnt:   docsCount,
 			MResponseLengthCnt: docsCount,
 			MResponseLengthSum: responseLength * docsCount,
@@ -165,14 +184,59 @@ func TestProfiler(t *testing.T) {
 			MResponseLengthP99: responseLength,
 			MDocsScannedCnt:    docsCount,
 		}
-		assert.Equalf(t, wantMongoDB, bucket.Mongodb, "wrong metrics for db %s", bucket.Common.Database)
+		assert.Equalf(t, expected, bucket.Mongodb, "wrong metrics for db %s", bucket.Common.Database)
 	}
+	require.NotNil(t, findBucket)
+	assert.Equal(t, "FIND people name_00\ufffd", findBucket.Common.Fingerprint)
+	assert.Equal(t, docsCount, findBucket.Mongodb.MDocsReturnedSum)
+
+	// PMM-4192 This seems to be out of place because it is an Explain test but there was a problem with
+	// the new MongoDB driver and bson.D and we were capturing invalid queries in the profiler.
+	// This test is here to ensure the query example the profiler captures is valid to be used in Explain.
+	t.Run("TestMongoDBExplain", func(t *testing.T) {
+		id := "abcd1234"
+		ctx := context.TODO()
+
+		params := &agentpb.StartActionRequest_MongoDBExplainParams{
+			Dsn:   tests.GetTestMongoDBDSN(t),
+			Query: findBucket.Common.Example,
+		}
+
+		ex := actions.NewMongoDBExplainAction(id, params)
+		res, err := ex.Run(ctx)
+		assert.Nil(t, err)
+
+		want := map[string]interface{}{
+			"indexFilterSet": false,
+			"namespace":      "test_00.people",
+			"parsedQuery": map[string]interface{}{
+				"name_00\ufffd": map[string]interface{}{
+					"$eq": "value_00\ufffd",
+				},
+			},
+			"plannerVersion": map[string]interface{}{"$numberInt": "1"},
+			"rejectedPlans":  []interface{}{},
+			"winningPlan": map[string]interface{}{
+				"direction": "forward", "filter": map[string]interface{}{
+					"name_00\ufffd": map[string]interface{}{"$eq": "value_00\ufffd"}},
+				"stage": "COLLSCAN",
+			},
+		}
+
+		explainM := make(map[string]interface{})
+		err = json.Unmarshal(res, &explainM)
+		assert.Nil(t, err)
+		queryPlanner, ok := explainM["queryPlanner"]
+		assert.Equal(t, ok, true)
+		assert.NotEmpty(t, queryPlanner)
+		assert.Equal(t, want, queryPlanner)
+	})
 }
 
 func cleanUpDBs(t *testing.T, sess *mongo.Client) {
 	dbs, err := sess.ListDatabaseNames(context.TODO(), bson.M{})
 	for _, dbname := range dbs {
-		if strings.HasPrefix("test_", dbname) {
+		if strings.HasPrefix(dbname, "test_") {
 			err = sess.Database(dbname).Drop(context.TODO())
 			require.NoError(t, err)
 		}

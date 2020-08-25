@@ -13,10 +13,9 @@ import (
 
 	"github.com/go-openapi/errors"
 	"github.com/go-openapi/runtime"
+	"github.com/go-openapi/strfmt"
 	"github.com/go-openapi/swag"
 	"github.com/go-openapi/validate"
-
-	strfmt "github.com/go-openapi/strfmt"
 )
 
 // StatusReader is a Reader for the Status structure.
@@ -217,7 +216,7 @@ const (
 
 // prop value enum
 func (o *AgentsInfoItems0) validateAgentTypeEnum(path, location string, value string) error {
-	if err := validate.Enum(path, location, value, agentsInfoItems0TypeAgentTypePropEnum); err != nil {
+	if err := validate.EnumCase(path, location, value, agentsInfoItems0TypeAgentTypePropEnum, true); err != nil {
 		return err
 	}
 	return nil
@@ -272,7 +271,7 @@ const (
 
 // prop value enum
 func (o *AgentsInfoItems0) validateStatusEnum(path, location string, value string) error {
-	if err := validate.Enum(path, location, value, agentsInfoItems0TypeStatusPropEnum); err != nil {
+	if err := validate.EnumCase(path, location, value, agentsInfoItems0TypeStatusPropEnum, true); err != nil {
 		return err
 	}
 	return nil
@@ -433,6 +432,9 @@ type StatusOKBody struct {
 
 	// Config file path if pmm-agent was started with one.
 	ConfigFilepath string `json:"config_filepath,omitempty"`
+
+	// PMM Agent version.
+	AgentVersion string `json:"agent_version,omitempty"`
 
 	// server info
 	ServerInfo *StatusOKBodyServerInfo `json:"server_info,omitempty"`

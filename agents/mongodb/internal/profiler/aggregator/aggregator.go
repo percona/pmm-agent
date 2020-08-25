@@ -31,6 +31,7 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"github.com/percona/pmm-agent/agents/mongodb/internal/report"
+	"github.com/percona/pmm-agent/utils/truncate"
 )
 
 var DefaultInterval = time.Duration(time.Minute)
@@ -49,7 +50,7 @@ func New(timeStart time.Time, agentID string, logger *logrus.Entry) *Aggregator 
 	aggregator.d = DefaultInterval
 
 	// create mongolib stats
-	fp := fingerprinter.NewFingerprinter(fingerprinter.DEFAULT_KEY_FILTERS)
+	fp := fingerprinter.NewFingerprinter(fingerprinter.DefaultKeyFilters())
 	aggregator.mongostats = mongostats.New(fp)
 
 	// create new interval
@@ -99,7 +100,6 @@ func (a *Aggregator) Add(ctx context.Context, doc proto.SystemProfile) error {
 	// we had some activity so reset timer
 	a.t.Reset(a.d)
 
-	// add new doc to stats
 	return a.mongostats.Add(doc)
 }
 
@@ -254,10 +254,12 @@ func (a *Aggregator) createResult(ctx context.Context) *report.Result {
 			collection = s[1]
 		}
 
+		fingerprint, _ := truncate.Query(v.Fingerprint)
+		query, truncated := truncate.Query(v.Query)
 		bucket := &agentpb.MetricsBucket{
 			Common: &agentpb.MetricsBucket_Common{
 				Queryid:             v.ID,
-				Fingerprint:         v.Fingerprint,
+				Fingerprint:         fingerprint,
 				Database:            db,
 				Tables:              []string{collection},
 				Username:            "",
@@ -266,10 +268,11 @@ func (a *Aggregator) createResult(ctx context.Context) *report.Result {
 				AgentType:           inventorypb.AgentType_QAN_MONGODB_PROFILER_AGENT,
 				PeriodStartUnixSecs: uint32(a.timeStart.Truncate(1 * time.Minute).Unix()),
 				PeriodLengthSecs:    uint32(a.d.Seconds()),
-				Example:             v.Query,
+				Example:             query,
 				ExampleFormat:       agentpb.ExampleFormat_EXAMPLE,
 				ExampleType:         agentpb.ExampleType_RANDOM,
 				NumQueries:          float32(v.Count),
+				IsTruncated:         truncated,
 			},
 			Mongodb: &agentpb.MetricsBucket_MongoDB{},
 		}
