@@ -102,7 +102,7 @@ func TestGet(t *testing.T) {
 				ProxySQLExporter: "/usr/local/percona/pmm2/exporters/proxysql_exporter",
 				RDSExporter:      "/usr/local/percona/pmm2/exporters/rds_exporter",
 				TempDir:          os.TempDir(),
-				PTSummary:        "/usr/local/percona/pmm2/pt-summary",
+				PTSummary:        "/usr/local/percona/pmm2/tools/pt-summary",
 			},
 			Ports: Ports{
 				Min: 42000,
@@ -142,7 +142,7 @@ func TestGet(t *testing.T) {
 				ProxySQLExporter: "/usr/local/percona/pmm2/exporters/proxysql_exporter",
 				RDSExporter:      "/usr/local/percona/pmm2/exporters/rds_exporter",
 				TempDir:          os.TempDir(),
-				PTSummary:        "/usr/local/percona/pmm2/pt-summary",
+				PTSummary:        "/usr/local/percona/pmm2/tools/pt-summary",
 			},
 			Ports: Ports{
 				Min: 42000,
@@ -184,6 +184,7 @@ func TestGet(t *testing.T) {
 				ProxySQLExporter: "/usr/local/percona/pmm2/exporters/proxysql_exporter",
 				RDSExporter:      "/usr/local/percona/pmm2/exporters/rds_exporter",
 				TempDir:          os.TempDir(),
+				PTSummary:        "/usr/local/percona/pmm2/tools/pt-summary",
 			},
 			Ports: Ports{
 				Min: 42000,
@@ -233,6 +234,7 @@ func TestGet(t *testing.T) {
 				ProxySQLExporter: "/base/pro_exporter",     // respect relative value from config file
 				RDSExporter:      "/base/rds_exporter",     // default value
 				TempDir:          os.TempDir(),
+				PTSummary:        "/usr/local/percona/pmm2/tools/pt-summary",
 			},
 			Ports: Ports{
 				Min: 42000,
@@ -265,6 +267,7 @@ func TestGet(t *testing.T) {
 				ProxySQLExporter: "/usr/local/percona/pmm2/exporters/proxysql_exporter",
 				RDSExporter:      "/usr/local/percona/pmm2/exporters/rds_exporter",
 				TempDir:          os.TempDir(),
+				PTSummary:        "/usr/local/percona/pmm2/tools/pt-summary",
 			},
 			Ports: Ports{
 				Min: 42000,
