@@ -165,7 +165,7 @@ func (v *pgStatMonitorViewType) Name() string {
 
 // Columns returns a new slice of column names for that view or table in SQL database.
 func (v *pgStatMonitorViewType) Columns() []string {
-	return []string{"userid", "dbid", "queryid", "query", "calls", "total_time", "rows", "shared_blks_hit", "shared_blks_read", "shared_blks_dirtied", "shared_blks_written", "local_blks_hit", "local_blks_read", "local_blks_dirtied", "local_blks_written", "temp_blks_read", "temp_blks_written", "blk_read_time", "blk_write_time"}
+	return []string{"bucket", "bucket_start_time", "userid", "dbid", "queryid", "query", "calls", "total_time", "rows", "shared_blks_hit", "shared_blks_read", "shared_blks_dirtied", "shared_blks_written", "local_blks_hit", "local_blks_read", "local_blks_dirtied", "local_blks_written", "temp_blks_read", "temp_blks_written", "blk_read_time", "blk_write_time", "host", "client_ip", "resp_calls", "tables_names", "wait_event", "pg_stat_agg_database", "pg_stat_agg_user", "pg_stat_agg_ip"}
 }
 
 // NewStruct makes a new struct for that view or table.
@@ -175,32 +175,42 @@ func (v *pgStatMonitorViewType) NewStruct() reform.Struct {
 
 // pgStatMonitorView represents pg_stat_monitor view or table in SQL database.
 var pgStatMonitorView = &pgStatMonitorViewType{
-	s: parse.StructInfo{Type: "pgStatMonitor", SQLSchema: "", SQLName: "pg_stat_monitor", Fields: []parse.FieldInfo{{Name: "UserID", Type: "int64", Column: "userid"}, {Name: "DBID", Type: "int64", Column: "dbid"}, {Name: "QueryID", Type: "int64", Column: "queryid"}, {Name: "Query", Type: "string", Column: "query"}, {Name: "Calls", Type: "int64", Column: "calls"}, {Name: "TotalTime", Type: "float64", Column: "total_time"}, {Name: "Rows", Type: "int64", Column: "rows"}, {Name: "SharedBlksHit", Type: "int64", Column: "shared_blks_hit"}, {Name: "SharedBlksRead", Type: "int64", Column: "shared_blks_read"}, {Name: "SharedBlksDirtied", Type: "int64", Column: "shared_blks_dirtied"}, {Name: "SharedBlksWritten", Type: "int64", Column: "shared_blks_written"}, {Name: "LocalBlksHit", Type: "int64", Column: "local_blks_hit"}, {Name: "LocalBlksRead", Type: "int64", Column: "local_blks_read"}, {Name: "LocalBlksDirtied", Type: "int64", Column: "local_blks_dirtied"}, {Name: "LocalBlksWritten", Type: "int64", Column: "local_blks_written"}, {Name: "TempBlksRead", Type: "int64", Column: "temp_blks_read"}, {Name: "TempBlksWritten", Type: "int64", Column: "temp_blks_written"}, {Name: "BlkReadTime", Type: "float64", Column: "blk_read_time"}, {Name: "BlkWriteTime", Type: "float64", Column: "blk_write_time"}}, PKFieldIndex: -1},
+	s: parse.StructInfo{Type: "pgStatMonitor", SQLSchema: "", SQLName: "pg_stat_monitor", Fields: []parse.FieldInfo{{Name: "Bucket", Type: "int64", Column: "bucket"}, {Name: "BucketStartTime", Type: "float64", Column: "bucket_start_time"}, {Name: "UserID", Type: "int64", Column: "userid"}, {Name: "DBID", Type: "int64", Column: "dbid"}, {Name: "QueryID", Type: "int64", Column: "queryid"}, {Name: "Query", Type: "string", Column: "query"}, {Name: "Calls", Type: "int64", Column: "calls"}, {Name: "TotalTime", Type: "float64", Column: "total_time"}, {Name: "Rows", Type: "int64", Column: "rows"}, {Name: "SharedBlksHit", Type: "int64", Column: "shared_blks_hit"}, {Name: "SharedBlksRead", Type: "int64", Column: "shared_blks_read"}, {Name: "SharedBlksDirtied", Type: "int64", Column: "shared_blks_dirtied"}, {Name: "SharedBlksWritten", Type: "int64", Column: "shared_blks_written"}, {Name: "LocalBlksHit", Type: "int64", Column: "local_blks_hit"}, {Name: "LocalBlksRead", Type: "int64", Column: "local_blks_read"}, {Name: "LocalBlksDirtied", Type: "int64", Column: "local_blks_dirtied"}, {Name: "LocalBlksWritten", Type: "int64", Column: "local_blks_written"}, {Name: "TempBlksRead", Type: "int64", Column: "temp_blks_read"}, {Name: "TempBlksWritten", Type: "int64", Column: "temp_blks_written"}, {Name: "BlkReadTime", Type: "float64", Column: "blk_read_time"}, {Name: "BlkWriteTime", Type: "float64", Column: "blk_write_time"}, {Name: "Host", Type: "string", Column: "host"}, {Name: "ClientIP", Type: "string", Column: "client_ip"}, {Name: "RespCalls", Type: "string", Column: "resp_calls"}, {Name: "TablesNames", Type: "string", Column: "tables_names"}, {Name: "WaitEvent", Type: "string", Column: "wait_event"}, {Name: "PgStatAggDatabase", Type: "string", Column: "pg_stat_agg_database"}, {Name: "PgStatAggUser", Type: "string", Column: "pg_stat_agg_user"}, {Name: "PgStatAggIP", Type: "string", Column: "pg_stat_agg_ip"}}, PKFieldIndex: -1},
 	z: new(pgStatMonitor).Values(),
 }
 
 // String returns a string representation of this struct or record.
 func (s pgStatMonitor) String() string {
-	res := make([]string, 19)
-	res[0] = "UserID: " + reform.Inspect(s.UserID, true)
-	res[1] = "DBID: " + reform.Inspect(s.DBID, true)
-	res[2] = "QueryID: " + reform.Inspect(s.QueryID, true)
-	res[3] = "Query: " + reform.Inspect(s.Query, true)
-	res[4] = "Calls: " + reform.Inspect(s.Calls, true)
-	res[5] = "TotalTime: " + reform.Inspect(s.TotalTime, true)
-	res[6] = "Rows: " + reform.Inspect(s.Rows, true)
-	res[7] = "SharedBlksHit: " + reform.Inspect(s.SharedBlksHit, true)
-	res[8] = "SharedBlksRead: " + reform.Inspect(s.SharedBlksRead, true)
-	res[9] = "SharedBlksDirtied: " + reform.Inspect(s.SharedBlksDirtied, true)
-	res[10] = "SharedBlksWritten: " + reform.Inspect(s.SharedBlksWritten, true)
-	res[11] = "LocalBlksHit: " + reform.Inspect(s.LocalBlksHit, true)
-	res[12] = "LocalBlksRead: " + reform.Inspect(s.LocalBlksRead, true)
-	res[13] = "LocalBlksDirtied: " + reform.Inspect(s.LocalBlksDirtied, true)
-	res[14] = "LocalBlksWritten: " + reform.Inspect(s.LocalBlksWritten, true)
-	res[15] = "TempBlksRead: " + reform.Inspect(s.TempBlksRead, true)
-	res[16] = "TempBlksWritten: " + reform.Inspect(s.TempBlksWritten, true)
-	res[17] = "BlkReadTime: " + reform.Inspect(s.BlkReadTime, true)
-	res[18] = "BlkWriteTime: " + reform.Inspect(s.BlkWriteTime, true)
+	res := make([]string, 29)
+	res[0] = "Bucket: " + reform.Inspect(s.Bucket, true)
+	res[1] = "BucketStartTime: " + reform.Inspect(s.BucketStartTime, true)
+	res[2] = "UserID: " + reform.Inspect(s.UserID, true)
+	res[3] = "DBID: " + reform.Inspect(s.DBID, true)
+	res[4] = "QueryID: " + reform.Inspect(s.QueryID, true)
+	res[5] = "Query: " + reform.Inspect(s.Query, true)
+	res[6] = "Calls: " + reform.Inspect(s.Calls, true)
+	res[7] = "TotalTime: " + reform.Inspect(s.TotalTime, true)
+	res[8] = "Rows: " + reform.Inspect(s.Rows, true)
+	res[9] = "SharedBlksHit: " + reform.Inspect(s.SharedBlksHit, true)
+	res[10] = "SharedBlksRead: " + reform.Inspect(s.SharedBlksRead, true)
+	res[11] = "SharedBlksDirtied: " + reform.Inspect(s.SharedBlksDirtied, true)
+	res[12] = "SharedBlksWritten: " + reform.Inspect(s.SharedBlksWritten, true)
+	res[13] = "LocalBlksHit: " + reform.Inspect(s.LocalBlksHit, true)
+	res[14] = "LocalBlksRead: " + reform.Inspect(s.LocalBlksRead, true)
+	res[15] = "LocalBlksDirtied: " + reform.Inspect(s.LocalBlksDirtied, true)
+	res[16] = "LocalBlksWritten: " + reform.Inspect(s.LocalBlksWritten, true)
+	res[17] = "TempBlksRead: " + reform.Inspect(s.TempBlksRead, true)
+	res[18] = "TempBlksWritten: " + reform.Inspect(s.TempBlksWritten, true)
+	res[19] = "BlkReadTime: " + reform.Inspect(s.BlkReadTime, true)
+	res[20] = "BlkWriteTime: " + reform.Inspect(s.BlkWriteTime, true)
+	res[21] = "Host: " + reform.Inspect(s.Host, true)
+	res[22] = "ClientIP: " + reform.Inspect(s.ClientIP, true)
+	res[23] = "RespCalls: " + reform.Inspect(s.RespCalls, true)
+	res[24] = "TablesNames: " + reform.Inspect(s.TablesNames, true)
+	res[25] = "WaitEvent: " + reform.Inspect(s.WaitEvent, true)
+	res[26] = "PgStatAggDatabase: " + reform.Inspect(s.PgStatAggDatabase, true)
+	res[27] = "PgStatAggUser: " + reform.Inspect(s.PgStatAggUser, true)
+	res[28] = "PgStatAggIP: " + reform.Inspect(s.PgStatAggIP, true)
 	return strings.Join(res, ", ")
 }
 
@@ -208,6 +218,8 @@ func (s pgStatMonitor) String() string {
 // Returned interface{} values are never untyped nils.
 func (s *pgStatMonitor) Values() []interface{} {
 	return []interface{}{
+		s.Bucket,
+		s.BucketStartTime,
 		s.UserID,
 		s.DBID,
 		s.QueryID,
@@ -227,6 +239,14 @@ func (s *pgStatMonitor) Values() []interface{} {
 		s.TempBlksWritten,
 		s.BlkReadTime,
 		s.BlkWriteTime,
+		s.Host,
+		s.ClientIP,
+		s.RespCalls,
+		s.TablesNames,
+		s.WaitEvent,
+		s.PgStatAggDatabase,
+		s.PgStatAggUser,
+		s.PgStatAggIP,
 	}
 }
 
@@ -234,6 +254,8 @@ func (s *pgStatMonitor) Values() []interface{} {
 // Returned interface{} values are never untyped nils.
 func (s *pgStatMonitor) Pointers() []interface{} {
 	return []interface{}{
+		&s.Bucket,
+		&s.BucketStartTime,
 		&s.UserID,
 		&s.DBID,
 		&s.QueryID,
@@ -253,6 +275,14 @@ func (s *pgStatMonitor) Pointers() []interface{} {
 		&s.TempBlksWritten,
 		&s.BlkReadTime,
 		&s.BlkWriteTime,
+		&s.Host,
+		&s.ClientIP,
+		&s.RespCalls,
+		&s.TablesNames,
+		&s.WaitEvent,
+		&s.PgStatAggDatabase,
+		&s.PgStatAggUser,
+		&s.PgStatAggIP,
 	}
 }
 

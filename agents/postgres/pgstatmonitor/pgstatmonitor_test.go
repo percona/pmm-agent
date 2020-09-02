@@ -45,7 +45,7 @@ func filter(mb []*agentpb.MetricsBucket) []*agentpb.MetricsBucket {
 	res := make([]*agentpb.MetricsBucket, 0, len(mb))
 	for _, b := range mb {
 		switch {
-		case strings.Contains(b.Common.Fingerprint, "/* pmm-agent:pgstatmonitor */"):
+		case strings.Contains(b.Common.Fingerprint, "/* "+queryTag+" */"):
 			continue
 		default:
 			res = append(res, b)
