@@ -148,39 +148,39 @@ var (
 	_ fmt.Stringer  = (*pgUser)(nil)
 )
 
-type pgStatStatementsViewType struct {
+type pgStatMonitorViewType struct {
 	s parse.StructInfo
 	z []interface{}
 }
 
 // Schema returns a schema name in SQL database ("").
-func (v *pgStatStatementsViewType) Schema() string {
+func (v *pgStatMonitorViewType) Schema() string {
 	return v.s.SQLSchema
 }
 
-// Name returns a view or table name in SQL database ("pg_stat_statements").
-func (v *pgStatStatementsViewType) Name() string {
+// Name returns a view or table name in SQL database ("pg_stat_monitor").
+func (v *pgStatMonitorViewType) Name() string {
 	return v.s.SQLName
 }
 
 // Columns returns a new slice of column names for that view or table in SQL database.
-func (v *pgStatStatementsViewType) Columns() []string {
+func (v *pgStatMonitorViewType) Columns() []string {
 	return []string{"userid", "dbid", "queryid", "query", "calls", "total_time", "rows", "shared_blks_hit", "shared_blks_read", "shared_blks_dirtied", "shared_blks_written", "local_blks_hit", "local_blks_read", "local_blks_dirtied", "local_blks_written", "temp_blks_read", "temp_blks_written", "blk_read_time", "blk_write_time"}
 }
 
 // NewStruct makes a new struct for that view or table.
-func (v *pgStatStatementsViewType) NewStruct() reform.Struct {
-	return new(pgStatStatements)
+func (v *pgStatMonitorViewType) NewStruct() reform.Struct {
+	return new(pgStatMonitor)
 }
 
-// pgStatStatementsView represents pg_stat_statements view or table in SQL database.
-var pgStatStatementsView = &pgStatStatementsViewType{
-	s: parse.StructInfo{Type: "pgStatStatements", SQLSchema: "", SQLName: "pg_stat_statements", Fields: []parse.FieldInfo{{Name: "UserID", Type: "int64", Column: "userid"}, {Name: "DBID", Type: "int64", Column: "dbid"}, {Name: "QueryID", Type: "int64", Column: "queryid"}, {Name: "Query", Type: "string", Column: "query"}, {Name: "Calls", Type: "int64", Column: "calls"}, {Name: "TotalTime", Type: "float64", Column: "total_time"}, {Name: "Rows", Type: "int64", Column: "rows"}, {Name: "SharedBlksHit", Type: "int64", Column: "shared_blks_hit"}, {Name: "SharedBlksRead", Type: "int64", Column: "shared_blks_read"}, {Name: "SharedBlksDirtied", Type: "int64", Column: "shared_blks_dirtied"}, {Name: "SharedBlksWritten", Type: "int64", Column: "shared_blks_written"}, {Name: "LocalBlksHit", Type: "int64", Column: "local_blks_hit"}, {Name: "LocalBlksRead", Type: "int64", Column: "local_blks_read"}, {Name: "LocalBlksDirtied", Type: "int64", Column: "local_blks_dirtied"}, {Name: "LocalBlksWritten", Type: "int64", Column: "local_blks_written"}, {Name: "TempBlksRead", Type: "int64", Column: "temp_blks_read"}, {Name: "TempBlksWritten", Type: "int64", Column: "temp_blks_written"}, {Name: "BlkReadTime", Type: "float64", Column: "blk_read_time"}, {Name: "BlkWriteTime", Type: "float64", Column: "blk_write_time"}}, PKFieldIndex: -1},
-	z: new(pgStatStatements).Values(),
+// pgStatMonitorView represents pg_stat_monitor view or table in SQL database.
+var pgStatMonitorView = &pgStatMonitorViewType{
+	s: parse.StructInfo{Type: "pgStatMonitor", SQLSchema: "", SQLName: "pg_stat_monitor", Fields: []parse.FieldInfo{{Name: "UserID", Type: "int64", Column: "userid"}, {Name: "DBID", Type: "int64", Column: "dbid"}, {Name: "QueryID", Type: "int64", Column: "queryid"}, {Name: "Query", Type: "string", Column: "query"}, {Name: "Calls", Type: "int64", Column: "calls"}, {Name: "TotalTime", Type: "float64", Column: "total_time"}, {Name: "Rows", Type: "int64", Column: "rows"}, {Name: "SharedBlksHit", Type: "int64", Column: "shared_blks_hit"}, {Name: "SharedBlksRead", Type: "int64", Column: "shared_blks_read"}, {Name: "SharedBlksDirtied", Type: "int64", Column: "shared_blks_dirtied"}, {Name: "SharedBlksWritten", Type: "int64", Column: "shared_blks_written"}, {Name: "LocalBlksHit", Type: "int64", Column: "local_blks_hit"}, {Name: "LocalBlksRead", Type: "int64", Column: "local_blks_read"}, {Name: "LocalBlksDirtied", Type: "int64", Column: "local_blks_dirtied"}, {Name: "LocalBlksWritten", Type: "int64", Column: "local_blks_written"}, {Name: "TempBlksRead", Type: "int64", Column: "temp_blks_read"}, {Name: "TempBlksWritten", Type: "int64", Column: "temp_blks_written"}, {Name: "BlkReadTime", Type: "float64", Column: "blk_read_time"}, {Name: "BlkWriteTime", Type: "float64", Column: "blk_write_time"}}, PKFieldIndex: -1},
+	z: new(pgStatMonitor).Values(),
 }
 
 // String returns a string representation of this struct or record.
-func (s pgStatStatements) String() string {
+func (s pgStatMonitor) String() string {
 	res := make([]string, 19)
 	res[0] = "UserID: " + reform.Inspect(s.UserID, true)
 	res[1] = "DBID: " + reform.Inspect(s.DBID, true)
@@ -206,7 +206,7 @@ func (s pgStatStatements) String() string {
 
 // Values returns a slice of struct or record field values.
 // Returned interface{} values are never untyped nils.
-func (s *pgStatStatements) Values() []interface{} {
+func (s *pgStatMonitor) Values() []interface{} {
 	return []interface{}{
 		s.UserID,
 		s.DBID,
@@ -232,7 +232,7 @@ func (s *pgStatStatements) Values() []interface{} {
 
 // Pointers returns a slice of pointers to struct or record fields.
 // Returned interface{} values are never untyped nils.
-func (s *pgStatStatements) Pointers() []interface{} {
+func (s *pgStatMonitor) Pointers() []interface{} {
 	return []interface{}{
 		&s.UserID,
 		&s.DBID,
@@ -257,19 +257,19 @@ func (s *pgStatStatements) Pointers() []interface{} {
 }
 
 // View returns View object for that struct.
-func (s *pgStatStatements) View() reform.View {
-	return pgStatStatementsView
+func (s *pgStatMonitor) View() reform.View {
+	return pgStatMonitorView
 }
 
 // check interfaces
 var (
-	_ reform.View   = pgStatStatementsView
-	_ reform.Struct = (*pgStatStatements)(nil)
-	_ fmt.Stringer  = (*pgStatStatements)(nil)
+	_ reform.View   = pgStatMonitorView
+	_ reform.Struct = (*pgStatMonitor)(nil)
+	_ fmt.Stringer  = (*pgStatMonitor)(nil)
 )
 
 func init() {
 	parse.AssertUpToDate(&pgStatDatabaseView.s, new(pgStatDatabase))
 	parse.AssertUpToDate(&pgUserView.s, new(pgUser))
-	parse.AssertUpToDate(&pgStatStatementsView.s, new(pgStatStatements))
+	parse.AssertUpToDate(&pgStatMonitorView.s, new(pgStatMonitor))
 }

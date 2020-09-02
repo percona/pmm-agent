@@ -36,18 +36,18 @@ import (
 )
 
 const (
-	retainStatStatements = 25 * time.Hour // make it work for daily queries
-	queryStatStatements  = time.Minute
+	retainStatMonitor = 25 * time.Hour // make it work for daily queries
+	queryStatMonitor  = time.Minute
 )
 
-// PGStatStatementsQAN QAN services connects to PostgreSQL and extracts stats.
-type PGStatStatementsQAN struct {
-	q              *reform.Querier
-	dbCloser       io.Closer
-	agentID        string
-	l              *logrus.Entry
-	changes        chan agents.Change
-	statementCache *statStatementCache
+// PGStatMonitorQAN QAN services connects to PostgreSQL and extracts stats.
+type PGStatMonitorQAN struct {
+	q            *reform.Querier
+	dbCloser     io.Closer
+	agentID      string
+	l            *logrus.Entry
+	changes      chan agents.Change
+	monitorCache *statMonitorCache
 }
 
 // Params represent Agent parameters.
@@ -56,10 +56,10 @@ type Params struct {
 	AgentID string
 }
 
-const queryTag = "pmm-agent:pgstatstatements"
+const queryTag = "pmm-agent:pgstatmonitor"
 
-// New creates new PGStatStatementsQAN QAN service.
-func New(params *Params, l *logrus.Entry) (*PGStatStatementsQAN, error) {
+// New creates new PGStatMonitorQAN QAN service.
+func New(params *Params, l *logrus.Entry) (*PGStatMonitorQAN, error) {
 	sqlDB, err := sql.Open("postgres", params.DSN)
 	if err != nil {
 		return nil, err
@@ -70,34 +70,34 @@ func New(params *Params, l *logrus.Entry) (*PGStatStatementsQAN, error) {
 	reformL := sqlmetrics.NewReform("postgres", params.AgentID, l.Tracef)
 	// TODO register reformL metrics https://jira.percona.com/browse/PMM-4087
 	q := reform.NewDB(sqlDB, postgresql.Dialect, reformL).WithTag(queryTag)
-	return newPgStatStatementsQAN(q, sqlDB, params.AgentID, l), nil
+	return newPgStatMonitorQAN(q, sqlDB, params.AgentID, l), nil
 }
 
-func newPgStatStatementsQAN(q *reform.Querier, dbCloser io.Closer, agentID string, l *logrus.Entry) *PGStatStatementsQAN {
-	return &PGStatStatementsQAN{
-		q:              q,
-		dbCloser:       dbCloser,
-		agentID:        agentID,
-		l:              l,
-		changes:        make(chan agents.Change, 10),
-		statementCache: newStatStatementCache(retainStatStatements, l),
+func newPgStatMonitorQAN(q *reform.Querier, dbCloser io.Closer, agentID string, l *logrus.Entry) *PGStatMonitorQAN {
+	return &PGStatMonitorQAN{
+		q:            q,
+		dbCloser:     dbCloser,
+		agentID:      agentID,
+		l:            l,
+		changes:      make(chan agents.Change, 10),
+		monitorCache: newStatMonitorCache(retainStatMonitor, l),
 	}
 }
 
 // Run extracts stats data and sends it to the channel until ctx is canceled.
-func (m *PGStatStatementsQAN) Run(ctx context.Context) {
+func (m *PGStatMonitorQAN) Run(ctx context.Context) {
 	defer func() {
 		m.dbCloser.Close() //nolint:errcheck
 		m.changes <- agents.Change{Status: inventorypb.AgentStatus_DONE}
 		close(m.changes)
 	}()
 
-	// add current stat statements to cache so they are not send as new on first iteration with incorrect timestamps
+	// add current stat monitor to cache so they are not send as new on first iteration with incorrect timestamps
 	var running bool
 	m.changes <- agents.Change{Status: inventorypb.AgentStatus_STARTING}
-	if current, _, err := m.statementCache.getStatStatementsExtended(ctx, m.q); err == nil {
-		m.statementCache.refresh(current)
-		m.l.Debugf("Got %d initial stat statements.", len(current))
+	if current, _, err := m.monitorCache.getStatMonitorExtended(ctx, m.q); err == nil {
+		m.monitorCache.refresh(current)
+		m.l.Debugf("Got %d initial stat monitor.", len(current))
 		running = true
 		m.changes <- agents.Change{Status: inventorypb.AgentStatus_RUNNING}
 	} else {
@@ -105,9 +105,9 @@ func (m *PGStatStatementsQAN) Run(ctx context.Context) {
 		m.changes <- agents.Change{Status: inventorypb.AgentStatus_WAITING}
 	}
 
-	// query pg_stat_statements every minute at 00 seconds
+	// query pg_stat_monitor every minute at 00 seconds
 	start := time.Now()
-	wait := start.Truncate(queryStatStatements).Add(queryStatStatements).Sub(start)
+	wait := start.Truncate(queryStatMonitor).Add(queryStatMonitor).Sub(start)
 	m.l.Debugf("Scheduling next collection in %s at %s.", wait, start.Add(wait).Format("15:04:05"))
 	t := time.NewTimer(wait)
 	defer t.Stop()
@@ -128,7 +128,7 @@ func (m *PGStatStatementsQAN) Run(ctx context.Context) {
 			buckets, err := m.getNewBuckets(ctx, start, lengthS)
 
 			start = time.Now()
-			wait = start.Truncate(queryStatStatements).Add(queryStatStatements).Sub(start)
+			wait = start.Truncate(queryStatMonitor).Add(queryStatMonitor).Sub(start)
 			m.l.Debugf("Scheduling next collection in %s at %s.", wait, start.Add(wait).Format("15:04:05"))
 			t.Reset(wait)
 
@@ -149,20 +149,20 @@ func (m *PGStatStatementsQAN) Run(ctx context.Context) {
 	}
 }
 
-func (m *PGStatStatementsQAN) getNewBuckets(ctx context.Context, periodStart time.Time, periodLengthSecs uint32) ([]*agentpb.MetricsBucket, error) {
-	current, prev, err := m.statementCache.getStatStatementsExtended(ctx, m.q)
+func (m *PGStatMonitorQAN) getNewBuckets(ctx context.Context, periodStart time.Time, periodLengthSecs uint32) ([]*agentpb.MetricsBucket, error) {
+	current, prev, err := m.monitorCache.getStatMonitorExtended(ctx, m.q)
 	if err != nil {
 		return nil, err
 	}
 
 	buckets := makeBuckets(current, prev, m.l)
 	startS := uint32(periodStart.Unix())
-	m.l.Debugf("Made %d buckets out of %d stat statements in %s+%d interval.",
+	m.l.Debugf("Made %d buckets out of %d stat monitor in %s+%d interval.",
 		len(buckets), len(current), periodStart.Format("15:04:05"), periodLengthSecs)
 
 	// merge prev and current in cache
-	m.statementCache.refresh(current)
-	m.l.Debugf("statStatementCache: %s", m.statementCache.stats())
+	m.monitorCache.refresh(current)
+	m.l.Debugf("statMonitorCache: %s", m.monitorCache.stats())
 
 	// add agent_id and timestamps
 	for i, b := range buckets {
@@ -176,29 +176,29 @@ func (m *PGStatStatementsQAN) getNewBuckets(ctx context.Context, periodStart tim
 	return buckets, nil
 }
 
-// makeBuckets uses current state of pg_stat_statements table and accumulated previous state
+// makeBuckets uses current state of pg_stat_monitor table and accumulated previous state
 // to make metrics buckets.
 //
 // makeBuckets is a pure function for easier testing.
-func makeBuckets(current, prev map[int64]*pgStatStatementsExtended, l *logrus.Entry) []*agentpb.MetricsBucket {
+func makeBuckets(current, prev map[int64]*pgStatMonitorExtended, l *logrus.Entry) []*agentpb.MetricsBucket {
 	res := make([]*agentpb.MetricsBucket, 0, len(current))
 
 	for queryID, currentPSS := range current {
 		prevPSS := prev[queryID]
 		if prevPSS == nil {
-			prevPSS = new(pgStatStatementsExtended)
+			prevPSS = new(pgStatMonitorExtended)
 		}
 		count := float32(currentPSS.Calls - prevPSS.Calls)
 		switch {
 		case count == 0:
-			// Another way how this is possible is if pg_stat_statements was truncated,
+			// Another way how this is possible is if pg_stat_monitor was truncated,
 			// and then the same number of queries were made.
 			// Currently, we can't differentiate between those situations.
 			l.Tracef("Skipped due to the same number of queries: %s.", currentPSS)
 			continue
 		case count < 0:
 			l.Debugf("Truncate detected. Treating as a new query: %s.", currentPSS)
-			prevPSS = new(pgStatStatementsExtended)
+			prevPSS = new(pgStatMonitorExtended)
 			count = float32(currentPSS.Calls)
 		case prevPSS.Calls == 0:
 			l.Debugf("New query: %s.", currentPSS)
@@ -259,6 +259,6 @@ func makeBuckets(current, prev map[int64]*pgStatStatementsExtended, l *logrus.En
 }
 
 // Changes returns channel that should be read until it is closed.
-func (m *PGStatStatementsQAN) Changes() <-chan agents.Change {
+func (m *PGStatMonitorQAN) Changes() <-chan agents.Change {
 	return m.changes
 }

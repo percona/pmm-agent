@@ -30,8 +30,8 @@ import (
 	"github.com/percona/pmm-agent/utils/truncate"
 )
 
-// statStatementCacheStats contains statStatementCache statistics.
-type statStatementCacheStats struct {
+// statMonitorCacheStats contains statMonitorCache statistics.
+type statMonitorCacheStats struct {
 	current  uint
 	updatedN uint
 	addedN   uint
@@ -40,50 +40,50 @@ type statStatementCacheStats struct {
 	newest   time.Time
 }
 
-func (s statStatementCacheStats) String() string {
+func (s statMonitorCacheStats) String() string {
 	d := s.newest.Sub(s.oldest)
 	return fmt.Sprintf("current=%d: updated=%d added=%d removed=%d; %s - %s (%s)",
 		s.current, s.updatedN, s.addedN, s.removedN,
 		s.oldest.UTC().Format("2006-01-02T15:04:05Z"), s.newest.UTC().Format("2006-01-02T15:04:05Z"), d)
 }
 
-// statStatementCache provides cached access to pg_stat_statements.
+// statMonitorCache provides cached access to pg_stat_monitor.
 // It retains data longer than this table.
-type statStatementCache struct {
+type statMonitorCache struct {
 	retain time.Duration
 	l      *logrus.Entry
 
 	rw       sync.RWMutex
-	items    map[int64]*pgStatStatementsExtended
+	items    map[int64]*pgStatMonitorExtended
 	added    map[int64]time.Time
 	updatedN uint
 	addedN   uint
 	removedN uint
 }
 
-// newStatStatementCache creates new statStatementCache.
-func newStatStatementCache(retain time.Duration, l *logrus.Entry) *statStatementCache {
-	return &statStatementCache{
+// newStatMonitorCache creates new statMonitorCache.
+func newStatMonitorCache(retain time.Duration, l *logrus.Entry) *statMonitorCache {
+	return &statMonitorCache{
 		retain: retain,
 		l:      l,
-		items:  make(map[int64]*pgStatStatementsExtended),
+		items:  make(map[int64]*pgStatMonitorExtended),
 		added:  make(map[int64]time.Time),
 	}
 }
 
-// getStatStatementsExtended returns the current state of pg_stat_statements table with extended information (database, username, tables)
+// getStatMonitorExtended returns the current state of pg_stat_monitor table with extended information (database, username, tables)
 // and the previous cashed state.
-func (ssc *statStatementCache) getStatStatementsExtended(ctx context.Context, q *reform.Querier) (current, prev map[int64]*pgStatStatementsExtended, err error) {
+func (ssc *statMonitorCache) getStatMonitorExtended(ctx context.Context, q *reform.Querier) (current, prev map[int64]*pgStatMonitorExtended, err error) {
 	var totalN, newN, newSharedN, oldN int
 	start := time.Now()
 	defer func() {
 		dur := time.Since(start)
-		ssc.l.Debugf("Selected %d rows from pg_stat_statements in %s: %d new (%d shared tables), %d old.", totalN, dur, newN, newSharedN, oldN)
+		ssc.l.Debugf("Selected %d rows from pg_stat_monitor in %s: %d new (%d shared tables), %d old.", totalN, dur, newN, newSharedN, oldN)
 	}()
 
 	ssc.rw.RLock()
-	current = make(map[int64]*pgStatStatementsExtended, len(ssc.items))
-	prev = make(map[int64]*pgStatStatementsExtended, len(ssc.items))
+	current = make(map[int64]*pgStatMonitorExtended, len(ssc.items))
+	prev = make(map[int64]*pgStatMonitorExtended, len(ssc.items))
 	for k, v := range ssc.items {
 		prev[k] = v
 	}
@@ -97,15 +97,15 @@ func (ssc *statStatementCache) getStatStatementsExtended(ctx context.Context, q 
 	// so cache results of the current iteration too
 	tables := make(map[int64][]string)
 
-	rows, err := q.SelectRows(pgStatStatementsView, "WHERE queryid IS NOT NULL AND query IS NOT NULL")
+	rows, err := q.SelectRows(pgStatMonitorView, "WHERE queryid IS NOT NULL AND query IS NOT NULL")
 	if err != nil {
-		err = errors.Wrap(err, "failed to query pg_stat_statements")
+		err = errors.Wrap(err, "failed to query pg_stat_monitor")
 		return
 	}
 	defer rows.Close() //nolint:errcheck
 
 	for ctx.Err() == nil {
-		var row pgStatStatements
+		var row pgStatMonitor
 		if err = q.NextRow(&row, rows); err != nil {
 			if err == reform.ErrNoRows {
 				err = nil
@@ -114,10 +114,10 @@ func (ssc *statStatementCache) getStatStatementsExtended(ctx context.Context, q 
 		}
 		totalN++
 
-		c := &pgStatStatementsExtended{
-			pgStatStatements: row,
-			Database:         databases[row.DBID],
-			Username:         usernames[row.UserID],
+		c := &pgStatMonitorExtended{
+			pgStatMonitor: row,
+			Database:      databases[row.DBID],
+			Username:      usernames[row.UserID],
 		}
 
 		if p := prev[c.QueryID]; p != nil {
@@ -147,17 +147,17 @@ func (ssc *statStatementCache) getStatStatementsExtended(ctx context.Context, q 
 	}
 
 	if err != nil {
-		err = errors.Wrap(err, "failed to fetch pg_stat_statements")
+		err = errors.Wrap(err, "failed to fetch pg_stat_monitor")
 	}
 	return
 }
 
-// stats returns statStatementCache statistics.
-func (ssc *statStatementCache) stats() statStatementCacheStats {
+// stats returns statMonitorCache statistics.
+func (ssc *statMonitorCache) stats() statMonitorCacheStats {
 	ssc.rw.RLock()
 	defer ssc.rw.RUnlock()
 
-	oldest := time.Now().Add(retainStatStatements)
+	oldest := time.Now().Add(retainStatMonitor)
 	var newest time.Time
 	for _, t := range ssc.added {
 		if oldest.After(t) {
@@ -168,7 +168,7 @@ func (ssc *statStatementCache) stats() statStatementCacheStats {
 		}
 	}
 
-	return statStatementCacheStats{
+	return statMonitorCacheStats{
 		current:  uint(len(ssc.added)),
 		updatedN: ssc.updatedN,
 		addedN:   ssc.addedN,
@@ -179,7 +179,7 @@ func (ssc *statStatementCache) stats() statStatementCacheStats {
 }
 
 // refresh removes expired items in cache, then adds current items.
-func (ssc *statStatementCache) refresh(current map[int64]*pgStatStatementsExtended) {
+func (ssc *statMonitorCache) refresh(current map[int64]*pgStatMonitorExtended) {
 	ssc.rw.Lock()
 	defer ssc.rw.Unlock()
 

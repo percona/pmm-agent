@@ -35,15 +35,17 @@ type pgUser struct {
 	UserName *string `reform:"usename"`
 }
 
-// pgStatStatements represents a row in pg_stat_statements view.
-//reform:pg_stat_statements
-type pgStatStatements struct {
-	UserID    int64   `reform:"userid"`
-	DBID      int64   `reform:"dbid"`
-	QueryID   int64   `reform:"queryid"` // we select only non-NULL rows
-	Query     string  `reform:"query"`   // we select only non-NULL rows
-	Calls     int64   `reform:"calls"`
-	TotalTime float64 `reform:"total_time"`
+// pgStatMonitor represents a row in pg_stat_monitor view.
+//reform:pg_stat_monitor
+type pgStatMonitor struct {
+	Bucket          int64   `reform:"bucket"`
+	BucketStartTime float64 `reform:"bucket_start_time"`
+	UserID          int64   `reform:"userid"`
+	DBID            int64   `reform:"dbid"`
+	QueryID         int64   `reform:"queryid"` // we select only non-NULL rows
+	Query           string  `reform:"query"`   // we select only non-NULL rows
+	Calls           int64   `reform:"calls"`
+	TotalTime       float64 `reform:"total_time"`
 	//MinTime           *float64 `reform:"min_time"`
 	//MaxTime           *float64 `reform:"max_time"`
 	//MeanTime          *float64 `reform:"mean_time"`
@@ -61,12 +63,20 @@ type pgStatStatements struct {
 	TempBlksWritten   int64   `reform:"temp_blks_written"`
 	BlkReadTime       float64 `reform:"blk_read_time"`
 	BlkWriteTime      float64 `reform:"blk_write_time"`
+	Host              string  `reform:"host"`
+	ClientIP          string  `reform:"client_ip"`
+	RespCalls         string  `reform:"resp_calls"`
+	TablesNames       string  `reform:"tables_names"`
+	WaitEvent         string  `reform:"wait_event"`
+	PgStatAggDatabase string  `reform:"pg_stat_agg_database"`
+	PgStatAggUser     string  `reform:"pg_stat_agg_user"`
+	PgStatAggIP       string  `reform:"pg_stat_agg_ip"`
 }
 
-// pgStatStatementsExtended contains pgStatStatements data and extends it with database, username and tables data.
+// pgStatMonitorExtended contains pgStatMonitor data and extends it with database, username and tables data.
 // It's made for performance reason.
-type pgStatStatementsExtended struct {
-	pgStatStatements
+type pgStatMonitorExtended struct {
+	pgStatMonitor
 
 	Database         string
 	Username         string
@@ -74,7 +84,7 @@ type pgStatStatementsExtended struct {
 	IsQueryTruncated bool
 }
 
-func (e *pgStatStatementsExtended) String() string {
+func (e *pgStatMonitorExtended) String() string {
 	return fmt.Sprintf("%q %q %v: %d: %s (truncated = %t)",
 		e.Database, e.Username, e.Tables, e.QueryID, e.Query, e.IsQueryTruncated)
 }
