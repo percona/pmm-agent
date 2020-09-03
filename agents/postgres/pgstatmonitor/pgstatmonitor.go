@@ -21,7 +21,6 @@ import (
 	"database/sql"
 	"io"
 	"math"
-	"strconv"
 	"time"
 
 	_ "github.com/lib/pq" // register SQL driver
@@ -42,18 +41,20 @@ const (
 
 // PGStatMonitorQAN QAN services connects to PostgreSQL and extracts stats.
 type PGStatMonitorQAN struct {
-	q            *reform.Querier
-	dbCloser     io.Closer
-	agentID      string
-	l            *logrus.Entry
-	changes      chan agents.Change
-	monitorCache *statMonitorCache
+	q                    *reform.Querier
+	dbCloser             io.Closer
+	agentID              string
+	l                    *logrus.Entry
+	changes              chan agents.Change
+	monitorCache         *statMonitorCache
+	disableQueryExamples bool
 }
 
 // Params represent Agent parameters.
 type Params struct {
-	DSN     string
-	AgentID string
+	DSN                  string
+	DisableQueryExamples bool
+	AgentID              string
 }
 
 const queryTag = "pmm-agent:pgstatmonitor"
@@ -70,17 +71,18 @@ func New(params *Params, l *logrus.Entry) (*PGStatMonitorQAN, error) {
 	reformL := sqlmetrics.NewReform("postgres", params.AgentID, l.Tracef)
 	// TODO register reformL metrics https://jira.percona.com/browse/PMM-4087
 	q := reform.NewDB(sqlDB, postgresql.Dialect, reformL).WithTag(queryTag)
-	return newPgStatMonitorQAN(q, sqlDB, params.AgentID, l), nil
+	return newPgStatMonitorQAN(q, sqlDB, params.AgentID, params.DisableQueryExamples, l), nil
 }
 
-func newPgStatMonitorQAN(q *reform.Querier, dbCloser io.Closer, agentID string, l *logrus.Entry) *PGStatMonitorQAN {
+func newPgStatMonitorQAN(q *reform.Querier, dbCloser io.Closer, agentID string, disableQueryExamples bool, l *logrus.Entry) *PGStatMonitorQAN {
 	return &PGStatMonitorQAN{
-		q:            q,
-		dbCloser:     dbCloser,
-		agentID:      agentID,
-		l:            l,
-		changes:      make(chan agents.Change, 10),
-		monitorCache: newStatMonitorCache(retainStatMonitor, l),
+		q:                    q,
+		dbCloser:             dbCloser,
+		agentID:              agentID,
+		l:                    l,
+		changes:              make(chan agents.Change, 10),
+		monitorCache:         newStatMonitorCache(retainStatMonitor, l),
+		disableQueryExamples: disableQueryExamples,
 	}
 }
 
@@ -155,7 +157,7 @@ func (m *PGStatMonitorQAN) getNewBuckets(ctx context.Context, periodStart time.T
 		return nil, err
 	}
 
-	buckets := makeBuckets(current, prev, m.l)
+	buckets := makeBuckets(current, prev, m.disableQueryExamples, m.l)
 	startS := uint32(periodStart.Unix())
 	m.l.Debugf("Made %d buckets out of %d stat monitor in %s+%d interval.",
 		len(buckets), len(current), periodStart.Format("15:04:05"), periodLengthSecs)
@@ -180,7 +182,7 @@ func (m *PGStatMonitorQAN) getNewBuckets(ctx context.Context, periodStart time.T
 // to make metrics buckets.
 //
 // makeBuckets is a pure function for easier testing.
-func makeBuckets(current, prev map[int64]*pgStatMonitorExtended, l *logrus.Entry) []*agentpb.MetricsBucket {
+func makeBuckets(current, prev map[string]*pgStatMonitorExtended, disableQueryExamples bool, l *logrus.Entry) []*agentpb.MetricsBucket {
 	res := make([]*agentpb.MetricsBucket, 0, len(current))
 
 	for queryID, currentPSS := range current {
@@ -189,14 +191,15 @@ func makeBuckets(current, prev map[int64]*pgStatMonitorExtended, l *logrus.Entry
 			prevPSS = new(pgStatMonitorExtended)
 		}
 		count := float32(currentPSS.Calls - prevPSS.Calls)
+		//sameTime := currentPSS.BucketStartTime == prevPSS.BucketStartTime
 		switch {
 		case count == 0:
 			// Another way how this is possible is if pg_stat_monitor was truncated,
-			// and then the same number of queries were made.
+			// and then the same number of queries were made or the same bucket start time.
 			// Currently, we can't differentiate between those situations.
 			l.Tracef("Skipped due to the same number of queries: %s.", currentPSS)
 			continue
-		case count < 0:
+		case count < 0: //|| sameTime:
 			l.Debugf("Truncate detected. Treating as a new query: %s.", currentPSS)
 			prevPSS = new(pgStatMonitorExtended)
 			count = float32(currentPSS.Calls)
@@ -208,17 +211,28 @@ func makeBuckets(current, prev map[int64]*pgStatMonitorExtended, l *logrus.Entry
 
 		mb := &agentpb.MetricsBucket{
 			Common: &agentpb.MetricsBucket_Common{
-				Database:    currentPSS.Database,
-				Tables:      currentPSS.Tables,
-				Username:    currentPSS.Username,
-				Queryid:     strconv.FormatInt(currentPSS.QueryID, 10),
 				Fingerprint: currentPSS.Query,
+				Example:     currentPSS.Query,
+				Database:    currentPSS.Database,
+				Tables:      currentPSS.TablesNames,
+				Username:    currentPSS.Username,
+				Queryid:     currentPSS.QueryID,
 				NumQueries:  count,
 				AgentType:   inventorypb.AgentType_QAN_POSTGRESQL_PGSTATMONITOR_AGENT,
 				IsTruncated: currentPSS.IsQueryTruncated,
 			},
 			Postgresql: &agentpb.MetricsBucket_PostgreSQL{},
 		}
+
+		// if currentPSS.Query != "" && !disableQueryExamples {
+		// 	example, truncated := truncate.Query(currentPSS.Query)
+		// 	if truncated {
+		// 		mb.Common.IsTruncated = truncated
+		// 	}
+		// 	mb.Common.Example = example
+		// 	mb.Common.ExampleFormat = agentpb.ExampleFormat_EXAMPLE
+		// 	mb.Common.ExampleType = agentpb.ExampleType_RANDOM
+		// }
 
 		for _, p := range []struct {
 			value float32  // result value: currentPSS.SumXXX-prevPSS.SumXXX

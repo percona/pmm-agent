@@ -54,8 +54,8 @@ type statMonitorCache struct {
 	l      *logrus.Entry
 
 	rw       sync.RWMutex
-	items    map[int64]*pgStatMonitorExtended
-	added    map[int64]time.Time
+	items    map[string]*pgStatMonitorExtended
+	added    map[string]time.Time
 	updatedN uint
 	addedN   uint
 	removedN uint
@@ -66,14 +66,14 @@ func newStatMonitorCache(retain time.Duration, l *logrus.Entry) *statMonitorCach
 	return &statMonitorCache{
 		retain: retain,
 		l:      l,
-		items:  make(map[int64]*pgStatMonitorExtended),
-		added:  make(map[int64]time.Time),
+		items:  make(map[string]*pgStatMonitorExtended),
+		added:  make(map[string]time.Time),
 	}
 }
 
 // getStatMonitorExtended returns the current state of pg_stat_monitor table with extended information (database, username, tables)
 // and the previous cashed state.
-func (ssc *statMonitorCache) getStatMonitorExtended(ctx context.Context, q *reform.Querier) (current, prev map[int64]*pgStatMonitorExtended, err error) {
+func (ssc *statMonitorCache) getStatMonitorExtended(ctx context.Context, q *reform.Querier) (current, prev map[string]*pgStatMonitorExtended, err error) {
 	var totalN, newN, newSharedN, oldN int
 	start := time.Now()
 	defer func() {
@@ -82,8 +82,8 @@ func (ssc *statMonitorCache) getStatMonitorExtended(ctx context.Context, q *refo
 	}()
 
 	ssc.rw.RLock()
-	current = make(map[int64]*pgStatMonitorExtended, len(ssc.items))
-	prev = make(map[int64]*pgStatMonitorExtended, len(ssc.items))
+	current = make(map[string]*pgStatMonitorExtended, len(ssc.items))
+	prev = make(map[string]*pgStatMonitorExtended, len(ssc.items))
 	for k, v := range ssc.items {
 		prev[k] = v
 	}
@@ -95,7 +95,7 @@ func (ssc *statMonitorCache) getStatMonitorExtended(ctx context.Context, q *refo
 
 	// the same query can appear several times (with different database and/or username),
 	// so cache results of the current iteration too
-	tables := make(map[int64][]string)
+	tables := make(map[string][]string)
 
 	rows, err := q.SelectRows(pgStatMonitorView, "WHERE queryid IS NOT NULL AND query IS NOT NULL")
 	if err != nil {
@@ -124,7 +124,7 @@ func (ssc *statMonitorCache) getStatMonitorExtended(ctx context.Context, q *refo
 			oldN++
 
 			// use previous values
-			c.Tables = p.Tables
+			c.TablesNames = p.TablesNames
 			c.Query, c.IsQueryTruncated = p.Query, p.IsQueryTruncated
 		} else {
 			newN++
@@ -136,7 +136,7 @@ func (ssc *statMonitorCache) getStatMonitorExtended(ctx context.Context, q *refo
 				newSharedN++
 			}
 
-			c.Tables = tables[c.QueryID]
+			c.TablesNames = tables[c.QueryID]
 			c.Query, c.IsQueryTruncated = truncate.Query(c.Query)
 		}
 
@@ -179,7 +179,7 @@ func (ssc *statMonitorCache) stats() statMonitorCacheStats {
 }
 
 // refresh removes expired items in cache, then adds current items.
-func (ssc *statMonitorCache) refresh(current map[int64]*pgStatMonitorExtended) {
+func (ssc *statMonitorCache) refresh(current map[string]*pgStatMonitorExtended) {
 	ssc.rw.Lock()
 	defer ssc.rw.Unlock()
 
