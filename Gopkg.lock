@@ -302,6 +302,14 @@
   version = "v1.0.1"
 
 [[projects]]
+  branch = "master"
+  digest = "1:ba442a87b9079c0bf897a66e05a8e6ef4c2fec9cf10b38444ac5f42200302cd9"
+  name = "github.com/mc2soft/pq-types"
+  packages = ["."]
+  pruneopts = "NUT"
+  revision = "ada769d4011a027a5385b9c4e47976fe327350a6"
+
+[[projects]]
   digest = "1:a45ae66dea4c899d79fceb116accfa1892105c251f0dcd9a217ddc276b42ec68"
   name = "github.com/mitchellh/mapstructure"
   packages = ["."]
@@ -358,8 +366,8 @@
   version = "v3.2.1"
 
 [[projects]]
-  branch = "PMM-6460-pg-stat"
-  digest = "1:381e3c2bb48ac81d89e3ae503a18aac994ca8eea276754aa7ffc594f2e0f7ecb"
+  branch = "PMM-6462-preparement-for-pg-stat-monitor"
+  digest = "1:22dfe4eb6cfee62f0a5210a7d39777172032876bcf606ca633585bcf884ff5fa"
   name = "github.com/percona/pmm"
   packages = [
     "api/agentlocalpb",
@@ -386,7 +394,7 @@
     "version",
   ]
   pruneopts = "NUT"
-  revision = "f047c677e6fdd2f5118b49356d180be125358609"
+  revision = "f29d34b9c045dc964f86aab0d47764bf22d98d4b"
 
 [[projects]]
   digest = "1:4047c378584616813d610c9f993bf90dd0d07aed8d94bd3bc299cd35ececdcba"
@@ -789,6 +797,7 @@
     "github.com/lfittl/pg_query_go",
     "github.com/lfittl/pg_query_go/nodes",
     "github.com/lib/pq",
+    "github.com/mc2soft/pq-types",
     "github.com/percona/exporter_shared/helpers",
     "github.com/percona/go-mysql/event",
     "github.com/percona/go-mysql/log",
