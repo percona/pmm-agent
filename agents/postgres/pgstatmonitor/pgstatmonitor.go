@@ -195,7 +195,7 @@ func makeBuckets(current, prev map[string]*pgStatMonitorExtended, disableQueryEx
 		switch {
 		case count == 0:
 			// Another way how this is possible is if pg_stat_monitor was truncated,
-			// and then the same number of queries were made or the same bucket start time.
+			// and then the same number of queries were made.
 			// Currently, we can't differentiate between those situations.
 			l.Tracef("Skipped due to the same number of queries: %s.", currentPSS)
 			continue
@@ -218,7 +218,6 @@ func makeBuckets(current, prev map[string]*pgStatMonitorExtended, disableQueryEx
 				Queryid:     currentPSS.QueryID,
 				NumQueries:  count,
 				AgentType:   inventorypb.AgentType_QAN_POSTGRESQL_PGSTATMONITOR_AGENT,
-				IsTruncated: currentPSS.IsQueryTruncated,
 			},
 			Postgresql: &agentpb.MetricsBucket_PostgreSQL{},
 		}

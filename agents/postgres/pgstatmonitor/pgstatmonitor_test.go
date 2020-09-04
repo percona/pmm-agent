@@ -18,6 +18,7 @@ package pgstatmonitor
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -45,11 +46,14 @@ func setup(t *testing.T, db *reform.DB, disableQueryExamples bool) *PGStatMonito
 	return newPgStatMonitorQAN(db.WithTag(queryTag), nil, "agent_id", disableQueryExamples, logrus.WithField("test", t.Name()))
 }
 
-func supportedVersion(t *testing.T, db *reform.DB) bool {
-	var version float32
-	db.QueryRow("SHOW server_version").Scan(&version)
+func supportedVersion(version string) bool {
+	supported := float64(11)
+	current, err := strconv.ParseFloat(version, 32)
+	if err != nil {
+		return false
+	}
 
-	return version >= float32(11)
+	return current >= supported
 }
 
 // filter removes buckets for queries that are not expected by tests.
@@ -71,12 +75,15 @@ func TestPGStatMonitorSchema(t *testing.T) {
 	defer sqlDB.Close() //nolint:errcheck
 	db := reform.NewDB(sqlDB, postgresql.Dialect, reform.NewPrintfLogger(t.Logf))
 
-	if !supportedVersion(t, db) {
+	engineVersion := tests.PostgreSQLVersion(t, sqlDB)
+	if !supportedVersion(engineVersion) {
 		t.Skip()
 	}
 
 	_, err := db.Exec("CREATE EXTENSION IF NOT EXISTS pg_stat_monitor SCHEMA public")
-	require.NoError(t, err)
+	if err != nil {
+		t.Skip()
+	}
 
 	structs, err := db.SelectAllFrom(pgStatMonitorView, "")
 	require.NoError(t, err)
@@ -103,7 +110,6 @@ func TestPGStatMonitorSchema(t *testing.T) {
 		"$321, $322, $323, $324, $325, $326, $327, $328, $329, $330, $331, $332, $333, $334, $335, $336, $337, $338, $339, $340, " +
 		"$341, $342, $343, $344, $345, $346, $347, $348, $349, $ ..."
 
-	engineVersion := tests.PostgreSQLVersion(t, sqlDB)
 	var digests map[string]string // digest_text/fingerprint to digest/query_id
 	switch engineVersion {
 	case "11":
@@ -114,7 +120,7 @@ func TestPGStatMonitorSchema(t *testing.T) {
 	case "12":
 		digests = map[string]string{
 			selectAllCities:     "4E18B291CCDEC5E3",
-			selectAllCitiesLong: "-1605123213815583414",
+			selectAllCitiesLong: "E9B974F0FBC9ED4A",
 		}
 
 	default:
@@ -126,7 +132,7 @@ func TestPGStatMonitorSchema(t *testing.T) {
 	}
 
 	t.Run("AllCities", func(t *testing.T) {
-		m := setup(t, db, false)
+		m := setup(t, db, true)
 
 		_, err := db.Exec(selectAllCities)
 		require.NoError(t, err)
