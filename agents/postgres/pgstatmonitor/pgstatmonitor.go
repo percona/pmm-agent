@@ -191,7 +191,6 @@ func makeBuckets(current, prev map[string]*pgStatMonitorExtended, disableQueryEx
 			prevPSS = new(pgStatMonitorExtended)
 		}
 		count := float32(currentPSS.Calls - prevPSS.Calls)
-		//sameTime := currentPSS.BucketStartTime == prevPSS.BucketStartTime
 		switch {
 		case count == 0:
 			// Another way how this is possible is if pg_stat_monitor was truncated,
@@ -199,7 +198,7 @@ func makeBuckets(current, prev map[string]*pgStatMonitorExtended, disableQueryEx
 			// Currently, we can't differentiate between those situations.
 			l.Tracef("Skipped due to the same number of queries: %s.", currentPSS)
 			continue
-		case count < 0: //|| sameTime:
+		case count < 0 || (time.Now().Sub(currentPSS.BucketStartTime).Seconds() < 60):
 			l.Debugf("Truncate detected. Treating as a new query: %s.", currentPSS)
 			prevPSS = new(pgStatMonitorExtended)
 			count = float32(currentPSS.Calls)

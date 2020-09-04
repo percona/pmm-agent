@@ -123,7 +123,7 @@ func TestPGStatMonitorSchema(t *testing.T) {
 	case "11":
 		digests = map[string]string{
 			selectAllCities:     "C7B4B1F338ABF1FF",
-			selectAllCitiesLong: "2233640464962569536",
+			selectAllCitiesLong: "1EFF7C2B26084540",
 		}
 	case "12":
 		digests = map[string]string{
@@ -205,15 +205,15 @@ func TestPGStatMonitorSchema(t *testing.T) {
 				PeriodStartUnixSecs: 1554116340,
 				PeriodLengthSecs:    60,
 				AgentType:           inventorypb.AgentType_QAN_POSTGRESQL_PGSTATMONITOR_AGENT,
-				NumQueries:          1,
-				MQueryTimeCnt:       1,
+				NumQueries:          2,
+				MQueryTimeCnt:       2,
 				MQueryTimeSum:       actual.Common.MQueryTimeSum,
 			},
 			Postgresql: &agentpb.MetricsBucket_PostgreSQL{
-				MSharedBlksHitCnt: 1,
-				MSharedBlksHitSum: 32,
-				MRowsCnt:          1,
-				MRowsSum:          4079,
+				MSharedBlksHitCnt: 2,
+				MSharedBlksHitSum: 64,
+				MRowsCnt:          2,
+				MRowsSum:          8158,
 				MBlkReadTimeCnt:   actual.Postgresql.MBlkReadTimeCnt,
 				MBlkReadTimeSum:   actual.Postgresql.MBlkReadTimeSum,
 			},
