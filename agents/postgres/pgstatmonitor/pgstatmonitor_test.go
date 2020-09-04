@@ -42,6 +42,13 @@ func setup(t *testing.T, db *reform.DB, disableQueryExamples bool) *PGStatMonito
 	return newPgStatMonitorQAN(db.WithTag(queryTag), nil, "agent_id", disableQueryExamples, logrus.WithField("test", t.Name()))
 }
 
+func supportedVersion(t *testing.T, db *reform.DB) bool {
+	var version float32
+	db.QueryRow("SHOW server_version").Scan(&version)
+
+	return version >= float32(11)
+}
+
 // filter removes buckets for queries that are not expected by tests.
 func filter(mb []*agentpb.MetricsBucket) []*agentpb.MetricsBucket {
 	res := make([]*agentpb.MetricsBucket, 0, len(mb))
@@ -60,6 +67,10 @@ func TestPGStatMonitorSchema(t *testing.T) {
 	sqlDB := tests.OpenTestPostgreSQL(t)
 	defer sqlDB.Close() //nolint:errcheck
 	db := reform.NewDB(sqlDB, postgresql.Dialect, reform.NewPrintfLogger(t.Logf))
+
+	if !supportedVersion(t, db) {
+		t.Skip()
+	}
 
 	_, err := db.Exec("CREATE EXTENSION IF NOT EXISTS pg_stat_monitor SCHEMA public")
 	require.NoError(t, err)

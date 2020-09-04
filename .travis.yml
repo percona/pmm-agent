@@ -38,8 +38,7 @@ env:
 
   matrix:
     # latest upstreams + old PMM Server releases
-    #TODO
-    # - MYSQL_IMAGE=mysql:5.6 MONGO_IMAGE=mongo:3.6 POSTGRES_IMAGE=postgres:10 PMM_SERVER_IMAGE=percona/pmm-server:2.0.0
+    - MYSQL_IMAGE=mysql:5.6 MONGO_IMAGE=mongo:3.6 POSTGRES_IMAGE=postgres:10 PMM_SERVER_IMAGE=percona/pmm-server:2.0.0
     - MYSQL_IMAGE=mysql:5.7 MONGO_IMAGE=mongo:4.0 POSTGRES_IMAGE=perconalab/percona-distribution-postgresql:11 PMM_SERVER_IMAGE=percona/pmm-server:2.0.1
     - MYSQL_IMAGE=mysql:8.0 MONGO_IMAGE=mongo:4.2 POSTGRES_IMAGE=perconalab/percona-distribution-postgresql:12 PMM_SERVER_IMAGE=percona/pmm-server:2.1.0
 
@@ -55,10 +54,9 @@ env:
     # - MYSQL_IMAGE=mariadb:5.5
     # - MYSQL_IMAGE=mariadb:10.0
     # - MYSQL_IMAGE=mariadb:10.1
-    #TODO
-    # - MYSQL_IMAGE=mariadb:10.2 MONGO_IMAGE=mongo:3.4                          POSTGRES_IMAGE=postgres:9.4 PMM_SERVER_IMAGE=perconalab/pmm-server:dev-latest
-    # - MYSQL_IMAGE=mariadb:10.3 MONGO_IMAGE=percona/percona-server-mongodb:3.4 POSTGRES_IMAGE=postgres:9.5 PMM_SERVER_IMAGE=perconalab/pmm-server:dev-latest
-    # - MYSQL_IMAGE=mariadb:10.4                                                POSTGRES_IMAGE=postgres:9.6 PMM_SERVER_IMAGE=perconalab/pmm-server:dev-latest
+    - MYSQL_IMAGE=mariadb:10.2 MONGO_IMAGE=mongo:3.4                          POSTGRES_IMAGE=postgres:9.4 PMM_SERVER_IMAGE=perconalab/pmm-server:dev-latest
+    - MYSQL_IMAGE=mariadb:10.3 MONGO_IMAGE=percona/percona-server-mongodb:3.4 POSTGRES_IMAGE=postgres:9.5 PMM_SERVER_IMAGE=perconalab/pmm-server:dev-latest
+    - MYSQL_IMAGE=mariadb:10.4                                                POSTGRES_IMAGE=postgres:9.6 PMM_SERVER_IMAGE=perconalab/pmm-server:dev-latest
 
 before_install:
   - env ENV_UP_FLAGS=--detach make env-up
