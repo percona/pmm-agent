@@ -26,7 +26,6 @@ import (
 	"github.com/sirupsen/logrus"
 	"gopkg.in/reform.v1"
 
-	"github.com/percona/pmm-agent/agents/postgres/parser"
 	"github.com/percona/pmm-agent/utils/truncate"
 )
 
@@ -131,7 +130,7 @@ func (ssc *statMonitorCache) getStatMonitorExtended(ctx context.Context, q *refo
 
 			// do not extract tables again if we saw this query during this iteration already
 			if tables[c.QueryID] == nil {
-				tables[c.QueryID] = extractTables(c.Query, ssc.l)
+				tables[c.QueryID] = c.TablesNames
 			} else {
 				newSharedN++
 			}
@@ -230,28 +229,4 @@ func queryUsernames(q *reform.Querier) map[int64]string {
 		res[u.UserID] = pointer.GetString(u.UserName)
 	}
 	return res
-}
-
-func extractTables(query string, l *logrus.Entry) []string {
-	start := time.Now()
-	t, _ := truncate.Query(query)
-	tables, err := parser.ExtractTables(query)
-	if err != nil {
-		// log full query and error stack on debug level or more
-		if l.Logger.GetLevel() >= logrus.DebugLevel {
-			l.Debugf("Can't extract table names from query %s: %+v", query, err)
-		} else {
-			l.Warnf("Can't extract table names from query %s: %s", t, err)
-		}
-
-		return []string{} // not-nil to cache for the current iteration
-	}
-
-	dur := time.Since(start)
-	logf := l.Debugf
-	if dur > 500*time.Millisecond {
-		logf = l.Warnf
-	}
-	logf("Extracted table names %v from query %s. It took %s.", tables, t, dur)
-	return tables
 }

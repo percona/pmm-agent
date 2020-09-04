@@ -212,7 +212,6 @@ func makeBuckets(current, prev map[string]*pgStatMonitorExtended, disableQueryEx
 		mb := &agentpb.MetricsBucket{
 			Common: &agentpb.MetricsBucket_Common{
 				Fingerprint: currentPSS.Query,
-				Example:     currentPSS.Query,
 				Database:    currentPSS.Database,
 				Tables:      currentPSS.TablesNames,
 				Username:    currentPSS.Username,

@@ -22,7 +22,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/percona/pmm/api/agentpb"
+	"github.com/percona/pmm/api/inventorypb"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/reform.v1"
@@ -100,6 +103,28 @@ func TestPGStatMonitorSchema(t *testing.T) {
 		"$321, $322, $323, $324, $325, $326, $327, $328, $329, $330, $331, $332, $333, $334, $335, $336, $337, $338, $339, $340, " +
 		"$341, $342, $343, $344, $345, $346, $347, $348, $349, $ ..."
 
+	engineVersion := tests.PostgreSQLVersion(t, sqlDB)
+	var digests map[string]string // digest_text/fingerprint to digest/query_id
+	switch engineVersion {
+	case "11":
+		digests = map[string]string{
+			selectAllCities:     "-4056421706168012289",
+			selectAllCitiesLong: "2233640464962569536",
+		}
+	case "12":
+		digests = map[string]string{
+			selectAllCities:     "4E18B291CCDEC5E3",
+			selectAllCitiesLong: "-1605123213815583414",
+		}
+
+	default:
+		t.Log("Unhandled version, assuming dummy digests.")
+		digests = map[string]string{
+			selectAllCities:     "TODO-selectAllCities",
+			selectAllCitiesLong: "TODO-selectAllCitiesLong",
+		}
+	}
+
 	t.Run("AllCities", func(t *testing.T) {
 		m := setup(t, db, false)
 
@@ -111,5 +136,76 @@ func TestPGStatMonitorSchema(t *testing.T) {
 		buckets = filter(buckets)
 		t.Logf("Actual:\n%s", tests.FormatBuckets(buckets))
 		require.Len(t, buckets, 1)
+
+		actual := buckets[0]
+		assert.InDelta(t, 0, actual.Common.MQueryTimeSum, 0.09)
+		assert.Equal(t, float32(32), actual.Postgresql.MSharedBlksHitSum+actual.Postgresql.MSharedBlksReadSum)
+		assert.InDelta(t, 1.5, actual.Postgresql.MSharedBlksHitCnt+actual.Postgresql.MSharedBlksReadCnt, 0.5)
+		expected := &agentpb.MetricsBucket{
+			Common: &agentpb.MetricsBucket_Common{
+				Fingerprint:         selectAllCities,
+				Database:            "pmm-agent",
+				Tables:              []string{"public.city"},
+				Username:            "pmm-agent",
+				AgentId:             "agent_id",
+				PeriodStartUnixSecs: 1554116340,
+				PeriodLengthSecs:    60,
+				AgentType:           inventorypb.AgentType_QAN_POSTGRESQL_PGSTATMONITOR_AGENT,
+				NumQueries:          1,
+				MQueryTimeCnt:       1,
+				MQueryTimeSum:       actual.Common.MQueryTimeSum,
+			},
+			Postgresql: &agentpb.MetricsBucket_PostgreSQL{
+				MBlkReadTimeCnt:    actual.Postgresql.MBlkReadTimeCnt,
+				MBlkReadTimeSum:    actual.Postgresql.MBlkReadTimeSum,
+				MSharedBlksReadCnt: actual.Postgresql.MSharedBlksReadCnt,
+				MSharedBlksReadSum: actual.Postgresql.MSharedBlksReadSum,
+				MSharedBlksHitCnt:  actual.Postgresql.MSharedBlksHitCnt,
+				MSharedBlksHitSum:  actual.Postgresql.MSharedBlksHitSum,
+				MRowsCnt:           1,
+				MRowsSum:           4079,
+			},
+		}
+		expected.Common.Queryid = digests[expected.Common.Fingerprint]
+		tests.AssertBucketsEqual(t, expected, actual)
+		assert.LessOrEqual(t, actual.Postgresql.MBlkReadTimeSum, actual.Common.MQueryTimeSum)
+
+		_, err = db.Exec(selectAllCities)
+		require.NoError(t, err)
+
+		buckets, err = m.getNewBuckets(context.Background(), time.Date(2019, 4, 1, 10, 59, 0, 0, time.UTC), 60)
+		require.NoError(t, err)
+		buckets = filter(buckets)
+		t.Logf("Actual:\n%s", tests.FormatBuckets(buckets))
+		require.Len(t, buckets, 1)
+
+		actual = buckets[0]
+		assert.InDelta(t, 0, actual.Common.MQueryTimeSum, 0.09)
+		expected = &agentpb.MetricsBucket{
+			Common: &agentpb.MetricsBucket_Common{
+				Fingerprint:         selectAllCities,
+				Database:            "pmm-agent",
+				Tables:              []string{"public.city"},
+				Username:            "pmm-agent",
+				AgentId:             "agent_id",
+				PeriodStartUnixSecs: 1554116340,
+				PeriodLengthSecs:    60,
+				AgentType:           inventorypb.AgentType_QAN_POSTGRESQL_PGSTATMONITOR_AGENT,
+				NumQueries:          1,
+				MQueryTimeCnt:       1,
+				MQueryTimeSum:       actual.Common.MQueryTimeSum,
+			},
+			Postgresql: &agentpb.MetricsBucket_PostgreSQL{
+				MSharedBlksHitCnt: 1,
+				MSharedBlksHitSum: 32,
+				MRowsCnt:          1,
+				MRowsSum:          4079,
+				MBlkReadTimeCnt:   actual.Postgresql.MBlkReadTimeCnt,
+				MBlkReadTimeSum:   actual.Postgresql.MBlkReadTimeSum,
+			},
+		}
+		expected.Common.Queryid = digests[expected.Common.Fingerprint]
+		tests.AssertBucketsEqual(t, expected, actual)
+		assert.LessOrEqual(t, actual.Postgresql.MBlkReadTimeSum, actual.Common.MQueryTimeSum)
 	})
 }
