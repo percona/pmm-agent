@@ -56,6 +56,16 @@ func supportedVersion(version string) bool {
 	return current >= supported
 }
 
+func extensionExists(db *reform.DB) bool {
+	var name string
+	err := db.QueryRow("SELECT name FROM pg_available_extensions WHERE name='pg_stat_monitor'").Scan(&name)
+	if err != nil {
+		return false
+	}
+
+	return true
+}
+
 // filter removes buckets for queries that are not expected by tests.
 func filter(mb []*agentpb.MetricsBucket) []*agentpb.MetricsBucket {
 	res := make([]*agentpb.MetricsBucket, 0, len(mb))
@@ -76,14 +86,12 @@ func TestPGStatMonitorSchema(t *testing.T) {
 	db := reform.NewDB(sqlDB, postgresql.Dialect, reform.NewPrintfLogger(t.Logf))
 
 	engineVersion := tests.PostgreSQLVersion(t, sqlDB)
-	if !supportedVersion(engineVersion) {
+	if !supportedVersion(engineVersion) || !extensionExists(db) {
 		t.Skip()
 	}
 
 	_, err := db.Exec("CREATE EXTENSION IF NOT EXISTS pg_stat_monitor SCHEMA public")
-	if err != nil {
-		t.Skip()
-	}
+	assert.NoError(t, err)
 
 	structs, err := db.SelectAllFrom(pgStatMonitorView, "")
 	require.NoError(t, err)

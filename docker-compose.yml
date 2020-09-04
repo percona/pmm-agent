@@ -58,7 +58,7 @@ services:
       - MONGO_INITDB_ROOT_PASSWORD=root-password
 
   postgres:
-    image: ${POSTGRES_IMAGE:-perconalab/percona-distribution-postgresql:11}
+    image: ${POSTGRES_IMAGE:-postgres:11}
     container_name: pmm-agent_postgres
     command: >
       -c shared_preload_libraries='${PG_PRELOADED_LIBS:-pg_stat_statements}'
