@@ -218,7 +218,7 @@ func makeBuckets(current, prev map[string]*pgStatMonitorExtended, disableQueryEx
 				NumQueries:  count,
 				AgentType:   inventorypb.AgentType_QAN_POSTGRESQL_PGSTATMONITOR_AGENT,
 			},
-			Postgresql: &agentpb.MetricsBucket_PostgreSQL{},
+			Postgresql: new(agentpb.MetricsBucket_PostgreSQL),
 		}
 
 		// if currentPSS.Query != "" && !disableQueryExamples {

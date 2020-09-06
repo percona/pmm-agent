@@ -137,12 +137,12 @@ func TestPGStatStatementsQAN(t *testing.T) {
 	engineVendor := tests.PostgreSQLVendor(t, sqlDB)
 	assert.NotEmpty(t, engineVendor)
 
-	var mSharedBlksReadSum float32
+	var mSharedBlksHitSum float32
 	switch engineVendor {
 	case "percona":
-		mSharedBlksReadSum = 32
+		mSharedBlksHitSum = 32
 	case "postgre":
-		mSharedBlksReadSum = 33
+		mSharedBlksHitSum = 33
 	}
 
 	t.Run("AllCities", func(t *testing.T) {
@@ -159,7 +159,7 @@ func TestPGStatStatementsQAN(t *testing.T) {
 
 		actual := buckets[0]
 		assert.InDelta(t, 0, actual.Common.MQueryTimeSum, 0.09)
-		assert.Equal(t, mSharedBlksReadSum, actual.Postgresql.MSharedBlksHitSum+actual.Postgresql.MSharedBlksReadSum)
+		assert.Equal(t, mSharedBlksHitSum, actual.Postgresql.MSharedBlksHitSum+actual.Postgresql.MSharedBlksReadSum)
 		assert.InDelta(t, 1.5, actual.Postgresql.MSharedBlksHitCnt+actual.Postgresql.MSharedBlksReadCnt, 0.5)
 		expected := &agentpb.MetricsBucket{
 			Common: &agentpb.MetricsBucket_Common{
@@ -217,7 +217,7 @@ func TestPGStatStatementsQAN(t *testing.T) {
 			},
 			Postgresql: &agentpb.MetricsBucket_PostgreSQL{
 				MSharedBlksHitCnt: 1,
-				MSharedBlksHitSum: mSharedBlksReadSum,
+				MSharedBlksHitSum: mSharedBlksHitSum,
 				MRowsCnt:          1,
 				MRowsSum:          4079,
 				MBlkReadTimeCnt:   actual.Postgresql.MBlkReadTimeCnt,

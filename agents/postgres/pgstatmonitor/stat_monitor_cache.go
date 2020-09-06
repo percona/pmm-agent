@@ -92,10 +92,6 @@ func (ssc *statMonitorCache) getStatMonitorExtended(ctx context.Context, q *refo
 	databases := queryDatabases(q)
 	usernames := queryUsernames(q)
 
-	// the same query can appear several times (with different database and/or username),
-	// so cache results of the current iteration too
-	tables := make(map[string][]string)
-
 	rows, err := q.SelectRows(pgStatMonitorView, "WHERE queryid IS NOT NULL AND query IS NOT NULL")
 	if err != nil {
 		err = errors.Wrap(err, "failed to query pg_stat_monitor")
@@ -122,20 +118,10 @@ func (ssc *statMonitorCache) getStatMonitorExtended(ctx context.Context, q *refo
 		if p := prev[c.QueryID]; p != nil {
 			oldN++
 
-			// use previous values
-			c.TablesNames = p.TablesNames
 			c.Query, c.IsQueryTruncated = p.Query, p.IsQueryTruncated
 		} else {
 			newN++
 
-			// do not extract tables again if we saw this query during this iteration already
-			if tables[c.QueryID] == nil {
-				tables[c.QueryID] = c.TablesNames
-			} else {
-				newSharedN++
-			}
-
-			c.TablesNames = tables[c.QueryID]
 			c.Query, c.IsQueryTruncated = truncate.Query(c.Query)
 		}
 
