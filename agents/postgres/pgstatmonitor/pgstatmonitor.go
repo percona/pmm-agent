@@ -32,6 +32,7 @@ import (
 	"gopkg.in/reform.v1/dialects/postgresql"
 
 	"github.com/percona/pmm-agent/agents"
+	"github.com/percona/pmm-agent/utils/truncate"
 )
 
 const (
@@ -208,6 +209,7 @@ func makeBuckets(current, prev map[string]*pgStatMonitorExtended, disableQueryEx
 			l.Debugf("Normal query: %s.", currentPSS)
 		}
 
+		l.Infof("Table names %s", currentPSS.TablesNames)
 		mb := &agentpb.MetricsBucket{
 			Common: &agentpb.MetricsBucket_Common{
 				Fingerprint: currentPSS.Query,
@@ -221,15 +223,16 @@ func makeBuckets(current, prev map[string]*pgStatMonitorExtended, disableQueryEx
 			Postgresql: new(agentpb.MetricsBucket_PostgreSQL),
 		}
 
-		// if currentPSS.Query != "" && !disableQueryExamples {
-		// 	example, truncated := truncate.Query(currentPSS.Query)
-		// 	if truncated {
-		// 		mb.Common.IsTruncated = truncated
-		// 	}
-		// 	mb.Common.Example = example
-		// 	mb.Common.ExampleFormat = agentpb.ExampleFormat_EXAMPLE
-		// 	mb.Common.ExampleType = agentpb.ExampleType_RANDOM
-		// }
+		if currentPSS.Query != "" && !disableQueryExamples {
+			example, truncated := truncate.Query(currentPSS.Query)
+			if truncated {
+				mb.Common.IsTruncated = truncated
+			}
+
+			mb.Common.Example = example
+			mb.Common.ExampleFormat = agentpb.ExampleFormat_EXAMPLE
+			mb.Common.ExampleType = agentpb.ExampleType_RANDOM
+		}
 
 		for _, p := range []struct {
 			value float32  // result value: currentPSS.SumXXX-prevPSS.SumXXX

@@ -19,6 +19,7 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
+	"os"
 	"strings"
 	"sync"
 	"testing"
@@ -134,14 +135,13 @@ func TestPGStatStatementsQAN(t *testing.T) {
 	}
 
 	// Need detect vendor because result for mSharedBlksReadSum are diffrent for diffrent images for postgres.
-	engineVendor := tests.PostgreSQLVendor(t, sqlDB)
+	engineVendor := os.Getenv("POSTGRES_IMAGE")
 	assert.NotEmpty(t, engineVendor)
 
 	var mSharedBlksHitSum float32
-	switch engineVendor {
-	case "percona":
+	if strings.Contains(engineVendor, "perconalab") {
 		mSharedBlksHitSum = 32
-	case "postgre":
+	} else {
 		mSharedBlksHitSum = 33
 	}
 

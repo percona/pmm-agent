@@ -70,7 +70,7 @@ func newStatMonitorCache(retain time.Duration, l *logrus.Entry) *statMonitorCach
 	}
 }
 
-// getStatMonitorExtended returns the current state of pg_stat_monitor table with extended information (database, username, tables)
+// getStatMonitorExtended returns the current state of pg_stat_monitor table with extended information (database, username)
 // and the previous cashed state.
 func (ssc *statMonitorCache) getStatMonitorExtended(ctx context.Context, q *reform.Querier) (current, prev map[string]*pgStatMonitorExtended, err error) {
 	var totalN, newN, newSharedN, oldN int

@@ -84,21 +84,6 @@ func PostgreSQLVersion(tb testing.TB, db *sql.DB) string {
 	return m
 }
 
-// PostgreSQLVendor returns PostgreSQL vendor detected by first string from version.
-func PostgreSQLVendor(tb testing.TB, db *sql.DB) string {
-	tb.Helper()
-
-	var version string
-	err := db.QueryRow("SELECT /* pmm-agent-tests:PostgreSQLVersion */ version()").Scan(&version)
-	require.NoError(tb, err)
-
-	if strings.Contains(version, "Red Hat") {
-		return "percona"
-	}
-
-	return "postgre"
-}
-
 func parsePostgreSQLVersion(v string) string {
 	m := postgresDBRegexp.FindStringSubmatch(v)
 	if len(m) != 2 {
