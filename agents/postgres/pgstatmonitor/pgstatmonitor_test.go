@@ -79,10 +79,6 @@ func filter(mb []*agentpb.MetricsBucket) []*agentpb.MetricsBucket {
 			continue
 		case strings.Contains(b.Common.Example, "/* pmm-agent:pgstatmonitor */"):
 			continue
-		case strings.Contains(b.Common.Fingerprint, "pg_stat_monitor_settings"):
-			continue
-		case strings.Contains(b.Common.Example, "pg_stat_monitor_settings"):
-			continue
 		case strings.Contains(b.Common.Fingerprint, "pg_stat_monitor_reset()"):
 			continue
 		case strings.Contains(b.Common.Example, "pg_stat_monitor_reset()"):
