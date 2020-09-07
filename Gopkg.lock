@@ -367,7 +367,7 @@
 
 [[projects]]
   branch = "PMM-6462-preparement-for-pg-stat-monitor"
-  digest = "1:22dfe4eb6cfee62f0a5210a7d39777172032876bcf606ca633585bcf884ff5fa"
+  digest = "1:4ad1316b708bbb8a01d6887b6e59b0a4888b5e146770c14324a71cc5d7b480dd"
   name = "github.com/percona/pmm"
   packages = [
     "api/agentlocalpb",
@@ -394,7 +394,7 @@
     "version",
   ]
   pruneopts = "NUT"
-  revision = "f29d34b9c045dc964f86aab0d47764bf22d98d4b"
+  revision = "ff9ac5e3e59b68dcd270d712fdcb8443398c093d"
 
 [[projects]]
   digest = "1:4047c378584616813d610c9f993bf90dd0d07aed8d94bd3bc299cd35ececdcba"

@@ -198,7 +198,7 @@ func makeBuckets(current, prev map[string]*pgStatMonitorExtended, disableQueryEx
 			// Currently, we can't differentiate between those situations.
 			l.Tracef("Skipped due to the same number of queries: %s.", currentPSS)
 			continue
-		case count < 0 || (time.Now().Sub(currentPSS.BucketStartTime).Minutes() < 1):
+		case count < 0 || (time.Now().Sub(currentPSS.BucketStartTime).Minutes() > 1):
 			l.Debugf("Truncate detected. Treating as a new query: %s.", currentPSS)
 			prevPSS = new(pgStatMonitorExtended)
 			count = float32(currentPSS.Calls)
@@ -256,6 +256,9 @@ func makeBuckets(current, prev map[string]*pgStatMonitorExtended, disableQueryEx
 			// convert milliseconds to seconds
 			{float32(currentPSS.BlkReadTime-prevPSS.BlkReadTime) / 1000, &mb.Postgresql.MBlkReadTimeSum, &mb.Postgresql.MBlkReadTimeCnt},
 			{float32(currentPSS.BlkWriteTime-prevPSS.BlkWriteTime) / 1000, &mb.Postgresql.MBlkWriteTimeSum, &mb.Postgresql.MBlkWriteTimeCnt},
+
+			{float32(currentPSS.CPUSysTime-prevPSS.CPUSysTime) / 1000, &mb.Postgresql.MCpuSysTimeSum, &mb.Postgresql.MCpuSysTimeCnt},
+			{float32(currentPSS.CPUUserTime-prevPSS.CPUUserTime) / 1000, &mb.Postgresql.MCpuUserTimeSum, &mb.Postgresql.MCpuUserTimeCnt},
 		} {
 			if p.value != 0 {
 				*p.sum = p.value
