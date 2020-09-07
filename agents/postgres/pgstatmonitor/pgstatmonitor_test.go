@@ -122,7 +122,7 @@ func TestPGStatMonitorSchema(t *testing.T) {
 		"$321, $322, $323, $324, $325, $326, $327, $328, $329, $330, $331, $332, $333, $334, $335, $336, $337, $338, $339, $340, " +
 		"$341, $342, $343, $344, $345, $346, $347, $348, $349, $ ..."
 
-	var digests map[string]string // digest_text/fingerprint to digest/query_id
+	var digests map[string]string
 	switch engineVersion {
 	case "11":
 		digests = map[string]string{
@@ -228,6 +228,105 @@ func TestPGStatMonitorSchema(t *testing.T) {
 				MCpuUserTimeSum:   actual.Postgresql.MCpuUserTimeSum,
 				MCpuSysTimeCnt:    actual.Postgresql.MCpuSysTimeCnt,
 				MCpuSysTimeSum:    actual.Postgresql.MCpuSysTimeSum,
+			},
+		}
+		expected.Common.Queryid = digests[expected.Common.Fingerprint]
+		tests.AssertBucketsEqual(t, expected, actual)
+		assert.LessOrEqual(t, actual.Postgresql.MBlkReadTimeSum, actual.Common.MQueryTimeSum)
+	})
+
+	t.Run("AllCitiesTruncated", func(t *testing.T) {
+		m := setup(t, db, true)
+
+		const n = 500
+		placeholders := db.Placeholders(1, n)
+		args := make([]interface{}, n)
+		for i := 0; i < n; i++ {
+			args[i] = i
+		}
+		q := fmt.Sprintf("SELECT /* AllCitiesTruncated */ * FROM city WHERE id IN (%s)", strings.Join(placeholders, ", ")) //nolint:gosec
+		_, err := db.Exec(q, args...)
+		require.NoError(t, err)
+
+		buckets, err := m.getNewBuckets(context.Background(), time.Date(2019, 4, 1, 10, 59, 0, 0, time.UTC), 60)
+		require.NoError(t, err)
+		buckets = filter(buckets)
+		t.Logf("Actual:\n%s", tests.FormatBuckets(buckets))
+		require.Len(t, buckets, 1)
+
+		actual := buckets[0]
+		assert.InDelta(t, 0, actual.Common.MQueryTimeSum, 0.09)
+		assert.InDelta(t, 1010, actual.Postgresql.MSharedBlksHitSum+actual.Postgresql.MSharedBlksReadSum, 3)
+		assert.InDelta(t, 1.5, actual.Postgresql.MSharedBlksHitCnt+actual.Postgresql.MSharedBlksReadCnt, 0.5)
+		expected := &agentpb.MetricsBucket{
+			Common: &agentpb.MetricsBucket_Common{
+				Fingerprint:         selectAllCitiesLong,
+				Database:            "pmm-agent",
+				Tables:              []string{"public.city"},
+				Username:            "pmm-agent",
+				AgentId:             "agent_id",
+				PeriodStartUnixSecs: 1554116340,
+				PeriodLengthSecs:    60,
+				IsTruncated:         true,
+				AgentType:           inventorypb.AgentType_QAN_POSTGRESQL_PGSTATMONITOR_AGENT,
+				NumQueries:          1,
+				MQueryTimeCnt:       1,
+				MQueryTimeSum:       actual.Common.MQueryTimeSum,
+			},
+			Postgresql: &agentpb.MetricsBucket_PostgreSQL{
+				MBlkReadTimeCnt:    actual.Postgresql.MBlkReadTimeCnt,
+				MBlkReadTimeSum:    actual.Postgresql.MBlkReadTimeSum,
+				MSharedBlksReadCnt: actual.Postgresql.MSharedBlksReadCnt,
+				MSharedBlksReadSum: actual.Postgresql.MSharedBlksReadSum,
+				MSharedBlksHitCnt:  actual.Postgresql.MSharedBlksHitCnt,
+				MSharedBlksHitSum:  actual.Postgresql.MSharedBlksHitSum,
+				MRowsCnt:           1,
+				MRowsSum:           499,
+				MCpuUserTimeCnt:    actual.Postgresql.MCpuUserTimeCnt,
+				MCpuUserTimeSum:    actual.Postgresql.MCpuUserTimeSum,
+				MCpuSysTimeCnt:     actual.Postgresql.MCpuSysTimeCnt,
+				MCpuSysTimeSum:     actual.Postgresql.MCpuSysTimeSum,
+			},
+		}
+		expected.Common.Queryid = digests[expected.Common.Fingerprint]
+		tests.AssertBucketsEqual(t, expected, actual)
+		assert.LessOrEqual(t, actual.Postgresql.MBlkReadTimeSum, actual.Common.MQueryTimeSum)
+
+		_, err = db.Exec(q, args...)
+		require.NoError(t, err)
+
+		buckets, err = m.getNewBuckets(context.Background(), time.Date(2019, 4, 1, 10, 59, 0, 0, time.UTC), 60)
+		require.NoError(t, err)
+		buckets = filter(buckets)
+		t.Logf("Actual:\n%s", tests.FormatBuckets(buckets))
+		require.Len(t, buckets, 1)
+
+		actual = buckets[0]
+		assert.InDelta(t, 0, actual.Common.MQueryTimeSum, 0.09)
+		assert.InDelta(t, 0, actual.Postgresql.MBlkReadTimeCnt, 1)
+		assert.InDelta(t, 1007, actual.Postgresql.MSharedBlksHitSum, 2)
+		expected = &agentpb.MetricsBucket{
+			Common: &agentpb.MetricsBucket_Common{
+				Fingerprint:         selectAllCitiesLong,
+				Database:            "pmm-agent",
+				Tables:              []string{"city"},
+				Username:            "pmm-agent",
+				AgentId:             "agent_id",
+				PeriodStartUnixSecs: 1554116340,
+				PeriodLengthSecs:    60,
+				IsTruncated:         true,
+				AgentType:           inventorypb.AgentType_QAN_POSTGRESQL_PGSTATMONITOR_AGENT,
+				NumQueries:          1,
+				MQueryTimeCnt:       1,
+				MQueryTimeSum:       actual.Common.MQueryTimeSum,
+			},
+			Postgresql: &agentpb.MetricsBucket_PostgreSQL{
+				MBlkReadTimeCnt:   actual.Postgresql.MBlkReadTimeCnt,
+				MBlkReadTimeSum:   actual.Postgresql.MBlkReadTimeSum,
+				MSharedBlksHitCnt: 1,
+				MSharedBlksHitSum: actual.Postgresql.MSharedBlksHitSum,
+				MRowsCnt:          1,
+				MRowsSum:          499,
 			},
 		}
 		expected.Common.Queryid = digests[expected.Common.Fingerprint]
