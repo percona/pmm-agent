@@ -78,7 +78,7 @@ func New(params *Params, l *logrus.Entry) (*PGStatMonitorQAN, error) {
 	// TODO register reformL metrics https://jira.percona.com/browse/PMM-4087
 	q := reform.NewDB(sqlDB, postgresql.Dialect, reformL).WithTag(queryTag)
 
-	return newPgStatMonitorQAN(q, sqlDB, params.AgentID, params.DisableQueryExamples, params.PgsmNormalizedQuery, l)
+	return newPgStatMonitorQAN(q, sqlDB, params.AgentID, params.DisableQueryExamples, l)
 }
 
 func newPgStatMonitorQAN(q *reform.Querier, dbCloser io.Closer, agentID string, disableQueryExamples bool, l *logrus.Entry) (*PGStatMonitorQAN, error) {
@@ -87,11 +87,9 @@ func newPgStatMonitorQAN(q *reform.Querier, dbCloser io.Closer, agentID string, 
 		return nil, err
 	}
 
-	normalizedQuery := value.(*pgStatMonitorSettings).Value == 1
-
 	return &PGStatMonitorQAN{
 		q:                    q,
-		pgsmNormalizedQuery:  normalizedQuery,
+		pgsmNormalizedQuery:  value.(*pgStatMonitorSettings).Value == 1,
 		dbCloser:             dbCloser,
 		agentID:              agentID,
 		l:                    l,
@@ -172,7 +170,7 @@ func (m *PGStatMonitorQAN) getNewBuckets(ctx context.Context, periodStart time.T
 		return nil, err
 	}
 
-	buckets := makeBuckets(current, prev, m.disableQueryExamples, m.l)
+	buckets := makeBuckets(current, prev, m.disableQueryExamples, m.pgsmNormalizedQuery, m.l)
 	startS := uint32(periodStart.Unix())
 	m.l.Debugf("Made %d buckets out of %d stat monitor in %s+%d interval.",
 		len(buckets), len(current), periodStart.Format("15:04:05"), periodLengthSecs)
@@ -223,8 +221,8 @@ func makeBuckets(current, prev map[string]*pgStatMonitorExtended, disableQueryEx
 			l.Debugf("Normal query: %s.", currentPSS)
 		}
 
-		fingerprint = query.Fingerprint(currentPSS.Query)
-		example = currentPSS.Query
+		fingerprint := query.Fingerprint(currentPSS.Query)
+		example := currentPSS.Query
 		if pgsmNormalizedQuery {
 			fingerprint = currentPSS.Query
 			example = ""
