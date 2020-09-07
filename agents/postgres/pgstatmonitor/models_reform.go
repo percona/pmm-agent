@@ -298,8 +298,78 @@ var (
 	_ fmt.Stringer  = (*pgStatMonitor)(nil)
 )
 
+type pgStatMonitorSettingsViewType struct {
+	s parse.StructInfo
+	z []interface{}
+}
+
+// Schema returns a schema name in SQL database ("").
+func (v *pgStatMonitorSettingsViewType) Schema() string {
+	return v.s.SQLSchema
+}
+
+// Name returns a view or table name in SQL database ("pg_stat_monitor_settings").
+func (v *pgStatMonitorSettingsViewType) Name() string {
+	return v.s.SQLName
+}
+
+// Columns returns a new slice of column names for that view or table in SQL database.
+func (v *pgStatMonitorSettingsViewType) Columns() []string {
+	return []string{"name", "value"}
+}
+
+// NewStruct makes a new struct for that view or table.
+func (v *pgStatMonitorSettingsViewType) NewStruct() reform.Struct {
+	return new(pgStatMonitorSettings)
+}
+
+// pgStatMonitorSettingsView represents pg_stat_monitor_settings view or table in SQL database.
+var pgStatMonitorSettingsView = &pgStatMonitorSettingsViewType{
+	s: parse.StructInfo{Type: "pgStatMonitorSettings", SQLSchema: "", SQLName: "pg_stat_monitor_settings", Fields: []parse.FieldInfo{{Name: "Name", Type: "string", Column: "name"}, {Name: "Value", Type: "int64", Column: "value"}}, PKFieldIndex: -1},
+	z: new(pgStatMonitorSettings).Values(),
+}
+
+// String returns a string representation of this struct or record.
+func (s pgStatMonitorSettings) String() string {
+	res := make([]string, 2)
+	res[0] = "Name: " + reform.Inspect(s.Name, true)
+	res[1] = "Value: " + reform.Inspect(s.Value, true)
+	return strings.Join(res, ", ")
+}
+
+// Values returns a slice of struct or record field values.
+// Returned interface{} values are never untyped nils.
+func (s *pgStatMonitorSettings) Values() []interface{} {
+	return []interface{}{
+		s.Name,
+		s.Value,
+	}
+}
+
+// Pointers returns a slice of pointers to struct or record fields.
+// Returned interface{} values are never untyped nils.
+func (s *pgStatMonitorSettings) Pointers() []interface{} {
+	return []interface{}{
+		&s.Name,
+		&s.Value,
+	}
+}
+
+// View returns View object for that struct.
+func (s *pgStatMonitorSettings) View() reform.View {
+	return pgStatMonitorSettingsView
+}
+
+// check interfaces
+var (
+	_ reform.View   = pgStatMonitorSettingsView
+	_ reform.Struct = (*pgStatMonitorSettings)(nil)
+	_ fmt.Stringer  = (*pgStatMonitorSettings)(nil)
+)
+
 func init() {
 	parse.AssertUpToDate(&pgStatDatabaseView.s, new(pgStatDatabase))
 	parse.AssertUpToDate(&pgUserView.s, new(pgUser))
 	parse.AssertUpToDate(&pgStatMonitorView.s, new(pgStatMonitor))
+	parse.AssertUpToDate(&pgStatMonitorSettingsView.s, new(pgStatMonitorSettings))
 }

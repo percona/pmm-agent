@@ -135,12 +135,9 @@ func TestPGStatStatementsQAN(t *testing.T) {
 	}
 
 	// Need detect vendor because result for mSharedBlksReadSum are diffrent for diffrent images for postgres.
-	engineVendor := os.Getenv("POSTGRES_IMAGE")
-	var mSharedBlksHitSum float32
-	if strings.Contains(engineVendor, "perconalab") {
+	mSharedBlksHitSum := float32(33)
+	if strings.Contains(os.Getenv("POSTGRES_IMAGE"), "perconalab") {
 		mSharedBlksHitSum = 32
-	} else {
-		mSharedBlksHitSum = 33
 	}
 
 	t.Run("AllCities", func(t *testing.T) {

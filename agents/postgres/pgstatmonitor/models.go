@@ -76,6 +76,13 @@ type pgStatMonitor struct {
 	WaitEventType     *string              `reform:"wait_event_type"`
 }
 
+// pgStatMonitorSettings represents a row in pg_stat_monitor_settings view.
+//reform:pg_stat_monitor_settings
+type pgStatMonitorSettings struct {
+	Name  string `reform:"name"`
+	Value int64  `reform:"value"`
+}
+
 // pgStatMonitorExtended contains pgStatMonitor data and extends it with database, username and tables data.
 // It's made for performance reason.
 type pgStatMonitorExtended struct {

@@ -24,6 +24,7 @@ import (
 	"time"
 
 	_ "github.com/lib/pq" // register SQL driver
+	"github.com/percona/go-mysql/query"
 	"github.com/percona/pmm/api/agentpb"
 	"github.com/percona/pmm/api/inventorypb"
 	"github.com/percona/pmm/utils/sqlmetrics"
@@ -42,19 +43,22 @@ const (
 
 // PGStatMonitorQAN QAN services connects to PostgreSQL and extracts stats.
 type PGStatMonitorQAN struct {
-	q                    *reform.Querier
-	dbCloser             io.Closer
-	agentID              string
-	l                    *logrus.Entry
-	changes              chan agents.Change
-	monitorCache         *statMonitorCache
 	disableQueryExamples bool
+	// By default, query shows the actual parameter instead of the placeholder. It is quite useful when users want to use that query and try to run that query to check the abnormalities. But in most cases users like the queries with a placeholder. This parameter is used to toggle between the two said options.
+	pgsmNormalizedQuery bool
+	q                   *reform.Querier
+	dbCloser            io.Closer
+	agentID             string
+	l                   *logrus.Entry
+	changes             chan agents.Change
+	monitorCache        *statMonitorCache
 }
 
 // Params represent Agent parameters.
 type Params struct {
 	DSN                  string
 	DisableQueryExamples bool
+	PgsmNormalizedQuery  bool
 	AgentID              string
 }
 
@@ -69,22 +73,32 @@ func New(params *Params, l *logrus.Entry) (*PGStatMonitorQAN, error) {
 	sqlDB.SetMaxIdleConns(1)
 	sqlDB.SetMaxOpenConns(1)
 	sqlDB.SetConnMaxLifetime(0)
+
 	reformL := sqlmetrics.NewReform("postgres", params.AgentID, l.Tracef)
 	// TODO register reformL metrics https://jira.percona.com/browse/PMM-4087
 	q := reform.NewDB(sqlDB, postgresql.Dialect, reformL).WithTag(queryTag)
-	return newPgStatMonitorQAN(q, sqlDB, params.AgentID, params.DisableQueryExamples, l), nil
+
+	return newPgStatMonitorQAN(q, sqlDB, params.AgentID, params.DisableQueryExamples, params.PgsmNormalizedQuery, l)
 }
 
-func newPgStatMonitorQAN(q *reform.Querier, dbCloser io.Closer, agentID string, disableQueryExamples bool, l *logrus.Entry) *PGStatMonitorQAN {
+func newPgStatMonitorQAN(q *reform.Querier, dbCloser io.Closer, agentID string, disableQueryExamples bool, l *logrus.Entry) (*PGStatMonitorQAN, error) {
+	value, err := q.FindOneFrom(pgStatMonitorSettingsView, "name", "pg_stat_monitor.pgsm_normalized_query")
+	if err != nil {
+		return nil, err
+	}
+
+	normalizedQuery := value.(*pgStatMonitorSettings).Value == 1
+
 	return &PGStatMonitorQAN{
 		q:                    q,
+		pgsmNormalizedQuery:  normalizedQuery,
 		dbCloser:             dbCloser,
 		agentID:              agentID,
 		l:                    l,
 		changes:              make(chan agents.Change, 10),
 		monitorCache:         newStatMonitorCache(retainStatMonitor, l),
 		disableQueryExamples: disableQueryExamples,
-	}
+	}, nil
 }
 
 // Run extracts stats data and sends it to the channel until ctx is canceled.
@@ -183,7 +197,7 @@ func (m *PGStatMonitorQAN) getNewBuckets(ctx context.Context, periodStart time.T
 // to make metrics buckets.
 //
 // makeBuckets is a pure function for easier testing.
-func makeBuckets(current, prev map[string]*pgStatMonitorExtended, disableQueryExamples bool, l *logrus.Entry) []*agentpb.MetricsBucket {
+func makeBuckets(current, prev map[string]*pgStatMonitorExtended, disableQueryExamples, pgsmNormalizedQuery bool, l *logrus.Entry) []*agentpb.MetricsBucket {
 	res := make([]*agentpb.MetricsBucket, 0, len(current))
 
 	for queryID, currentPSS := range current {
@@ -209,10 +223,16 @@ func makeBuckets(current, prev map[string]*pgStatMonitorExtended, disableQueryEx
 			l.Debugf("Normal query: %s.", currentPSS)
 		}
 
-		l.Infof("Table names %s", currentPSS.TablesNames)
+		fingerprint = query.Fingerprint(currentPSS.Query)
+		example = currentPSS.Query
+		if pgsmNormalizedQuery {
+			fingerprint = currentPSS.Query
+			example = ""
+		}
+
 		mb := &agentpb.MetricsBucket{
 			Common: &agentpb.MetricsBucket_Common{
-				Fingerprint: currentPSS.Query,
+				Fingerprint: fingerprint,
 				Database:    currentPSS.Database,
 				Tables:      currentPSS.TablesNames,
 				Username:    currentPSS.Username,
@@ -224,13 +244,12 @@ func makeBuckets(current, prev map[string]*pgStatMonitorExtended, disableQueryEx
 		}
 
 		if currentPSS.Query != "" && !disableQueryExamples {
-			example, truncated := truncate.Query(currentPSS.Query)
+			example, truncated := truncate.Query(example)
 			if truncated {
 				mb.Common.IsTruncated = truncated
 			}
 
 			mb.Common.Example = example
-			mb.Common.ExampleFormat = agentpb.ExampleFormat_EXAMPLE
 			mb.Common.ExampleType = agentpb.ExampleType_RANDOM
 		}
 
