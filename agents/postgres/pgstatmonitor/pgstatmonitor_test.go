@@ -45,6 +45,8 @@ func setup(t *testing.T, db *reform.DB, disableQueryExamples bool) *PGStatMonito
 	require.NoError(t, err)
 
 	pgStatMonitorQAN, err := newPgStatMonitorQAN(db.WithTag(queryTag), nil, "agent_id", disableQueryExamples, logrus.WithField("test", t.Name()))
+	require.NoError(t, err)
+
 	return pgStatMonitorQAN
 }
 

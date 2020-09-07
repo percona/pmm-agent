@@ -44,7 +44,11 @@ const (
 // PGStatMonitorQAN QAN services connects to PostgreSQL and extracts stats.
 type PGStatMonitorQAN struct {
 	disableQueryExamples bool
-	// By default, query shows the actual parameter instead of the placeholder. It is quite useful when users want to use that query and try to run that query to check the abnormalities. But in most cases users like the queries with a placeholder. This parameter is used to toggle between the two said options.
+	// By default, query shows the actual parameter instead of the placeholder.
+	// It is quite useful when users want to use that query and try to run that
+	// query to check the abnormalities. But in most cases users like the queries
+	// with a placeholder. This parameter is used to toggle between the two said
+	// options.
 	pgsmNormalizedQuery bool
 	q                   *reform.Querier
 	dbCloser            io.Closer
@@ -241,7 +245,7 @@ func makeBuckets(current, prev map[string]*pgStatMonitorExtended, disableQueryEx
 			Postgresql: new(agentpb.MetricsBucket_PostgreSQL),
 		}
 
-		if currentPSS.Query != "" && !disableQueryExamples {
+		if example != "" && !disableQueryExamples {
 			example, truncated := truncate.Query(example)
 			if truncated {
 				mb.Common.IsTruncated = truncated
