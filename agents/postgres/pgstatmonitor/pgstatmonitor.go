@@ -24,7 +24,6 @@ import (
 	"time"
 
 	_ "github.com/lib/pq" // register SQL driver
-	"github.com/percona/go-mysql/query"
 	"github.com/percona/pmm/api/agentpb"
 	"github.com/percona/pmm/api/inventorypb"
 	"github.com/percona/pmm/utils/sqlmetrics"
@@ -33,7 +32,6 @@ import (
 	"gopkg.in/reform.v1/dialects/postgresql"
 
 	"github.com/percona/pmm-agent/agents"
-	"github.com/percona/pmm-agent/utils/truncate"
 )
 
 const (
@@ -62,7 +60,6 @@ type PGStatMonitorQAN struct {
 type Params struct {
 	DSN                  string
 	DisableQueryExamples bool
-	PgsmNormalizedQuery  bool
 	AgentID              string
 }
 
@@ -114,7 +111,7 @@ func (m *PGStatMonitorQAN) Run(ctx context.Context) {
 	// add current stat monitor to cache so they are not send as new on first iteration with incorrect timestamps
 	var running bool
 	m.changes <- agents.Change{Status: inventorypb.AgentStatus_STARTING}
-	if current, _, err := m.monitorCache.getStatMonitorExtended(ctx, m.q); err == nil {
+	if current, _, err := m.monitorCache.getStatMonitorExtended(ctx, m.q, m.pgsmNormalizedQuery, m.disableQueryExamples); err == nil {
 		m.monitorCache.refresh(current)
 		m.l.Debugf("Got %d initial stat monitor.", len(current))
 		running = true
@@ -169,12 +166,12 @@ func (m *PGStatMonitorQAN) Run(ctx context.Context) {
 }
 
 func (m *PGStatMonitorQAN) getNewBuckets(ctx context.Context, periodStart time.Time, periodLengthSecs uint32) ([]*agentpb.MetricsBucket, error) {
-	current, prev, err := m.monitorCache.getStatMonitorExtended(ctx, m.q)
+	current, prev, err := m.monitorCache.getStatMonitorExtended(ctx, m.q, m.pgsmNormalizedQuery, m.disableQueryExamples)
 	if err != nil {
 		return nil, err
 	}
 
-	buckets := makeBuckets(current, prev, m.disableQueryExamples, m.pgsmNormalizedQuery, m.l)
+	buckets := makeBuckets(current, prev, m.l)
 	startS := uint32(periodStart.Unix())
 	m.l.Debugf("Made %d buckets out of %d stat monitor in %s+%d interval.",
 		len(buckets), len(current), periodStart.Format("15:04:05"), periodLengthSecs)
@@ -199,7 +196,7 @@ func (m *PGStatMonitorQAN) getNewBuckets(ctx context.Context, periodStart time.T
 // to make metrics buckets.
 //
 // makeBuckets is a pure function for easier testing.
-func makeBuckets(current, prev map[string]*pgStatMonitorExtended, disableQueryExamples, pgsmNormalizedQuery bool, l *logrus.Entry) []*agentpb.MetricsBucket {
+func makeBuckets(current, prev map[string]*pgStatMonitorExtended, l *logrus.Entry) []*agentpb.MetricsBucket {
 	res := make([]*agentpb.MetricsBucket, 0, len(current))
 
 	for queryID, currentPSS := range current {
@@ -225,16 +222,10 @@ func makeBuckets(current, prev map[string]*pgStatMonitorExtended, disableQueryEx
 			l.Debugf("Normal query: %s.", currentPSS)
 		}
 
-		fingerprint := currentPSS.Query
-		example := ""
-		if !pgsmNormalizedQuery {
-			fingerprint = query.Fingerprint(currentPSS.Query)
-			example = currentPSS.Query
-		}
-
 		mb := &agentpb.MetricsBucket{
 			Common: &agentpb.MetricsBucket_Common{
-				Fingerprint: fingerprint,
+				IsTruncated: currentPSS.IsQueryTruncated,
+				Fingerprint: currentPSS.Fingerprint,
 				Database:    currentPSS.Database,
 				Tables:      currentPSS.TablesNames,
 				Username:    currentPSS.Username,
@@ -243,16 +234,6 @@ func makeBuckets(current, prev map[string]*pgStatMonitorExtended, disableQueryEx
 				AgentType:   inventorypb.AgentType_QAN_POSTGRESQL_PGSTATMONITOR_AGENT,
 			},
 			Postgresql: new(agentpb.MetricsBucket_PostgreSQL),
-		}
-
-		if example != "" && !disableQueryExamples {
-			example, truncated := truncate.Query(example)
-			if truncated {
-				mb.Common.IsTruncated = truncated
-			}
-
-			mb.Common.Example = example
-			mb.Common.ExampleType = agentpb.ExampleType_RANDOM
 		}
 
 		for _, p := range []struct {

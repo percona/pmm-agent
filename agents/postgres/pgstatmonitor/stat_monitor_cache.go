@@ -21,12 +21,15 @@ import (
 	"sync"
 	"time"
 
+	"github.com/percona/pmm-agent/utils/truncate"
+
 	"github.com/AlekSi/pointer"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"gopkg.in/reform.v1"
 
-	"github.com/percona/pmm-agent/utils/truncate"
+	"github.com/percona/go-mysql/query"
+	"github.com/percona/pmm/api/agentpb"
 )
 
 // statMonitorCacheStats contains statMonitorCache statistics.
@@ -72,7 +75,7 @@ func newStatMonitorCache(retain time.Duration, l *logrus.Entry) *statMonitorCach
 
 // getStatMonitorExtended returns the current state of pg_stat_monitor table with extended information (database, username)
 // and the previous cashed state.
-func (ssc *statMonitorCache) getStatMonitorExtended(ctx context.Context, q *reform.Querier) (current, prev map[string]*pgStatMonitorExtended, err error) {
+func (ssc *statMonitorCache) getStatMonitorExtended(ctx context.Context, q *reform.Querier, normalizedQuery, disableQueryExamples bool) (current, prev map[string]*pgStatMonitorExtended, err error) {
 	var totalN, newN, newSharedN, oldN int
 	start := time.Now()
 	defer func() {
@@ -87,6 +90,10 @@ func (ssc *statMonitorCache) getStatMonitorExtended(ctx context.Context, q *refo
 		prev[k] = v
 	}
 	ssc.rw.RUnlock()
+
+	// the same query can appear several times (with different database and/or username),
+	// so cache results of the current iteration too
+	fingerprints := make(map[string]string)
 
 	// load all databases and usernames first as we can't use querier while iterating over rows below
 	databases := queryDatabases(q)
@@ -118,11 +125,33 @@ func (ssc *statMonitorCache) getStatMonitorExtended(ctx context.Context, q *refo
 		if p := prev[c.QueryID]; p != nil {
 			oldN++
 
+			c.Fingerprint = p.Fingerprint
+			c.Example = p.Example
+			c.ExampleType = p.ExampleType
 			c.Query, c.IsQueryTruncated = p.Query, p.IsQueryTruncated
 		} else {
 			newN++
 
 			c.Query, c.IsQueryTruncated = truncate.Query(c.Query)
+			fingerprint := c.Query
+			example := ""
+			if !normalizedQuery && !disableQueryExamples {
+				// Check if fingerprint for query were already cached.
+				if _, ok := fingerprints[c.QueryID]; ok {
+					fingerprint = query.Fingerprint(c.Query)
+					fingerprints[c.QueryID] = fingerprint
+				} else {
+					newSharedN++
+				}
+
+				example = c.Query
+			}
+
+			c.Fingerprint = fingerprint
+			if example != "" {
+				c.Example = example
+				c.ExampleType = agentpb.ExampleType_RANDOM
+			}
 		}
 
 		current[c.QueryID] = c

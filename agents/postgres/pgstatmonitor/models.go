@@ -19,6 +19,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/percona/pmm/api/agentpb"
+
 	"github.com/lib/pq"
 )
 
@@ -88,6 +90,9 @@ type pgStatMonitorSettings struct {
 type pgStatMonitorExtended struct {
 	pgStatMonitor
 
+	Fingerprint      string
+	Example          string
+	ExampleType      agentpb.ExampleType
 	Database         string
 	Username         string
 	IsQueryTruncated bool
