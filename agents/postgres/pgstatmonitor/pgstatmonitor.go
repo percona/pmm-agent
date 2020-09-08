@@ -225,11 +225,11 @@ func makeBuckets(current, prev map[string]*pgStatMonitorExtended, disableQueryEx
 			l.Debugf("Normal query: %s.", currentPSS)
 		}
 
-		fingerprint := query.Fingerprint(currentPSS.Query)
-		example := currentPSS.Query
-		if pgsmNormalizedQuery {
-			fingerprint = currentPSS.Query
-			example = ""
+		fingerprint := currentPSS.Query
+		example := ""
+		if !pgsmNormalizedQuery {
+			fingerprint = query.Fingerprint(currentPSS.Query)
+			example = currentPSS.Query
 		}
 
 		mb := &agentpb.MetricsBucket{
