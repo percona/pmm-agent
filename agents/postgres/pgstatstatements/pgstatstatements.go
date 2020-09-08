@@ -153,7 +153,7 @@ func (m *PGStatStatementsQAN) getNewBuckets(ctx context.Context, periodStart tim
 	current, prev, err := m.statementCache.getStatStatementsExtended(ctx, m.q)
 	if err != nil {
 		return nil, err
-	}
+	} //
 
 	buckets := makeBuckets(current, prev, m.l)
 	startS := uint32(periodStart.Unix())
