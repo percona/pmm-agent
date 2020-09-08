@@ -29,7 +29,6 @@ import (
 	"gopkg.in/reform.v1"
 
 	"github.com/percona/go-mysql/query"
-	"github.com/percona/pmm/api/agentpb"
 )
 
 // statMonitorCacheStats contains statMonitorCache statistics.
@@ -91,10 +90,6 @@ func (ssc *statMonitorCache) getStatMonitorExtended(ctx context.Context, q *refo
 	}
 	ssc.rw.RUnlock()
 
-	// the same query can appear several times (with different database and/or username),
-	// so cache results of the current iteration too
-	fingerprints := make(map[string]string)
-
 	// load all databases and usernames first as we can't use querier while iterating over rows below
 	databases := queryDatabases(q)
 	usernames := queryUsernames(q)
@@ -127,30 +122,25 @@ func (ssc *statMonitorCache) getStatMonitorExtended(ctx context.Context, q *refo
 
 			c.Fingerprint = p.Fingerprint
 			c.Example = p.Example
-			c.ExampleType = p.ExampleType
-			c.Query, c.IsQueryTruncated = p.Query, p.IsQueryTruncated
+			c.IsQueryTruncated = p.IsQueryTruncated
 		} else {
 			newN++
 
-			c.Query, c.IsQueryTruncated = truncate.Query(c.Query)
 			fingerprint := c.Query
 			example := ""
-			if !normalizedQuery && !disableQueryExamples {
-				// Check if fingerprint for query were already cached.
-				if _, ok := fingerprints[c.QueryID]; ok {
-					newSharedN++
-				} else {
-					fingerprint = query.Fingerprint(c.Query)
-					fingerprints[c.QueryID] = fingerprint
-				}
-
+			if !normalizedQuery {
+				fingerprint = query.Fingerprint(c.Query)
 				example = c.Query
 			}
+			var isTruncated bool
 
-			c.Fingerprint = fingerprint
-			if example != "" {
-				c.Example = example
-				c.ExampleType = agentpb.ExampleType_RANDOM
+			c.Fingerprint, isTruncated = truncate.Query(fingerprint)
+			if isTruncated {
+				c.IsQueryTruncated = isTruncated
+			}
+			c.Example, isTruncated = truncate.Query(example)
+			if isTruncated {
+				c.IsQueryTruncated = isTruncated
 			}
 		}
 

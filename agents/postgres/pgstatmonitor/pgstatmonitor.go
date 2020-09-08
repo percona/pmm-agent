@@ -171,7 +171,7 @@ func (m *PGStatMonitorQAN) getNewBuckets(ctx context.Context, periodStart time.T
 		return nil, err
 	}
 
-	buckets := makeBuckets(current, prev, m.l)
+	buckets := m.makeBuckets(current, prev)
 	startS := uint32(periodStart.Unix())
 	m.l.Debugf("Made %d buckets out of %d stat monitor in %s+%d interval.",
 		len(buckets), len(current), periodStart.Format("15:04:05"), periodLengthSecs)
@@ -195,9 +195,9 @@ func (m *PGStatMonitorQAN) getNewBuckets(ctx context.Context, periodStart time.T
 // makeBuckets uses current state of pg_stat_monitor table and accumulated previous state
 // to make metrics buckets.
 //
-// makeBuckets is a pure function for easier testing.
-func makeBuckets(current, prev map[string]*pgStatMonitorExtended, l *logrus.Entry) []*agentpb.MetricsBucket {
+func (m *PGStatMonitorQAN) makeBuckets(current, prev map[string]*pgStatMonitorExtended) []*agentpb.MetricsBucket {
 	res := make([]*agentpb.MetricsBucket, 0, len(current))
+	now := time.Now()
 
 	for queryID, currentPSS := range current {
 		prevPSS := prev[queryID]
@@ -210,16 +210,16 @@ func makeBuckets(current, prev map[string]*pgStatMonitorExtended, l *logrus.Entr
 			// Another way how this is possible is if pg_stat_monitor was truncated,
 			// and then the same number of queries were made.
 			// Currently, we can't differentiate between those situations.
-			l.Tracef("Skipped due to the same number of queries: %s.", currentPSS)
+			m.l.Tracef("Skipped due to the same number of queries: %s.", currentPSS)
 			continue
-		case count < 0 || (time.Now().Sub(currentPSS.BucketStartTime).Seconds() > 60):
-			l.Debugf("Truncate detected. Treating as a new query: %s.", currentPSS)
+		case count < 0 || (now.Sub(currentPSS.BucketStartTime) > queryStatMonitor):
+			m.l.Debugf("Truncate detected. Treating as a new query: %s.", currentPSS)
 			prevPSS = new(pgStatMonitorExtended)
 			count = float32(currentPSS.Calls)
 		case prevPSS.Calls == 0:
-			l.Debugf("New query: %s.", currentPSS)
+			m.l.Debugf("New query: %s.", currentPSS)
 		default:
-			l.Debugf("Normal query: %s.", currentPSS)
+			m.l.Debugf("Normal query: %s.", currentPSS)
 		}
 
 		mb := &agentpb.MetricsBucket{
@@ -234,6 +234,12 @@ func makeBuckets(current, prev map[string]*pgStatMonitorExtended, l *logrus.Entr
 				AgentType:   inventorypb.AgentType_QAN_POSTGRESQL_PGSTATMONITOR_AGENT,
 			},
 			Postgresql: new(agentpb.MetricsBucket_PostgreSQL),
+		}
+
+		if !m.disableQueryExamples && currentPSS.Example != "" {
+			mb.Common.Example = currentPSS.Example
+			mb.Common.ExampleFormat = agentpb.ExampleFormat_EXAMPLE
+			mb.Common.ExampleType = agentpb.ExampleType_RANDOM
 		}
 
 		for _, p := range []struct {
