@@ -138,10 +138,10 @@ func (ssc *statMonitorCache) getStatMonitorExtended(ctx context.Context, q *refo
 			if !normalizedQuery && !disableQueryExamples {
 				// Check if fingerprint for query were already cached.
 				if _, ok := fingerprints[c.QueryID]; ok {
+					newSharedN++
+				} else {
 					fingerprint = query.Fingerprint(c.Query)
 					fingerprints[c.QueryID] = fingerprint
-				} else {
-					newSharedN++
 				}
 
 				example = c.Query
