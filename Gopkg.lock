@@ -302,14 +302,6 @@
   version = "v1.0.1"
 
 [[projects]]
-  branch = "master"
-  digest = "1:ba442a87b9079c0bf897a66e05a8e6ef4c2fec9cf10b38444ac5f42200302cd9"
-  name = "github.com/mc2soft/pq-types"
-  packages = ["."]
-  pruneopts = "NUT"
-  revision = "ada769d4011a027a5385b9c4e47976fe327350a6"
-
-[[projects]]
   digest = "1:a45ae66dea4c899d79fceb116accfa1892105c251f0dcd9a217ddc276b42ec68"
   name = "github.com/mitchellh/mapstructure"
   packages = ["."]
@@ -797,7 +789,6 @@
     "github.com/lfittl/pg_query_go",
     "github.com/lfittl/pg_query_go/nodes",
     "github.com/lib/pq",
-    "github.com/mc2soft/pq-types",
     "github.com/percona/exporter_shared/helpers",
     "github.com/percona/go-mysql/event",
     "github.com/percona/go-mysql/log",
