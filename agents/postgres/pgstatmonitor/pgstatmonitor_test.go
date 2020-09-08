@@ -134,8 +134,8 @@ func TestPGStatMonitorSchema(t *testing.T) {
 	switch engineVersion {
 	case "11":
 		digests = map[string]string{
-			selectAllCountries:     "C7B4B1F338ABF1FF",
-			selectAllCountriesLong: "1EFF7C2B26084540",
+			selectAllCountries:     "8055E3FCBD5A55B1",
+			selectAllCountriesLong: "FD567C4A01A1FC5C",
 		}
 	case "12":
 		digests = map[string]string{
