@@ -19,7 +19,7 @@ import (
 	"fmt"
 	"time"
 
-	pq_types "github.com/mc2soft/pq-types"
+	"github.com/lib/pq"
 )
 
 //go:generate reform
@@ -53,27 +53,27 @@ type pgStatMonitor struct {
 	//MaxTime           *float64 `reform:"max_time"`
 	//MeanTime          *float64 `reform:"mean_time"`
 	//StddevTime        *float64 `reform:"stddev_time"`
-	Rows              int64                `reform:"rows"`
-	SharedBlksHit     int64                `reform:"shared_blks_hit"`
-	SharedBlksRead    int64                `reform:"shared_blks_read"`
-	SharedBlksDirtied int64                `reform:"shared_blks_dirtied"`
-	SharedBlksWritten int64                `reform:"shared_blks_written"`
-	LocalBlksHit      int64                `reform:"local_blks_hit"`
-	LocalBlksRead     int64                `reform:"local_blks_read"`
-	LocalBlksDirtied  int64                `reform:"local_blks_dirtied"`
-	LocalBlksWritten  int64                `reform:"local_blks_written"`
-	TempBlksRead      int64                `reform:"temp_blks_read"`
-	TempBlksWritten   int64                `reform:"temp_blks_written"`
-	BlkReadTime       float64              `reform:"blk_read_time"`
-	BlkWriteTime      float64              `reform:"blk_write_time"`
-	Host              string               `reform:"host"`
-	ClientIP          string               `reform:"client_ip"`
-	RespCalls         pq_types.StringArray `reform:"resp_calls"`
-	CPUUserTime       float64              `reform:"cpu_user_time"`
-	CPUSysTime        float64              `reform:"cpu_sys_time"`
-	TablesNames       pq_types.StringArray `reform:"tables_names"`
-	WaitEvent         *string              `reform:"wait_event"`
-	WaitEventType     *string              `reform:"wait_event_type"`
+	Rows              int64          `reform:"rows"`
+	SharedBlksHit     int64          `reform:"shared_blks_hit"`
+	SharedBlksRead    int64          `reform:"shared_blks_read"`
+	SharedBlksDirtied int64          `reform:"shared_blks_dirtied"`
+	SharedBlksWritten int64          `reform:"shared_blks_written"`
+	LocalBlksHit      int64          `reform:"local_blks_hit"`
+	LocalBlksRead     int64          `reform:"local_blks_read"`
+	LocalBlksDirtied  int64          `reform:"local_blks_dirtied"`
+	LocalBlksWritten  int64          `reform:"local_blks_written"`
+	TempBlksRead      int64          `reform:"temp_blks_read"`
+	TempBlksWritten   int64          `reform:"temp_blks_written"`
+	BlkReadTime       float64        `reform:"blk_read_time"`
+	BlkWriteTime      float64        `reform:"blk_write_time"`
+	Host              string         `reform:"host"`
+	ClientIP          string         `reform:"client_ip"`
+	RespCalls         pq.StringArray `reform:"resp_calls"`
+	CPUUserTime       float64        `reform:"cpu_user_time"`
+	CPUSysTime        float64        `reform:"cpu_sys_time"`
+	TablesNames       pq.StringArray `reform:"tables_names"`
+	WaitEvent         *string        `reform:"wait_event"`
+	WaitEventType     *string        `reform:"wait_event_type"`
 }
 
 // pgStatMonitorSettings represents a row in pg_stat_monitor_settings view.
