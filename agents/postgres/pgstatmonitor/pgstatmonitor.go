@@ -194,7 +194,6 @@ func (m *PGStatMonitorQAN) getNewBuckets(ctx context.Context, periodStart time.T
 
 // makeBuckets uses current state of pg_stat_monitor table and accumulated previous state
 // to make metrics buckets.
-//
 func (m *PGStatMonitorQAN) makeBuckets(current, prev map[string]*pgStatMonitorExtended) []*agentpb.MetricsBucket {
 	res := make([]*agentpb.MetricsBucket, 0, len(current))
 	now := time.Now()
