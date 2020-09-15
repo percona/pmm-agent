@@ -32,7 +32,13 @@ import (
 
 var updateF = flag.Bool("update", false, "update golden .json files")
 
-func parseSlowLog(t *testing.T, filepath string, opts log.Options) []log.Event {
+type testdata struct {
+	Events []log.Event `json:"events"`
+}
+
+func parseSlowLog(t *testing.T, filepath string, opts log.Options) *testdata {
+	t.Helper()
+
 	r, err := NewSimpleFileReader(filepath)
 	require.NoError(t, err)
 	defer func() {
@@ -42,14 +48,16 @@ func parseSlowLog(t *testing.T, filepath string, opts log.Options) []log.Event {
 	p := NewSlowLogParser(r, opts)
 	go p.Run()
 
-	res := []log.Event{}
+	var events []log.Event
 	for {
 		e := p.Parse()
 		if e == nil {
 			require.Equal(t, io.EOF, p.Err())
-			return res
+			return &testdata{
+				Events: events,
+			}
 		}
-		res = append(res, *e)
+		events = append(events, *e)
 	}
 }
 
@@ -77,11 +85,11 @@ func TestParserGolden(t *testing.T) {
 
 			b, err := ioutil.ReadFile(goldenFile) //nolint:gosec
 			require.NoError(t, err)
-			var expected []log.Event
+			var expected testdata
 			err = json.Unmarshal(b, &expected)
 			require.NoError(t, err)
 
-			assert.Equal(t, expected, actual)
+			assert.Equal(t, expected, *actual)
 		})
 	}
 }
@@ -95,38 +103,40 @@ func TestParserSpecial(t *testing.T) {
 			},
 		}
 		actual := parseSlowLog(t, filepath.Join("testdata", "slow009.log"), opts)
-		expect := []log.Event{{
-			Query:     "Refresh",
-			Db:        "",
-			Admin:     true,
-			Host:      "localhost",
-			User:      "root",
-			Offset:    196,
-			OffsetEnd: 562,
-			Ts:        time.Date(2009, 03, 11, 18, 11, 50, 0, time.UTC),
-			TimeMetrics: map[string]float64{
-				"Query_time": 0.017850,
-				"Lock_time":  0.000000,
-			},
-			NumberMetrics: map[string]uint64{
-				"Merge_passes":  0,
-				"Rows_affected": 0,
-				"Rows_examined": 0,
-				"Rows_read":     0,
-				"Rows_sent":     0,
-				"Thread_id":     47,
-			},
-			BoolMetrics: map[string]bool{
-				"QC_Hit":            false,
-				"Full_scan":         false,
-				"Full_join":         false,
-				"Tmp_table":         false,
-				"Tmp_table_on_disk": false,
-				"Filesort":          false,
-				"Filesort_on_disk":  false,
-			},
-		}}
-		assert.Equal(t, expect, actual)
+		expected := &testdata{
+			Events: []log.Event{{
+				Query:     "Refresh",
+				Db:        "",
+				Admin:     true,
+				Host:      "localhost",
+				User:      "root",
+				Offset:    196,
+				OffsetEnd: 562,
+				Ts:        time.Date(2009, 03, 11, 18, 11, 50, 0, time.UTC),
+				TimeMetrics: map[string]float64{
+					"Query_time": 0.017850,
+					"Lock_time":  0.000000,
+				},
+				NumberMetrics: map[string]uint64{
+					"Merge_passes":  0,
+					"Rows_affected": 0,
+					"Rows_examined": 0,
+					"Rows_read":     0,
+					"Rows_sent":     0,
+					"Thread_id":     47,
+				},
+				BoolMetrics: map[string]bool{
+					"QC_Hit":            false,
+					"Full_scan":         false,
+					"Full_join":         false,
+					"Tmp_table":         false,
+					"Tmp_table_on_disk": false,
+					"Filesort":          false,
+					"Filesort_on_disk":  false,
+				},
+			}},
+		}
+		assert.Equal(t, expected, actual)
 	})
 
 	t.Run("slow023", func(t *testing.T) {

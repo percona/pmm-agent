@@ -29,7 +29,10 @@ type Reader interface {
 	// If the full line can't be read because of EOF, reader implementation may decide to return it,
 	// or block and wait for new data to arrive. Other errors should be returned without blocking.
 	// NextLine also should not block when the source is closed, but it may return buffered data while it has it.
-	NextLine() (string, error)
+	// NextLine() (string, error)
+
+	// NextBlock is the same as NextLine above until the real implementation is added.
+	NextBlock() ([]string, error)
 
 	// Close closes the underlying source. A caller should continue to call NextLine until error is returned.
 	Close() error

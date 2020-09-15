@@ -105,7 +105,7 @@ func (p *SlowLogParser) Err() error {
 	return p.stopErr
 }
 
-// Run parses events until reader's NextLine() method returns error.
+// Run parses events until reader's NextBlock() method returns error.
 // Caller should call Parse() until nil is returned, then inspect Err().
 func (p *SlowLogParser) Run() {
 	defer func() {
@@ -119,48 +119,50 @@ func (p *SlowLogParser) Run() {
 	}()
 
 	for {
-		line, err := p.r.NextLine()
+		lines, err := p.r.NextBlock()
 		if err != nil {
 			p.stopErr = err
 			return
 		}
 
-		lineLen := uint64(len(line))
-		p.bytesRead += lineLen
-		p.lineOffset = p.bytesRead - lineLen
-		p.logf("+%d line: %s", p.lineOffset, line)
+		for _, line := range lines {
+			lineLen := uint64(len(line))
+			p.bytesRead += lineLen
+			p.lineOffset = p.bytesRead - lineLen
+			p.logf("+%d line: %s", p.lineOffset, line)
 
-		// Filter out meta lines:
-		//   /usr/local/bin/mysqld, Version: 5.6.15-62.0-tokudb-7.1.0-tokudb-log (binary). started with:
-		//   Tcp port: 3306  Unix socket: /var/lib/mysql/mysql.sock
-		//   Time                 Id Command    Argument
-		if lineLen >= 20 && ((line[0] == '/' && line[lineLen-6:lineLen] == "with:\n") ||
-			(line[0:5] == "Time ") ||
-			(line[0:4] == "Tcp ") ||
-			(line[0:4] == "TCP ")) {
-			p.logf("meta")
-			continue
-		}
+			// Filter out meta lines:
+			//   /usr/local/bin/mysqld, Version: 5.6.15-62.0-tokudb-7.1.0-tokudb-log (binary). started with:
+			//   Tcp port: 3306  Unix socket: /var/lib/mysql/mysql.sock
+			//   Time                 Id Command    Argument
+			if lineLen >= 20 && ((line[0] == '/' && line[lineLen-6:lineLen] == "with:\n") ||
+				(line[0:5] == "Time ") ||
+				(line[0:4] == "Tcp ") ||
+				(line[0:4] == "TCP ")) {
+				p.logf("meta")
+				continue
+			}
 
-		// PMM-1834: Filter out empty comments and MariaDB explain:
-		if line == "#\n" || strings.HasPrefix(line, "# explain:") {
-			continue
-		}
+			// PMM-1834: Filter out empty comments and MariaDB explain:
+			if line == "#\n" || strings.HasPrefix(line, "# explain:") {
+				continue
+			}
 
-		// Remove \n.
-		line = line[0 : lineLen-1]
+			// Remove \n.
+			line = line[0 : lineLen-1]
 
-		switch {
-		case p.inHeader:
-			p.parseHeader(line)
-		case p.inQuery:
-			p.parseQuery(line)
-		case headerRe.MatchString(line):
-			p.inHeader = true
-			p.inQuery = false
-			p.parseHeader(line)
-		default:
-			p.logf("unhandled line: %q", line)
+			switch {
+			case p.inHeader:
+				p.parseHeader(line)
+			case p.inQuery:
+				p.parseQuery(line)
+			case headerRe.MatchString(line):
+				p.inHeader = true
+				p.inQuery = false
+				p.parseHeader(line)
+			default:
+				p.logf("unhandled line: %q", line)
+			}
 		}
 	}
 }

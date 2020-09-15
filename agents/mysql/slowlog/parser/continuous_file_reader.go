@@ -60,8 +60,8 @@ func NewContinuousFileReader(filename string, l Logger) (*ContinuousFileReader, 
 	}, nil
 }
 
-// NextLine implements Reader interface.
-func (r *ContinuousFileReader) NextLine() (string, error) {
+// nextLine implements Reader interface.
+func (r *ContinuousFileReader) nextLine() (string, error) {
 	r.m.Lock()
 	defer r.m.Unlock()
 
@@ -97,6 +97,17 @@ func (r *ContinuousFileReader) NextLine() (string, error) {
 			}
 		}
 	}
+}
+
+// NextBlock implements Reader interface.
+func (r *ContinuousFileReader) NextBlock() ([]string, error) {
+	// FIXME add real implementation
+
+	l, err := r.nextLine()
+	if err != nil {
+		return nil, err
+	}
+	return []string{l}, nil
 }
 
 // needsReopen returns true if file is renamed or truncated, and should be reopened.

@@ -42,14 +42,25 @@ func NewSimpleFileReader(filename string) (*SimpleFileReader, error) {
 	}, nil
 }
 
-// NextLine implements Reader interface.
-func (r *SimpleFileReader) NextLine() (string, error) {
+// nextLine implements Reader interface.
+func (r *SimpleFileReader) nextLine() (string, error) {
 	// TODO handle partial line reads as in ContinuousFileReader if needed
 
 	r.m.Lock()
 	l, err := r.r.ReadString('\n')
 	r.m.Unlock()
 	return l, err
+}
+
+// NextBlock implements Reader interface.
+func (r *SimpleFileReader) NextBlock() ([]string, error) {
+	// FIXME add real implementation
+
+	l, err := r.nextLine()
+	if err != nil {
+		return nil, err
+	}
+	return []string{l}, nil
 }
 
 // Close implements Reader interface.

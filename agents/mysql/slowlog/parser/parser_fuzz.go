@@ -37,8 +37,16 @@ func newBytesReader(b []byte) (*bytesReader, error) {
 	}, nil
 }
 
-func (r *bytesReader) NextLine() (string, error) {
+func (r *bytesReader) nextLine() (string, error) {
 	return r.r.ReadString('\n')
+}
+
+func (r *bytesReader) NextBlock() ([]string, error) {
+	l, err := r.nextLine()
+	if err != nil {
+		return nil, err
+	}
+	return []string{l}, nil
 }
 
 func (r *bytesReader) Close() error {
