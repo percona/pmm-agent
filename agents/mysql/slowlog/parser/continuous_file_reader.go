@@ -99,17 +99,6 @@ func (r *ContinuousFileReader) nextLine() (string, error) {
 	}
 }
 
-// NextBlock implements Reader interface.
-func (r *ContinuousFileReader) NextBlock() ([]string, error) {
-	// FIXME add real implementation
-
-	l, err := r.nextLine()
-	if err != nil {
-		return nil, err
-	}
-	return []string{l}, nil
-}
-
 // needsReopen returns true if file is renamed or truncated, and should be reopened.
 func (r *ContinuousFileReader) needsReopen() bool {
 	oldFI, err := r.f.Stat()

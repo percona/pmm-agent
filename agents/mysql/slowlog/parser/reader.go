@@ -25,18 +25,26 @@ type ReaderMetrics struct {
 //
 // Implementation should allow concurrent calls to different methods.
 type Reader interface {
-	// NextLine reads full lines from the underlying source and returns them (including the last '\n').
+	// nextLine reads full lines from the underlying source and returns them (including the last '\n').
 	// If the full line can't be read because of EOF, reader implementation may decide to return it,
 	// or block and wait for new data to arrive. Other errors should be returned without blocking.
 	// NextLine also should not block when the source is closed, but it may return buffered data while it has it.
-	// NextLine() (string, error)
-
-	// NextBlock is the same as NextLine above until the real implementation is added.
-	NextBlock() ([]string, error)
+	nextLine() (string, error)
 
 	// Close closes the underlying source. A caller should continue to call NextLine until error is returned.
 	Close() error
 
 	// Metrics returns current metrics.
 	Metrics() *ReaderMetrics
+}
+
+// readNextBlock reads the whole block using reader's nextLine method.
+func readNextBlock(r Reader) ([]string, error) {
+	// FIXME real implementation
+
+	l, err := r.nextLine()
+	if err != nil {
+		return nil, err
+	}
+	return []string{l}, nil
 }

@@ -28,6 +28,7 @@ import (
 
 func cleanup(t *testing.T, files []string) {
 	t.Helper()
+
 	for _, f := range files {
 		assert.NoError(t, os.Remove(f))
 	}
@@ -38,9 +39,7 @@ func TestContinuousFileReader(t *testing.T) {
 		t.Parallel()
 
 		var files []string
-		defer func() {
-			cleanup(t, files)
-		}()
+		t.Cleanup(func() { cleanup(t, files) })
 
 		f, err := ioutil.TempFile("", "pmm-agent-test-slowlog-reader-normal")
 		require.NoError(t, err)
@@ -119,9 +118,7 @@ func TestContinuousFileReader(t *testing.T) {
 		t.Parallel()
 
 		var files []string
-		defer func() {
-			cleanup(t, files)
-		}()
+		t.Cleanup(func() { cleanup(t, files) })
 
 		f, err := ioutil.TempFile("", "pmm-agent-test-slowlog-reader-symlink-file1")
 		require.NoError(t, err)

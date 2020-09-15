@@ -105,7 +105,7 @@ func (p *SlowLogParser) Err() error {
 	return p.stopErr
 }
 
-// Run parses events until reader's NextBlock() method returns error.
+// Run parses events until readNextBlock function returns error.
 // Caller should call Parse() until nil is returned, then inspect Err().
 func (p *SlowLogParser) Run() {
 	defer func() {
@@ -119,7 +119,7 @@ func (p *SlowLogParser) Run() {
 	}()
 
 	for {
-		lines, err := p.r.NextBlock()
+		lines, err := readNextBlock(p.r)
 		if err != nil {
 			p.stopErr = err
 			return

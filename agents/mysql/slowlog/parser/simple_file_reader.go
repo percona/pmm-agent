@@ -52,17 +52,6 @@ func (r *SimpleFileReader) nextLine() (string, error) {
 	return l, err
 }
 
-// NextBlock implements Reader interface.
-func (r *SimpleFileReader) NextBlock() ([]string, error) {
-	// FIXME add real implementation
-
-	l, err := r.nextLine()
-	if err != nil {
-		return nil, err
-	}
-	return []string{l}, nil
-}
-
 // Close implements Reader interface.
 func (r *SimpleFileReader) Close() error {
 	r.m.Lock()
