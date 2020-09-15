@@ -33,7 +33,7 @@ import (
 var updateF = flag.Bool("update", false, "update golden .json files")
 
 type testdata struct {
-	Events []log.Event `json:"events"`
+	ParsedEvents []ParsedEvent
 }
 
 func parseSlowLog(t *testing.T, filepath string, opts log.Options) *testdata {
@@ -41,23 +41,21 @@ func parseSlowLog(t *testing.T, filepath string, opts log.Options) *testdata {
 
 	r, err := NewSimpleFileReader(filepath)
 	require.NoError(t, err)
-	defer func() {
-		assert.NoError(t, r.Close())
-	}()
+	t.Cleanup(func() { assert.NoError(t, r.Close()) })
 
 	p := NewSlowLogParser(r, opts)
 	go p.Run()
 
-	var events []log.Event
+	var parsedEvents []ParsedEvent
 	for {
-		e := p.Parse()
-		if e == nil {
+		parsedEvent := p.Parse()
+		if parsedEvent == nil {
 			require.Equal(t, io.EOF, p.Err())
 			return &testdata{
-				Events: events,
+				ParsedEvents: parsedEvents,
 			}
 		}
-		events = append(events, *e)
+		parsedEvents = append(parsedEvents, *parsedEvent)
 	}
 }
 
@@ -104,35 +102,37 @@ func TestParserSpecial(t *testing.T) {
 		}
 		actual := parseSlowLog(t, filepath.Join("testdata", "slow009.log"), opts)
 		expected := &testdata{
-			Events: []log.Event{{
-				Query:     "Refresh",
-				Db:        "",
-				Admin:     true,
-				Host:      "localhost",
-				User:      "root",
-				Offset:    196,
-				OffsetEnd: 562,
-				Ts:        time.Date(2009, 03, 11, 18, 11, 50, 0, time.UTC),
-				TimeMetrics: map[string]float64{
-					"Query_time": 0.017850,
-					"Lock_time":  0.000000,
-				},
-				NumberMetrics: map[string]uint64{
-					"Merge_passes":  0,
-					"Rows_affected": 0,
-					"Rows_examined": 0,
-					"Rows_read":     0,
-					"Rows_sent":     0,
-					"Thread_id":     47,
-				},
-				BoolMetrics: map[string]bool{
-					"QC_Hit":            false,
-					"Full_scan":         false,
-					"Full_join":         false,
-					"Tmp_table":         false,
-					"Tmp_table_on_disk": false,
-					"Filesort":          false,
-					"Filesort_on_disk":  false,
+			ParsedEvents: []ParsedEvent{{
+				Event: &log.Event{
+					Query:     "Refresh",
+					Db:        "",
+					Admin:     true,
+					Host:      "localhost",
+					User:      "root",
+					Offset:    196,
+					OffsetEnd: 562,
+					Ts:        time.Date(2009, 03, 11, 18, 11, 50, 0, time.UTC),
+					TimeMetrics: map[string]float64{
+						"Query_time": 0.017850,
+						"Lock_time":  0.000000,
+					},
+					NumberMetrics: map[string]uint64{
+						"Merge_passes":  0,
+						"Rows_affected": 0,
+						"Rows_examined": 0,
+						"Rows_read":     0,
+						"Rows_sent":     0,
+						"Thread_id":     47,
+					},
+					BoolMetrics: map[string]bool{
+						"QC_Hit":            false,
+						"Full_scan":         false,
+						"Full_join":         false,
+						"Tmp_table":         false,
+						"Tmp_table_on_disk": false,
+						"Filesort":          false,
+						"Filesort_on_disk":  false,
+					},
 				},
 			}},
 		}
@@ -142,9 +142,7 @@ func TestParserSpecial(t *testing.T) {
 	t.Run("slow023", func(t *testing.T) {
 		r, err := NewSimpleFileReader(filepath.Join("testdata", "slow023.log"))
 		require.NoError(t, err)
-		defer func() {
-			assert.NoError(t, r.Close())
-		}()
+		t.Cleanup(func() { assert.NoError(t, r.Close()) })
 
 		opts := log.Options{
 			DefaultLocation: time.UTC,
@@ -154,15 +152,15 @@ func TestParserSpecial(t *testing.T) {
 
 		lastQuery := ""
 		for {
-			e := p.Parse()
-			if e == nil {
+			parsedEvent := p.Parse()
+			if parsedEvent == nil {
 				require.Equal(t, io.EOF, p.Err())
 				return
 			}
-			if e.Query == "" {
-				t.Errorf("Empty query at offset: %d. Last valid query: %s\n", e.Offset, lastQuery)
+			if parsedEvent.Event.Query == "" {
+				t.Errorf("Empty query at offset: %d. Last valid query: %s\n", parsedEvent.Event.Offset, lastQuery)
 			} else {
-				lastQuery = e.Query
+				lastQuery = parsedEvent.Event.Query
 			}
 		}
 	})

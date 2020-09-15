@@ -293,9 +293,9 @@ func (s *SlowLog) processFile(ctx context.Context, file string, outlierTime floa
 	events := make(chan *log.Event, 1000)
 	go func() {
 		for {
-			event := parser.Parse()
-			if event != nil {
-				events <- event
+			parsedEvent := parser.Parse()
+			if parsedEvent != nil {
+				events <- parsedEvent.Event
 				continue
 			}
 
