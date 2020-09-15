@@ -2,7 +2,17 @@
   "ParsedEvents": [
     {
       "Block": [
-        "# User@Host: [SQL_SLAVE] @  []\n"
+        "# User@Host: [SQL_SLAVE] @  []\n",
+        "# Thread_id: 10\n",
+        "# Query_time: 0.726052  Lock_time: 0.000091  Rows_sent: 0  Rows_examined: 62951\n",
+        "# QC_Hit: No  Full_scan: Yes  Full_join: No  Tmp_table: No  Tmp_table_on_disk: No\n",
+        "# Filesort: No  Filesort_on_disk: No  Merge_passes: 0\n",
+        "# No InnoDB statistics available for this query\n",
+        "use db1;\n",
+        "SET timestamp=1197996507;\n",
+        "update db2.tuningdetail_21_265507 n\n",
+        "      inner join db1.gonzo a using(gonzo)\n",
+        "      set n.column1 = a.column1, n.word3 = a.word3;\n"
       ],
       "Event": {
         "Offset": 0,
@@ -41,7 +51,17 @@
     },
     {
       "Block": [
-        "# User@Host: [SQL_SLAVE] @  []\n"
+        "# User@Host: [SQL_SLAVE] @  []\n",
+        "# Thread_id: 10\n",
+        "# Query_time: 0.000512  Lock_time: 0.000077  Rows_sent: 0  Rows_examined: 0\n",
+        "# QC_Hit: No  Full_scan: No  Full_join: No  Tmp_table: No  Tmp_table_on_disk: No\n",
+        "# Filesort: No  Filesort_on_disk: No  Merge_passes: 0\n",
+        "#   InnoDB_IO_r_ops: 0  InnoDB_IO_r_bytes: 0  InnoDB_IO_r_wait: 0.000000\n",
+        "#   InnoDB_rec_lock_wait: 0.000000  InnoDB_queue_wait: 0.000000\n",
+        "#   InnoDB_pages_distinct: 24\n",
+        "SET timestamp=1197996507;\n",
+        "INSERT INTO db3.vendor11gonzo (makef, bizzle)\n",
+        "VALUES ('', 'Exact');\n"
       ],
       "Event": {
         "Offset": 337,
@@ -80,7 +100,17 @@
     },
     {
       "Block": [
-        "# User@Host: [SQL_SLAVE] @  []\n"
+        "# User@Host: [SQL_SLAVE] @  []\n",
+        "# Thread_id: 10\n",
+        "# Query_time: 0.033384  Lock_time: 0.000028  Rows_sent: 0  Rows_examined: 0\n",
+        "# QC_Hit: No  Full_scan: No  Full_join: No  Tmp_table: No  Tmp_table_on_disk: No\n",
+        "# Filesort: No  Filesort_on_disk: No  Merge_passes: 0\n",
+        "#   InnoDB_IO_r_ops: 0  InnoDB_IO_r_bytes: 0  InnoDB_IO_r_wait: 0.000000\n",
+        "#   InnoDB_rec_lock_wait: 0.000000  InnoDB_queue_wait: 0.000000\n",
+        "#   InnoDB_pages_distinct: 11\n",
+        "UPDATE db4.vab3concept1upload\n",
+        "SET    vab3concept1id = '91848182522'\n",
+        "WHERE  vab3concept1upload='6994465';\n"
       ],
       "Event": {
         "Offset": 813,
@@ -125,7 +155,17 @@
     },
     {
       "Block": [
-        "# User@Host: [SQL_SLAVE] @  []\n"
+        "# User@Host: [SQL_SLAVE] @  []\n",
+        "# Thread_id: 10\n",
+        "# Query_time: 0.000530  Lock_time: 0.000027  Rows_sent: 0  Rows_examined: 0\n",
+        "# QC_Hit: No  Full_scan: No  Full_join: No  Tmp_table: No  Tmp_table_on_disk: No\n",
+        "# Filesort: No  Filesort_on_disk: No  Merge_passes: 0\n",
+        "#   InnoDB_IO_r_ops: 0  InnoDB_IO_r_bytes: 0  InnoDB_IO_r_wait: 0.000000\n",
+        "#   InnoDB_rec_lock_wait: 0.000000  InnoDB_queue_wait: 0.000000\n",
+        "#   InnoDB_pages_distinct: 18\n",
+        "SET insert_id=34484549,timestamp=1197996507;\n",
+        "INSERT INTO db1.conch (word3, vid83)\n",
+        "VALUES ('211', '18');\n"
       ],
       "Event": {
         "Offset": 1332,
@@ -170,7 +210,16 @@
     },
     {
       "Block": [
-        "# User@Host: [SQL_SLAVE] @  []\n"
+        "# User@Host: [SQL_SLAVE] @  []\n",
+        "# Thread_id: 10\n",
+        "# Query_time: 0.000530  Lock_time: 0.000027  Rows_sent: 0  Rows_examined: 0\n",
+        "# QC_Hit: No  Full_scan: No  Full_join: No  Tmp_table: No  Tmp_table_on_disk: No\n",
+        "# Filesort: No  Filesort_on_disk: No  Merge_passes: 0\n",
+        "#   InnoDB_IO_r_ops: 0  InnoDB_IO_r_bytes: 0  InnoDB_IO_r_wait: 0.000000\n",
+        "#   InnoDB_rec_lock_wait: 0.000000  InnoDB_queue_wait: 0.000000\n",
+        "#   InnoDB_pages_distinct: 18\n",
+        "UPDATE foo.bar\n",
+        "SET    biz = '91848182522';\n"
       ],
       "Event": {
         "Offset": 1862,
@@ -215,7 +264,18 @@
     },
     {
       "Block": [
-        "# User@Host: [SQL_SLAVE] @  []\n"
+        "# User@Host: [SQL_SLAVE] @  []\n",
+        "# Thread_id: 10\n",
+        "# Query_time: 0.000530  Lock_time: 0.000027  Rows_sent: 0  Rows_examined: 0\n",
+        "# QC_Hit: No  Full_scan: No  Full_join: No  Tmp_table: No  Tmp_table_on_disk: No\n",
+        "# Filesort: No  Filesort_on_disk: No  Merge_passes: 0\n",
+        "#   InnoDB_IO_r_ops: 0  InnoDB_IO_r_bytes: 0  InnoDB_IO_r_wait: 0.000000\n",
+        "#   InnoDB_rec_lock_wait: 0.000000  InnoDB_queue_wait: 0.000000\n",
+        "#   InnoDB_pages_distinct: 18\n",
+        "SET timestamp=1197996508;\n",
+        "UPDATE bizzle.bat\n",
+        "SET    boop='bop: 899'\n",
+        "WHERE  fillze='899';\n"
       ],
       "Event": {
         "Offset": 2391,
@@ -260,7 +320,16 @@
     },
     {
       "Block": [
-        "# User@Host: [SQL_SLAVE] @  []\n"
+        "# User@Host: [SQL_SLAVE] @  []\n",
+        "# Thread_id: 10\n",
+        "# Query_time: 0.000530  Lock_time: 0.000027  Rows_sent: 0  Rows_examined: 0\n",
+        "# QC_Hit: No  Full_scan: No  Full_join: No  Tmp_table: No  Tmp_table_on_disk: No\n",
+        "# Filesort: No  Filesort_on_disk: No  Merge_passes: 0\n",
+        "#   InnoDB_IO_r_ops: 0  InnoDB_IO_r_bytes: 0  InnoDB_IO_r_wait: 0.000000\n",
+        "#   InnoDB_rec_lock_wait: 0.000000  InnoDB_queue_wait: 0.000000\n",
+        "#   InnoDB_pages_distinct: 18\n",
+        "UPDATE foo.bar\n",
+        "SET    biz = '91848182522';\n"
       ],
       "Event": {
         "Offset": 2859,
@@ -304,9 +373,7 @@
       }
     },
     {
-      "Block": [
-        "SET    biz = '91848182522';\n"
-      ],
+      "Block": null,
       "Event": {
         "Offset": 3372,
         "OffsetEnd": 3840,

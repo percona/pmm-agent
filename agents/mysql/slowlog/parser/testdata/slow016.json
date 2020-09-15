@@ -2,6 +2,10 @@
   "ParsedEvents": [
     {
       "Block": [
+        "# User@Host: pt_agent[pt_agent] @ localhost []  Id: 68181423\n",
+        "# Schema:   Last_errno: 0  Killed: 0\n",
+        "# Query_time: 0.003953  Lock_time: 0.000059  Rows_sent: 571  Rows_examined: 571  Rows_affected: 0\n",
+        "SET timestamp=1400193480;\n",
         "SHOW /*!50002 GLOBAL */ STATUS;\n"
       ],
       "Event": {

@@ -36,6 +36,13 @@ type testdata struct {
 	ParsedEvents []ParsedEvent
 }
 
+func assertParsedEventsEqual(t *testing.T, expected, actual []ParsedEvent) {
+	t.Helper()
+
+	require.Equal(t, len(expected), len(actual), "different number of events")
+	assert.Equal(t, expected, actual)
+}
+
 func parseSlowLog(t *testing.T, filepath string, opts log.Options) *testdata {
 	t.Helper()
 
@@ -87,7 +94,7 @@ func TestParserGolden(t *testing.T) {
 			err = json.Unmarshal(b, &expected)
 			require.NoError(t, err)
 
-			assert.Equal(t, expected, *actual)
+			assertParsedEventsEqual(t, expected.ParsedEvents, actual.ParsedEvents)
 		})
 	}
 }
@@ -104,6 +111,12 @@ func TestParserSpecial(t *testing.T) {
 		expected := &testdata{
 			ParsedEvents: []ParsedEvent{{
 				Block: []string{
+					"# Time: 090311 18:11:50\n",
+					"# User@Host: root[root] @ localhost []\n",
+					"# Thread_id: 47  Schema: \n",
+					"# Query_time: 0.017850  Lock_time: 0.000000  Rows_sent: 0  Rows_examined: 0  Rows_affected: 0  Rows_read: 0\n",
+					"# QC_Hit: No  Full_scan: No  Full_join: No  Tmp_table: No  Tmp_table_on_disk: No\n",
+					"# Filesort: No  Filesort_on_disk: No  Merge_passes: 0\n",
 					"# administrator command: Refresh;\n",
 				},
 				Event: &log.Event{
@@ -112,8 +125,8 @@ func TestParserSpecial(t *testing.T) {
 					Admin:     true,
 					Host:      "localhost",
 					User:      "root",
-					Offset:    196,
-					OffsetEnd: 562,
+					Offset:    0,
+					OffsetEnd: 366,
 					Ts:        time.Date(2009, 03, 11, 18, 11, 50, 0, time.UTC),
 					TimeMetrics: map[string]float64{
 						"Query_time": 0.017850,
@@ -139,7 +152,7 @@ func TestParserSpecial(t *testing.T) {
 				},
 			}},
 		}
-		assert.Equal(t, expected, actual)
+		assertParsedEventsEqual(t, expected.ParsedEvents, actual.ParsedEvents)
 	})
 
 	t.Run("slow023", func(t *testing.T) {

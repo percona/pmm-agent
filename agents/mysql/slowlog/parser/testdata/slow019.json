@@ -2,7 +2,16 @@
   "ParsedEvents": [
     {
       "Block": [
-        "# User@Host: root[root] @ localhost []\n"
+        "# User@Host: root[root] @ localhost []\n",
+        "# Thread_id: 57434695  Schema: cod7_plos15  Last_errno: 0  Killed: 0\n",
+        "# Query_time: 0.000022  Lock_time: 0.000000  Rows_sent: 0  Rows_examined: 0  Rows_affected: 0  Rows_read: 0\n",
+        "# Bytes_sent: 1333  Tmp_tables: 0  Tmp_disk_tables: 0  Tmp_table_sizes: 0\n",
+        "# QC_Hit: Yes  Full_scan: No  Full_join: No  Tmp_table: No  Tmp_table_on_disk: No\n",
+        "# Filesort: No  Filesort_on_disk: No  Merge_passes: 0\n",
+        "# No InnoDB statistics available for this query\n",
+        "use cod7_plos15;\n",
+        "SET timestamp=1413583349;\n",
+        "SELECT cid, data, created, expire, serialized FROM cache_field WHERE cid IN ('field_info:bundle_extra:user:user');\n"
       ],
       "Event": {
         "Offset": 0,
@@ -49,7 +58,19 @@
     },
     {
       "Block": [
-        "# User@Host: root[root] @ localhost []\n"
+        "# User@Host: root[root] @ localhost []\n",
+        "# Thread_id: 57434695  Schema: cod7_plos15  Last_errno: 0  Killed: 0\n",
+        "# Query_time: 0.005241  Lock_time: 0.000078  Rows_sent: 0  Rows_examined: 1  Rows_affected: 1  Rows_read: 1\n",
+        "# Bytes_sent: 52  Tmp_tables: 0  Tmp_disk_tables: 0  Tmp_table_sizes: 0\n",
+        "# InnoDB_trx_id: 3AC1F89B8\n",
+        "# QC_Hit: No  Full_scan: No  Full_join: No  Tmp_table: No  Tmp_table_on_disk: No\n",
+        "# Filesort: No  Filesort_on_disk: No  Merge_passes: 0\n",
+        "#   InnoDB_IO_r_ops: 0  InnoDB_IO_r_bytes: 0  InnoDB_IO_r_wait: 0.000000\n",
+        "#   InnoDB_rec_lock_wait: 0.000000  InnoDB_queue_wait: 0.000000\n",
+        "#   InnoDB_pages_distinct: 8\n",
+        "SET timestamp=1413583349;\n",
+        "UPDATE captcha_sessions SET timestamp='1413583348', solution='1'\n",
+        "WHERE  (csid = '28439');\n"
       ],
       "Event": {
         "Offset": 641,
@@ -96,7 +117,15 @@
     },
     {
       "Block": [
-        "# User@Host: percona-agent[percona-agent] @ localhost []\n"
+        "# User@Host: percona-agent[percona-agent] @ localhost []\n",
+        "# Thread_id: 37911936  Schema:   Last_errno: 0  Killed: 0\n",
+        "# Query_time: 0.011565  Lock_time: 0.000115  Rows_sent: 2146  Rows_examined: 2146  Rows_affected: 0  Rows_read: 2146\n",
+        "# Bytes_sent: 102084  Tmp_tables: 1  Tmp_disk_tables: 0  Tmp_table_sizes: 0\n",
+        "# QC_Hit: No  Full_scan: Yes  Full_join: No  Tmp_table: Yes  Tmp_table_on_disk: No\n",
+        "# Filesort: No  Filesort_on_disk: No  Merge_passes: 0\n",
+        "# No InnoDB statistics available for this query\n",
+        "SET timestamp=1413583349;\n",
+        "SELECT TABLE_SCHEMA, TABLE_NAME, INDEX_NAME, ROWS_READ FROM INFORMATION_SCHEMA.INDEX_STATISTICS;\n"
       ],
       "Event": {
         "Offset": 1273,
@@ -149,9 +178,7 @@
       }
     },
     {
-      "Block": [
-        "SELECT TABLE_SCHEMA, TABLE_NAME, INDEX_NAME, ROWS_READ FROM INFORMATION_SCHEMA.INDEX_STATISTICS;\n"
-      ],
+      "Block": null,
       "Event": {
         "Offset": 2005,
         "OffsetEnd": 2621,

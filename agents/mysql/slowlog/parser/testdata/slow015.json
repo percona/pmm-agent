@@ -2,7 +2,10 @@
   "ParsedEvents": [
     {
       "Block": [
-        "# User@Host: root[root] @ localhost []\n"
+        "# User@Host: root[root] @ localhost []\n",
+        "# Query_time: 0.010301  Lock_time: 0.007795  Rows_sent: 0  Rows_examined: 0  Rows_affected: 1  Rows_read: 0\n",
+        "# Bytes_sent: 11  Tmp_tables: 0  Tmp_disk_tables: 0  Tmp_table_sizes: 0\n",
+        "select * from t;\n"
       ],
       "Event": {
         "Offset": 0,
@@ -36,9 +39,7 @@
       }
     },
     {
-      "Block": [
-        "select * from t;\n"
-      ],
+      "Block": null,
       "Event": {
         "Offset": 81845,
         "OffsetEnd": 82081,

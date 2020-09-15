@@ -2,6 +2,11 @@
   "ParsedEvents": [
     {
       "Block": [
+        "# Time: 071218 11:48:27\n",
+        "# User@Host: [SQL_SLAVE] @  []\n",
+        "# Thread_id: 3  Schema: db1\n",
+        "# Query_time: 0.000012  Lock_time: 0.000000  Rows_sent: 0  Rows_examined: 0\n",
+        "use db2;\n",
         "SELECT fruit FROM trees;\n"
       ],
       "Event": {

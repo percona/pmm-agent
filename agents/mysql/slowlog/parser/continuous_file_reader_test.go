@@ -63,7 +63,7 @@ func TestContinuousFileReader(t *testing.T) {
 		lines := make(chan string, 10)
 		go func() {
 			for {
-				line, e := r.nextLine()
+				line, e := r.NextLine()
 				if e != nil {
 					assert.Equal(t, io.EOF, e, "%s", e)
 					close(lines)
@@ -150,7 +150,7 @@ func TestContinuousFileReader(t *testing.T) {
 		lines := make(chan string, 10)
 		go func() {
 			for {
-				line, e := r.nextLine()
+				line, e := r.NextLine()
 				if e != nil {
 					assert.Equal(t, io.EOF, e, "%s", e)
 					close(lines)

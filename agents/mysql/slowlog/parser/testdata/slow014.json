@@ -2,7 +2,17 @@
   "ParsedEvents": [
     {
       "Block": [
-        "# User@Host: root[root] @ localhost []\n"
+        "# User@Host: root[root] @ localhost []\n",
+        "# Thread_id: 103375137  Schema: db1  Last_errno: 0  Killed: 0\n",
+        "# Query_time: 0.000628  Lock_time: 0.000161  Rows_sent: 0  Rows_examined: 0  Rows_affected: 0  Rows_read: 0\n",
+        "# Bytes_sent: 323  Tmp_tables: 1  Tmp_disk_tables: 0  Tmp_table_sizes: 0\n",
+        "# InnoDB_trx_id: 2552F3B38\n",
+        "# QC_Hit: No  Full_scan: Yes  Full_join: No  Tmp_table: Yes  Tmp_table_on_disk: No\n",
+        "# Filesort: Yes  Filesort_on_disk: No  Merge_passes: 0\n",
+        "#   InnoDB_IO_r_ops: 0  InnoDB_IO_r_bytes: 0  InnoDB_IO_r_wait: 0.000000\n",
+        "#   InnoDB_rec_lock_wait: 0.000000  InnoDB_queue_wait: 0.000000\n",
+        "#   InnoDB_pages_distinct: 3\n",
+        "SET timestamp=1398555955;\n"
       ],
       "Event": {
         "Offset": 0,
@@ -56,7 +66,29 @@
     },
     {
       "Block": [
-        "# User@Host: root[root] @ localhost []\n"
+        "# User@Host: root[root] @ localhost []\n",
+        "# Thread_id: 103375137  Schema: db1  Last_errno: 0  Killed: 0\n",
+        "# Query_time: 0.000420  Lock_time: 0.000116  Rows_sent: 1  Rows_examined: 0  Rows_affected: 0  Rows_read: 0\n",
+        "# Bytes_sent: 60  Tmp_tables: 2  Tmp_disk_tables: 0  Tmp_table_sizes: 0\n",
+        "# InnoDB_trx_id: 2552F3B39\n",
+        "# QC_Hit: No  Full_scan: Yes  Full_join: No  Tmp_table: Yes  Tmp_table_on_disk: No\n",
+        "# Filesort: No  Filesort_on_disk: No  Merge_passes: 0\n",
+        "#   InnoDB_IO_r_ops: 0  InnoDB_IO_r_bytes: 0  InnoDB_IO_r_wait: 0.000000\n",
+        "#   InnoDB_rec_lock_wait: 0.000000  InnoDB_queue_wait: 0.000000\n",
+        "#   InnoDB_pages_distinct: 3\n",
+        "SET timestamp=1398555955;\n",
+        "SELECT COUNT(userfing.keyval) AS total\n",
+        "\t\t\tFROM\n",
+        "\t\t\t((### All Content ###\n",
+        "\t\t\t\t\tSELECT f.nodeid AS keyval\n",
+        "\t\t\t\t\tFROM node AS f\n",
+        "\t\t\t\t\tINNER JOIN subscribed AS sd ON sd.did = f.nodeid AND sd.userid = 15965) UNION ALL (\n",
+        "\t\t\t\t\t### Users ###\n",
+        "\t\t\t\t\tSELECT f.userid AS keyval\n",
+        "\t\t\t\t\tFROM user AS f\n",
+        "\t\t\t\t\tINNER JOIN userlist AS ul ON ul.relationid = f.userid AND ul.userid = 15965\n",
+        "\t\t\t\t\tWHERE ul.type = 'f' AND ul.aq = 'yes')\n",
+        ") AS userfing;\n"
       ],
       "Event": {
         "Offset": 690,
@@ -110,7 +142,26 @@
     },
     {
       "Block": [
-        "# User@Host: root[root] @ localhost []\n"
+        "# User@Host: root[root] @ localhost []\n",
+        "# Thread_id: 103375137  Schema: db1  Last_errno: 0  Killed: 0\n",
+        "# Query_time: 0.000457  Lock_time: 0.000144  Rows_sent: 0  Rows_examined: 0  Rows_affected: 0  Rows_read: 0\n",
+        "# Bytes_sent: 359  Tmp_tables: 1  Tmp_disk_tables: 0  Tmp_table_sizes: 0\n",
+        "# InnoDB_trx_id: 2552F3B3A\n",
+        "# QC_Hit: No  Full_scan: No  Full_join: No  Tmp_table: Yes  Tmp_table_on_disk: No\n",
+        "# Filesort: Yes  Filesort_on_disk: No  Merge_passes: 0\n",
+        "#   InnoDB_IO_r_ops: 0  InnoDB_IO_r_bytes: 0  InnoDB_IO_r_wait: 0.000000\n",
+        "#   InnoDB_rec_lock_wait: 0.000000  InnoDB_queue_wait: 0.000000\n",
+        "#   InnoDB_pages_distinct: 1\n",
+        "SET timestamp=1398555955;\n",
+        "SELECT u.userid, u.name AS name, u.usergroupid AS usergroupid, IFNULL(u.lastactivity, u.joindate) as lastactivity,\n",
+        "\t\t\t\tIFNULL((SELECT userid FROM userlist AS ul2 WHERE ul2.userid = 15965 AND ul2.relationid = u.userid AND ul2.type = 'f' AND ul2.aq = 'yes'), 0) as isFollowing,\n",
+        "\t\t\t\tIFNULL((SELECT userid FROM userlist AS ul2 WHERE ul2.userid = 15965 AND ul2.relationid = u.userid AND ul2.type = 'f' AND ul2.aq = 'pending'), 0) as isPending\n",
+        "FROM user AS u\n",
+        "\t\t\t\tINNER JOIN userlist AS ul ON (u.userid = ul.userid AND ul.relationid = 15965)\n",
+        "\n",
+        "\t\t\tWHERE ul.type = 'f' AND ul.aq = 'yes'\n",
+        "ORDER BY name ASC\n",
+        "LIMIT 0, 100;\n"
       ],
       "Event": {
         "Offset": 2104,
@@ -163,9 +214,7 @@
       }
     },
     {
-      "Block": [
-        "LIMIT 0, 100;\n"
-      ],
+      "Block": null,
       "Event": {
         "Offset": 3163,
         "OffsetEnd": 4410,

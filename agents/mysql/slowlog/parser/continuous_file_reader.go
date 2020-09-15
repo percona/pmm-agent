@@ -60,8 +60,8 @@ func NewContinuousFileReader(filename string, l Logger) (*ContinuousFileReader, 
 	}, nil
 }
 
-// nextLine implements Reader interface.
-func (r *ContinuousFileReader) nextLine() (string, error) {
+// NextLine implements Reader interface.
+func (r *ContinuousFileReader) NextLine() (string, error) {
 	r.m.Lock()
 	defer r.m.Unlock()
 

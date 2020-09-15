@@ -2,11 +2,21 @@
   "ParsedEvents": [
     {
       "Block": [
+        "# Time: 180214 16:18:07\n",
+        "# User@Host: root[root] @ localhost []\n",
+        "# Thread_id: 8  Schema:   QC_hit: No\n",
+        "# Query_time: 0.000277  Lock_time: 0.000000  Rows_sent: 1  Rows_examined: 0\n",
+        "# Rows_affected: 0\n",
+        "#\n",
+        "# explain: id\tselect_type\ttable\ttype\tpossible_keys\tkey\tkey_len\tref\trows\tr_rows\tfiltered\tr_filtered\tExtra\n",
+        "# explain: 1\tSIMPLE\tNULL\tNULL\tNULL\tNULL\tNULL\tNULL\tNULL\tNULL\tNULL\tNULL\tNo tables used\n",
+        "#\n",
+        "SET timestamp=1518625087;\n",
         "SELECT 1;\n"
       ],
       "Event": {
-        "Offset": 205,
-        "OffsetEnd": 630,
+        "Offset": 0,
+        "OffsetEnd": 425,
         "Ts": "2018-02-14T16:18:07Z",
         "Admin": false,
         "Query": "SELECT 1",

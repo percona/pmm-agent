@@ -2,7 +2,11 @@
   "ParsedEvents": [
     {
       "Block": [
-        "# Time: 071015 00:00:02\n"
+        "# Time: 071015 00:00:02\n",
+        "# User@Host: root[root] @ localhost []\n",
+        "# Query_time: 20.000000  Lock_time: 0  Rows_sent: 1  Rows_examined: 0\n",
+        "# Log_slow_rate_type: query  Log_slow_rate_limit: 1000\n",
+        "select c from t;\n"
       ],
       "Event": {
         "Offset": 0,
@@ -31,7 +35,11 @@
     },
     {
       "Block": [
-        "# Time: 071015 00:00:03\n"
+        "# Time: 071015 00:00:03\n",
+        "# User@Host: root[root] @ localhost []\n",
+        "# Query_time: 0.200000  Lock_time: 0  Rows_sent: 1  Rows_examined: 0\n",
+        "# Log_slow_rate_type: query  Log_slow_rate_limit: 1000\n",
+        "select c from t;\n"
       ],
       "Event": {
         "Offset": 204,
@@ -59,9 +67,7 @@
       }
     },
     {
-      "Block": [
-        "select c from t;\n"
-      ],
+      "Block": null,
       "Event": {
         "Offset": 409,
         "OffsetEnd": 613,

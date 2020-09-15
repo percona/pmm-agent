@@ -2,11 +2,15 @@
   "ParsedEvents": [
     {
       "Block": [
-        "# Time: \n"
+        "# Time: \n",
+        "# User@Host: root[root] @ localhost []\n",
+        "# Query_time: 2  Lock_time: 0  Rows_sent: 1  Rows_examined: 0\n",
+        "use `test`;\n",
+        "select sleep(2) from n;\n"
       ],
       "Event": {
-        "Offset": 199,
-        "OffsetEnd": 361,
+        "Offset": 0,
+        "OffsetEnd": 162,
         "Ts": "2007-10-15T21:43:52Z",
         "Admin": false,
         "Query": "select sleep(1) from n",
@@ -31,11 +35,15 @@
     },
     {
       "Block": [
-        "# Time: 071015 21:43:52 \n"
+        "# Time: 071015 21:43:52 \n",
+        "# User@Host: \n",
+        "# Query_time: 2  Lock_time: 0  Rows_sent: 1  Rows_examined: 0\n",
+        "use `test`;\n",
+        "select sleep(3) from n;\n"
       ],
       "Event": {
-        "Offset": 361,
-        "OffsetEnd": 507,
+        "Offset": 162,
+        "OffsetEnd": 308,
         "Ts": "0001-01-01T00:00:00Z",
         "Admin": false,
         "Query": "select sleep(2) from n",
@@ -59,12 +67,10 @@
       }
     },
     {
-      "Block": [
-        "select sleep(3) from n;\n"
-      ],
+      "Block": null,
       "Event": {
-        "Offset": 507,
-        "OffsetEnd": 644,
+        "Offset": 308,
+        "OffsetEnd": 445,
         "Ts": "2007-10-15T21:43:52Z",
         "Admin": false,
         "Query": "select sleep(3) from n",

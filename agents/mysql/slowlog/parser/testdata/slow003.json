@@ -2,11 +2,17 @@
   "ParsedEvents": [
     {
       "Block": [
+        "# Time: 071218 11:48:27 # User@Host: [SQL_SLAVE] @  []\n",
+        "# Thread_id: 10\n",
+        "# Query_time: 0.000012  Lock_time: 0.000000  Rows_sent: 0  Rows_examined: 0\n",
+        "# QC_Hit: No  Full_scan: No  Full_join: No  Tmp_table: No  Tmp_table_on_disk: No\n",
+        "# Filesort: No  Filesort_on_disk: No  Merge_passes: 0\n",
+        "# No InnoDB statistics available for this query\n",
         "BEGIN;\n"
       ],
       "Event": {
-        "Offset": 1,
-        "OffsetEnd": 338,
+        "Offset": 0,
+        "OffsetEnd": 337,
         "Ts": "2007-12-18T11:48:27Z",
         "Admin": false,
         "Query": "BEGIN",

@@ -2,7 +2,10 @@
   "ParsedEvents": [
     {
       "Block": [
-        "# User@Host: msandbox[msandbox] @ localhost []  Id:   168\n"
+        "# User@Host: msandbox[msandbox] @ localhost []  Id:   168\n",
+        "# Query_time: 0.000016  Lock_time: 0.000000 Rows_sent: 2  Rows_examined: 2\n",
+        "SET timestamp=1397442852;\n",
+        "# administrator command: Quit;\n"
       ],
       "Event": {
         "Offset": 0,
@@ -30,9 +33,7 @@
       }
     },
     {
-      "Block": [
-        "# administrator command: Quit;\n"
-      ],
+      "Block": null,
       "Event": {
         "Offset": 185,
         "OffsetEnd": 375,
@@ -60,6 +61,11 @@
     },
     {
       "Block": [
+        "# Time: 140413 19:34:13\n",
+        "# User@Host: msandbox[msandbox] @ localhost [127.0.0.1]  Id:   169\n",
+        "# Query_time: 0.000127  Lock_time: 0.000000 Rows_sent: 1  Rows_examined: 0\n",
+        "use dev_pct;\n",
+        "SET timestamp=1397442853;\n",
         "SELECT @@max_allowed_packet;\n"
       ],
       "Event": {

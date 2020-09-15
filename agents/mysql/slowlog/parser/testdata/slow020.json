@@ -2,11 +2,14 @@
   "ParsedEvents": [
     {
       "Block": [
-        "# Time: 071015 21:44:52\n"
+        "# Time: 071015 21:44:52\n",
+        "# User@Host: root[root] @ localhost []\n",
+        "# Query_time: 2  Lock_time: 0  Rows_sent: 1  Rows_examined: 0\n",
+        "select sleep(2) from o;\n"
       ],
       "Event": {
-        "Offset": 199,
-        "OffsetEnd": 358,
+        "Offset": 0,
+        "OffsetEnd": 159,
         "Ts": "2007-10-15T21:43:52Z",
         "Admin": false,
         "Query": "select sleep(2) from n",
@@ -30,12 +33,10 @@
       }
     },
     {
-      "Block": [
-        "select sleep(2) from o;\n"
-      ],
+      "Block": null,
       "Event": {
-        "Offset": 358,
-        "OffsetEnd": 507,
+        "Offset": 159,
+        "OffsetEnd": 308,
         "Ts": "2007-10-15T21:44:52Z",
         "Admin": false,
         "Query": "select sleep(2) from o",

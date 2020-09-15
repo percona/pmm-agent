@@ -2,11 +2,14 @@
   "ParsedEvents": [
     {
       "Block": [
-        "# User@Host: bookblogs[bookblogs] @ localhost []  Id: 56604\n"
+        "# User@Host: bookblogs[bookblogs] @ localhost []  Id: 56604\n",
+        "# Query_time: 0.253052  Lock_time: 0.000000 Rows_sent: 0  Rows_examined: 0\n",
+        "SET timestamp=1415210700;\n",
+        "SET NAMES utf8;\n"
       ],
       "Event": {
-        "Offset": 176,
-        "OffsetEnd": 418,
+        "Offset": 0,
+        "OffsetEnd": 242,
         "Ts": "0001-01-01T00:00:00Z",
         "Admin": false,
         "Query": "SELECT field FROM table_a WHERE some_other_field = 'yahoo' LIMIT 1",
@@ -31,11 +34,14 @@
     },
     {
       "Block": [
-        "# User@Host: percona-agent[percona-agent] @ localhost []  Id: 56603\n"
+        "# User@Host: percona-agent[percona-agent] @ localhost []  Id: 56603\n",
+        "# Query_time: 0.316450  Lock_time: 0.000000 Rows_sent: 0  Rows_examined: 0\n",
+        "SET timestamp=1415210700;\n",
+        "SET GLOBAL slow_query_log=ON;\n"
       ],
       "Event": {
-        "Offset": 418,
-        "OffsetEnd": 595,
+        "Offset": 242,
+        "OffsetEnd": 419,
         "Ts": "0001-01-01T00:00:00Z",
         "Admin": false,
         "Query": "SET NAMES utf8",
@@ -60,11 +66,14 @@
     },
     {
       "Block": [
-        "# User@Host: bookblogs[bookblogs] @ localhost []  Id: 56604\n"
+        "# User@Host: bookblogs[bookblogs] @ localhost []  Id: 56604\n",
+        "# Query_time: 0.000037  Lock_time: 0.000000 Rows_sent: 1  Rows_examined: 0\n",
+        "SET timestamp=1415210700;\n",
+        "SELECT @@SESSION.sql_mode;\n"
       ],
       "Event": {
-        "Offset": 595,
-        "OffsetEnd": 794,
+        "Offset": 419,
+        "OffsetEnd": 618,
         "Ts": "0001-01-01T00:00:00Z",
         "Admin": false,
         "Query": "SET GLOBAL slow_query_log=ON",
@@ -89,11 +98,14 @@
     },
     {
       "Block": [
-        "# User@Host: bookblogs[bookblogs] @ localhost []  Id: 56601\n"
+        "# User@Host: bookblogs[bookblogs] @ localhost []  Id: 56601\n",
+        "# Query_time: 0.000297  Lock_time: 0.000141 Rows_sent: 1  Rows_examined: 1\n",
+        "SET timestamp=1415210700;\n",
+        "SELECT field FROM table_b WHERE another_field = 'bazinga' AND site_id = 1;\n"
       ],
       "Event": {
-        "Offset": 794,
-        "OffsetEnd": 982,
+        "Offset": 618,
+        "OffsetEnd": 806,
         "Ts": "0001-01-01T00:00:00Z",
         "Admin": false,
         "Query": "SELECT @@SESSION.sql_mode",
@@ -118,11 +130,14 @@
     },
     {
       "Block": [
-        "# User@Host: backup[backup] @ localhost []  Id: 56458\n"
+        "# User@Host: backup[backup] @ localhost []  Id: 56458\n",
+        "# Query_time: 0.000558  Lock_time: 0.000000 Rows_sent: 0  Rows_examined: 0\n",
+        "SET timestamp=1415210700;\n",
+        "use `dbnameb`;\n"
       ],
       "Event": {
-        "Offset": 982,
-        "OffsetEnd": 1218,
+        "Offset": 806,
+        "OffsetEnd": 1042,
         "Ts": "0001-01-01T00:00:00Z",
         "Admin": false,
         "Query": "SELECT field FROM table_b WHERE another_field = 'bazinga' AND site_id = 1",
@@ -147,11 +162,14 @@
     },
     {
       "Block": [
-        "# User@Host: backup[backup] @ localhost []  Id: 56458\n"
+        "# User@Host: backup[backup] @ localhost []  Id: 56458\n",
+        "# Query_time: 0.000204  Lock_time: 0.000000 Rows_sent: 1  Rows_examined: 0\n",
+        "SET timestamp=1415210700;\n",
+        "select @@collation_database;\n"
       ],
       "Event": {
-        "Offset": 1218,
-        "OffsetEnd": 1388,
+        "Offset": 1042,
+        "OffsetEnd": 1212,
         "Ts": "0001-01-01T00:00:00Z",
         "Admin": false,
         "Query": "use `dbnameb`",
@@ -176,11 +194,14 @@
     },
     {
       "Block": [
-        "# User@Host: bookblogs[bookblogs] @ localhost []  Id: 56601\n"
+        "# User@Host: bookblogs[bookblogs] @ localhost []  Id: 56601\n",
+        "# Query_time: 0.000164  Lock_time: 0.000059 Rows_sent: 1  Rows_examined: 1\n",
+        "SET timestamp=1415210700;\n",
+        "SELECT another_field FROM table_c WHERE a_third_field = 'tiruriru' AND site_id = 1;\n"
       ],
       "Event": {
-        "Offset": 1388,
-        "OffsetEnd": 1572,
+        "Offset": 1212,
+        "OffsetEnd": 1396,
         "Ts": "0001-01-01T00:00:00Z",
         "Admin": false,
         "Query": "select @@collation_database",
@@ -204,12 +225,10 @@
       }
     },
     {
-      "Block": [
-        "SELECT another_field FROM table_c WHERE a_third_field = 'tiruriru' AND site_id = 1;\n"
-      ],
+      "Block": null,
       "Event": {
-        "Offset": 1572,
-        "OffsetEnd": 1817,
+        "Offset": 1396,
+        "OffsetEnd": 1641,
         "Ts": "0001-01-01T00:00:00Z",
         "Admin": false,
         "Query": "SELECT another_field FROM table_c WHERE a_third_field = 'tiruriru' AND site_id = 1",

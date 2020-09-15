@@ -42,8 +42,8 @@ func NewSimpleFileReader(filename string) (*SimpleFileReader, error) {
 	}, nil
 }
 
-// nextLine implements Reader interface.
-func (r *SimpleFileReader) nextLine() (string, error) {
+// NextLine implements Reader interface.
+func (r *SimpleFileReader) NextLine() (string, error) {
 	// TODO handle partial line reads as in ContinuousFileReader if needed
 
 	r.m.Lock()

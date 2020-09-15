@@ -125,8 +125,10 @@ func (p *SlowLogParser) Run() {
 		close(p.parsedEventsCh)
 	}()
 
+	br := NewBlockReader(p.r)
+
 	for {
-		block, err := readNextBlock(p.r)
+		block, err := br.NextBlock()
 		if err != nil {
 			p.stopErr = err
 			return

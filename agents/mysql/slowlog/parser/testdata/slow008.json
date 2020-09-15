@@ -2,6 +2,10 @@
   "ParsedEvents": [
     {
       "Block": [
+        "# User@Host: meow[meow] @  [1.2.3.8]\n",
+        "# Thread_id: 5  Schema: db1\n",
+        "# Query_time: 0.000002  Lock_time: 0.000000  Rows_sent: 0  Rows_examined: 0\n",
+        "# No InnoDB statistics available for this query\n",
         "# administrator command: Quit;\n"
       ],
       "Event": {
@@ -32,7 +36,11 @@
     },
     {
       "Block": [
-        "# User@Host: meow[meow] @  [1.2.3.8]\n"
+        "# User@Host: meow[meow] @  [1.2.3.8]\n",
+        "# Thread_id: 6  Schema: db2\n",
+        "# Query_time: 0.018799  Lock_time: 0.009453  Rows_sent: 0  Rows_examined: 0\n",
+        "# No InnoDB statistics available for this query\n",
+        "SELECT MIN(id),MAX(id) FROM tbl;\n"
       ],
       "Event": {
         "Offset": 220,
@@ -61,9 +69,7 @@
       }
     },
     {
-      "Block": [
-        "SELECT MIN(id),MAX(id) FROM tbl;\n"
-      ],
+      "Block": null,
       "Event": {
         "Offset": 434,
         "OffsetEnd": 656,

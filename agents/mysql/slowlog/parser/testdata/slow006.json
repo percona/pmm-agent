@@ -2,7 +2,13 @@
   "ParsedEvents": [
     {
       "Block": [
-        "# Time: 071218 11:48:57 # User@Host: [SQL_SLAVE] @  []\n"
+        "# Time: 071218 11:48:57 # User@Host: [SQL_SLAVE] @  []\n",
+        "# Thread_id: 10  Schema: foo\n",
+        "# Query_time: 0.000012  Lock_time: 0.000000  Rows_sent: 0  Rows_examined: 0\n",
+        "# QC_Hit: No  Full_scan: No  Full_join: No  Tmp_table: No  Tmp_table_on_disk: No\n",
+        "# Filesort: No  Filesort_on_disk: No  Merge_passes: 0\n",
+        "# No InnoDB statistics available for this query\n",
+        "SELECT col FROM foo_tbl;\n"
       ],
       "Event": {
         "Offset": 0,
@@ -41,7 +47,14 @@
     },
     {
       "Block": [
-        "# Time: 071218 11:48:57 # User@Host: [SQL_SLAVE] @  []\n"
+        "# Time: 071218 11:48:57 # User@Host: [SQL_SLAVE] @  []\n",
+        "# Thread_id: 20\n",
+        "# Query_time: 0.000012  Lock_time: 0.000000  Rows_sent: 0  Rows_examined: 0\n",
+        "# QC_Hit: No  Full_scan: No  Full_join: No  Tmp_table: No  Tmp_table_on_disk: No\n",
+        "# Filesort: No  Filesort_on_disk: No  Merge_passes: 0\n",
+        "# No InnoDB statistics available for this query\n",
+        "use bar;\n",
+        "SELECT col FROM bar_tbl;\n"
       ],
       "Event": {
         "Offset": 368,
@@ -80,7 +93,13 @@
     },
     {
       "Block": [
-        "# Time: 071218 11:49:05 # User@Host: [SQL_SLAVE] @  []\n"
+        "# Time: 071218 11:49:05 # User@Host: [SQL_SLAVE] @  []\n",
+        "# Thread_id: 10  Schema: bar\n",
+        "# Query_time: 0.000012  Lock_time: 0.000000  Rows_sent: 0  Rows_examined: 0\n",
+        "# QC_Hit: No  Full_scan: No  Full_join: No  Tmp_table: No  Tmp_table_on_disk: No\n",
+        "# Filesort: No  Filesort_on_disk: No  Merge_passes: 0\n",
+        "# No InnoDB statistics available for this query\n",
+        "SELECT col FROM bar_tbl;\n"
       ],
       "Event": {
         "Offset": 736,
@@ -119,7 +138,14 @@
     },
     {
       "Block": [
-        "# Time: 071218 11:49:07 # User@Host: [SQL_SLAVE] @  []\n"
+        "# Time: 071218 11:49:07 # User@Host: [SQL_SLAVE] @  []\n",
+        "# Thread_id: 20\n",
+        "# Query_time: 0.000012  Lock_time: 0.000000  Rows_sent: 0  Rows_examined: 0\n",
+        "# QC_Hit: No  Full_scan: No  Full_join: No  Tmp_table: No  Tmp_table_on_disk: No\n",
+        "# Filesort: No  Filesort_on_disk: No  Merge_passes: 0\n",
+        "# No InnoDB statistics available for this query\n",
+        "use bar;\n",
+        "SELECT col FROM bar_tbl;\n"
       ],
       "Event": {
         "Offset": 1100,
@@ -158,7 +184,13 @@
     },
     {
       "Block": [
-        "# Time: 071218 11:49:30 # User@Host: [SQL_SLAVE] @  []\n"
+        "# Time: 071218 11:49:30 # User@Host: [SQL_SLAVE] @  []\n",
+        "# Thread_id: 30  Schema: foo\n",
+        "# Query_time: 0.000012  Lock_time: 0.000000  Rows_sent: 0  Rows_examined: 0\n",
+        "# QC_Hit: No  Full_scan: No  Full_join: No  Tmp_table: No  Tmp_table_on_disk: No\n",
+        "# Filesort: No  Filesort_on_disk: No  Merge_passes: 0\n",
+        "# No InnoDB statistics available for this query\n",
+        "SELECT col FROM foo_tbl;\n"
       ],
       "Event": {
         "Offset": 1468,
@@ -196,9 +228,7 @@
       }
     },
     {
-      "Block": [
-        "SELECT col FROM foo_tbl;\n"
-      ],
+      "Block": null,
       "Event": {
         "Offset": 1832,
         "OffsetEnd": 2200,
