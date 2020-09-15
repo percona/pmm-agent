@@ -1,7 +1,9 @@
 {
   "ParsedEvents": [
     {
-      "Block": null,
+      "Block": [
+        "# User@Host: root[root] @ localhost []\n"
+      ],
       "Event": {
         "Offset": 0,
         "OffsetEnd": 81845,
@@ -34,7 +36,9 @@
       }
     },
     {
-      "Block": null,
+      "Block": [
+        "select * from t;\n"
+      ],
       "Event": {
         "Offset": 81845,
         "OffsetEnd": 82081,

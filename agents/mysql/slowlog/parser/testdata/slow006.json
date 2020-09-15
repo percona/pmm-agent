@@ -1,7 +1,9 @@
 {
   "ParsedEvents": [
     {
-      "Block": null,
+      "Block": [
+        "# Time: 071218 11:48:57 # User@Host: [SQL_SLAVE] @  []\n"
+      ],
       "Event": {
         "Offset": 0,
         "OffsetEnd": 368,
@@ -38,7 +40,9 @@
       }
     },
     {
-      "Block": null,
+      "Block": [
+        "# Time: 071218 11:48:57 # User@Host: [SQL_SLAVE] @  []\n"
+      ],
       "Event": {
         "Offset": 368,
         "OffsetEnd": 736,
@@ -75,7 +79,9 @@
       }
     },
     {
-      "Block": null,
+      "Block": [
+        "# Time: 071218 11:49:05 # User@Host: [SQL_SLAVE] @  []\n"
+      ],
       "Event": {
         "Offset": 736,
         "OffsetEnd": 1100,
@@ -112,7 +118,9 @@
       }
     },
     {
-      "Block": null,
+      "Block": [
+        "# Time: 071218 11:49:07 # User@Host: [SQL_SLAVE] @  []\n"
+      ],
       "Event": {
         "Offset": 1100,
         "OffsetEnd": 1468,
@@ -149,7 +157,9 @@
       }
     },
     {
-      "Block": null,
+      "Block": [
+        "# Time: 071218 11:49:30 # User@Host: [SQL_SLAVE] @  []\n"
+      ],
       "Event": {
         "Offset": 1468,
         "OffsetEnd": 1832,
@@ -186,7 +196,9 @@
       }
     },
     {
-      "Block": null,
+      "Block": [
+        "SELECT col FROM foo_tbl;\n"
+      ],
       "Event": {
         "Offset": 1832,
         "OffsetEnd": 2200,

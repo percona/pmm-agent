@@ -1,7 +1,9 @@
 {
   "ParsedEvents": [
     {
-      "Block": null,
+      "Block": [
+        "SHOW /*!50002 GLOBAL */ STATUS;\n"
+      ],
       "Event": {
         "Offset": 159,
         "OffsetEnd": 413,

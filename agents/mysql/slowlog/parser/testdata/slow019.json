@@ -1,7 +1,9 @@
 {
   "ParsedEvents": [
     {
-      "Block": null,
+      "Block": [
+        "# User@Host: root[root] @ localhost []\n"
+      ],
       "Event": {
         "Offset": 0,
         "OffsetEnd": 641,
@@ -46,7 +48,9 @@
       }
     },
     {
-      "Block": null,
+      "Block": [
+        "# User@Host: root[root] @ localhost []\n"
+      ],
       "Event": {
         "Offset": 641,
         "OffsetEnd": 1273,
@@ -91,7 +95,9 @@
       }
     },
     {
-      "Block": null,
+      "Block": [
+        "# User@Host: percona-agent[percona-agent] @ localhost []\n"
+      ],
       "Event": {
         "Offset": 1273,
         "OffsetEnd": 2005,
@@ -143,7 +149,9 @@
       }
     },
     {
-      "Block": null,
+      "Block": [
+        "SELECT TABLE_SCHEMA, TABLE_NAME, INDEX_NAME, ROWS_READ FROM INFORMATION_SCHEMA.INDEX_STATISTICS;\n"
+      ],
       "Event": {
         "Offset": 2005,
         "OffsetEnd": 2621,

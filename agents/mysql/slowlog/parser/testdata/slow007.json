@@ -1,7 +1,9 @@
 {
   "ParsedEvents": [
     {
-      "Block": null,
+      "Block": [
+        "SELECT fruit FROM trees;\n"
+      ],
       "Event": {
         "Offset": 0,
         "OffsetEnd": 193,

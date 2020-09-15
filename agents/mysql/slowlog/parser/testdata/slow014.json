@@ -1,7 +1,9 @@
 {
   "ParsedEvents": [
     {
-      "Block": null,
+      "Block": [
+        "# User@Host: root[root] @ localhost []\n"
+      ],
       "Event": {
         "Offset": 0,
         "OffsetEnd": 690,
@@ -53,7 +55,9 @@
       }
     },
     {
-      "Block": null,
+      "Block": [
+        "# User@Host: root[root] @ localhost []\n"
+      ],
       "Event": {
         "Offset": 690,
         "OffsetEnd": 2104,
@@ -105,7 +109,9 @@
       }
     },
     {
-      "Block": null,
+      "Block": [
+        "# User@Host: root[root] @ localhost []\n"
+      ],
       "Event": {
         "Offset": 2104,
         "OffsetEnd": 3163,
@@ -157,7 +163,9 @@
       }
     },
     {
-      "Block": null,
+      "Block": [
+        "LIMIT 0, 100;\n"
+      ],
       "Event": {
         "Offset": 3163,
         "OffsetEnd": 4410,

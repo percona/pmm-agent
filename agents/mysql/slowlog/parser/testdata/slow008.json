@@ -1,7 +1,9 @@
 {
   "ParsedEvents": [
     {
-      "Block": null,
+      "Block": [
+        "# administrator command: Quit;\n"
+      ],
       "Event": {
         "Offset": 0,
         "OffsetEnd": 220,
@@ -29,7 +31,9 @@
       }
     },
     {
-      "Block": null,
+      "Block": [
+        "# User@Host: meow[meow] @  [1.2.3.8]\n"
+      ],
       "Event": {
         "Offset": 220,
         "OffsetEnd": 434,
@@ -57,7 +61,9 @@
       }
     },
     {
-      "Block": null,
+      "Block": [
+        "SELECT MIN(id),MAX(id) FROM tbl;\n"
+      ],
       "Event": {
         "Offset": 434,
         "OffsetEnd": 656,

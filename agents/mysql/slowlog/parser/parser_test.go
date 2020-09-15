@@ -103,6 +103,9 @@ func TestParserSpecial(t *testing.T) {
 		actual := parseSlowLog(t, filepath.Join("testdata", "slow009.log"), opts)
 		expected := &testdata{
 			ParsedEvents: []ParsedEvent{{
+				Block: []string{
+					"# administrator command: Refresh;\n",
+				},
 				Event: &log.Event{
 					Query:     "Refresh",
 					Db:        "",

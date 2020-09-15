@@ -1,7 +1,9 @@
 {
   "ParsedEvents": [
     {
-      "Block": null,
+      "Block": [
+        "# administrator command: Refresh;\n"
+      ],
       "Event": {
         "Offset": 196,
         "OffsetEnd": 562,
@@ -40,7 +42,9 @@
       }
     },
     {
-      "Block": null,
+      "Block": [
+        "# administrator command: Quit;\n"
+      ],
       "Event": {
         "Offset": 562,
         "OffsetEnd": 901,

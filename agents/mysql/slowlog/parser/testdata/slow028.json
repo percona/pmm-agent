@@ -1,7 +1,9 @@
 {
   "ParsedEvents": [
     {
-      "Block": null,
+      "Block": [
+        "SELECT 1;\n"
+      ],
       "Event": {
         "Offset": 205,
         "OffsetEnd": 630,

@@ -1,7 +1,9 @@
 {
   "ParsedEvents": [
     {
-      "Block": null,
+      "Block": [
+        "# Time: 071218 11:48:27 # User@Host: [SQL_SLAVE] @  []\n"
+      ],
       "Event": {
         "Offset": 0,
         "OffsetEnd": 141,
@@ -27,7 +29,9 @@
       }
     },
     {
-      "Block": null,
+      "Block": [
+        "# Time: 071218 11:48:27 # User@Host: [SQL_SLAVE] @  []\n"
+      ],
       "Event": {
         "Offset": 141,
         "OffsetEnd": 282,
@@ -53,7 +57,9 @@
       }
     },
     {
-      "Block": null,
+      "Block": [
+        "# Time: 071218 11:48:27 # User@Host: [SQL_SLAVE] @  []\n"
+      ],
       "Event": {
         "Offset": 282,
         "OffsetEnd": 423,
@@ -79,7 +85,9 @@
       }
     },
     {
-      "Block": null,
+      "Block": [
+        "# Time: 071218 11:48:27 # User@Host: [SQL_SLAVE] @  []\n"
+      ],
       "Event": {
         "Offset": 423,
         "OffsetEnd": 564,
@@ -105,7 +113,9 @@
       }
     },
     {
-      "Block": null,
+      "Block": [
+        "# Time: 071218 11:48:27 # User@Host: [SQL_SLAVE] @  []\n"
+      ],
       "Event": {
         "Offset": 564,
         "OffsetEnd": 705,
@@ -131,7 +141,9 @@
       }
     },
     {
-      "Block": null,
+      "Block": [
+        "# Time: 071218 11:48:27 # User@Host: [SQL_SLAVE] @  []\n"
+      ],
       "Event": {
         "Offset": 705,
         "OffsetEnd": 846,
@@ -157,7 +169,9 @@
       }
     },
     {
-      "Block": null,
+      "Block": [
+        "# Time: 071218 11:48:27 # User@Host: [SQL_SLAVE] @  []\n"
+      ],
       "Event": {
         "Offset": 846,
         "OffsetEnd": 987,
@@ -183,7 +197,9 @@
       }
     },
     {
-      "Block": null,
+      "Block": [
+        "# Time: 071218 11:48:27 # User@Host: [SQL_SLAVE] @  []\n"
+      ],
       "Event": {
         "Offset": 987,
         "OffsetEnd": 1128,
@@ -209,7 +225,9 @@
       }
     },
     {
-      "Block": null,
+      "Block": [
+        "# Time: 071218 11:48:27 # User@Host: [SQL_SLAVE] @  []\n"
+      ],
       "Event": {
         "Offset": 1128,
         "OffsetEnd": 1269,
@@ -235,7 +253,9 @@
       }
     },
     {
-      "Block": null,
+      "Block": [
+        "# Time: 071218 11:48:27 # User@Host: [SQL_SLAVE] @  []\n"
+      ],
       "Event": {
         "Offset": 1269,
         "OffsetEnd": 1410,
@@ -261,7 +281,9 @@
       }
     },
     {
-      "Block": null,
+      "Block": [
+        "# Time: 071218 11:48:27 # User@Host: [SQL_SLAVE] @  []\n"
+      ],
       "Event": {
         "Offset": 1410,
         "OffsetEnd": 1551,
@@ -287,7 +309,9 @@
       }
     },
     {
-      "Block": null,
+      "Block": [
+        "# Time: 071218 11:48:27 # User@Host: [SQL_SLAVE] @  []\n"
+      ],
       "Event": {
         "Offset": 1551,
         "OffsetEnd": 1692,
@@ -313,7 +337,9 @@
       }
     },
     {
-      "Block": null,
+      "Block": [
+        "# Time: 071218 11:48:27 # User@Host: [SQL_SLAVE] @  []\n"
+      ],
       "Event": {
         "Offset": 1692,
         "OffsetEnd": 1833,
@@ -339,7 +365,9 @@
       }
     },
     {
-      "Block": null,
+      "Block": [
+        "# Time: 071218 11:48:27 # User@Host: [SQL_SLAVE] @  []\n"
+      ],
       "Event": {
         "Offset": 1833,
         "OffsetEnd": 1974,
@@ -365,7 +393,9 @@
       }
     },
     {
-      "Block": null,
+      "Block": [
+        "# Time: 071218 11:48:27 # User@Host: [SQL_SLAVE] @  []\n"
+      ],
       "Event": {
         "Offset": 1974,
         "OffsetEnd": 2115,
@@ -391,7 +421,9 @@
       }
     },
     {
-      "Block": null,
+      "Block": [
+        "# Time: 071218 11:48:27 # User@Host: [SQL_SLAVE] @  []\n"
+      ],
       "Event": {
         "Offset": 2115,
         "OffsetEnd": 2256,
@@ -417,7 +449,9 @@
       }
     },
     {
-      "Block": null,
+      "Block": [
+        "# Time: 071218 11:48:27 # User@Host: [SQL_SLAVE] @  []\n"
+      ],
       "Event": {
         "Offset": 2256,
         "OffsetEnd": 2397,
@@ -443,7 +477,9 @@
       }
     },
     {
-      "Block": null,
+      "Block": [
+        "# Time: 071218 11:48:27 # User@Host: [SQL_SLAVE] @  []\n"
+      ],
       "Event": {
         "Offset": 2397,
         "OffsetEnd": 2538,
@@ -469,7 +505,9 @@
       }
     },
     {
-      "Block": null,
+      "Block": [
+        "# Time: 071218 11:48:27 # User@Host: [SQL_SLAVE] @  []\n"
+      ],
       "Event": {
         "Offset": 2538,
         "OffsetEnd": 2679,
@@ -495,7 +533,9 @@
       }
     },
     {
-      "Block": null,
+      "Block": [
+        "# Time: 071218 11:48:27 # User@Host: [SQL_SLAVE] @  []\n"
+      ],
       "Event": {
         "Offset": 2679,
         "OffsetEnd": 2820,
@@ -521,7 +561,9 @@
       }
     },
     {
-      "Block": null,
+      "Block": [
+        "# Time: 071218 11:48:27 # User@Host: [SQL_SLAVE] @  []\n"
+      ],
       "Event": {
         "Offset": 2820,
         "OffsetEnd": 2961,
@@ -547,7 +589,9 @@
       }
     },
     {
-      "Block": null,
+      "Block": [
+        "# Time: 071218 11:48:27 # User@Host: [SQL_SLAVE] @  []\n"
+      ],
       "Event": {
         "Offset": 2961,
         "OffsetEnd": 3102,
@@ -573,7 +617,9 @@
       }
     },
     {
-      "Block": null,
+      "Block": [
+        "# Time: 071218 11:48:27 # User@Host: [SQL_SLAVE] @  []\n"
+      ],
       "Event": {
         "Offset": 3102,
         "OffsetEnd": 3243,
@@ -599,7 +645,9 @@
       }
     },
     {
-      "Block": null,
+      "Block": [
+        "# Time: 071218 11:48:27 # User@Host: [SQL_SLAVE] @  []\n"
+      ],
       "Event": {
         "Offset": 3243,
         "OffsetEnd": 3384,
@@ -625,7 +673,9 @@
       }
     },
     {
-      "Block": null,
+      "Block": [
+        "# Time: 071218 11:48:27 # User@Host: [SQL_SLAVE] @  []\n"
+      ],
       "Event": {
         "Offset": 3384,
         "OffsetEnd": 3525,
@@ -651,7 +701,9 @@
       }
     },
     {
-      "Block": null,
+      "Block": [
+        "# Time: 071218 11:48:27 # User@Host: [SQL_SLAVE] @  []\n"
+      ],
       "Event": {
         "Offset": 3525,
         "OffsetEnd": 3667,
@@ -677,7 +729,9 @@
       }
     },
     {
-      "Block": null,
+      "Block": [
+        "# Time: 071218 11:48:27 # User@Host: [SQL_SLAVE] @  []\n"
+      ],
       "Event": {
         "Offset": 3667,
         "OffsetEnd": 3808,
@@ -703,7 +757,9 @@
       }
     },
     {
-      "Block": null,
+      "Block": [
+        "# Time: 071218 11:48:27 # User@Host: [SQL_SLAVE] @  []\n"
+      ],
       "Event": {
         "Offset": 3808,
         "OffsetEnd": 3949,
@@ -729,7 +785,9 @@
       }
     },
     {
-      "Block": null,
+      "Block": [
+        "# Time: 071218 11:48:27 # User@Host: [SQL_SLAVE] @  []\n"
+      ],
       "Event": {
         "Offset": 3949,
         "OffsetEnd": 4090,
@@ -755,7 +813,9 @@
       }
     },
     {
-      "Block": null,
+      "Block": [
+        "# Time: 071218 11:48:27 # User@Host: [SQL_SLAVE] @  []\n"
+      ],
       "Event": {
         "Offset": 4090,
         "OffsetEnd": 4231,
@@ -781,7 +841,9 @@
       }
     },
     {
-      "Block": null,
+      "Block": [
+        "# Time: 071218 11:48:27 # User@Host: [SQL_SLAVE] @  []\n"
+      ],
       "Event": {
         "Offset": 4231,
         "OffsetEnd": 4372,
@@ -807,7 +869,9 @@
       }
     },
     {
-      "Block": null,
+      "Block": [
+        "# Time: 071218 11:48:27 # User@Host: [SQL_SLAVE] @  []\n"
+      ],
       "Event": {
         "Offset": 4372,
         "OffsetEnd": 4513,
@@ -833,7 +897,9 @@
       }
     },
     {
-      "Block": null,
+      "Block": [
+        "# Time: 071218 11:48:27 # User@Host: [SQL_SLAVE] @  []\n"
+      ],
       "Event": {
         "Offset": 4513,
         "OffsetEnd": 4654,
@@ -859,7 +925,9 @@
       }
     },
     {
-      "Block": null,
+      "Block": [
+        "# Time: 071218 11:48:27 # User@Host: [SQL_SLAVE] @  []\n"
+      ],
       "Event": {
         "Offset": 4654,
         "OffsetEnd": 4795,
@@ -885,7 +953,9 @@
       }
     },
     {
-      "Block": null,
+      "Block": [
+        "# Time: 071218 11:48:27 # User@Host: [SQL_SLAVE] @  []\n"
+      ],
       "Event": {
         "Offset": 4795,
         "OffsetEnd": 4936,
@@ -911,7 +981,9 @@
       }
     },
     {
-      "Block": null,
+      "Block": [
+        "SELECT c FROM t WHERE id=1;\n"
+      ],
       "Event": {
         "Offset": 4936,
         "OffsetEnd": 5077,

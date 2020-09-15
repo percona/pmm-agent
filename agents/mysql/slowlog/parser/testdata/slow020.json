@@ -1,7 +1,9 @@
 {
   "ParsedEvents": [
     {
-      "Block": null,
+      "Block": [
+        "# Time: 071015 21:44:52\n"
+      ],
       "Event": {
         "Offset": 199,
         "OffsetEnd": 358,
@@ -28,7 +30,9 @@
       }
     },
     {
-      "Block": null,
+      "Block": [
+        "select sleep(2) from o;\n"
+      ],
       "Event": {
         "Offset": 358,
         "OffsetEnd": 507,

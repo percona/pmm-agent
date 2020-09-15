@@ -1,7 +1,9 @@
 {
   "ParsedEvents": [
     {
-      "Block": null,
+      "Block": [
+        "# User@Host: [SQL_SLAVE] @  []\n"
+      ],
       "Event": {
         "Offset": 0,
         "OffsetEnd": 339,
@@ -37,7 +39,9 @@
       }
     },
     {
-      "Block": null,
+      "Block": [
+        "# User@Host: [SQL_SLAVE] @  []\n"
+      ],
       "Event": {
         "Offset": 339,
         "OffsetEnd": 674,
@@ -73,7 +77,9 @@
       }
     },
     {
-      "Block": null,
+      "Block": [
+        "# User@Host: [SQL_SLAVE] @  []\n"
+      ],
       "Event": {
         "Offset": 674,
         "OffsetEnd": 1011,
@@ -109,7 +115,9 @@
       }
     },
     {
-      "Block": null,
+      "Block": [
+        "select * from t where id in (10000,20000,30000);\n"
+      ],
       "Event": {
         "Offset": 1011,
         "OffsetEnd": 1303,

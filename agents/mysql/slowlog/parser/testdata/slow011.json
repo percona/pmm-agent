@@ -1,7 +1,9 @@
 {
   "ParsedEvents": [
     {
-      "Block": null,
+      "Block": [
+        "# User@Host: user1[user1] @ localhost [127.0.0.1]  Id: 69195\n"
+      ],
       "Event": {
         "Offset": 0,
         "OffsetEnd": 732,
@@ -51,7 +53,9 @@
       }
     },
     {
-      "Block": null,
+      "Block": [
+        "# User@Host: user1[user1] @ localhost [127.0.0.1]  Id: 69195\n"
+      ],
       "Event": {
         "Offset": 732,
         "OffsetEnd": 1440,
@@ -101,7 +105,9 @@
       }
     },
     {
-      "Block": null,
+      "Block": [
+        "INSERT INTO foo VALUES (NULL, 3);\n"
+      ],
       "Event": {
         "Offset": 1440,
         "OffsetEnd": 2152,

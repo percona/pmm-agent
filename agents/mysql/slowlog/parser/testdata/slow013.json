@@ -1,7 +1,9 @@
 {
   "ParsedEvents": [
     {
-      "Block": null,
+      "Block": [
+        "# Time: 140224 22:39:59\n"
+      ],
       "Event": {
         "Offset": 0,
         "OffsetEnd": 353,
@@ -32,7 +34,9 @@
       }
     },
     {
-      "Block": null,
+      "Block": [
+        "# Time: 140311 16:07:40\n"
+      ],
       "Event": {
         "Offset": 353,
         "OffsetEnd": 6138,
@@ -63,7 +67,9 @@
       }
     },
     {
-      "Block": null,
+      "Block": [
+        "# Time: 140312 20:28:40\n"
+      ],
       "Event": {
         "Offset": 6138,
         "OffsetEnd": 6666,
@@ -94,7 +100,9 @@
       }
     },
     {
-      "Block": null,
+      "Block": [
+        "# Time: 140312 20:29:40\n"
+      ],
       "Event": {
         "Offset": 6666,
         "OffsetEnd": 7014,
@@ -125,7 +133,9 @@
       }
     },
     {
-      "Block": null,
+      "Block": [
+        "select 1006,q.* from qcm q INTO OUTFILE '/mnt/pct/exp/qcm_db1006.txt';\n"
+      ],
       "Event": {
         "Offset": 7014,
         "OffsetEnd": 7370,

@@ -1,7 +1,9 @@
 {
   "ParsedEvents": [
     {
-      "Block": null,
+      "Block": [
+        "# User@Host: msandbox[msandbox] @ localhost []  Id:   168\n"
+      ],
       "Event": {
         "Offset": 0,
         "OffsetEnd": 185,
@@ -28,7 +30,9 @@
       }
     },
     {
-      "Block": null,
+      "Block": [
+        "# administrator command: Quit;\n"
+      ],
       "Event": {
         "Offset": 185,
         "OffsetEnd": 375,
@@ -55,7 +59,9 @@
       }
     },
     {
-      "Block": null,
+      "Block": [
+        "SELECT @@max_allowed_packet;\n"
+      ],
       "Event": {
         "Offset": 375,
         "OffsetEnd": 609,

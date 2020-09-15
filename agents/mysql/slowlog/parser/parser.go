@@ -59,6 +59,7 @@ type SlowLogParser struct {
 	bytesRead      uint64
 	lineOffset     uint64
 	endOffset      uint64
+	currentBlock   []string
 	currentEvent   *log.Event
 }
 
@@ -125,13 +126,14 @@ func (p *SlowLogParser) Run() {
 	}()
 
 	for {
-		lines, err := readNextBlock(p.r)
+		block, err := readNextBlock(p.r)
 		if err != nil {
 			p.stopErr = err
 			return
 		}
+		p.currentBlock = block
 
-		for _, line := range lines {
+		for _, line := range block {
 			lineLen := uint64(len(line))
 			p.bytesRead += lineLen
 			p.lineOffset = p.bytesRead - lineLen
@@ -340,6 +342,7 @@ func (p *SlowLogParser) sendEvent(inHeader bool, inQuery bool) {
 
 	// Make a new event and reset our metadata.
 	defer func() {
+		p.currentBlock = nil
 		p.currentEvent = log.NewEvent()
 		p.headerLines = 0
 		p.queryLines = 0
@@ -358,7 +361,7 @@ func (p *SlowLogParser) sendEvent(inHeader bool, inQuery bool) {
 	p.currentEvent.Query = strings.TrimSuffix(p.currentEvent.Query, ";")
 
 	p.parsedEventsCh <- &ParsedEvent{
-		// TODO add Block
+		Block: p.currentBlock,
 		Event: p.currentEvent,
 	}
 }

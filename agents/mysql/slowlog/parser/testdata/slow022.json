@@ -1,7 +1,9 @@
 {
   "ParsedEvents": [
     {
-      "Block": null,
+      "Block": [
+        "select sleep(2) from n;\n"
+      ],
       "Event": {
         "Offset": 199,
         "OffsetEnd": 360,

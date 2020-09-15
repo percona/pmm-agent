@@ -1,7 +1,9 @@
 {
   "ParsedEvents": [
     {
-      "Block": null,
+      "Block": [
+        "# User@Host: bookblogs[bookblogs] @ localhost []  Id: 56604\n"
+      ],
       "Event": {
         "Offset": 176,
         "OffsetEnd": 418,
@@ -28,7 +30,9 @@
       }
     },
     {
-      "Block": null,
+      "Block": [
+        "# User@Host: percona-agent[percona-agent] @ localhost []  Id: 56603\n"
+      ],
       "Event": {
         "Offset": 418,
         "OffsetEnd": 595,
@@ -55,7 +59,9 @@
       }
     },
     {
-      "Block": null,
+      "Block": [
+        "# User@Host: bookblogs[bookblogs] @ localhost []  Id: 56604\n"
+      ],
       "Event": {
         "Offset": 595,
         "OffsetEnd": 794,
@@ -82,7 +88,9 @@
       }
     },
     {
-      "Block": null,
+      "Block": [
+        "# User@Host: bookblogs[bookblogs] @ localhost []  Id: 56601\n"
+      ],
       "Event": {
         "Offset": 794,
         "OffsetEnd": 982,
@@ -109,7 +117,9 @@
       }
     },
     {
-      "Block": null,
+      "Block": [
+        "# User@Host: backup[backup] @ localhost []  Id: 56458\n"
+      ],
       "Event": {
         "Offset": 982,
         "OffsetEnd": 1218,
@@ -136,7 +146,9 @@
       }
     },
     {
-      "Block": null,
+      "Block": [
+        "# User@Host: backup[backup] @ localhost []  Id: 56458\n"
+      ],
       "Event": {
         "Offset": 1218,
         "OffsetEnd": 1388,
@@ -163,7 +175,9 @@
       }
     },
     {
-      "Block": null,
+      "Block": [
+        "# User@Host: bookblogs[bookblogs] @ localhost []  Id: 56601\n"
+      ],
       "Event": {
         "Offset": 1388,
         "OffsetEnd": 1572,
@@ -190,7 +204,9 @@
       }
     },
     {
-      "Block": null,
+      "Block": [
+        "SELECT another_field FROM table_c WHERE a_third_field = 'tiruriru' AND site_id = 1;\n"
+      ],
       "Event": {
         "Offset": 1572,
         "OffsetEnd": 1817,
