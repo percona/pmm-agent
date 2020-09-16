@@ -413,7 +413,7 @@ func (s *Supervisor) startBuiltin(agentID string, builtinAgent *agentpb.SetState
 			AgentID: agentID,
 		}
 		agent, err = pgstatstatements.New(params, l)
-		//
+
 	case inventorypb.AgentType_QAN_POSTGRESQL_PGSTATMONITOR_AGENT:
 		params := &pgstatmonitor.Params{
 			DSN:                  builtinAgent.Dsn,
