@@ -416,8 +416,9 @@ func (s *Supervisor) startBuiltin(agentID string, builtinAgent *agentpb.SetState
 
 	case inventorypb.AgentType_QAN_POSTGRESQL_PGSTATMONITOR_AGENT:
 		params := &pgstatmonitor.Params{
-			DSN:     builtinAgent.Dsn,
-			AgentID: agentID,
+			DSN:                  builtinAgent.Dsn,
+			AgentID:              agentID,
+			DisableQueryExamples: builtinAgent.DisableQueryExamples,
 		}
 		agent, err = pgstatmonitor.New(params, l)
 
