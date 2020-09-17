@@ -152,7 +152,7 @@ func TestPGStatMonitorSchema(t *testing.T) {
 	}
 
 	t.Run("AllCountries", func(t *testing.T) {
-		m := setup(t, db, true)
+		m := setup(t, db, false)
 
 		_, err := db.Exec(selectAllCountries)
 		require.NoError(t, err)
@@ -167,9 +167,14 @@ func TestPGStatMonitorSchema(t *testing.T) {
 		assert.InDelta(t, 0, actual.Common.MQueryTimeSum, 0.09)
 		assert.Equal(t, float32(5), actual.Postgresql.MSharedBlksHitSum+actual.Postgresql.MSharedBlksReadSum)
 		assert.InDelta(t, 1.5, actual.Postgresql.MSharedBlksHitCnt+actual.Postgresql.MSharedBlksReadCnt, 0.5)
+		example := ""
+		if !m.pgsmNormalizedQuery && !m.disableQueryExamples {
+			example = actual.Common.Example
+		}
 		expected := &agentpb.MetricsBucket{
 			Common: &agentpb.MetricsBucket_Common{
 				Fingerprint:         selectAllCountries,
+				Example:             example,
 				Database:            "pmm-agent",
 				Tables:              []string{"public.country"},
 				Username:            "pmm-agent",
@@ -361,7 +366,7 @@ func TestPGStatMonitorSchema(t *testing.T) {
 			_, err := db.Exec(fmt.Sprintf(`DROP TABLE %s`, tableName))
 			require.NoError(t, err)
 		}()
-		m := setup(t, db, true)
+		m := setup(t, db, false)
 
 		var waitGroup sync.WaitGroup
 		n := 1000
