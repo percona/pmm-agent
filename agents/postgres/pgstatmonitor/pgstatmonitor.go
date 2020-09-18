@@ -198,77 +198,78 @@ func (m *PGStatMonitorQAN) makeBuckets(current, prev map[string]*pgStatMonitorEx
 	res := make([]*agentpb.MetricsBucket, 0, len(current))
 	now := time.Now()
 
-	for queryID, currentPSS := range current {
-		prevPSS := prev[queryID]
-		if prevPSS == nil {
-			prevPSS = new(pgStatMonitorExtended)
+	for queryID, currentPSM := range current {
+		prevPSM := prev[queryID]
+		if prevPSM == nil {
+			prevPSM = new(pgStatMonitorExtended)
 		}
-		count := float32(currentPSS.Calls - prevPSS.Calls)
+		count := float32(currentPSM.Calls - prevPSM.Calls)
 		switch {
 		case count == 0:
 			// Another way how this is possible is if pg_stat_monitor was truncated,
 			// and then the same number of queries were made.
 			// Currently, we can't differentiate between those situations.
-			m.l.Tracef("Skipped due to the same number of queries: %s.", currentPSS)
+			m.l.Tracef("Skipped due to the same number of queries: %s.", currentPSM)
 			continue
-		case count < 0 || (now.Sub(currentPSS.BucketStartTime) > queryStatMonitor):
-			m.l.Debugf("Truncate detected. Treating as a new query: %s.", currentPSS)
-			prevPSS = new(pgStatMonitorExtended)
-			count = float32(currentPSS.Calls)
-		case prevPSS.Calls == 0:
-			m.l.Debugf("New query: %s.", currentPSS)
+		case count < 0 || (now.Sub(currentPSM.BucketStartTime) > queryStatMonitor):
+			m.l.Debugf("Truncate detected. Treating as a new query: %s.", currentPSM)
+			prevPSM = new(pgStatMonitorExtended)
+			count = float32(currentPSM.Calls)
+		case prevPSM.Calls == 0:
+			m.l.Debugf("New query: %s.", currentPSM)
 		default:
-			m.l.Debugf("Normal query: %s.", currentPSS)
+			m.l.Debugf("Normal query: %s.", currentPSM)
 		}
 
 		mb := &agentpb.MetricsBucket{
 			Common: &agentpb.MetricsBucket_Common{
-				IsTruncated: currentPSS.IsQueryTruncated,
-				Fingerprint: currentPSS.Fingerprint,
-				Database:    currentPSS.Database,
-				Tables:      currentPSS.TablesNames,
-				Username:    currentPSS.Username,
-				Queryid:     currentPSS.QueryID,
+				IsTruncated: currentPSM.IsQueryTruncated,
+				Fingerprint: currentPSM.Fingerprint,
+				Database:    currentPSM.Database,
+				Tables:      currentPSM.TablesNames,
+				Username:    currentPSM.Username,
+				Queryid:     currentPSM.QueryID,
 				NumQueries:  count,
+				ClientHost:  currentPSM.Host,
 				AgentType:   inventorypb.AgentType_QAN_POSTGRESQL_PGSTATMONITOR_AGENT,
 			},
 			Postgresql: new(agentpb.MetricsBucket_PostgreSQL),
 		}
 
-		if !m.disableQueryExamples && currentPSS.Example != "" {
-			mb.Common.Example = currentPSS.Example
+		if !m.disableQueryExamples && currentPSM.Example != "" {
+			mb.Common.Example = currentPSM.Example
 			mb.Common.ExampleFormat = agentpb.ExampleFormat_EXAMPLE
 			mb.Common.ExampleType = agentpb.ExampleType_RANDOM
 		}
 
 		for _, p := range []struct {
-			value float32  // result value: currentPSS.SumXXX-prevPSS.SumXXX
+			value float32  // result value: currentPSM.SumXXX-prevPSM.SumXXX
 			sum   *float32 // MetricsBucket.XXXSum field to write value
 			cnt   *float32 // MetricsBucket.XXXCnt field to write count
 		}{
 			// convert milliseconds to seconds
-			{float32(currentPSS.TotalTime-prevPSS.TotalTime) / 1000, &mb.Common.MQueryTimeSum, &mb.Common.MQueryTimeCnt},
-			{float32(currentPSS.Rows - prevPSS.Rows), &mb.Postgresql.MRowsSum, &mb.Postgresql.MRowsCnt},
+			{float32(currentPSM.TotalTime-prevPSM.TotalTime) / 1000, &mb.Common.MQueryTimeSum, &mb.Common.MQueryTimeCnt},
+			{float32(currentPSM.Rows - prevPSM.Rows), &mb.Postgresql.MRowsSum, &mb.Postgresql.MRowsCnt},
 
-			{float32(currentPSS.SharedBlksHit - prevPSS.SharedBlksHit), &mb.Postgresql.MSharedBlksHitSum, &mb.Postgresql.MSharedBlksHitCnt},
-			{float32(currentPSS.SharedBlksRead - prevPSS.SharedBlksRead), &mb.Postgresql.MSharedBlksReadSum, &mb.Postgresql.MSharedBlksReadCnt},
-			{float32(currentPSS.SharedBlksDirtied - prevPSS.SharedBlksDirtied), &mb.Postgresql.MSharedBlksDirtiedSum, &mb.Postgresql.MSharedBlksDirtiedCnt},
-			{float32(currentPSS.SharedBlksWritten - prevPSS.SharedBlksWritten), &mb.Postgresql.MSharedBlksWrittenSum, &mb.Postgresql.MSharedBlksWrittenCnt},
+			{float32(currentPSM.SharedBlksHit - prevPSM.SharedBlksHit), &mb.Postgresql.MSharedBlksHitSum, &mb.Postgresql.MSharedBlksHitCnt},
+			{float32(currentPSM.SharedBlksRead - prevPSM.SharedBlksRead), &mb.Postgresql.MSharedBlksReadSum, &mb.Postgresql.MSharedBlksReadCnt},
+			{float32(currentPSM.SharedBlksDirtied - prevPSM.SharedBlksDirtied), &mb.Postgresql.MSharedBlksDirtiedSum, &mb.Postgresql.MSharedBlksDirtiedCnt},
+			{float32(currentPSM.SharedBlksWritten - prevPSM.SharedBlksWritten), &mb.Postgresql.MSharedBlksWrittenSum, &mb.Postgresql.MSharedBlksWrittenCnt},
 
-			{float32(currentPSS.LocalBlksHit - prevPSS.LocalBlksHit), &mb.Postgresql.MLocalBlksHitSum, &mb.Postgresql.MLocalBlksHitCnt},
-			{float32(currentPSS.LocalBlksRead - prevPSS.LocalBlksRead), &mb.Postgresql.MLocalBlksReadSum, &mb.Postgresql.MLocalBlksReadCnt},
-			{float32(currentPSS.LocalBlksDirtied - prevPSS.LocalBlksDirtied), &mb.Postgresql.MLocalBlksDirtiedSum, &mb.Postgresql.MLocalBlksDirtiedCnt},
-			{float32(currentPSS.LocalBlksWritten - prevPSS.LocalBlksWritten), &mb.Postgresql.MLocalBlksWrittenSum, &mb.Postgresql.MLocalBlksWrittenCnt},
+			{float32(currentPSM.LocalBlksHit - prevPSM.LocalBlksHit), &mb.Postgresql.MLocalBlksHitSum, &mb.Postgresql.MLocalBlksHitCnt},
+			{float32(currentPSM.LocalBlksRead - prevPSM.LocalBlksRead), &mb.Postgresql.MLocalBlksReadSum, &mb.Postgresql.MLocalBlksReadCnt},
+			{float32(currentPSM.LocalBlksDirtied - prevPSM.LocalBlksDirtied), &mb.Postgresql.MLocalBlksDirtiedSum, &mb.Postgresql.MLocalBlksDirtiedCnt},
+			{float32(currentPSM.LocalBlksWritten - prevPSM.LocalBlksWritten), &mb.Postgresql.MLocalBlksWrittenSum, &mb.Postgresql.MLocalBlksWrittenCnt},
 
-			{float32(currentPSS.TempBlksRead - prevPSS.TempBlksRead), &mb.Postgresql.MTempBlksReadSum, &mb.Postgresql.MTempBlksReadCnt},
-			{float32(currentPSS.TempBlksWritten - prevPSS.TempBlksWritten), &mb.Postgresql.MTempBlksWrittenSum, &mb.Postgresql.MTempBlksWrittenCnt},
+			{float32(currentPSM.TempBlksRead - prevPSM.TempBlksRead), &mb.Postgresql.MTempBlksReadSum, &mb.Postgresql.MTempBlksReadCnt},
+			{float32(currentPSM.TempBlksWritten - prevPSM.TempBlksWritten), &mb.Postgresql.MTempBlksWrittenSum, &mb.Postgresql.MTempBlksWrittenCnt},
 
 			// convert milliseconds to seconds
-			{float32(currentPSS.BlkReadTime-prevPSS.BlkReadTime) / 1000, &mb.Postgresql.MBlkReadTimeSum, &mb.Postgresql.MBlkReadTimeCnt},
-			{float32(currentPSS.BlkWriteTime-prevPSS.BlkWriteTime) / 1000, &mb.Postgresql.MBlkWriteTimeSum, &mb.Postgresql.MBlkWriteTimeCnt},
+			{float32(currentPSM.BlkReadTime-prevPSM.BlkReadTime) / 1000, &mb.Postgresql.MBlkReadTimeSum, &mb.Postgresql.MBlkReadTimeCnt},
+			{float32(currentPSM.BlkWriteTime-prevPSM.BlkWriteTime) / 1000, &mb.Postgresql.MBlkWriteTimeSum, &mb.Postgresql.MBlkWriteTimeCnt},
 
-			{float32(currentPSS.CPUSysTime-prevPSS.CPUSysTime) / 1000, &mb.Postgresql.MCpuSysTimeSum, &mb.Postgresql.MCpuSysTimeCnt},
-			{float32(currentPSS.CPUUserTime-prevPSS.CPUUserTime) / 1000, &mb.Postgresql.MCpuUserTimeSum, &mb.Postgresql.MCpuUserTimeCnt},
+			{float32(currentPSM.CPUSysTime-prevPSM.CPUSysTime) / 1000, &mb.Postgresql.MCpuSysTimeSum, &mb.Postgresql.MCpuSysTimeCnt},
+			{float32(currentPSM.CPUUserTime-prevPSM.CPUUserTime) / 1000, &mb.Postgresql.MCpuUserTimeSum, &mb.Postgresql.MCpuUserTimeCnt},
 		} {
 			if p.value != 0 {
 				*p.sum = p.value

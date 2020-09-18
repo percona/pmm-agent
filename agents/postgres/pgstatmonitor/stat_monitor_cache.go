@@ -21,14 +21,14 @@ import (
 	"sync"
 	"time"
 
+	pg_query "github.com/lfittl/pg_query_go"
+
 	"github.com/percona/pmm-agent/utils/truncate"
 
 	"github.com/AlekSi/pointer"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"gopkg.in/reform.v1"
-
-	"github.com/percona/go-mysql/query"
 )
 
 // statMonitorCacheStats contains statMonitorCache statistics.
@@ -129,7 +129,12 @@ func (ssc *statMonitorCache) getStatMonitorExtended(ctx context.Context, q *refo
 			fingerprint := c.Query
 			example := ""
 			if !normalizedQuery {
-				fingerprint = query.Fingerprint(c.Query)
+				var e error
+				fingerprint, e = pg_query.Normalize(c.Query)
+				if e != nil {
+					err = e
+					return
+				}
 				example = c.Query
 			}
 			var isTruncated bool
