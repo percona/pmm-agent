@@ -211,8 +211,13 @@ func (m *PGStatMonitorQAN) makeBuckets(current, prev map[string]*pgStatMonitorEx
 			// Currently, we can't differentiate between those situations.
 			m.l.Tracef("Skipped due to the same number of queries: %s.", currentPSM)
 			continue
-		case count < 0 || (now.Sub(currentPSM.BucketStartTime) > queryStatMonitor):
-			m.l.Debugf("Truncate detected. Treating as a new query: %s.", currentPSM)
+		case count < 0:
+			m.l.Debugf("Truncate detected (negative count). Treating as a new query: %s.", currentPSM)
+			prevPSM = new(pgStatMonitorExtended)
+			count = float32(currentPSM.Calls)
+		case now.Sub(currentPSM.BucketStartTime) > queryStatMonitor:
+			// TODO https://jira.percona.com/browse/PMM-6642
+			m.l.Debugf("Truncate detected (old bucket). Treating as a new query: %s.", currentPSM)
 			prevPSM = new(pgStatMonitorExtended)
 			count = float32(currentPSM.Calls)
 		case prevPSM.Calls == 0:
