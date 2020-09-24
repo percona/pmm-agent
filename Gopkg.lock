@@ -358,7 +358,7 @@
   version = "v3.2.1"
 
 [[projects]]
-  branch = "PMM-6567-pg-monitor"
+  branch = "release/2.11"
   digest = "1:3ac7b304fefe5bed424209eed1ee6f46a550c64353d100ce3d55b19b2f00f878"
   name = "github.com/percona/pmm"
   packages = [
@@ -386,7 +386,7 @@
     "version",
   ]
   pruneopts = "NUT"
-  revision = "557609823ac83c4798af3665f97ef15b662bfcc4"
+  revision = "4bcbbf0db10ec85104ccec3787614f065d889552"
 
 [[projects]]
   digest = "1:4047c378584616813d610c9f993bf90dd0d07aed8d94bd3bc299cd35ececdcba"
