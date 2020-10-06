@@ -173,9 +173,9 @@ func TestPGStatMonitorSchema(t *testing.T) {
 				Database:            "pmm-agent",
 				Tables:              []string{"public.country"},
 				Username:            "pmm-agent",
-				ClientHost:          "2886860801",
+				ClientHost:          actual.Common.ClientHost,
 				AgentId:             "agent_id",
-				PeriodStartUnixSecs: 1554116340,
+				PeriodStartUnixSecs: actual.Common.PeriodStartUnixSecs,
 				PeriodLengthSecs:    60,
 				AgentType:           inventorypb.AgentType_QAN_POSTGRESQL_PGSTATMONITOR_AGENT,
 				NumQueries:          1,
@@ -200,6 +200,7 @@ func TestPGStatMonitorSchema(t *testing.T) {
 		expected.Common.Queryid = digests[expected.Common.Fingerprint]
 		tests.AssertBucketsEqual(t, expected, actual)
 		assert.LessOrEqual(t, actual.Postgresql.MBlkReadTimeSum, actual.Common.MQueryTimeSum)
+		assert.Regexp(t, `\d{1,3}.\d{1,3}.\d{1,3}.\d{1,3}`, actual.Common.ClientHost)
 
 		_, err = db.Exec(selectAllCountries)
 		require.NoError(t, err)
@@ -218,9 +219,9 @@ func TestPGStatMonitorSchema(t *testing.T) {
 				Database:            "pmm-agent",
 				Tables:              []string{"public.country"},
 				Username:            "pmm-agent",
-				ClientHost:          "2886860801",
+				ClientHost:          actual.Common.ClientHost,
 				AgentId:             "agent_id",
-				PeriodStartUnixSecs: 1554116340,
+				PeriodStartUnixSecs: actual.Common.PeriodStartUnixSecs,
 				PeriodLengthSecs:    60,
 				AgentType:           inventorypb.AgentType_QAN_POSTGRESQL_PGSTATMONITOR_AGENT,
 				NumQueries:          1,
@@ -274,9 +275,9 @@ func TestPGStatMonitorSchema(t *testing.T) {
 				Database:            "pmm-agent",
 				Tables:              []string{"public.country"},
 				Username:            "pmm-agent",
-				ClientHost:          "2886860801",
+				ClientHost:          actual.Common.ClientHost,
 				AgentId:             "agent_id",
-				PeriodStartUnixSecs: 1554116340,
+				PeriodStartUnixSecs: actual.Common.PeriodStartUnixSecs,
 				PeriodLengthSecs:    60,
 				IsTruncated:         true,
 				AgentType:           inventorypb.AgentType_QAN_POSTGRESQL_PGSTATMONITOR_AGENT,
@@ -302,6 +303,7 @@ func TestPGStatMonitorSchema(t *testing.T) {
 		expected.Common.Queryid = digests[expected.Common.Fingerprint]
 		tests.AssertBucketsEqual(t, expected, actual)
 		assert.LessOrEqual(t, actual.Postgresql.MBlkReadTimeSum, actual.Common.MQueryTimeSum)
+		assert.Regexp(t, `\d{1,3}.\d{1,3}.\d{1,3}.\d{1,3}`, actual.Common.ClientHost)
 
 		_, err = db.Exec(q, args...)
 		require.NoError(t, err)
@@ -322,9 +324,9 @@ func TestPGStatMonitorSchema(t *testing.T) {
 				Database:            "pmm-agent",
 				Tables:              []string{"public.country"},
 				Username:            "pmm-agent",
-				ClientHost:          "2886860801",
+				ClientHost:          actual.Common.ClientHost,
 				AgentId:             "agent_id",
-				PeriodStartUnixSecs: 1554116340,
+				PeriodStartUnixSecs: actual.Common.PeriodStartUnixSecs,
 				PeriodLengthSecs:    60,
 				IsTruncated:         true,
 				AgentType:           inventorypb.AgentType_QAN_POSTGRESQL_PGSTATMONITOR_AGENT,
@@ -396,9 +398,9 @@ func TestPGStatMonitorSchema(t *testing.T) {
 				Fingerprint:         expectedFingerprint,
 				Database:            "pmm-agent",
 				Username:            "pmm-agent",
-				ClientHost:          "2886860801",
+				ClientHost:          actual.Common.ClientHost,
 				AgentId:             "agent_id",
-				PeriodStartUnixSecs: 1590404340,
+				PeriodStartUnixSecs: actual.Common.PeriodStartUnixSecs,
 				PeriodLengthSecs:    60,
 				AgentType:           inventorypb.AgentType_QAN_POSTGRESQL_PGSTATMONITOR_AGENT,
 				NumQueries:          float32(n),
@@ -426,5 +428,6 @@ func TestPGStatMonitorSchema(t *testing.T) {
 		}
 		tests.AssertBucketsEqual(t, expected, actual)
 		assert.LessOrEqual(t, actual.Postgresql.MBlkReadTimeSum, actual.Common.MQueryTimeSum)
+		assert.Regexp(t, `\d{1,3}.\d{1,3}.\d{1,3}.\d{1,3}`, actual.Common.ClientHost)
 	})
 }
