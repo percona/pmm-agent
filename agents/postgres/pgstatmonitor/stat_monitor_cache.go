@@ -21,60 +21,49 @@ import (
 	"sync"
 	"time"
 
-	pg_query "github.com/lfittl/pg_query_go"
-
-	"github.com/percona/pmm-agent/utils/truncate"
-
 	"github.com/AlekSi/pointer"
+	pgquery "github.com/lfittl/pg_query_go"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"gopkg.in/reform.v1"
+
+	"github.com/percona/pmm-agent/utils/truncate"
 )
 
 // statMonitorCacheStats contains statMonitorCache statistics.
 type statMonitorCacheStats struct {
-	current  uint
-	updatedN uint
-	addedN   uint
-	removedN uint
-	oldest   time.Time
-	newest   time.Time
+	current uint
+	oldest  time.Time
+	newest  time.Time
 }
 
 func (s statMonitorCacheStats) String() string {
 	d := s.newest.Sub(s.oldest)
-	return fmt.Sprintf("current=%d: updated=%d added=%d removed=%d; %s - %s (%s)",
-		s.current, s.updatedN, s.addedN, s.removedN,
+	return fmt.Sprintf("current=%d; %s - %s (%s)",
+		s.current,
 		s.oldest.UTC().Format("2006-01-02T15:04:05Z"), s.newest.UTC().Format("2006-01-02T15:04:05Z"), d)
 }
 
 // statMonitorCache provides cached access to pg_stat_monitor.
 // It retains data longer than this table.
 type statMonitorCache struct {
-	retain time.Duration
-	l      *logrus.Entry
+	l *logrus.Entry
 
-	rw       sync.RWMutex
-	items    map[string]*pgStatMonitorExtended
-	added    map[string]time.Time
-	updatedN uint
-	addedN   uint
-	removedN uint
+	rw    sync.RWMutex
+	items map[time.Time]map[string]*pgStatMonitorExtended
 }
 
 // newStatMonitorCache creates new statMonitorCache.
-func newStatMonitorCache(retain time.Duration, l *logrus.Entry) *statMonitorCache {
+func newStatMonitorCache(l *logrus.Entry) *statMonitorCache {
 	return &statMonitorCache{
-		retain: retain,
-		l:      l,
-		items:  make(map[string]*pgStatMonitorExtended),
-		added:  make(map[string]time.Time),
+		l:     l,
+		items: make(map[time.Time]map[string]*pgStatMonitorExtended),
 	}
 }
 
 // getStatMonitorExtended returns the current state of pg_stat_monitor table with extended information (database, username)
-// and the previous cashed state.
-func (ssc *statMonitorCache) getStatMonitorExtended(ctx context.Context, q *reform.Querier, normalizedQuery, disableQueryExamples bool) (current, prev map[string]*pgStatMonitorExtended, err error) {
+// and the previous cashed state grouped by bucket start time.
+func (ssc *statMonitorCache) getStatMonitorExtended(ctx context.Context, q *reform.Querier, normalizedQuery bool) (current, cache map[time.Time]map[string]*pgStatMonitorExtended, err error) {
 	var totalN, newN, newSharedN, oldN int
 	start := time.Now()
 	defer func() {
@@ -83,10 +72,10 @@ func (ssc *statMonitorCache) getStatMonitorExtended(ctx context.Context, q *refo
 	}()
 
 	ssc.rw.RLock()
-	current = make(map[string]*pgStatMonitorExtended, len(ssc.items))
-	prev = make(map[string]*pgStatMonitorExtended, len(ssc.items))
+	current = make(map[time.Time]map[string]*pgStatMonitorExtended)
+	cache = make(map[time.Time]map[string]*pgStatMonitorExtended)
 	for k, v := range ssc.items {
-		prev[k] = v
+		cache[k] = v
 	}
 	ssc.rw.RUnlock()
 
@@ -104,7 +93,7 @@ func (ssc *statMonitorCache) getStatMonitorExtended(ctx context.Context, q *refo
 	for ctx.Err() == nil {
 		var row pgStatMonitor
 		if err = q.NextRow(&row, rows); err != nil {
-			if err == reform.ErrNoRows {
+			if errors.Is(err, reform.ErrNoRows) {
 				err = nil
 			}
 			break
@@ -116,26 +105,24 @@ func (ssc *statMonitorCache) getStatMonitorExtended(ctx context.Context, q *refo
 			Database:      databases[row.DBID],
 			Username:      usernames[row.UserID],
 		}
+		for _, m := range cache {
+			if p, ok := m[c.QueryID]; ok {
+				oldN++
 
-		if p := prev[c.QueryID]; p != nil {
-			oldN++
-
-			c.Fingerprint = p.Fingerprint
-			c.Example = p.Example
-			c.IsQueryTruncated = p.IsQueryTruncated
-		} else {
+				c.Fingerprint = p.Fingerprint
+				c.Example = p.Example
+				c.IsQueryTruncated = p.IsQueryTruncated
+				break
+			}
+		}
+		if c.Fingerprint == "" {
 			newN++
 
 			fingerprint := c.Query
 			example := ""
 			if !normalizedQuery {
-				var e error
-				fingerprint, e = pg_query.Normalize(c.Query)
-				if e != nil {
-					err = e
-					return
-				}
 				example = c.Query
+				fingerprint = ssc.generateFingerprint(c.Query)
 			}
 			var isTruncated bool
 
@@ -149,7 +136,11 @@ func (ssc *statMonitorCache) getStatMonitorExtended(ctx context.Context, q *refo
 			}
 		}
 
-		current[c.QueryID] = c
+		if current[c.BucketStartTime] == nil {
+			current[c.BucketStartTime] = make(map[string]*pgStatMonitorExtended)
+		}
+
+		current[c.BucketStartTime][c.QueryID] = c
 	}
 	if ctx.Err() != nil {
 		err = ctx.Err()
@@ -158,7 +149,15 @@ func (ssc *statMonitorCache) getStatMonitorExtended(ctx context.Context, q *refo
 	if err != nil {
 		err = errors.Wrap(err, "failed to fetch pg_stat_monitor")
 	}
-	return
+	return current, cache, err
+}
+
+func (ssc *statMonitorCache) generateFingerprint(example string) string {
+	fingerprint, e := pgquery.Normalize(example)
+	if e != nil {
+		ssc.l.Errorln(e)
+	}
+	return fingerprint
 }
 
 // stats returns statMonitorCache statistics.
@@ -166,9 +165,9 @@ func (ssc *statMonitorCache) stats() statMonitorCacheStats {
 	ssc.rw.RLock()
 	defer ssc.rw.RUnlock()
 
-	oldest := time.Now().Add(retainStatMonitor)
+	oldest := time.Now()
 	var newest time.Time
-	for _, t := range ssc.added {
+	for t := range ssc.items {
 		if oldest.After(t) {
 			oldest = t
 		}
@@ -178,39 +177,18 @@ func (ssc *statMonitorCache) stats() statMonitorCacheStats {
 	}
 
 	return statMonitorCacheStats{
-		current:  uint(len(ssc.added)),
-		updatedN: ssc.updatedN,
-		addedN:   ssc.addedN,
-		removedN: ssc.removedN,
-		oldest:   oldest,
-		newest:   newest,
+		current: uint(len(ssc.items[newest])),
+		oldest:  oldest,
+		newest:  newest,
 	}
 }
 
-// refresh removes expired items in cache, then adds current items.
-func (ssc *statMonitorCache) refresh(current map[string]*pgStatMonitorExtended) {
+// refresh replaces old cache with a new one.
+func (ssc *statMonitorCache) refresh(current map[time.Time]map[string]*pgStatMonitorExtended) {
 	ssc.rw.Lock()
 	defer ssc.rw.Unlock()
 
-	now := time.Now()
-
-	for k, t := range ssc.added {
-		if now.Sub(t) > ssc.retain {
-			ssc.removedN++
-			delete(ssc.items, k)
-			delete(ssc.added, k)
-		}
-	}
-
-	for k, v := range current {
-		if _, ok := ssc.items[k]; ok {
-			ssc.updatedN++
-		} else {
-			ssc.addedN++
-		}
-		ssc.items[k] = v
-		ssc.added[k] = now
-	}
+	ssc.items = current
 }
 
 func queryDatabases(q *reform.Querier) map[int64]string {
