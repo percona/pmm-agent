@@ -196,7 +196,7 @@
   version = "v1.3.1"
 
 [[projects]]
-  digest = "1:9dcdbb393061438abc4f71261d12384150cba5f1dd266d3cec15f8f32c8c8aea"
+  digest = "1:01a7dad6a8aacd6269a61fd08c0fe9e3ce0c57e45f2e4270aec5a284fb178936"
   name = "github.com/golang/protobuf"
   packages = [
     "descriptor",
@@ -206,7 +206,6 @@
     "ptypes",
     "ptypes/any",
     "ptypes/duration",
-    "ptypes/struct",
     "ptypes/timestamp",
     "ptypes/wrappers",
   ]
@@ -358,7 +357,7 @@
   version = "v3.2.1"
 
 [[projects]]
-  branch = "PMM-6629-protobuf-1.4"
+  branch = "PMM-2.0"
   digest = "1:4847860f831bca61cf20607357caddb8f06e4b19815801f4d2c4a477d1a55bd8"
   name = "github.com/percona/pmm"
   packages = [
@@ -386,7 +385,7 @@
     "version",
   ]
   pruneopts = "NUT"
-  revision = "a9b8e83f62c0f935b630b1f761a0ef265c47289c"
+  revision = "db6af09ffa6edb0ae36c25a2cc963e2a5b12625b"
 
 [[projects]]
   digest = "1:4047c378584616813d610c9f993bf90dd0d07aed8d94bd3bc299cd35ececdcba"
@@ -738,7 +737,7 @@
   version = "v1.32.0"
 
 [[projects]]
-  digest = "1:648f512fb65061c60482c7475d8ce146785e2e527f1b0b01d7187563e2d82129"
+  digest = "1:a6bca15378a84c9edbc6a46779f626103e13cc7504d66a113a211f407720f840"
   name = "google.golang.org/protobuf"
   packages = [
     "encoding/protojson",
@@ -773,7 +772,6 @@
     "types/descriptorpb",
     "types/known/anypb",
     "types/known/durationpb",
-    "types/known/structpb",
     "types/known/timestamppb",
     "types/known/wrapperspb",
   ]
