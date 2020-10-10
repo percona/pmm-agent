@@ -100,6 +100,11 @@ func TestPGStatMonitorSchema(t *testing.T) {
 	_, err := db.Exec("CREATE EXTENSION IF NOT EXISTS pg_stat_monitor SCHEMA public")
 	assert.NoError(t, err)
 
+	defer func() {
+		_, err := db.Exec("DROP EXTENSION pg_stat_monitor")
+		assert.NoError(t, err)
+	}()
+
 	structs, err := db.SelectAllFrom(pgStatMonitorView, "")
 	require.NoError(t, err)
 	tests.LogTable(t, structs)
@@ -383,10 +388,21 @@ func TestPGStatMonitorSchema(t *testing.T) {
 		}
 		waitGroup.Wait()
 
-		buckets, err := m.getNewBuckets(context.Background(), 60)
-		require.NoError(t, err)
-		buckets = filter(buckets)
-		t.Logf("Actual:\n%s", tests.FormatBuckets(buckets))
+		var buckets []*agentpb.MetricsBucket
+		for i := 0; i < 100; i++ {
+			rows, err := db.SelectAllFrom(pgStatMonitorView, "WHERE queryid IS NOT NULL AND query IS NOT NULL")
+			require.NoError(t, err)
+			tests.LogTable(t, rows)
+
+			buckets, err = m.getNewBuckets(context.Background(), 60)
+			require.NoError(t, err)
+			buckets = filter(buckets)
+			t.Logf("Actual:\n%s", tests.FormatBuckets(buckets))
+			if len(buckets) >= 1 {
+				break
+			}
+			time.Sleep(100 * time.Millisecond)
+		}
 		require.Len(t, buckets, 1)
 
 		actual := buckets[0]
@@ -406,6 +422,7 @@ func TestPGStatMonitorSchema(t *testing.T) {
 				NumQueries:          float32(n),
 				MQueryTimeCnt:       float32(n),
 				MQueryTimeSum:       actual.Common.MQueryTimeSum,
+				Tables:              []string{fmt.Sprintf("public.%s", tableName)},
 			},
 			Postgresql: &agentpb.MetricsBucket_PostgreSQL{
 				MBlkReadTimeCnt:       float32(n),
