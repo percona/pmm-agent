@@ -25,11 +25,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
-
 	"github.com/percona/pmm/api/agentpb"
 	"github.com/percona/pmm/api/inventorypb"
 	"github.com/sirupsen/logrus"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/reform.v1"
 	"gopkg.in/reform.v1/dialects/postgresql"
@@ -63,11 +62,7 @@ func supportedVersion(version string) bool {
 func extensionExists(db *reform.DB) bool {
 	var name string
 	err := db.QueryRow("SELECT name FROM pg_available_extensions WHERE name='pg_stat_monitor'").Scan(&name)
-	if err != nil {
-		return false
-	}
-
-	return true
+	return err == nil
 }
 
 // filter removes buckets for queries that are not expected by tests.
@@ -157,7 +152,7 @@ func TestPGStatMonitorSchema(t *testing.T) {
 		_, err := db.Exec(selectAllCountries)
 		require.NoError(t, err)
 
-		buckets, err := m.getNewBuckets(context.Background(), time.Date(2019, 4, 1, 10, 59, 0, 0, time.UTC), 60)
+		buckets, err := m.getNewBuckets(context.Background(), 60)
 		require.NoError(t, err)
 		buckets = filter(buckets)
 		t.Logf("Actual:\n%s", tests.FormatBuckets(buckets))
@@ -178,9 +173,9 @@ func TestPGStatMonitorSchema(t *testing.T) {
 				Database:            "pmm-agent",
 				Tables:              []string{"public.country"},
 				Username:            "pmm-agent",
-				ClientHost:          "2886860801",
+				ClientHost:          actual.Common.ClientHost,
 				AgentId:             "agent_id",
-				PeriodStartUnixSecs: 1554116340,
+				PeriodStartUnixSecs: actual.Common.PeriodStartUnixSecs,
 				PeriodLengthSecs:    60,
 				AgentType:           inventorypb.AgentType_QAN_POSTGRESQL_PGSTATMONITOR_AGENT,
 				NumQueries:          1,
@@ -205,11 +200,12 @@ func TestPGStatMonitorSchema(t *testing.T) {
 		expected.Common.Queryid = digests[expected.Common.Fingerprint]
 		tests.AssertBucketsEqual(t, expected, actual)
 		assert.LessOrEqual(t, actual.Postgresql.MBlkReadTimeSum, actual.Common.MQueryTimeSum)
+		assert.Regexp(t, `\d{1,3}.\d{1,3}.\d{1,3}.\d{1,3}`, actual.Common.ClientHost)
 
 		_, err = db.Exec(selectAllCountries)
 		require.NoError(t, err)
 
-		buckets, err = m.getNewBuckets(context.Background(), time.Date(2019, 4, 1, 10, 59, 0, 0, time.UTC), 60)
+		buckets, err = m.getNewBuckets(context.Background(), 60)
 		require.NoError(t, err)
 		buckets = filter(buckets)
 		t.Logf("Actual:\n%s", tests.FormatBuckets(buckets))
@@ -223,9 +219,9 @@ func TestPGStatMonitorSchema(t *testing.T) {
 				Database:            "pmm-agent",
 				Tables:              []string{"public.country"},
 				Username:            "pmm-agent",
-				ClientHost:          "2886860801",
+				ClientHost:          actual.Common.ClientHost,
 				AgentId:             "agent_id",
-				PeriodStartUnixSecs: 1554116340,
+				PeriodStartUnixSecs: actual.Common.PeriodStartUnixSecs,
 				PeriodLengthSecs:    60,
 				AgentType:           inventorypb.AgentType_QAN_POSTGRESQL_PGSTATMONITOR_AGENT,
 				NumQueries:          1,
@@ -263,7 +259,7 @@ func TestPGStatMonitorSchema(t *testing.T) {
 		_, err := db.Exec(q, args...)
 		require.NoError(t, err)
 
-		buckets, err := m.getNewBuckets(context.Background(), time.Date(2019, 4, 1, 10, 59, 0, 0, time.UTC), 60)
+		buckets, err := m.getNewBuckets(context.Background(), 60)
 		require.NoError(t, err)
 		buckets = filter(buckets)
 		t.Logf("Actual:\n%s", tests.FormatBuckets(buckets))
@@ -279,9 +275,9 @@ func TestPGStatMonitorSchema(t *testing.T) {
 				Database:            "pmm-agent",
 				Tables:              []string{"public.country"},
 				Username:            "pmm-agent",
-				ClientHost:          "2886860801",
+				ClientHost:          actual.Common.ClientHost,
 				AgentId:             "agent_id",
-				PeriodStartUnixSecs: 1554116340,
+				PeriodStartUnixSecs: actual.Common.PeriodStartUnixSecs,
 				PeriodLengthSecs:    60,
 				IsTruncated:         true,
 				AgentType:           inventorypb.AgentType_QAN_POSTGRESQL_PGSTATMONITOR_AGENT,
@@ -307,11 +303,12 @@ func TestPGStatMonitorSchema(t *testing.T) {
 		expected.Common.Queryid = digests[expected.Common.Fingerprint]
 		tests.AssertBucketsEqual(t, expected, actual)
 		assert.LessOrEqual(t, actual.Postgresql.MBlkReadTimeSum, actual.Common.MQueryTimeSum)
+		assert.Regexp(t, `\d{1,3}.\d{1,3}.\d{1,3}.\d{1,3}`, actual.Common.ClientHost)
 
 		_, err = db.Exec(q, args...)
 		require.NoError(t, err)
 
-		buckets, err = m.getNewBuckets(context.Background(), time.Date(2019, 4, 1, 10, 59, 0, 0, time.UTC), 60)
+		buckets, err = m.getNewBuckets(context.Background(), 60)
 		require.NoError(t, err)
 		buckets = filter(buckets)
 		t.Logf("Actual:\n%s", tests.FormatBuckets(buckets))
@@ -327,9 +324,9 @@ func TestPGStatMonitorSchema(t *testing.T) {
 				Database:            "pmm-agent",
 				Tables:              []string{"public.country"},
 				Username:            "pmm-agent",
-				ClientHost:          "2886860801",
+				ClientHost:          actual.Common.ClientHost,
 				AgentId:             "agent_id",
-				PeriodStartUnixSecs: 1554116340,
+				PeriodStartUnixSecs: actual.Common.PeriodStartUnixSecs,
 				PeriodLengthSecs:    60,
 				IsTruncated:         true,
 				AgentType:           inventorypb.AgentType_QAN_POSTGRESQL_PGSTATMONITOR_AGENT,
@@ -356,7 +353,7 @@ func TestPGStatMonitorSchema(t *testing.T) {
 	})
 
 	t.Run("CheckMBlkReadTime", func(t *testing.T) {
-		r := rand.New(rand.NewSource(time.Now().Unix()))
+		r := rand.New(rand.NewSource(time.Now().Unix())) // nolint:gosec
 		tableName := fmt.Sprintf("customer%d", r.Int())
 		_, err := db.Exec(fmt.Sprintf(`
 		CREATE TABLE %s (
@@ -376,16 +373,17 @@ func TestPGStatMonitorSchema(t *testing.T) {
 		n := 1000
 		for i := 0; i < n; i++ {
 			id := i
+			query := fmt.Sprintf(`INSERT /* CheckMBlkReadTime */ INTO %s (customer_id, first_name, last_name, active) VALUES (%d, 'John', 'Dow', TRUE)`, tableName, id)
 			waitGroup.Add(1)
 			go func() {
 				defer waitGroup.Done()
-				_, err := db.Exec(fmt.Sprintf(`INSERT /* CheckMBlkReadTime */ INTO %s (customer_id, first_name, last_name, active) VALUES (%d, 'John', 'Dow', TRUE)`, tableName, id))
+				_, err := db.Exec(query)
 				require.NoError(t, err)
 			}()
 		}
 		waitGroup.Wait()
 
-		buckets, err := m.getNewBuckets(context.Background(), time.Date(2020, 5, 25, 10, 59, 0, 0, time.UTC), 60)
+		buckets, err := m.getNewBuckets(context.Background(), 60)
 		require.NoError(t, err)
 		buckets = filter(buckets)
 		t.Logf("Actual:\n%s", tests.FormatBuckets(buckets))
@@ -393,15 +391,16 @@ func TestPGStatMonitorSchema(t *testing.T) {
 
 		actual := buckets[0]
 		assert.NotZero(t, actual.Postgresql.MBlkReadTimeSum)
-		var expected = &agentpb.MetricsBucket{
+		expectedFingerprint := fmt.Sprintf("INSERT /* CheckMBlkReadTime */ INTO %s (customer_id, first_name, last_name, active) VALUES ($1, $2, $3, $4)", tableName)
+		expected := &agentpb.MetricsBucket{
 			Common: &agentpb.MetricsBucket_Common{
 				Queryid:             actual.Common.Queryid,
-				Fingerprint:         fmt.Sprintf("INSERT /* CheckMBlkReadTime */ INTO %s (customer_id, first_name, last_name, active) VALUES ($1, $2, $3, $4)", tableName),
+				Fingerprint:         expectedFingerprint,
 				Database:            "pmm-agent",
 				Username:            "pmm-agent",
-				ClientHost:          "2886860801",
+				ClientHost:          actual.Common.ClientHost,
 				AgentId:             "agent_id",
-				PeriodStartUnixSecs: 1590404340,
+				PeriodStartUnixSecs: actual.Common.PeriodStartUnixSecs,
 				PeriodLengthSecs:    60,
 				AgentType:           inventorypb.AgentType_QAN_POSTGRESQL_PGSTATMONITOR_AGENT,
 				NumQueries:          float32(n),
@@ -429,5 +428,6 @@ func TestPGStatMonitorSchema(t *testing.T) {
 		}
 		tests.AssertBucketsEqual(t, expected, actual)
 		assert.LessOrEqual(t, actual.Postgresql.MBlkReadTimeSum, actual.Common.MQueryTimeSum)
+		assert.Regexp(t, `\d{1,3}.\d{1,3}.\d{1,3}.\d{1,3}`, actual.Common.ClientHost)
 	})
 }

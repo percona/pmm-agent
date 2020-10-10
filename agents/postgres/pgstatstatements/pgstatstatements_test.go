@@ -134,7 +134,7 @@ func TestPGStatStatementsQAN(t *testing.T) {
 		}
 	}
 
-	// Need detect vendor because result for mSharedBlksReadSum are diffrent for diffrent images for postgres.
+	// Need to detect vendor because result for mSharedBlksReadSum are different for different images for postgres.
 	mSharedBlksHitSum := float32(33)
 	if strings.Contains(os.Getenv("POSTGRES_IMAGE"), "perconalab") {
 		mSharedBlksHitSum = 32
