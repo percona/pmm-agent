@@ -101,12 +101,14 @@ func TestGet(t *testing.T) {
 				PostgresExporter: "/usr/local/percona/pmm2/exporters/postgres_exporter",
 				ProxySQLExporter: "/usr/local/percona/pmm2/exporters/proxysql_exporter",
 				RDSExporter:      "/usr/local/percona/pmm2/exporters/rds_exporter",
+				VMAgent:          "/usr/local/percona/pmm2/exporters/vmagent",
 				TempDir:          os.TempDir(),
 				PTSummary:        "/usr/local/percona/pmm2/tools/pt-summary",
 			},
 			Ports: Ports{
-				Min: 42000,
-				Max: 51999,
+				Min:     42000,
+				Max:     51999,
+				VMAgent: 8429,
 			},
 		}
 		assert.Equal(t, expected, actual)
@@ -141,12 +143,14 @@ func TestGet(t *testing.T) {
 				PostgresExporter: "/usr/local/percona/pmm2/exporters/postgres_exporter",
 				ProxySQLExporter: "/usr/local/percona/pmm2/exporters/proxysql_exporter",
 				RDSExporter:      "/usr/local/percona/pmm2/exporters/rds_exporter",
+				VMAgent:          "/usr/local/percona/pmm2/exporters/vmagent",
 				TempDir:          os.TempDir(),
 				PTSummary:        "/usr/local/percona/pmm2/tools/pt-summary",
 			},
 			Ports: Ports{
-				Min: 42000,
-				Max: 51999,
+				Min:     42000,
+				Max:     51999,
+				VMAgent: 8429,
 			},
 		}
 		assert.Equal(t, expected, actual)
@@ -183,12 +187,14 @@ func TestGet(t *testing.T) {
 				PostgresExporter: "/usr/local/percona/pmm2/exporters/postgres_exporter",
 				ProxySQLExporter: "/usr/local/percona/pmm2/exporters/proxysql_exporter",
 				RDSExporter:      "/usr/local/percona/pmm2/exporters/rds_exporter",
+				VMAgent:          "/usr/local/percona/pmm2/exporters/vmagent",
 				TempDir:          os.TempDir(),
 				PTSummary:        "/usr/local/percona/pmm2/tools/pt-summary",
 			},
 			Ports: Ports{
-				Min: 42000,
-				Max: 51999,
+				Min:     42000,
+				Max:     51999,
+				VMAgent: 8429,
 			},
 			Debug: true,
 		}
@@ -233,12 +239,14 @@ func TestGet(t *testing.T) {
 				PostgresExporter: "/bar/postgres_exporter", // respect absolute value from config file
 				ProxySQLExporter: "/base/pro_exporter",     // respect relative value from config file
 				RDSExporter:      "/base/rds_exporter",     // default value
+				VMAgent:          "/base/vmagent",          // default value
 				TempDir:          os.TempDir(),
 				PTSummary:        "/usr/local/percona/pmm2/tools/pt-summary",
 			},
 			Ports: Ports{
-				Min: 42000,
-				Max: 51999,
+				Min:     42000,
+				Max:     51999,
+				VMAgent: 8429,
 			},
 			Debug: true,
 		}
@@ -266,12 +274,14 @@ func TestGet(t *testing.T) {
 				PostgresExporter: "/usr/local/percona/pmm2/exporters/postgres_exporter",
 				ProxySQLExporter: "/usr/local/percona/pmm2/exporters/proxysql_exporter",
 				RDSExporter:      "/usr/local/percona/pmm2/exporters/rds_exporter",
+				VMAgent:          "/usr/local/percona/pmm2/exporters/vmagent",
 				TempDir:          os.TempDir(),
 				PTSummary:        "/usr/local/percona/pmm2/tools/pt-summary",
 			},
 			Ports: Ports{
-				Min: 42000,
-				Max: 51999,
+				Min:     42000,
+				Max:     51999,
+				VMAgent: 8429,
 			},
 			Debug: true,
 		}

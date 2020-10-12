@@ -49,7 +49,7 @@ func assertChanges(t *testing.T, s *Supervisor, expected ...agentpb.StateChanged
 
 func TestSupervisor(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
-	s := NewSupervisor(ctx, nil, &config.Ports{Min: 65000, Max: 65099})
+	s := NewSupervisor(ctx, nil, &config.Ports{Min: 65000, Max: 65099, VMAgent: 8429}, func([]byte) {})
 
 	t.Run("Start13", func(t *testing.T) {
 		expectedList := []*agentlocalpb.AgentInfo{}
@@ -299,7 +299,7 @@ func TestSupervisorProcessParams(t *testing.T) {
 			MySQLdExporter: "/path/to/mysql_exporter",
 			TempDir:        temp,
 		}
-		s := NewSupervisor(ctx, paths, new(config.Ports))
+		s := NewSupervisor(ctx, paths, new(config.Ports), func([]byte) {})
 
 		teardown := func() {
 			cancel()

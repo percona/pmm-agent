@@ -89,6 +89,8 @@ type Paths struct {
 	ProxySQLExporter string `yaml:"proxysql_exporter"`
 	RDSExporter      string `yaml:"rds_exporter"`
 
+	VMAgent string `yaml:"vmagent"`
+
 	TempDir string `yaml:"tempdir"`
 
 	PTSummary string `yaml:"pt_summary"`
@@ -98,8 +100,9 @@ type Paths struct {
 
 // Ports represents ports configuration.
 type Ports struct {
-	Min uint16 `yaml:"min"`
-	Max uint16 `yaml:"max"`
+	Min     uint16 `yaml:"min"`
+	Max     uint16 `yaml:"max"`
+	VMAgent uint16 `yaml:"vmagent_port"`
 }
 
 // Setup contains `pmm-agent setup` flag and argument values.
@@ -174,6 +177,9 @@ func get(args []string, l *logrus.Entry) (cfg *Config, configFileF string, err e
 		if cfg.Ports.Max == 0 {
 			cfg.Ports.Max = 51999
 		}
+		if cfg.Ports.VMAgent == 0 {
+			cfg.Ports.VMAgent = 8429
+		}
 		for sp, v := range map[*string]string{
 			&cfg.Paths.ExportersBase:    "/usr/local/percona/pmm2/exporters",
 			&cfg.Paths.NodeExporter:     "node_exporter",
@@ -182,6 +188,7 @@ func get(args []string, l *logrus.Entry) (cfg *Config, configFileF string, err e
 			&cfg.Paths.PostgresExporter: "postgres_exporter",
 			&cfg.Paths.ProxySQLExporter: "proxysql_exporter",
 			&cfg.Paths.RDSExporter:      "rds_exporter",
+			&cfg.Paths.VMAgent:          "vmagent",
 			&cfg.Paths.TempDir:          os.TempDir(),
 			&cfg.Paths.PTSummary:        "/usr/local/percona/pmm2/tools/pt-summary",
 		} {
@@ -203,6 +210,7 @@ func get(args []string, l *logrus.Entry) (cfg *Config, configFileF string, err e
 			&cfg.Paths.PostgresExporter,
 			&cfg.Paths.ProxySQLExporter,
 			&cfg.Paths.RDSExporter,
+			&cfg.Paths.VMAgent,
 		} {
 			if cfg.Paths.ExportersBase != "" && !filepath.IsAbs(*sp) {
 				*sp = filepath.Join(cfg.Paths.ExportersBase, *sp)

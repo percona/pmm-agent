@@ -60,8 +60,9 @@ type Supervisor struct {
 	agentProcesses map[string]*agentProcessInfo
 	builtinAgents  map[string]*builtinAgentInfo
 
-	arw          sync.RWMutex
-	lastStatuses map[string]inventorypb.AgentStatus
+	arw              sync.RWMutex
+	lastStatuses     map[string]inventorypb.AgentStatus
+	vmagentUpdateCfg func([]byte)
 }
 
 // agentProcessInfo describes Agent process.
@@ -84,18 +85,19 @@ type builtinAgentInfo struct {
 // Supervisor is gracefully stopped when context passed to NewSupervisor is canceled.
 // Changes of Agent statuses are reported via Changes() channel which must be read until it is closed.
 // QAN data is sent to QANRequests() channel which must be read until it is closed.
-func NewSupervisor(ctx context.Context, paths *config.Paths, ports *config.Ports) *Supervisor {
+func NewSupervisor(ctx context.Context, paths *config.Paths, ports *config.Ports, vmagentUpdateCfg func([]byte)) *Supervisor {
 	supervisor := &Supervisor{
 		ctx:           ctx,
 		paths:         paths,
-		portsRegistry: newPortsRegistry(ports.Min, ports.Max, nil),
+		portsRegistry: newPortsRegistry(ports.Min, ports.Max, []uint16{ports.VMAgent}),
 		changes:       make(chan agentpb.StateChangedRequest, 10),
 		qanRequests:   make(chan agentpb.QANCollectRequest, 10),
 		l:             logrus.WithField("component", "supervisor"),
 
-		agentProcesses: make(map[string]*agentProcessInfo),
-		builtinAgents:  make(map[string]*builtinAgentInfo),
-		lastStatuses:   make(map[string]inventorypb.AgentStatus),
+		agentProcesses:   make(map[string]*agentProcessInfo),
+		builtinAgents:    make(map[string]*builtinAgentInfo),
+		lastStatuses:     make(map[string]inventorypb.AgentStatus),
+		vmagentUpdateCfg: vmagentUpdateCfg,
 	}
 
 	go func() {
@@ -161,6 +163,7 @@ func (s *Supervisor) SetState(state *agentpb.SetStateRequest) {
 
 	s.setAgentProcesses(state.AgentProcesses)
 	s.setBuiltinAgents(state.BuiltinAgents)
+	s.vmagentUpdateCfg(state.VmagentScrapeConfig)
 }
 
 func (s *Supervisor) storeLastStatus(agentID string, status inventorypb.AgentStatus) {

@@ -152,6 +152,7 @@ func serverRegister(cfgSetup *config.Setup) (string, error) {
 			Address: cfgSetup.Address,
 
 			Reregister: cfgSetup.Force,
+			UseVmagent: true,
 		},
 		Context: context.Background(),
 	})
