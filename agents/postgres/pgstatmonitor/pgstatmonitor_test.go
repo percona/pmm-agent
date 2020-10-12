@@ -88,6 +88,7 @@ func filter(mb []*agentpb.MetricsBucket) []*agentpb.MetricsBucket {
 }
 
 func TestPGStatMonitorSchema(t *testing.T) {
+	t.Skip("Skip it until https://jira.percona.com/browse/PG-139 is fixed")
 	sqlDB := tests.OpenTestPostgreSQL(t)
 	defer sqlDB.Close() //nolint:errcheck
 	db := reform.NewDB(sqlDB, postgresql.Dialect, reform.NewPrintfLogger(t.Logf))
@@ -101,7 +102,7 @@ func TestPGStatMonitorSchema(t *testing.T) {
 	assert.NoError(t, err)
 
 	defer func() {
-		_, err := db.Exec("DROP EXTENSION pg_stat_monitor")
+		_, err = db.Exec("DROP EXTENSION pg_stat_monitor")
 		assert.NoError(t, err)
 	}()
 
