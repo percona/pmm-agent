@@ -18,6 +18,7 @@ package pgstatstatements
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -97,7 +98,14 @@ func (ssc *statStatementCache) getStatStatementsExtended(ctx context.Context, q 
 	// so cache results of the current iteration too
 	tables := make(map[int64][]string)
 
-	rows, err := q.SelectRows(pgStatStatementsView, "WHERE queryid IS NOT NULL AND query IS NOT NULL")
+	columns := strings.Join(q.QualifiedColumns(pgStatStatementsView), ", ")
+	switch {
+	case pgVersion >= 13:
+		columns = strings.Replace(columns, `"total_time"`, `"total_exec_time"`, 1)
+	}
+
+	tail := "WHERE queryid IS NOT NULL AND query IS NOT NULL"
+	rows, err := q.Query(fmt.Sprintf("SELECT /* %s */ %s FROM %s %s", queryTag, columns, q.QualifiedView(pgStatStatementsView), tail))
 	if err != nil {
 		err = errors.Wrap(err, "failed to query pg_stat_statements")
 		return

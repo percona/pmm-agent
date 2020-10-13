@@ -19,9 +19,11 @@ package pgstatstatements
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"io"
 	"math"
 	"strconv"
+	"strings"
 	"time"
 
 	_ "github.com/lib/pq" // register SQL driver
@@ -38,6 +40,10 @@ import (
 const (
 	retainStatStatements = 25 * time.Hour // make it work for daily queries
 	queryStatStatements  = time.Minute
+)
+
+var (
+	pgVersion float64 //contain version of PostgreSQL to handle diffrent versions
 )
 
 // PGStatStatementsQAN QAN services connects to PostgreSQL and extracts stats.
@@ -67,6 +73,21 @@ func New(params *Params, l *logrus.Entry) (*PGStatStatementsQAN, error) {
 	sqlDB.SetMaxIdleConns(1)
 	sqlDB.SetMaxOpenConns(1)
 	sqlDB.SetConnMaxLifetime(0)
+
+	var version string
+	err = sqlDB.QueryRow("SELECT /* pmm-agent:PostgreSQLVersion */ version()").Scan(&version)
+	if err != nil {
+		return nil, err
+	}
+	split := strings.Split(version, " ")
+	if len(split) < 2 {
+		return nil, fmt.Errorf("error during parsing PostgreSQL version")
+	}
+	pgVersion, err = strconv.ParseFloat(split[1], 64)
+	if err != nil {
+		return nil, err
+	}
+
 	reformL := sqlmetrics.NewReform("postgres", params.AgentID, l.Tracef)
 	// TODO register reformL metrics https://jira.percona.com/browse/PMM-4087
 	q := reform.NewDB(sqlDB, postgresql.Dialect, reformL).WithTag(queryTag)
