@@ -35,6 +35,7 @@ import (
 	"gopkg.in/reform.v1/dialects/postgresql"
 
 	"github.com/percona/pmm-agent/agents"
+	"github.com/percona/pmm-agent/utils/version"
 )
 
 const (
@@ -88,22 +89,13 @@ func newPgStatStatementsQAN(q *reform.Querier, dbCloser io.Closer, agentID strin
 }
 
 func getPGVersion(q *reform.Querier) (pgVersion float64, err error) {
-	var version string
-	err = q.QueryRow("SELECT /* pmm-agent:PostgreSQLVersion */ version()").Scan(&version)
+	var v string
+	err = q.QueryRow(fmt.Sprintf("SELECT /* %s */ version()", queryTag)).Scan(&v)
 	if err != nil {
 		return
 	}
-	split := strings.Split(version, " ")
-	if len(split) < 2 {
-		err = fmt.Errorf("error during parsing PostgreSQL version")
-		return
-	}
-	pgVersion, err = strconv.ParseFloat(split[1], 64)
-	if err != nil {
-		return
-	}
-
-	return
+	v = version.ParsePostgreSQLVersion(v)
+	return strconv.ParseFloat(v, 64)
 }
 
 func rowsByVersion(q *reform.Querier, tail string) (*sql.Rows, error) {
