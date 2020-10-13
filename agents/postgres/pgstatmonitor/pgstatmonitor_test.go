@@ -88,6 +88,7 @@ func filter(mb []*agentpb.MetricsBucket) []*agentpb.MetricsBucket {
 }
 
 func TestPGStatMonitorSchema(t *testing.T) {
+	t.Skip("Skip it until https://jira.percona.com/browse/PG-139 is fixed")
 	sqlDB := tests.OpenTestPostgreSQL(t)
 	defer sqlDB.Close() //nolint:errcheck
 	db := reform.NewDB(sqlDB, postgresql.Dialect, reform.NewPrintfLogger(t.Logf))
@@ -358,7 +359,6 @@ func TestPGStatMonitorSchema(t *testing.T) {
 	})
 
 	t.Run("CheckMBlkReadTime", func(t *testing.T) {
-		t.Skip("Skip it until https://jira.percona.com/browse/PG-139 is fixed")
 		r := rand.New(rand.NewSource(time.Now().Unix())) // nolint:gosec
 		tableName := fmt.Sprintf("customer%d", r.Int())
 		_, err := db.Exec(fmt.Sprintf(`
