@@ -42,10 +42,6 @@ const (
 	queryStatStatements  = time.Minute
 )
 
-var (
-	pgVersion float64 //contain version of PostgreSQL to handle diffrent versions
-)
-
 // PGStatStatementsQAN QAN services connects to PostgreSQL and extracts stats.
 type PGStatStatementsQAN struct {
 	q              *reform.Querier
@@ -74,11 +70,6 @@ func New(params *Params, l *logrus.Entry) (*PGStatStatementsQAN, error) {
 	sqlDB.SetMaxOpenConns(1)
 	sqlDB.SetConnMaxLifetime(0)
 
-	pgVersion, err = getPGVersion(sqlDB)
-	if err != nil {
-		return nil, err
-	}
-
 	reformL := sqlmetrics.NewReform("postgres", params.AgentID, l.Tracef)
 	// TODO register reformL metrics https://jira.percona.com/browse/PMM-4087
 	q := reform.NewDB(sqlDB, postgresql.Dialect, reformL).WithTag(queryTag)
@@ -96,9 +87,9 @@ func newPgStatStatementsQAN(q *reform.Querier, dbCloser io.Closer, agentID strin
 	}
 }
 
-func getPGVersion(sqlDB *sql.DB) (pgVersion float64, err error) {
+func getPGVersion(q *reform.Querier) (pgVersion float64, err error) {
 	var version string
-	err = sqlDB.QueryRow("SELECT /* pmm-agent:PostgreSQLVersion */ version()").Scan(&version)
+	err = q.QueryRow("SELECT /* pmm-agent:PostgreSQLVersion */ version()").Scan(&version)
 	if err != nil {
 		return
 	}
@@ -116,6 +107,11 @@ func getPGVersion(sqlDB *sql.DB) (pgVersion float64, err error) {
 }
 
 func rowsByVersion(q *reform.Querier, tail string) (*sql.Rows, error) {
+	pgVersion, err := getPGVersion(q)
+	if err != nil {
+		return nil, err
+	}
+
 	columns := strings.Join(q.QualifiedColumns(pgStatStatementsView), ", ")
 	switch {
 	case pgVersion >= 13:

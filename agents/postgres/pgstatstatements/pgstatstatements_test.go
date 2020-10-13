@@ -76,8 +76,6 @@ func TestPGStatStatementsQAN(t *testing.T) {
 
 	structs, err := db.SelectAllFrom(pgStatDatabaseView, "")
 	require.NoError(t, err)
-	pgVersion, err = getPGVersion(sqlDB)
-	require.NoError(t, err)
 	rows, err := rowsByVersion(db.Querier, "")
 	require.NoError(t, err)
 
