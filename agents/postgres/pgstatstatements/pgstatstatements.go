@@ -74,16 +74,7 @@ func New(params *Params, l *logrus.Entry) (*PGStatStatementsQAN, error) {
 	sqlDB.SetMaxOpenConns(1)
 	sqlDB.SetConnMaxLifetime(0)
 
-	var version string
-	err = sqlDB.QueryRow("SELECT /* pmm-agent:PostgreSQLVersion */ version()").Scan(&version)
-	if err != nil {
-		return nil, err
-	}
-	split := strings.Split(version, " ")
-	if len(split) < 2 {
-		return nil, fmt.Errorf("error during parsing PostgreSQL version")
-	}
-	pgVersion, err = strconv.ParseFloat(split[1], 64)
+	pgVersion, err = getPGVersion(sqlDB)
 	if err != nil {
 		return nil, err
 	}
@@ -103,6 +94,35 @@ func newPgStatStatementsQAN(q *reform.Querier, dbCloser io.Closer, agentID strin
 		changes:        make(chan agents.Change, 10),
 		statementCache: newStatStatementCache(retainStatStatements, l),
 	}
+}
+
+func getPGVersion(sqlDB *sql.DB) (pgVersion float64, err error) {
+	var version string
+	err = sqlDB.QueryRow("SELECT /* pmm-agent:PostgreSQLVersion */ version()").Scan(&version)
+	if err != nil {
+		return
+	}
+	split := strings.Split(version, " ")
+	if len(split) < 2 {
+		err = fmt.Errorf("error during parsing PostgreSQL version")
+		return
+	}
+	pgVersion, err = strconv.ParseFloat(split[1], 64)
+	if err != nil {
+		return
+	}
+
+	return
+}
+
+func rowsByVersion(q *reform.Querier, tail string) (*sql.Rows, error) {
+	columns := strings.Join(q.QualifiedColumns(pgStatStatementsView), ", ")
+	switch {
+	case pgVersion >= 13:
+		columns = strings.Replace(columns, `"total_time"`, `"total_exec_time"`, 1)
+	}
+
+	return q.Query(fmt.Sprintf("SELECT /* %s */ %s FROM %s %s", queryTag, columns, q.QualifiedView(pgStatStatementsView), tail))
 }
 
 // Run extracts stats data and sends it to the channel until ctx is canceled.
