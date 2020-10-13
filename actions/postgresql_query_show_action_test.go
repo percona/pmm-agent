@@ -49,7 +49,7 @@ func TestPostgreSQLQueryShow(t *testing.T) {
 		engineVersion := tests.PostgreSQLVersion(t, db)
 		switch engineVersion {
 		case "13":
-			assert.LessOrEqual(t, len(b), 31043)
+			assert.LessOrEqual(t, len(b), 31045)
 		default:
 			assert.LessOrEqual(t, len(b), 30152)
 		}
