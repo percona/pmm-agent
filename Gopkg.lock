@@ -210,8 +210,8 @@
     "ptypes/wrappers",
   ]
   pruneopts = "NUT"
-  revision = "3beb084e9a50bff8d7ac57f1c9aa41671f479cbd"
-  source = "github.com/cybrcodr/protobuf"
+  revision = "4846b58453b3708320bdb524f25cc5a1d9cda4d4"
+  version = "v1.4.3"
 
 [[projects]]
   branch = "master"
@@ -357,7 +357,7 @@
   version = "v3.2.1"
 
 [[projects]]
-  branch = "PMM-2.0"
+  branch = "PMM-6760-update-protobuf"
   digest = "1:4847860f831bca61cf20607357caddb8f06e4b19815801f4d2c4a477d1a55bd8"
   name = "github.com/percona/pmm"
   packages = [
@@ -385,7 +385,7 @@
     "version",
   ]
   pruneopts = "NUT"
-  revision = "f1b63881205af561c5cfccc1528588b522a17dd7"
+  revision = "97398adbee14317136d517ad3630cbbae47bb114"
 
 [[projects]]
   digest = "1:4047c378584616813d610c9f993bf90dd0d07aed8d94bd3bc299cd35ececdcba"
