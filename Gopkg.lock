@@ -210,8 +210,8 @@
     "ptypes/wrappers",
   ]
   pruneopts = "NUT"
-  revision = "3beb084e9a50bff8d7ac57f1c9aa41671f479cbd"
-  source = "github.com/cybrcodr/protobuf"
+  revision = "4846b58453b3708320bdb524f25cc5a1d9cda4d4"
+  version = "v1.4.3"
 
 [[projects]]
   branch = "master"
@@ -357,8 +357,8 @@
   version = "v3.2.1"
 
 [[projects]]
-  branch = "PMM-6759-get-for-pmm-agent"
-  digest = "1:9c9dc16e6f7a3cdc1599226800e7a52eb06837cc218a5040b9c2737a67a92df5"
+  branch = "release/2.12"
+  digest = "1:2ac2fac4f91e4ad767f710da8a5c4943a9323ac7e55d46c4bd8f876b3cb8ee9f"
   name = "github.com/percona/pmm"
   packages = [
     "api/agentlocalpb",
@@ -385,7 +385,7 @@
     "version",
   ]
   pruneopts = "NUT"
-  revision = "7379b505072a7f454e8ab75fda45afa36a972ade"
+  revision = "937adbc871a6a43caa9d244feb25e94e68832c02"
 
 [[projects]]
   digest = "1:4047c378584616813d610c9f993bf90dd0d07aed8d94bd3bc299cd35ececdcba"
