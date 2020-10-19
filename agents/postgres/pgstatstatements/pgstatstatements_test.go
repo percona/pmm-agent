@@ -69,10 +69,34 @@ func TestPGStatStatementsQAN(t *testing.T) {
 	_, err := db.Exec("CREATE EXTENSION IF NOT EXISTS pg_stat_statements SCHEMA public")
 	require.NoError(t, err)
 
+	defer func() {
+		_, err := db.Exec("DROP EXTENSION pg_stat_statements")
+		assert.NoError(t, err)
+	}()
+
 	structs, err := db.SelectAllFrom(pgStatDatabaseView, "")
 	require.NoError(t, err)
-	tests.LogTable(t, structs)
-	structs, err = db.SelectAllFrom(pgStatStatementsView, "")
+	rows, err := rowsByVersion(db.Querier, "")
+	require.NoError(t, err)
+
+	defer func() {
+		e := rows.Close()
+		if err == nil {
+			err = e
+		}
+	}()
+
+	for {
+		str := pgStatStatementsView.NewStruct()
+		if err = db.Querier.NextRow(str, rows); err != nil {
+			break
+		}
+
+		structs = append(structs, str)
+	}
+	if err == reform.ErrNoRows {
+		err = nil
+	}
 	require.NoError(t, err)
 	tests.LogTable(t, structs)
 
@@ -125,7 +149,11 @@ func TestPGStatStatementsQAN(t *testing.T) {
 			selectAllCities:     "5627444073676588515",
 			selectAllCitiesLong: "-1605123213815583414",
 		}
-
+	case "13":
+		digests = map[string]string{
+			selectAllCities:     "-32455482996301954",
+			selectAllCitiesLong: "-4813789842463369261",
+		}
 	default:
 		t.Log("Unhandled version, assuming dummy digests.")
 		digests = map[string]string{

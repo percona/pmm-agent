@@ -216,19 +216,19 @@ func (m *PGStatMonitorQAN) makeBuckets(current, cache map[time.Time]map[string]*
 			if prevPSM == nil {
 				prevPSM = new(pgStatMonitorExtended)
 			}
-			count := float32(currentPSM.Calls - prevPSM.Calls)
+			count := float32(currentPSM.TotalCalls - prevPSM.TotalCalls)
 			switch {
 			case count == 0:
 				// Another way how this is possible is if pg_stat_monitor was truncated,
 				// and then the same number of queries were made.
 				// Currently, we can't differentiate between those situations.
-				m.l.Tracef("Skipped due to the same number of queries: %s.", currentPSM)
+				m.l.Debugf("Skipped due to the same number of queries: %s.", currentPSM)
 				continue
 			case count < 0:
 				m.l.Debugf("Truncate detected (negative count). Treating as a new query: %s.", currentPSM)
 				prevPSM = new(pgStatMonitorExtended)
-				count = float32(currentPSM.Calls)
-			case prevPSM.Calls == 0:
+				count = float32(currentPSM.TotalCalls)
+			case prevPSM.TotalCalls == 0:
 				m.l.Debugf("New query: %s.", currentPSM)
 			default:
 				m.l.Debugf("Normal query: %s.", currentPSM)
@@ -263,7 +263,7 @@ func (m *PGStatMonitorQAN) makeBuckets(current, cache map[time.Time]map[string]*
 			}{
 				// convert milliseconds to seconds
 				{float32(currentPSM.TotalTime-prevPSM.TotalTime) / 1000, &mb.Common.MQueryTimeSum, &mb.Common.MQueryTimeCnt},
-				{float32(currentPSM.Rows - prevPSM.Rows), &mb.Postgresql.MRowsSum, &mb.Postgresql.MRowsCnt},
+				{float32(currentPSM.EffectedRows - prevPSM.EffectedRows), &mb.Postgresql.MRowsSum, &mb.Postgresql.MRowsCnt},
 
 				{float32(currentPSM.SharedBlksHit - prevPSM.SharedBlksHit), &mb.Postgresql.MSharedBlksHitSum, &mb.Postgresql.MSharedBlksHitCnt},
 				{float32(currentPSM.SharedBlksRead - prevPSM.SharedBlksRead), &mb.Postgresql.MSharedBlksReadSum, &mb.Postgresql.MSharedBlksReadCnt},
@@ -282,8 +282,9 @@ func (m *PGStatMonitorQAN) makeBuckets(current, cache map[time.Time]map[string]*
 				{float32(currentPSM.BlkReadTime-prevPSM.BlkReadTime) / 1000, &mb.Postgresql.MBlkReadTimeSum, &mb.Postgresql.MBlkReadTimeCnt},
 				{float32(currentPSM.BlkWriteTime-prevPSM.BlkWriteTime) / 1000, &mb.Postgresql.MBlkWriteTimeSum, &mb.Postgresql.MBlkWriteTimeCnt},
 
-				{float32(currentPSM.CPUSysTime-prevPSM.CPUSysTime) / 1000, &mb.Postgresql.MCpuSysTimeSum, &mb.Postgresql.MCpuSysTimeCnt},
-				{float32(currentPSM.CPUUserTime-prevPSM.CPUUserTime) / 1000, &mb.Postgresql.MCpuUserTimeSum, &mb.Postgresql.MCpuUserTimeCnt},
+				// convert microseconds to seconds
+				{float32(currentPSM.CPUSysTime-prevPSM.CPUSysTime) / 1000000, &mb.Postgresql.MCpuSysTimeSum, &mb.Postgresql.MCpuSysTimeCnt},
+				{float32(currentPSM.CPUUserTime-prevPSM.CPUUserTime) / 1000000, &mb.Postgresql.MCpuUserTimeSum, &mb.Postgresql.MCpuUserTimeCnt},
 			} {
 				if p.value != 0 {
 					*p.sum = p.value
