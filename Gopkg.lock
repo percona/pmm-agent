@@ -358,7 +358,7 @@
 
 [[projects]]
   branch = "PMM-6397-vmagent-integration"
-  digest = "1:2df0662b97cdb1a1c11e5c4d38a26abbd363eacc8a5042b633cb9597cdfaaf4d"
+  digest = "1:8d00ee7c52fab6316fa45b4697ab13a783c86225c9421e61537115033b934493"
   name = "github.com/percona/pmm"
   packages = [
     "api/agentlocalpb",
@@ -385,7 +385,7 @@
     "version",
   ]
   pruneopts = "NUT"
-  revision = "937adbc871a6a43caa9d244feb25e94e68832c02"
+  revision = "9861cf1f4a2244a9809fb4de8e3b939d3fc79ec0"
 
 [[projects]]
   digest = "1:4047c378584616813d610c9f993bf90dd0d07aed8d94bd3bc299cd35ececdcba"

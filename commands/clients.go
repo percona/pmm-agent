@@ -24,6 +24,8 @@ import (
 	"net/http"
 	"net/url"
 
+	"github.com/percona/pmm/version"
+
 	"github.com/AlekSi/pointer"
 	"github.com/go-openapi/runtime"
 	httptransport "github.com/go-openapi/runtime/client"
@@ -151,8 +153,8 @@ func serverRegister(cfgSetup *config.Setup) (string, error) {
 			// TODO CustomLabels:  customLabels,
 			Address: cfgSetup.Address,
 
-			Reregister: cfgSetup.Force,
-			UseVmagent: true,
+			Reregister:      cfgSetup.Force,
+			PMMAgentVersion: version.Version,
 		},
 		Context: context.Background(),
 	})
