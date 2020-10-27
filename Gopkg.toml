@@ -27,7 +27,7 @@ required = [
 # replace it with PMM-2.0 before merge
 [[constraint]]
   name = "github.com/percona/pmm"
-  branch = "PMM-6397-vmagent-integration"
+  branch = "PMM-6397-metrics-model-flow"
 
 [[constraint]]
   name = "github.com/percona/go-mysql"

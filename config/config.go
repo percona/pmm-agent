@@ -118,6 +118,7 @@ type Setup struct {
 	Region        string
 	Az            string
 	Address       string
+	MetricsMode   string
 
 	Force            bool
 	SkipRegistration bool
@@ -374,6 +375,9 @@ func Application(cfg *Config) (*kingpin.Application, *string) {
 		Envar("PMM_AGENT_SETUP_FORCE").BoolVar(&cfg.Setup.Force)
 	setupCmd.Flag("skip-registration", "Skip registration on PMM Server [PMM_AGENT_SETUP_SKIP_REGISTRATION]").
 		Envar("PMM_AGENT_SETUP_SKIP_REGISTRATION").BoolVar(&cfg.Setup.SkipRegistration)
+	setupCmd.Flag("metrics-mode", "Metrics flow mode for agents node-exporter, can be push - agent will push metrics,"+
+		"pull - server scrape metrics from agent  or auto - chosen by server. [PMM_AGENT_METRICS_MODE]").
+		Envar("PMM_AGENT_METRICS_MODE").StringVar(&cfg.Setup.MetricsMode)
 
 	return app, configFileF
 }

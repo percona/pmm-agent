@@ -357,8 +357,8 @@
   version = "v3.2.1"
 
 [[projects]]
-  branch = "PMM-6397-vmagent-integration"
-  digest = "1:8d00ee7c52fab6316fa45b4697ab13a783c86225c9421e61537115033b934493"
+  branch = "PMM-6397-metrics-model-flow"
+  digest = "1:5f53d383abd4daa27a389cb5600284caf6e784ceb639905919c4f692a3ef167c"
   name = "github.com/percona/pmm"
   packages = [
     "api/agentlocalpb",
@@ -385,7 +385,7 @@
     "version",
   ]
   pruneopts = "NUT"
-  revision = "9861cf1f4a2244a9809fb4de8e3b939d3fc79ec0"
+  revision = "58b9d2d442a84709e9a8126ed9cfd570c7413e7c"
 
 [[projects]]
   digest = "1:4047c378584616813d610c9f993bf90dd0d07aed8d94bd3bc299cd35ececdcba"

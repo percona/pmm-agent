@@ -373,7 +373,8 @@ type SetStateRequest struct {
 
 	AgentProcesses map[string]*SetStateRequest_AgentProcess `protobuf:"bytes,1,rep,name=agent_processes,json=agentProcesses,proto3" json:"agent_processes,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
 	BuiltinAgents  map[string]*SetStateRequest_BuiltinAgent `protobuf:"bytes,2,rep,name=builtin_agents,json=builtinAgents,proto3" json:"builtin_agents,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
-	// Rendered scrape configuration for vmagent
+	// Scrape configuration for vmagent, that runs at pmm-agent,
+	// built and validated at a pmm-server.
 	VmagentScrapeConfig []byte `protobuf:"bytes,3,opt,name=vmagent_scrape_config,json=vmagentScrapeConfig,proto3" json:"vmagent_scrape_config,omitempty"`
 }
 
