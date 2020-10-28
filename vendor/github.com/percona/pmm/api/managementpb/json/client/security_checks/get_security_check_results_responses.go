@@ -86,7 +86,7 @@ func NewGetSecurityCheckResultsDefault(code int) *GetSecurityCheckResultsDefault
 
 /*GetSecurityCheckResultsDefault handles this case with default header values.
 
-An unexpected error response
+An unexpected error response.
 */
 type GetSecurityCheckResultsDefault struct {
 	_statusCode int
@@ -116,42 +116,6 @@ func (o *GetSecurityCheckResultsDefault) readResponse(response runtime.ClientRes
 		return err
 	}
 
-	return nil
-}
-
-/*DetailsItems0 details items0
-swagger:model DetailsItems0
-*/
-type DetailsItems0 struct {
-
-	// type url
-	TypeURL string `json:"type_url,omitempty"`
-
-	// value
-	// Format: byte
-	Value strfmt.Base64 `json:"value,omitempty"`
-}
-
-// Validate validates this details items0
-func (o *DetailsItems0) Validate(formats strfmt.Registry) error {
-	return nil
-}
-
-// MarshalBinary interface implementation
-func (o *DetailsItems0) MarshalBinary() ([]byte, error) {
-	if o == nil {
-		return nil, nil
-	}
-	return swag.WriteJSON(o)
-}
-
-// UnmarshalBinary interface implementation
-func (o *DetailsItems0) UnmarshalBinary(b []byte) error {
-	var res DetailsItems0
-	if err := swag.ReadJSON(b, &res); err != nil {
-		return err
-	}
-	*o = res
 	return nil
 }
 
