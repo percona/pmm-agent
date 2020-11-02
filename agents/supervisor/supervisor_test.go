@@ -49,7 +49,7 @@ func assertChanges(t *testing.T, s *Supervisor, expected ...agentpb.StateChanged
 
 func TestSupervisor(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
-	s := NewSupervisor(ctx, nil, &config.Ports{Min: 65000, Max: 65099})
+	s := NewSupervisor(ctx, nil, &config.Ports{Min: 65000, Max: 65099}, "")
 
 	t.Run("Start13", func(t *testing.T) {
 		expectedList := []*agentlocalpb.AgentInfo{}
@@ -299,7 +299,7 @@ func TestSupervisorProcessParams(t *testing.T) {
 			MySQLdExporter: "/path/to/mysql_exporter",
 			TempDir:        temp,
 		}
-		s := NewSupervisor(ctx, paths, new(config.Ports))
+		s := NewSupervisor(ctx, paths, new(config.Ports), "127.0.0.1")
 
 		teardown := func() {
 			cancel()
@@ -320,7 +320,7 @@ func TestSupervisorProcessParams(t *testing.T) {
 		p := &agentpb.SetStateRequest_AgentProcess{
 			Type: inventorypb.AgentType_MYSQLD_EXPORTER,
 			Args: []string{
-				"-web.listen-address=:{{ .listen_port }}",
+				"-web.listen-address={{ .listen_address }}:{{ .listen_port }}",
 				"-web.ssl-cert-file={{ .TextFiles.Cert }}",
 			},
 			Env: []string{
@@ -338,7 +338,7 @@ func TestSupervisorProcessParams(t *testing.T) {
 		expected := process.Params{
 			Path: "/path/to/mysql_exporter",
 			Args: []string{
-				"-web.listen-address=:12345",
+				"-web.listen-address=127.0.0.1:12345",
 				"-web.ssl-cert-file=" + filepath.Join(s.paths.TempDir, "mysqld_exporter", "ID", "Cert"),
 			},
 			Env: []string{

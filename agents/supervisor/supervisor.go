@@ -51,6 +51,7 @@ import (
 type Supervisor struct {
 	ctx           context.Context
 	paths         *config.Paths
+	bindIP        string
 	portsRegistry *portsRegistry
 	changes       chan agentpb.StateChangedRequest
 	qanRequests   chan agentpb.QANCollectRequest
@@ -84,10 +85,11 @@ type builtinAgentInfo struct {
 // Supervisor is gracefully stopped when context passed to NewSupervisor is canceled.
 // Changes of Agent statuses are reported via Changes() channel which must be read until it is closed.
 // QAN data is sent to QANRequests() channel which must be read until it is closed.
-func NewSupervisor(ctx context.Context, paths *config.Paths, ports *config.Ports) *Supervisor {
+func NewSupervisor(ctx context.Context, paths *config.Paths, ports *config.Ports, bindIP string) *Supervisor {
 	supervisor := &Supervisor{
 		ctx:           ctx,
 		paths:         paths,
+		bindIP:        bindIP,
 		portsRegistry: newPortsRegistry(ports.Min, ports.Max, nil),
 		changes:       make(chan agentpb.StateChangedRequest, 10),
 		qanRequests:   make(chan agentpb.QANCollectRequest, 10),
@@ -509,7 +511,8 @@ func (s *Supervisor) processParams(agentID string, agentProcess *agentpb.SetStat
 	}
 
 	templateParams := map[string]interface{}{
-		"listen_port": port,
+		"listen_address": s.bindIP,
+		"listen_port":    port,
 	}
 
 	// render files only if they are present to avoid creating temporary directory for every agent

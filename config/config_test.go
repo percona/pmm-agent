@@ -84,6 +84,7 @@ func TestGet(t *testing.T) {
 		actual, configFilepath, err := get([]string{
 			"--id=agent-id",
 			"--server-address=127.0.0.1",
+			"--bind-ip=127.0.0.1",
 		}, logrus.WithField("test", t.Name()))
 		require.NoError(t, err)
 
@@ -104,6 +105,7 @@ func TestGet(t *testing.T) {
 				TempDir:          os.TempDir(),
 				PTSummary:        "/usr/local/percona/pmm2/tools/pt-summary",
 			},
+			BindIP: "127.0.0.1",
 			Ports: Ports{
 				Min: 42000,
 				Max: 51999,
@@ -119,6 +121,7 @@ func TestGet(t *testing.T) {
 			Server: Server{
 				Address: "127.0.0.1",
 			},
+			BindIP: "127.0.0.1",
 		})
 		defer removeConfig(t, name)
 
@@ -144,6 +147,7 @@ func TestGet(t *testing.T) {
 				TempDir:          os.TempDir(),
 				PTSummary:        "/usr/local/percona/pmm2/tools/pt-summary",
 			},
+			BindIP: "127.0.0.1",
 			Ports: Ports{
 				Min: 42000,
 				Max: 51999,

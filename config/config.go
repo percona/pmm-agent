@@ -130,6 +130,7 @@ type Config struct {
 
 	Server Server `yaml:"server"`
 	Paths  Paths  `yaml:"paths"`
+	BindIP string `yaml:"bind-ip"`
 	Ports  Ports  `yaml:"ports"`
 
 	Debug bool `yaml:"debug"`
@@ -306,6 +307,8 @@ func Application(cfg *Config) (*kingpin.Application, *string) {
 		Envar("PMM_AGENT_PATHS_TEMPDIR").StringVar(&cfg.Paths.TempDir)
 	// no flag for SlowLogFilePrefix - it is only for development and testing
 
+	app.Flag("bind-ip", "Bind listening sockets to ip address [PMM_AGENT_BIND_ADDR]").
+		Envar("PMM_AGENT_BIND_ADDR").StringVar(&cfg.BindIP)
 	app.Flag("ports-min", "Minimal allowed port number for listening sockets [PMM_AGENT_PORTS_MIN]").
 		Envar("PMM_AGENT_PORTS_MIN").Uint16Var(&cfg.Ports.Min)
 	app.Flag("ports-max", "Maximal allowed port number for listening sockets [PMM_AGENT_PORTS_MAX]").
