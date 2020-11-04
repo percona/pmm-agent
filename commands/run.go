@@ -58,12 +58,12 @@ func Run() {
 		if err != nil {
 			l.WithError(err).Fatalf("failed to create vmagent")
 		}
-		vma.Start(appCtx)
+		vmagetCfgChan := vma.Start(appCtx)
 		l.Debug("VmAgent was started")
 
 		for appCtx.Err() == nil {
 			ctx, cancel := context.WithCancel(appCtx)
-			supervisor := supervisor.NewSupervisor(ctx, &cfg.Paths, &cfg.Ports, vma.UpdateConfig)
+			supervisor := supervisor.NewSupervisor(ctx, &cfg.Paths, &cfg.Ports, vmagetCfgChan)
 			connectionChecker := connectionchecker.New(ctx)
 			client := client.New(cfg, supervisor, connectionChecker)
 			localServer := agentlocal.NewServer(cfg, supervisor, client, configFilepath)

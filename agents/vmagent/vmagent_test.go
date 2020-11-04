@@ -21,54 +21,12 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/percona/pmm-agent/config"
+
 	"github.com/sirupsen/logrus"
 )
 
-/*
-
-func TestVMAgent_Init(t *testing.T) {
-	t.Parallel()
-
-	tests := []struct {
-		name string
-		cfg  *config.Config
-		want []string
-	}{
-		{
-			name: "ok config",
-			cfg: &config.Config{
-				Ports: config.Ports{VMAgent: 8429},
-				Server: config.Server{
-					Address:  "127.0.0.1:8433",
-					Username: "admin",
-					Password: "admin",
-				},
-				Paths: config.Paths{
-					TempDir: "/tmp/",
-				},
-			},
-			want: []string{
-				"--remoteWrite.url=https://admin:admin@127.0.0.1:8433/victoriametrics/api/v1/write",
-				"-remoteWrite.tmpDataPath=/tmp/vmagent-tmp-dir",
-				"-promscrape.config=/tmp/vmagent-scrape-config.yaml",
-				"-remoteWrite.maxDiskUsagePerURL=1073741824",
-				"-memory.allowedPercent=10",
-				"-httpListenAddr=127.0.0.1:8429",
-			},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			vma := newVMAgent(&tt.cfg.Paths, &tt.cfg.Server, tt.cfg.Ports.VMAgent)
-			args, err := vma.init(nil, nil)
-			require.NoError(t, err)
-			require.Equal(t, tt.want, args)
-		})
-	}
-}
-*/
-
-func TestVMAgent_Init(t *testing.T) {
+func TestVMAgent_args(t *testing.T) {
 	type fields struct {
 		remoteInsecure      bool
 		remoteWriteUserName string
@@ -82,12 +40,23 @@ func TestVMAgent_Init(t *testing.T) {
 		l                   *logrus.Entry
 	}
 	tests := []struct {
-		name   string
-		fields fields
-		want   []string
+		name    string
+		fields  fields
+		cfg     *config.Config
+		want    []string
+		wantErr bool
 	}{
 		{
 			name: "init ok",
+			cfg: &config.Config{
+				Paths: config.Paths{TempDir: "/tmp"},
+				Ports: config.Ports{VMAgent: 8429},
+				Server: config.Server{
+					Address:  "127.0.0.1:8443",
+					Password: "admin",
+					Username: "admin",
+				},
+			},
 			fields: fields{
 				scrapeConfigPath:    "/tmp/vmagent-scrape-config.yaml",
 				tmpDir:              "/tmp/vmagent-tmp-dir",
@@ -115,19 +84,11 @@ func TestVMAgent_Init(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			vma := &VMAgent{
-				remoteInsecure:   tt.fields.remoteInsecure,
-				remoteUserName:   tt.fields.remoteWriteUserName,
-				remotePassword:   tt.fields.remoteWritePassword,
-				client:           tt.fields.client,
-				remoteWriteURL:   tt.fields.remoteURL,
-				listenURL:        tt.fields.listenURL,
-				scrapeConfigPath: tt.fields.scrapeConfigPath,
-				lastConfig:       tt.fields.lastConfig,
-				tmpDir:           tt.fields.tmpDir,
-				l:                tt.fields.l,
+			vma, err := NewVMAgent(tt.cfg)
+			if err != nil && !tt.wantErr {
+				t.Fatalf("got unexpected error: %v", err)
 			}
-			if got := vma.buildArgs(); !reflect.DeepEqual(got, tt.want) {
+			if got := vma.args(); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("vmagent Init() result not match, \ngot: %v, \nwant %v", got, tt.want)
 			}
 		})

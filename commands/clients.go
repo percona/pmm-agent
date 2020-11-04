@@ -23,6 +23,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"strings"
 
 	"github.com/AlekSi/pointer"
 	"github.com/go-openapi/runtime"
@@ -152,7 +153,7 @@ func serverRegister(cfgSetup *config.Setup) (string, error) {
 			Address: cfgSetup.Address,
 
 			Reregister:  cfgSetup.Force,
-			MetricsMode: pointer.ToString(cfgSetup.MetricsMode),
+			MetricsMode: pointer.ToString(strings.ToUpper(cfgSetup.MetricsMode)),
 		},
 		Context: context.Background(),
 	})

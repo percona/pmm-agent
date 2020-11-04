@@ -93,9 +93,9 @@ func NewVMAgent(cfg *config.Config) (*VMAgent, error) {
 }
 
 // Start starts vmagent process.
-func (vma *VMAgent) Start(ctx context.Context) {
+func (vma *VMAgent) Start(ctx context.Context) chan []byte {
 	ctx, cancel := context.WithCancel(ctx)
-	pr := &process.Params{Path: vma.binaryPath, Args: vma.buildArgs()}
+	pr := &process.Params{Path: vma.binaryPath, Args: vma.args()}
 	vma.l.Debugf("Starting: %s.", pr)
 	process := process.New(pr, nil, vma.l)
 	go pprof.Do(ctx, pprof.Labels("agentID", "vmagent", "type", "vmagent"), process.Run)
@@ -106,12 +106,15 @@ func (vma *VMAgent) Start(ctx context.Context) {
 		}
 		close(done)
 	}()
+	cfgChan := make(chan []byte)
+	go vma.listenForUpdate(ctx, cfgChan)
 	vma.cancel = cancel
 	vma.done = done
+	return cfgChan
 }
 
-// buildArgs returns vmagent process args.
-func (vma *VMAgent) buildArgs() []string {
+// args returns vmagent process args.
+func (vma *VMAgent) args() []string {
 	baseArgs := []string{
 		fmt.Sprintf("-remoteWrite.url=%s", vma.remoteWriteURL.String()),
 		fmt.Sprintf("-remoteWrite.basicAuth.username=%s", vma.remoteUserName),
@@ -131,8 +134,20 @@ func (vma *VMAgent) buildArgs() []string {
 	return baseArgs
 }
 
-// UpdateConfig writes new scrape config file and triggers config file reread.
-func (vma *VMAgent) UpdateConfig(data []byte) {
+func (vma *VMAgent) listenForUpdate(ctx context.Context, cfgChan chan []byte) {
+	for {
+		select {
+		case <-ctx.Done():
+			vma.l.Infof("stopping agent")
+			return
+		case newCfg := <-cfgChan:
+			vma.updateScrapeConfig(newCfg)
+		}
+	}
+}
+
+// updateScrapeConfig writes new scrape config file and triggers config file reread.
+func (vma *VMAgent) updateScrapeConfig(data []byte) {
 	if bytes.Equal(data, vma.lastConfig) {
 		return
 	}
