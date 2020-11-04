@@ -45,7 +45,7 @@ type VMAgent struct {
 	remoteWriteURL   *url.URL
 	listenURL        *url.URL
 	scrapeConfigPath string
-	lastConfig       []byte
+	lastCfg          []byte
 	tmpDir           string
 	l                *logrus.Entry
 	cancel           context.CancelFunc
@@ -82,7 +82,7 @@ func NewVMAgent(cfg *config.Config) (*VMAgent, error) {
 			Scheme: "http",
 		},
 		scrapeConfigPath: scrapeCfgPath,
-		lastConfig:       scrapeCfg,
+		lastCfg:          scrapeCfg,
 		tmpDir:           path.Join(cfg.Paths.TempDir, "vmagent-tmp-dir"),
 		l: logrus.WithFields(logrus.Fields{
 			"component": "agent-process",
@@ -93,7 +93,7 @@ func NewVMAgent(cfg *config.Config) (*VMAgent, error) {
 }
 
 // Start starts vmagent process.
-func (vma *VMAgent) Start(ctx context.Context) chan []byte {
+func (vma *VMAgent) Start(ctx context.Context, cfgChan chan []byte) {
 	ctx, cancel := context.WithCancel(ctx)
 	pr := &process.Params{Path: vma.binaryPath, Args: vma.args()}
 	vma.l.Debugf("Starting: %s.", pr)
@@ -106,11 +106,9 @@ func (vma *VMAgent) Start(ctx context.Context) chan []byte {
 		}
 		close(done)
 	}()
-	cfgChan := make(chan []byte)
-	go vma.listenForUpdate(ctx, cfgChan)
+	go vma.listenForCfgUpdates(ctx, cfgChan)
 	vma.cancel = cancel
 	vma.done = done
-	return cfgChan
 }
 
 // args returns vmagent process args.
@@ -134,21 +132,22 @@ func (vma *VMAgent) args() []string {
 	return baseArgs
 }
 
-func (vma *VMAgent) listenForUpdate(ctx context.Context, cfgChan chan []byte) {
+// listenForCfgUpdates listens for cfg updates and triggers config update.
+func (vma *VMAgent) listenForCfgUpdates(ctx context.Context, newCfg chan []byte) {
 	for {
 		select {
 		case <-ctx.Done():
 			vma.l.Infof("stopping agent")
 			return
-		case newCfg := <-cfgChan:
-			vma.updateScrapeConfig(newCfg)
+		case cfg := <-newCfg:
+			vma.updateScrapeConfig(cfg)
 		}
 	}
 }
 
-// updateScrapeConfig writes new scrape config file and triggers config file reread.
+// updateScrapeConfig writes new scrape config file and triggers config file re-read.
 func (vma *VMAgent) updateScrapeConfig(data []byte) {
-	if bytes.Equal(data, vma.lastConfig) {
+	if bytes.Equal(data, vma.lastCfg) {
 		return
 	}
 	err := ioutil.WriteFile(vma.scrapeConfigPath, data, 0600)
@@ -173,7 +172,7 @@ func (vma *VMAgent) updateScrapeConfig(data []byte) {
 		vma.l.Errorf("unexpected status code: %d , want: %d", resp.StatusCode, http.StatusOK)
 		return
 	}
-	vma.lastConfig = data
+	vma.lastCfg = data
 	vma.l.Info("successfully reloaded vmagent config")
 }
 
