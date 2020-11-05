@@ -102,7 +102,7 @@ func (vma *VMAgent) Start(ctx context.Context, cfgChan chan []byte) {
 	done := make(chan struct{})
 	go func() {
 		for status := range process.Changes() {
-			vma.l.Infof("vmanget status changed: %s ", status)
+			vma.l.Infof("vmagent status changed: %s ", status)
 		}
 		close(done)
 	}()
@@ -137,7 +137,6 @@ func (vma *VMAgent) listenForCfgUpdates(ctx context.Context, newCfg chan []byte)
 	for {
 		select {
 		case <-ctx.Done():
-			vma.l.Infof("stopping agent")
 			return
 		case cfg := <-newCfg:
 			vma.updateScrapeConfig(cfg)

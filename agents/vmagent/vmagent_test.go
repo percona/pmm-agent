@@ -16,62 +16,32 @@
 package vmagent
 
 import (
-	"net/http"
-	"net/url"
-	"reflect"
 	"testing"
 
-	"github.com/percona/pmm-agent/config"
+	"github.com/stretchr/testify/assert"
 
-	"github.com/sirupsen/logrus"
+	"github.com/percona/pmm-agent/config"
 )
 
 func TestVMAgent_args(t *testing.T) {
-	type fields struct {
-		remoteInsecure      bool
-		remoteWriteUserName string
-		remoteWritePassword string
-		client              *http.Client
-		remoteURL           *url.URL
-		listenURL           *url.URL
-		scrapeConfigPath    string
-		lastConfig          []byte
-		tmpDir              string
-		l                   *logrus.Entry
-	}
 	tests := []struct {
-		name    string
-		fields  fields
-		cfg     *config.Config
-		want    []string
-		wantErr bool
+		name string
+		cfg  *config.Config
+		want []string
 	}{
 		{
-			name: "init ok",
+			name: "init ok with base cfg",
 			cfg: &config.Config{
 				Paths: config.Paths{TempDir: "/tmp"},
 				Ports: config.Ports{VMAgent: 8429},
 				Server: config.Server{
-					Address:  "127.0.0.1:8443",
+					Address:  "127.0.0.1:443",
 					Password: "admin",
 					Username: "admin",
 				},
 			},
-			fields: fields{
-				scrapeConfigPath:    "/tmp/vmagent-scrape-config.yaml",
-				tmpDir:              "/tmp/vmagent-tmp-dir",
-				l:                   logrus.WithField("vmanget", "test"),
-				listenURL:           &url.URL{Host: "127.0.0.1:8429"},
-				remoteWriteUserName: "admin",
-				remoteWritePassword: "admin",
-				remoteURL: &url.URL{
-					Scheme: "https",
-					Host:   "127.0.0.1:8443",
-					Path:   "/victoriametrics/api/v1/write",
-				},
-			},
 			want: []string{
-				"-remoteWrite.url=https://127.0.0.1:8443/victoriametrics/api/v1/write",
+				"-remoteWrite.url=https://127.0.0.1:443/victoriametrics/api/v1/write",
 				"-remoteWrite.basicAuth.username=admin",
 				"-remoteWrite.basicAuth.password=admin",
 				"-remoteWrite.tmpDataPath=/tmp/vmagent-tmp-dir",
@@ -85,12 +55,9 @@ func TestVMAgent_args(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			vma, err := NewVMAgent(tt.cfg)
-			if err != nil && !tt.wantErr {
-				t.Fatalf("got unexpected error: %v", err)
-			}
-			if got := vma.args(); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("vmagent Init() result not match, \ngot: %v, \nwant %v", got, tt.want)
-			}
+			assert.NoError(t, err)
+			got := vma.args()
+			assert.Equal(t, tt.want, got)
 		})
 	}
 }

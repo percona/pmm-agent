@@ -47,7 +47,6 @@ func Run() {
 		signal.Stop(signals)
 		l.Warnf("Got %s, shutting down...", unix.SignalName(s.(unix.Signal)))
 		appCancel()
-		close(vmagentCfgUpdates)
 	}()
 
 	for appCtx.Err() == nil {
