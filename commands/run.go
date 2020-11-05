@@ -56,11 +56,10 @@ func Run() {
 		}
 		config.ConfigureLogger(cfg)
 		l.Debugf("Loaded configuration: %+v", cfg)
-		vma, err := vmagent.NewVMAgent(cfg)
-		if err != nil {
-			l.Fatalf("Failed to init vmagent: %s.", err)
+		vma := vmagent.NewVMAgent(cfg)
+		if err := vma.Start(appCtx, vmAgentCfgUpdates); err != nil {
+			l.Fatalf("Failed to start vmagent: %s.", err)
 		}
-		vma.Start(appCtx, vmAgentCfgUpdates)
 		l.Debug("VMAgent was started")
 
 		for appCtx.Err() == nil {

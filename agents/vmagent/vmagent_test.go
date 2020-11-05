@@ -25,9 +25,10 @@ import (
 
 func TestVMAgent_args(t *testing.T) {
 	tests := []struct {
-		name string
-		cfg  *config.Config
-		want []string
+		name          string
+		cfg           *config.Config
+		scrapeCfgPath string
+		want          []string
 	}{
 		{
 			name: "init ok with base cfg",
@@ -40,12 +41,13 @@ func TestVMAgent_args(t *testing.T) {
 					Username: "admin",
 				},
 			},
+			scrapeCfgPath: "/tmp/vmagent-scrape-config-14214.yaml",
 			want: []string{
 				"-remoteWrite.url=https://127.0.0.1:443/victoriametrics/api/v1/write",
 				"-remoteWrite.basicAuth.username=admin",
 				"-remoteWrite.basicAuth.password=admin",
 				"-remoteWrite.tmpDataPath=/tmp/vmagent-tmp-dir",
-				"-promscrape.config=/tmp/vmagent-scrape-config.yaml",
+				"-promscrape.config=/tmp/vmagent-scrape-config-14214.yaml",
 				"-remoteWrite.maxDiskUsagePerURL=1073741824",
 				"-loggerLevel=WARN",
 				"-httpListenAddr=127.0.0.1:8429",
@@ -54,8 +56,8 @@ func TestVMAgent_args(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			vma, err := NewVMAgent(tt.cfg)
-			assert.NoError(t, err)
+			vma := NewVMAgent(tt.cfg)
+			vma.scrapeConfigPath = tt.scrapeCfgPath
 			got := vma.args()
 			assert.Equal(t, tt.want, got)
 		})

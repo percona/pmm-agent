@@ -53,22 +53,10 @@ type VMAgent struct {
 }
 
 // NewVMAgent - creates vmagent object and scrape config file.
-func NewVMAgent(cfg *config.Config) (*VMAgent, error) {
+func NewVMAgent(cfg *config.Config) *VMAgent {
 	remoteWriteURL := *cfg.Server.URL()
 	remoteWriteURL.Path = path.Join(remoteWriteURL.Path, "victoriametrics", "api", "v1", "write")
 	remoteWriteURL.User = nil
-	scrapeCfgPath := path.Join(cfg.Paths.TempDir, "vmagent-scrape-config.yaml")
-	scrapeCfg, err := ioutil.ReadFile(scrapeCfgPath) //nolint:gosec
-	if err != nil {
-		if !os.IsNotExist(err) {
-			return nil, errors.Wrapf(err, "failed read vmagent-scrape-config file at %q", scrapeCfgPath)
-		}
-		f, err := os.Create(scrapeCfgPath)
-		if err != nil {
-			return nil, errors.Wrapf(err, "failed to create vmagent-scrape-config file at %q", scrapeCfgPath)
-		}
-		_ = f.Close() //nolint:errcheck
-	}
 
 	return &VMAgent{
 		remoteInsecure: cfg.Server.InsecureTLS,
@@ -81,22 +69,26 @@ func NewVMAgent(cfg *config.Config) (*VMAgent, error) {
 			Host:   net.JoinHostPort("127.0.0.1", strconv.Itoa(int(cfg.Ports.VMAgent))),
 			Scheme: "http",
 		},
-		scrapeConfigPath: scrapeCfgPath,
-		lastCfg:          scrapeCfg,
-		tmpDir:           path.Join(cfg.Paths.TempDir, "vmagent-tmp-dir"),
+		tmpDir: cfg.Paths.TempDir,
 		l: logrus.WithFields(logrus.Fields{
 			"component": "agent-process",
 			"agentID":   "vmagent",
 			"type":      "vmagent",
 		}),
-	}, nil
+	}
 }
 
 // Start starts vmagent process.
-func (vma *VMAgent) Start(ctx context.Context, cfgUpdates chan []byte) {
+func (vma *VMAgent) Start(ctx context.Context, cfgUpdates chan []byte) error {
+	f, err := ioutil.TempFile(vma.tmpDir, "vmagent-scrape-config.*.yaml")
+	if err != nil {
+		return errors.Wrapf(err, "failed to create vmagent-scrape-config file at %q", vma.tmpDir)
+	}
+	vma.scrapeConfigPath = f.Name()
 	ctx, cancel := context.WithCancel(ctx)
 	pr := &process.Params{Path: vma.binaryPath, Args: vma.args()}
 	vma.l.Debugf("Starting: %s.", pr)
+
 	process := process.New(pr, nil, vma.l)
 	go pprof.Do(ctx, pprof.Labels("agentID", "vmagent", "type", "vmagent"), process.Run)
 	done := make(chan struct{})
@@ -106,9 +98,10 @@ func (vma *VMAgent) Start(ctx context.Context, cfgUpdates chan []byte) {
 		}
 		close(done)
 	}()
-	go vma.listenForCfgUpdates(ctx, cfgUpdates)
 	vma.cancel = cancel
 	vma.done = done
+	go vma.listenForCfgUpdates(ctx, cfgUpdates)
+	return nil
 }
 
 // args returns vmagent process args.
@@ -117,7 +110,7 @@ func (vma *VMAgent) args() []string {
 		fmt.Sprintf("-remoteWrite.url=%s", vma.remoteWriteURL.String()),
 		fmt.Sprintf("-remoteWrite.basicAuth.username=%s", vma.remoteUserName),
 		fmt.Sprintf("-remoteWrite.basicAuth.password=%s", vma.remotePassword),
-		fmt.Sprintf("-remoteWrite.tmpDataPath=%s", vma.tmpDir),
+		fmt.Sprintf("-remoteWrite.tmpDataPath=%s", path.Join(vma.tmpDir, "vmagent-tmp-dir")),
 		fmt.Sprintf("-promscrape.config=%s", vma.scrapeConfigPath),
 		// 1GB disk queue size
 		"-remoteWrite.maxDiskUsagePerURL=1073741824",
@@ -178,5 +171,6 @@ func (vma *VMAgent) updateScrapeConfig(data []byte) {
 // Stop shutdowns vmagent.
 func (vma *VMAgent) Stop() {
 	vma.cancel()
+	os.Remove(vma.scrapeConfigPath) //nolint:errcheck
 	<-vma.done
 }
