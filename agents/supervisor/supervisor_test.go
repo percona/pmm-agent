@@ -49,16 +49,16 @@ func assertChanges(t *testing.T, s *Supervisor, expected ...agentpb.StateChanged
 
 func TestSupervisor(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
-	vmagentScrapeCfg := make(chan []byte)
-	defer close(vmagentScrapeCfg)
+	vmAgentCfgUpdates := make(chan []byte)
+	defer close(vmAgentCfgUpdates)
 	go func() {
 		for {
 			select {
-			case <-vmagentScrapeCfg:
+			case <-vmAgentCfgUpdates:
 			}
 		}
 	}()
-	s := NewSupervisor(ctx, nil, &config.Ports{Min: 65000, Max: 65099, VMAgent: 8429}, vmagentScrapeCfg)
+	s := NewSupervisor(ctx, nil, &config.Ports{Min: 65000, Max: 65099, VMAgent: 8429}, vmAgentCfgUpdates)
 
 	t.Run("Start13", func(t *testing.T) {
 		expectedList := []*agentlocalpb.AgentInfo{}
@@ -308,20 +308,20 @@ func TestSupervisorProcessParams(t *testing.T) {
 			MySQLdExporter: "/path/to/mysql_exporter",
 			TempDir:        temp,
 		}
-		vmagentScrapeCfg := make(chan []byte)
+		vmAgentCfgUpdates := make(chan []byte)
 		go func() {
 			for {
 				select {
-				case <-vmagentScrapeCfg:
+				case <-vmAgentCfgUpdates:
 				}
 			}
 		}()
 
-		s := NewSupervisor(ctx, paths, new(config.Ports), vmagentScrapeCfg)
+		s := NewSupervisor(ctx, paths, new(config.Ports), vmAgentCfgUpdates)
 
 		teardown := func() {
 			cancel()
-			close(vmagentScrapeCfg)
+			close(vmAgentCfgUpdates)
 			if t.Failed() {
 				t.Logf("%s is kept.", paths.TempDir)
 			} else {

@@ -93,7 +93,7 @@ func NewVMAgent(cfg *config.Config) (*VMAgent, error) {
 }
 
 // Start starts vmagent process.
-func (vma *VMAgent) Start(ctx context.Context, cfgChan chan []byte) {
+func (vma *VMAgent) Start(ctx context.Context, cfgUpdates chan []byte) {
 	ctx, cancel := context.WithCancel(ctx)
 	pr := &process.Params{Path: vma.binaryPath, Args: vma.args()}
 	vma.l.Debugf("Starting: %s.", pr)
@@ -106,7 +106,7 @@ func (vma *VMAgent) Start(ctx context.Context, cfgChan chan []byte) {
 		}
 		close(done)
 	}()
-	go vma.listenForCfgUpdates(ctx, cfgChan)
+	go vma.listenForCfgUpdates(ctx, cfgUpdates)
 	vma.cancel = cancel
 	vma.done = done
 }
@@ -132,13 +132,13 @@ func (vma *VMAgent) args() []string {
 	return baseArgs
 }
 
-// listenForCfgUpdates listens for cfg updates and triggers config update.
-func (vma *VMAgent) listenForCfgUpdates(ctx context.Context, newCfg chan []byte) {
+// listenForCfgUpdates listens for cfg updates and triggers config reload.
+func (vma *VMAgent) listenForCfgUpdates(ctx context.Context, cfgUpdates chan []byte) {
 	for {
 		select {
 		case <-ctx.Done():
 			return
-		case cfg := <-newCfg:
+		case cfg := <-cfgUpdates:
 			vma.updateScrapeConfig(cfg)
 		}
 	}

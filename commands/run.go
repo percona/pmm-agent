@@ -38,7 +38,7 @@ func Run() {
 	defer l.Info("Done.")
 
 	// handles vmagent scrape config updates.
-	vmagentCfgUpdates := make(chan []byte)
+	vmAgentCfgUpdates := make(chan []byte)
 	// handle termination signals
 	signals := make(chan os.Signal, 1)
 	signal.Notify(signals, unix.SIGTERM, unix.SIGINT)
@@ -58,14 +58,14 @@ func Run() {
 		l.Debugf("Loaded configuration: %+v", cfg)
 		vma, err := vmagent.NewVMAgent(cfg)
 		if err != nil {
-			l.WithError(err).Fatalf("failed to create vmagent")
+			l.Fatalf("Failed to init vmagent: %s.", err)
 		}
-		vma.Start(appCtx, vmagentCfgUpdates)
-		l.Debug("VmAgent was started")
+		vma.Start(appCtx, vmAgentCfgUpdates)
+		l.Debug("VMAgent was started")
 
 		for appCtx.Err() == nil {
 			ctx, cancel := context.WithCancel(appCtx)
-			supervisor := supervisor.NewSupervisor(ctx, &cfg.Paths, &cfg.Ports, vmagentCfgUpdates)
+			supervisor := supervisor.NewSupervisor(ctx, &cfg.Paths, &cfg.Ports, vmAgentCfgUpdates)
 			connectionChecker := connectionchecker.New(ctx)
 			client := client.New(cfg, supervisor, connectionChecker)
 			localServer := agentlocal.NewServer(cfg, supervisor, client, configFilepath)
