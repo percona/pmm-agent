@@ -62,9 +62,8 @@ type Supervisor struct {
 	agentProcesses map[string]*agentProcessInfo
 	builtinAgents  map[string]*builtinAgentInfo
 
-	arw               sync.RWMutex
-	lastStatuses      map[string]inventorypb.AgentStatus
-	vmAgentCfgUpdates chan []byte
+	arw          sync.RWMutex
+	lastStatuses map[string]inventorypb.AgentStatus
 }
 
 // agentProcessInfo describes Agent process.

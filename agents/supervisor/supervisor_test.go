@@ -49,15 +49,6 @@ func assertChanges(t *testing.T, s *Supervisor, expected ...agentpb.StateChanged
 
 func TestSupervisor(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
-	vmAgentCfgUpdates := make(chan []byte)
-	defer close(vmAgentCfgUpdates)
-	go func() {
-		for {
-			select {
-			case <-vmAgentCfgUpdates:
-			}
-		}
-	}()
 	s := NewSupervisor(ctx, nil, &config.Ports{Min: 65000, Max: 65099}, &config.Server{Address: "localhost:443"})
 
 	t.Run("Start13", func(t *testing.T) {
@@ -308,20 +299,11 @@ func TestSupervisorProcessParams(t *testing.T) {
 			MySQLdExporter: "/path/to/mysql_exporter",
 			TempDir:        temp,
 		}
-		vmAgentCfgUpdates := make(chan []byte)
-		go func() {
-			for {
-				select {
-				case <-vmAgentCfgUpdates:
-				}
-			}
-		}()
 
 		s := NewSupervisor(ctx, paths, new(config.Ports), new(config.Server))
 
 		teardown := func() {
 			cancel()
-			close(vmAgentCfgUpdates)
 			if t.Failed() {
 				t.Logf("%s is kept.", paths.TempDir)
 			} else {
