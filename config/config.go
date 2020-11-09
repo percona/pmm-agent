@@ -100,9 +100,8 @@ type Paths struct {
 
 // Ports represents ports configuration.
 type Ports struct {
-	Min     uint16 `yaml:"min"`
-	Max     uint16 `yaml:"max"`
-	VMAgent uint16 `yaml:"vmagent_port"`
+	Min uint16 `yaml:"min"`
+	Max uint16 `yaml:"max"`
 }
 
 // Setup contains `pmm-agent setup` flag and argument values.
@@ -177,9 +176,6 @@ func get(args []string, l *logrus.Entry) (cfg *Config, configFileF string, err e
 		}
 		if cfg.Ports.Max == 0 {
 			cfg.Ports.Max = 51999
-		}
-		if cfg.Ports.VMAgent == 0 {
-			cfg.Ports.VMAgent = 8429
 		}
 		for sp, v := range map[*string]string{
 			&cfg.Paths.ExportersBase:    "/usr/local/percona/pmm2/exporters",
@@ -376,7 +372,7 @@ func Application(cfg *Config) (*kingpin.Application, *string) {
 	setupCmd.Flag("skip-registration", "Skip registration on PMM Server [PMM_AGENT_SETUP_SKIP_REGISTRATION]").
 		Envar("PMM_AGENT_SETUP_SKIP_REGISTRATION").BoolVar(&cfg.Setup.SkipRegistration)
 	setupCmd.Flag("metrics-mode", "Metrics flow mode for agents node-exporter, can be push - agent will push metrics,"+
-		"pull - server scrape metrics from agent  or auto - chosen by server. [PMM_AGENT_METRICS_MODE]").
+		"pull - server scrape metrics from agent  or auto - chosen by server. [PMM_AGENT_SETUP_METRICS_MODE]").
 		Envar("PMM_AGENT_METRICS_MODE").Default("auto").EnumVar(&cfg.Setup.MetricsMode, "auto", "push", "pull")
 
 	return app, configFileF

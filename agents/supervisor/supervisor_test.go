@@ -58,7 +58,7 @@ func TestSupervisor(t *testing.T) {
 			}
 		}
 	}()
-	s := NewSupervisor(ctx, nil, &config.Ports{Min: 65000, Max: 65099, VMAgent: 8429}, vmAgentCfgUpdates)
+	s := NewSupervisor(ctx, nil, &config.Ports{Min: 65000, Max: 65099}, &config.Server{Address: "localhost:443"})
 
 	t.Run("Start13", func(t *testing.T) {
 		expectedList := []*agentlocalpb.AgentInfo{}
@@ -317,7 +317,7 @@ func TestSupervisorProcessParams(t *testing.T) {
 			}
 		}()
 
-		s := NewSupervisor(ctx, paths, new(config.Ports), vmAgentCfgUpdates)
+		s := NewSupervisor(ctx, paths, new(config.Ports), new(config.Server))
 
 		teardown := func() {
 			cancel()

@@ -25,7 +25,6 @@ import (
 
 	"github.com/percona/pmm-agent/agentlocal"
 	"github.com/percona/pmm-agent/agents/supervisor"
-	"github.com/percona/pmm-agent/agents/vmagent"
 	"github.com/percona/pmm-agent/client"
 	"github.com/percona/pmm-agent/config"
 	"github.com/percona/pmm-agent/connectionchecker"
@@ -37,8 +36,6 @@ func Run() {
 	appCtx, appCancel := context.WithCancel(context.Background())
 	defer l.Info("Done.")
 
-	// handles vmagent scrape config updates.
-	vmAgentCfgUpdates := make(chan []byte)
 	// handle termination signals
 	signals := make(chan os.Signal, 1)
 	signal.Notify(signals, unix.SIGTERM, unix.SIGINT)
@@ -56,15 +53,11 @@ func Run() {
 		}
 		config.ConfigureLogger(cfg)
 		l.Debugf("Loaded configuration: %+v", cfg)
-		vma := vmagent.NewVMAgent(cfg)
-		if err := vma.Start(appCtx, vmAgentCfgUpdates); err != nil {
-			l.Fatalf("Failed to start vmagent: %s.", err)
-		}
 		l.Debug("VMAgent was started")
 
 		for appCtx.Err() == nil {
 			ctx, cancel := context.WithCancel(appCtx)
-			supervisor := supervisor.NewSupervisor(ctx, &cfg.Paths, &cfg.Ports, vmAgentCfgUpdates)
+			supervisor := supervisor.NewSupervisor(ctx, &cfg.Paths, &cfg.Ports, &cfg.Server)
 			connectionChecker := connectionchecker.New(ctx)
 			client := client.New(cfg, supervisor, connectionChecker)
 			localServer := agentlocal.NewServer(cfg, supervisor, client, configFilepath)
@@ -82,6 +75,5 @@ func Run() {
 				break
 			}
 		}
-		vma.Stop()
 	}
 }
