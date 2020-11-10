@@ -128,8 +128,9 @@ type Setup struct {
 type Config struct {
 	// no config file there
 
-	ID         string `yaml:"id"`
-	ListenPort uint16 `yaml:"listen-port"`
+	ID            string `yaml:"id"`
+	ListenAddress string `yaml:"listen-address"`
+	ListenPort    uint16 `yaml:"listen-port"`
 
 	Server Server `yaml:"server"`
 	Paths  Paths  `yaml:"paths"`
@@ -168,6 +169,9 @@ func get(args []string, l *logrus.Entry) (cfg *Config, configFileF string, err e
 		}
 
 		// set default values
+		if cfg.ListenAddress == "" {
+			cfg.ListenAddress = "127.0.0.1"
+		}
 		if cfg.ListenPort == 0 {
 			cfg.ListenPort = 7777
 		}
@@ -280,6 +284,8 @@ func Application(cfg *Config) (*kingpin.Application, *string) {
 
 	app.Flag("id", "ID of this pmm-agent [PMM_AGENT_ID]").
 		Envar("PMM_AGENT_ID").PlaceHolder("</agent_id/...>").StringVar(&cfg.ID)
+	app.Flag("listen-address", "Agent local API address [PMM_AGENT_LISTEN_ADDRESS]").
+		Envar("PMM_AGENT_LISTEN_ADDRESS").StringVar(&cfg.ListenAddress)
 	app.Flag("listen-port", "Agent local API port [PMM_AGENT_LISTEN_PORT]").
 		Envar("PMM_AGENT_LISTEN_PORT").Uint16Var(&cfg.ListenPort)
 

@@ -19,13 +19,13 @@ import (
 	"bytes"
 	"context"
 	_ "expvar" // register /debug/vars
-	"fmt"
 	"html/template"
 	"log"
 	"net"
 	"net/http"
 	_ "net/http/pprof" // register /debug/pprof
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -226,7 +226,7 @@ func (s *Server) runGRPCServer(ctx context.Context, listener net.Listener) {
 
 // runJSONServer runs JSON proxy server (grpc-gateway) until context is canceled, then gracefully stops it.
 func (s *Server) runJSONServer(ctx context.Context, grpcAddress string) {
-	address := fmt.Sprintf("127.0.0.1:%d", s.cfg.ListenPort)
+	address := net.JoinHostPort(s.cfg.ListenAddress, strconv.Itoa(int(s.cfg.ListenPort)))
 	l := s.l.WithField("component", "local-server/JSON")
 	l.Infof("Starting local API server on http://%s/ ...", address)
 
