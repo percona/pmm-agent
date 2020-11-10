@@ -120,9 +120,10 @@ func (s *Supervisor) AgentsList() []*agentlocalpb.AgentInfo {
 
 	for id, agent := range s.agentProcesses {
 		info := &agentlocalpb.AgentInfo{
-			AgentId:   id,
-			AgentType: agent.requestedState.Type,
-			Status:    s.lastStatuses[id],
+			AgentId:    id,
+			AgentType:  agent.requestedState.Type,
+			Status:     s.lastStatuses[id],
+			ListenPort: uint32(agent.listenPort),
 		}
 		res = append(res, info)
 	}
