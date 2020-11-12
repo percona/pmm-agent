@@ -24,10 +24,9 @@ required = [
     non-go = false
     unused-packages = false
 
-# replace it with PMM-2.0 before merge
 [[constraint]]
   name = "github.com/percona/pmm"
-branch = "PMM-6397-metrics-model-flow"
+  branch = "PMM-2.0"
 
 [[constraint]]
   name = "github.com/percona/go-mysql"
