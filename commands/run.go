@@ -53,7 +53,6 @@ func Run() {
 		}
 		config.ConfigureLogger(cfg)
 		l.Debugf("Loaded configuration: %+v", cfg)
-		l.Debug("VMAgent was started")
 
 		for appCtx.Err() == nil {
 			ctx, cancel := context.WithCancel(appCtx)
