@@ -18,6 +18,9 @@ package actions
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
+	"os"
+	"strings"
 
 	"github.com/percona/percona-toolkit/src/go/mongolib/proto"
 	"github.com/percona/pmm/api/agentpb"
@@ -55,8 +58,58 @@ func (a *mongodbExplainAction) Type() string {
 	return "mongodb-explain"
 }
 
+func (a *mongodbExplainAction) tls() (string, error) {
+	if strings.Contains(a.params.Query, "ssl=false") {
+		return "", nil
+	}
+
+	if a.params.ServicesTlsKeys == nil {
+		return "", fmt.Errorf("need provide tls keys")
+	}
+
+	versionFlagPrefix := "ssl"
+	//detect for version
+	// <=4.1 ssl
+	// >4.2 tls
+	result := []string{}
+	if a.params.ServicesTlsKeys.TlsCertificateKey != "" {
+		certificate, err := ioutil.TempFile("", "cert")
+		certificate.Write([]byte(a.params.ServicesTlsKeys.TlsCertificateKey))
+		certificate.Close()
+		if err == nil {
+			defer os.Remove(certificate.Name())
+			result = append(result, fmt.Sprintf("%sCertificateKeyFile=%s", versionFlagPrefix, certificate.Name()))
+		}
+	}
+
+	pasword := a.params.ServicesTlsKeys.TlsCertificateKeyFilePassword
+	if pasword != "" {
+		result = append(result, fmt.Sprintf("%sCertificateKeyFilePassword=%s", versionFlagPrefix, pasword))
+	}
+
+	if a.params.ServicesTlsKeys.TlsCaKey != "" {
+		caCertificate, err := ioutil.TempFile("", "caCert")
+		caCertificate.Write([]byte(a.params.ServicesTlsKeys.TlsCaKey))
+		caCertificate.Close()
+		if err == nil {
+			defer os.Remove(caCertificate.Name())
+			result = append(result, fmt.Sprintf("%sCertificateKeyFile=%s", versionFlagPrefix, caCertificate.Name()))
+		}
+	}
+
+	return strings.Join(result, "&"), nil
+}
+
 // Run runs an Action and returns output and error.
 func (a *mongodbExplainAction) Run(ctx context.Context) ([]byte, error) {
+	tlsDSNPart, err := a.tls()
+	if err != nil {
+		return nil, err
+	}
+	if tlsDSNPart != "" {
+		a.params.Dsn = fmt.Sprintf("&%s", tlsDSNPart)
+	}
+
 	client, err := mongo.Connect(ctx, options.Client().ApplyURI(a.params.Dsn))
 	if err != nil {
 		return nil, errors.WithStack(err)
