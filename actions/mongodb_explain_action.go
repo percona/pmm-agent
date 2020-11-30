@@ -58,56 +58,26 @@ func (a *mongodbExplainAction) Type() string {
 	return "mongodb-explain"
 }
 
-func (a *mongodbExplainAction) tls() (string, error) {
-	if strings.Contains(a.params.Query, "ssl=false") {
-		return "", nil
-	}
-
-	if a.params.ServicesTlsKeys == nil {
-		return "", fmt.Errorf("need provide tls keys")
-	}
-
-	versionFlagPrefix := "ssl"
-	//detect for version
-	// <=4.1 ssl
-	// >4.2 tls
-	result := []string{}
-	if a.params.ServicesTlsKeys.TlsCertificateKey != "" {
+// Run runs an Action and returns output and error.
+func (a *mongodbExplainAction) Run(ctx context.Context) ([]byte, error) {
+	if a.params.MongoDbOptions.TlsCertificateKey != "" {
 		certificate, err := ioutil.TempFile("", "cert")
-		certificate.Write([]byte(a.params.ServicesTlsKeys.TlsCertificateKey))
+		certificate.Write([]byte(a.params.MongoDbOptions.TlsCertificateKey))
 		certificate.Close()
 		if err == nil {
 			defer os.Remove(certificate.Name())
-			result = append(result, fmt.Sprintf("%sCertificateKeyFile=%s", versionFlagPrefix, certificate.Name()))
+			a.params.Dsn = strings.Replace(a.params.Dsn, "certificateKeyFileHolder", certificate.Name(), 1)
 		}
 	}
 
-	pasword := a.params.ServicesTlsKeys.TlsCertificateKeyFilePassword
-	if pasword != "" {
-		result = append(result, fmt.Sprintf("%sCertificateKeyFilePassword=%s", versionFlagPrefix, pasword))
-	}
-
-	if a.params.ServicesTlsKeys.TlsCaKey != "" {
+	if a.params.MongoDbOptions.TlsCaKey != "" {
 		caCertificate, err := ioutil.TempFile("", "caCert")
-		caCertificate.Write([]byte(a.params.ServicesTlsKeys.TlsCaKey))
+		caCertificate.Write([]byte(a.params.MongoDbOptions.TlsCaKey))
 		caCertificate.Close()
 		if err == nil {
 			defer os.Remove(caCertificate.Name())
-			result = append(result, fmt.Sprintf("%sCertificateKeyFile=%s", versionFlagPrefix, caCertificate.Name()))
+			a.params.Dsn = strings.Replace(a.params.Dsn, "caFileHolder", caCertificate.Name(), 1)
 		}
-	}
-
-	return strings.Join(result, "&"), nil
-}
-
-// Run runs an Action and returns output and error.
-func (a *mongodbExplainAction) Run(ctx context.Context) ([]byte, error) {
-	tlsDSNPart, err := a.tls()
-	if err != nil {
-		return nil, err
-	}
-	if tlsDSNPart != "" {
-		a.params.Dsn = fmt.Sprintf("&%s", tlsDSNPart)
 	}
 
 	client, err := mongo.Connect(ctx, options.Client().ApplyURI(a.params.Dsn))
