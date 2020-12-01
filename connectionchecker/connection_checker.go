@@ -20,7 +20,10 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"io/ioutil"
 	"math"
+	"os"
+	"strings"
 
 	"github.com/go-sql-driver/mysql"
 	"github.com/golang/protobuf/ptypes"
@@ -60,6 +63,16 @@ func (cc *ConnectionChecker) Check(msg *agentpb.CheckConnectionRequest) *agentpb
 	case inventorypb.ServiceType_MYSQL_SERVICE:
 		return cc.checkMySQLConnection(ctx, msg.Dsn)
 	case inventorypb.ServiceType_MONGODB_SERVICE:
+		dsn := msg.Dsn
+
+		caCertificate, err := ioutil.TempFile("", "caCert")
+		caCertificate.Write([]byte(msg.MongoDbOptions.TlsCaKey))
+		caCertificate.Close()
+		if err == nil {
+			defer os.Remove(caCertificate.Name())
+			dsn = strings.Replace(dsn, "caFileHolder", caCertificate.Name(), 1)
+		}
+
 		return cc.checkMongoDBConnection(ctx, msg.Dsn)
 	case inventorypb.ServiceType_POSTGRESQL_SERVICE:
 		return cc.checkPostgreSQLConnection(ctx, msg.Dsn)
