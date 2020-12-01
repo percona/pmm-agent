@@ -61,17 +61,6 @@
   version = "v10"
 
 [[projects]]
-  digest = "1:280220da3849c0a15386afe304f450be71c437458686459d3af1cbbf76c9c8e6"
-  name = "github.com/aws/aws-sdk-go"
-  packages = [
-    "aws/awserr",
-    "aws/endpoints",
-  ]
-  pruneopts = "NUT"
-  revision = "06bc8eaabd607ad041fa8579eca18c14dc8f4d9f"
-  version = "v1.35.36"
-
-[[projects]]
   digest = "1:707ebe952a8b3d00b343c01536c79c73771d100f63ec6babeaed5c79e2b8a8dd"
   name = "github.com/beorn7/perks"
   packages = ["quantile"]
@@ -231,14 +220,6 @@
   packages = ["."]
   pruneopts = "NUT"
   revision = "ff6b7dc882cf4cfba7ee0b9f7dcc1ac096c554aa"
-
-[[projects]]
-  digest = "1:653085796b580bbe8a516d4ccdac890f57bc568bb1a68da02eefca8d087ea130"
-  name = "github.com/google/uuid"
-  packages = ["."]
-  pruneopts = "NUT"
-  revision = "0e4e31197428a347842d152773b4cace4645ca25"
-  version = "v1.1.2"
 
 [[projects]]
   digest = "1:2a682a0b8b991a25578a6a7cd7f6cc6350c127732e8e58bec530f2f0dff236cf"
@@ -405,17 +386,6 @@
   ]
   pruneopts = "NUT"
   revision = "c9844ff173bdbfbccbedeaadd61e20f94abfce1f"
-
-[[projects]]
-  digest = "1:a9b777b796bfbdf7cf27becff3dc15118c947f5065c737df96d153dd0b45bb33"
-  name = "github.com/percona/pmm-managed"
-  packages = [
-    "models",
-    "utils/validators",
-  ]
-  pruneopts = "NUT"
-  revision = "0ced9cdd750d22a7bf4016c4f59d555d6f256e5a"
-  version = "v2.9.1"
 
 [[projects]]
   digest = "1:4047c378584616813d610c9f993bf90dd0d07aed8d94bd3bc299cd35ececdcba"
@@ -869,7 +839,6 @@
     "github.com/percona/percona-toolkit/src/go/mongolib/fingerprinter",
     "github.com/percona/percona-toolkit/src/go/mongolib/proto",
     "github.com/percona/percona-toolkit/src/go/mongolib/stats",
-    "github.com/percona/pmm-managed/models",
     "github.com/percona/pmm/api/agentlocalpb",
     "github.com/percona/pmm/api/agentlocalpb/json/client",
     "github.com/percona/pmm/api/agentlocalpb/json/client/agent_local",
