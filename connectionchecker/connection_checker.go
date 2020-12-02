@@ -63,17 +63,36 @@ func (cc *ConnectionChecker) Check(msg *agentpb.CheckConnectionRequest) *agentpb
 	case inventorypb.ServiceType_MYSQL_SERVICE:
 		return cc.checkMySQLConnection(ctx, msg.Dsn)
 	case inventorypb.ServiceType_MONGODB_SERVICE:
+		var certificate *os.File
+		var caCertificate *os.File
+		var err error
 		dsn := msg.Dsn
 
-		caCertificate, err := ioutil.TempFile("", "caCert")
-		caCertificate.Write([]byte(msg.MongoDbOptions.TlsCaKey))
-		caCertificate.Close()
-		if err == nil {
-			defer os.Remove(caCertificate.Name())
-			dsn = strings.Replace(dsn, "caFileHolder", caCertificate.Name(), 1)
+		if msg.MongoDbOptions.TlsCertificateKey != "" {
+			certificate, err = ioutil.TempFile("", "cert")
+			certificate.Write([]byte(msg.MongoDbOptions.TlsCertificateKey))
+			certificate.Close()
+			if err == nil {
+				defer os.Remove(certificate.Name())
+				dsn = strings.Replace(dsn, "certificateKeyFileHolder", certificate.Name(), 1)
+			}
 		}
 
-		return cc.checkMongoDBConnection(ctx, msg.Dsn)
+		if msg.MongoDbOptions.TlsCertificateKeyFilePassword != "" {
+			dsn = strings.Replace(dsn, "certificateKeyFilePasswordHolder", msg.MongoDbOptions.TlsCertificateKeyFilePassword, 1)
+		}
+
+		if msg.MongoDbOptions.TlsCaKey != "" {
+			caCertificate, err = ioutil.TempFile("", "caCert")
+			caCertificate.Write([]byte(msg.MongoDbOptions.TlsCaKey))
+			caCertificate.Close()
+			if err == nil {
+				defer os.Remove(caCertificate.Name())
+				dsn = strings.Replace(dsn, "caFileHolder", caCertificate.Name(), 1)
+			}
+		}
+
+		return cc.checkMongoDBConnection(ctx, dsn)
 	case inventorypb.ServiceType_POSTGRESQL_SERVICE:
 		return cc.checkPostgreSQLConnection(ctx, msg.Dsn)
 	case inventorypb.ServiceType_PROXYSQL_SERVICE:
