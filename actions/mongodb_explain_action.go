@@ -70,9 +70,9 @@ func (a *mongodbExplainAction) Run(ctx context.Context) ([]byte, error) {
 		}
 	}
 
-	if a.params.MongoDbOptions.TlsCaKey != "" {
+	if a.params.MongoDbOptions.TlsCa != "" {
 		caCertificate, err := ioutil.TempFile("", "caCert")
-		caCertificate.Write([]byte(a.params.MongoDbOptions.TlsCaKey))
+		caCertificate.Write([]byte(a.params.MongoDbOptions.TlsCa))
 		caCertificate.Close()
 		if err == nil {
 			defer os.Remove(caCertificate.Name())

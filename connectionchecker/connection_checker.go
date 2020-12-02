@@ -82,9 +82,9 @@ func (cc *ConnectionChecker) Check(msg *agentpb.CheckConnectionRequest) *agentpb
 			dsn = strings.Replace(dsn, "certificateKeyFilePasswordHolder", msg.MongoDbOptions.TlsCertificateKeyFilePassword, 1)
 		}
 
-		if msg.MongoDbOptions.TlsCaKey != "" {
+		if msg.MongoDbOptions.TlsCa != "" {
 			caCertificate, err = ioutil.TempFile("", "caCert")
-			caCertificate.Write([]byte(msg.MongoDbOptions.TlsCaKey))
+			caCertificate.Write([]byte(msg.MongoDbOptions.TlsCa))
 			caCertificate.Close()
 			if err == nil {
 				defer os.Remove(caCertificate.Name())
