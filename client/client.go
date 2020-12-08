@@ -19,6 +19,7 @@ package client
 import (
 	"context"
 	"net"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -305,6 +306,9 @@ func (c *Client) processChannelRequests() {
 			case *agentpb.StartActionRequest_PtSummaryParams:
 				action = actions.NewProcessAction(p.ActionId, c.cfg.Paths.PTSummary, []string{})
 
+			case *agentpb.StartActionRequest_PtMgdbSummaryParams:
+				action = actions.NewProcessAction(p.ActionId, c.cfg.Paths.PTMgDbSummary, argListFromMgDbParams(params.PtMgdbSummaryParams))
+
 			case nil:
 				// Requests() is not closed, so exit early to break channel
 				c.l.Errorf("Unhandled StartAction request: %v.", req)
@@ -533,6 +537,34 @@ func (c *Client) Collect(ch chan<- prometheus.Metric) {
 	} else {
 		ch <- prometheus.MustNewConstMetric(desc, prometheus.GaugeValue, 0)
 	}
+}
+
+// argListFromMgDbParams creates an array of strings from the pointer to the parameters for pt-mongodb-sumamry
+func argListFromMgDbParams(pParams *agentpb.StartActionRequest_PTMgDbSummaryParams) []string {
+	var args []string
+
+	// Only adds the arguments are valid
+
+	if pParams.Username != "" {
+		args = append(args, "--username", pParams.Username)
+	}
+
+	if pParams.Password != "" {
+		args = append(args, "--password", pParams.Password)
+	}
+
+	if pParams.Address != "" {
+		var hostPortStr string = pParams.Address
+
+		// If valid port attaches ':' and the port number after address
+		if pParams.Port > 0 && pParams.Port <= 65535 {
+			hostPortStr += ":" + strconv.FormatUint(uint64(pParams.Port), 10)
+		}
+
+		args = append(args, hostPortStr)
+	}
+
+	return args
 }
 
 // check interface
