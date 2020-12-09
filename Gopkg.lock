@@ -358,7 +358,7 @@
 
 [[projects]]
   branch = "PMM-4306-pt-mongodb-summary"
-  digest = "1:e24486679c84d0337b89cc794bf07f94808d5c303be0f8bbc0f7f42a69cde254"
+  digest = "1:ea80b89af4d06ee518f7575d86439d05418bab4aef5143e14d587b1df374b4a8"
   name = "github.com/percona/pmm"
   packages = [
     "api/agentlocalpb",
@@ -385,7 +385,7 @@
     "version",
   ]
   pruneopts = "NUT"
-  revision = "5c83b907544e0e80cbe1ca1876a0b695273b1db8"
+  revision = "fdbad3635d294573c215060bd66e3dbc5bda2670"
 
 [[projects]]
   digest = "1:4047c378584616813d610c9f993bf90dd0d07aed8d94bd3bc299cd35ececdcba"
@@ -789,23 +789,19 @@
   source = "https://github.com/Percona-Lab/kingpin.git"
 
 [[projects]]
-  digest = "1:2ed325d52993ed3487ff72c036bb5826a4cd0e0d8d145956c746bf32eb7afafb"
+  digest = "1:28b206109ebe3649c590ec322398a8302c55a75066cc84b5741712ebf30fe019"
   name = "gopkg.in/reform.v1"
   packages = [
     ".",
-    "dialects",
-    "dialects/mssql",
     "dialects/mysql",
     "dialects/postgresql",
-    "dialects/sqlite3",
-    "dialects/sqlserver",
     "internal",
     "parse",
     "reform",
   ]
   pruneopts = "NUT"
-  revision = "8e91a79b08247ed62e99edf920d8d426defbfa81"
-  version = "v1.3.3"
+  revision = "be1c9e20a895a055b71875afe38f593d8f0623b9"
+  version = "v1.5.0"
 
 [[projects]]
   digest = "1:d9b9ac6943a512737f76bf3d61b08d97121c66686bc02ffc231313563230b468"
