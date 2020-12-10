@@ -306,8 +306,8 @@ func (c *Client) processChannelRequests() {
 			case *agentpb.StartActionRequest_PtSummaryParams:
 				action = actions.NewProcessAction(p.ActionId, c.cfg.Paths.PTSummary, []string{})
 
-			case *agentpb.StartActionRequest_PtMgdbSummaryParams:
-				action = actions.NewProcessAction(p.ActionId, c.cfg.Paths.PTMgDbSummary, argListFromMgDbParams(params.PtMgdbSummaryParams))
+			case *agentpb.StartActionRequest_PtMongodbSummaryParams:
+				action = actions.NewProcessAction(p.ActionId, c.cfg.Paths.PTMongoDBSummary, argListFromMongoDBParams(params.PtMongodbSummaryParams))
 
 			case nil:
 				// Requests() is not closed, so exit early to break channel
@@ -540,7 +540,7 @@ func (c *Client) Collect(ch chan<- prometheus.Metric) {
 }
 
 // argListFromMgDbParams creates an array of strings from the pointer to the parameters for pt-mongodb-sumamry
-func argListFromMgDbParams(pParams *agentpb.StartActionRequest_PTMgDbSummaryParams) []string {
+func argListFromMongoDBParams(pParams *agentpb.StartActionRequest_PTMongoDBSummaryParams) []string {
 	var args []string
 
 	// Only adds the arguments are valid
@@ -553,8 +553,8 @@ func argListFromMgDbParams(pParams *agentpb.StartActionRequest_PTMgDbSummaryPara
 		args = append(args, "--password", pParams.Password)
 	}
 
-	if pParams.Address != "" {
-		var hostPortStr string = pParams.Address
+	if pParams.Host != "" {
+		var hostPortStr string = pParams.Host
 
 		// If valid port attaches ':' and the port number after address
 		if pParams.Port > 0 && pParams.Port <= 65535 {

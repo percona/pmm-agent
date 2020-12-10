@@ -216,33 +216,33 @@ func TestGetActionTimeout(t *testing.T) {
 	}
 }
 
-func Test_argListFromMgDbParams(t *testing.T) {
+func Test_argListFromMongoDBParams(t *testing.T) {
 	type testParams struct {
-		req      *agentpb.StartActionRequest_PTMgDbSummaryParams
+		req      *agentpb.StartActionRequest_PTMongoDBSummaryParams
 		expected []string
 	}
 
 	testCases := []*testParams{
-		{&agentpb.StartActionRequest_PTMgDbSummaryParams{Address: "10.20.30.40", Port: 555, Username: "person",
+		{&agentpb.StartActionRequest_PTMongoDBSummaryParams{Host: "10.20.30.40", Port: 555, Username: "person",
 			Password: "secret"}, []string{"--username", "person", "--password", "secret", "10.20.30.40:555"}},
-		{&agentpb.StartActionRequest_PTMgDbSummaryParams{Address: "10.20.30.40", Port: 555, Username: "person",
+		{&agentpb.StartActionRequest_PTMongoDBSummaryParams{Host: "10.20.30.40", Port: 555, Username: "person",
 			Password: ""}, []string{"--username", "person", "10.20.30.40:555"}},
-		{&agentpb.StartActionRequest_PTMgDbSummaryParams{Address: "10.20.30.40", Port: 555, Username: "",
+		{&agentpb.StartActionRequest_PTMongoDBSummaryParams{Host: "10.20.30.40", Port: 555, Username: "",
 			Password: "secret"}, []string{"--password", "secret", "10.20.30.40:555"}},
-		{&agentpb.StartActionRequest_PTMgDbSummaryParams{Address: "10.20.30.40", Port: 65536, Username: "",
+		{&agentpb.StartActionRequest_PTMongoDBSummaryParams{Host: "10.20.30.40", Port: 65536, Username: "",
 			Password: "secret"}, []string{"--password", "secret", "10.20.30.40"}},
-		{&agentpb.StartActionRequest_PTMgDbSummaryParams{Address: "", Port: 555, Username: "", Password: "secret"},
+		{&agentpb.StartActionRequest_PTMongoDBSummaryParams{Host: "", Port: 555, Username: "", Password: "secret"},
 			[]string{"--password", "secret"}},
 
-		{&agentpb.StartActionRequest_PTMgDbSummaryParams{Address: "", Port: 0, Username: "", Password: ""}, []string{}},
-		{&agentpb.StartActionRequest_PTMgDbSummaryParams{Address: "", Port: 0, Username: "王华", Password: `"`},
+		{&agentpb.StartActionRequest_PTMongoDBSummaryParams{Host: "", Port: 0, Username: "", Password: ""}, []string{}},
+		{&agentpb.StartActionRequest_PTMongoDBSummaryParams{Host: "", Port: 0, Username: "王华", Password: `"`},
 			[]string{"--username", "王华", "--password", `"`}},
 	}
 
 	for _, tc := range testCases {
 		tc := tc
 		t.Run(proto.CompactTextString(tc.req), func(t *testing.T) {
-			actual := argListFromMgDbParams(tc.req)
+			actual := argListFromMongoDBParams(tc.req)
 			assert.ElementsMatch(t, tc.expected, actual)
 		})
 	}
