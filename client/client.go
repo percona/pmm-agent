@@ -551,7 +551,6 @@ func argListFromMongoDBParams(pParams *agentpb.StartActionRequest_PTMongoDBSumma
 	}
 
 	if pParams.Password != "" {
-		// Quoted param generates an error (although it works from command line)
 		// TBD change this line when pt-mongodb-summary is updated
 		args = append(args, fmt.Sprintf("-p%s", pParams.Password))
 	}
