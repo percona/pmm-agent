@@ -551,8 +551,8 @@ func argListFromMongoDBParams(pParams *agentpb.StartActionRequest_PTMongoDBSumma
 	}
 
 	if pParams.Password != "" {
-		// TBD change this line when pt-mongodb-summary is updated
-		args = append(args, fmt.Sprintf("-p%s", pParams.Password))
+		// TODO change this line when pt-mongodb-summary is updated
+		args = append(args, fmt.Sprintf("--password=%s", pParams.Password))
 	}
 
 	if pParams.Host != "" {
@@ -560,7 +560,7 @@ func argListFromMongoDBParams(pParams *agentpb.StartActionRequest_PTMongoDBSumma
 
 		// If valid port attaches ':' and the port number after address
 		if pParams.Port > 0 && pParams.Port <= 65535 {
-			hostPortStr += ":" + strconv.FormatUint(uint64(pParams.Port), 10)
+			hostPortStr += ":" + strconv.Itoa(int(pParams.Port))
 		}
 
 		args = append(args, hostPortStr)
