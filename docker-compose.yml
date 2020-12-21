@@ -57,6 +57,13 @@ services:
       - MONGO_INITDB_ROOT_USERNAME=root
       - MONGO_INITDB_ROOT_PASSWORD=root-password
 
+  mongonoauth:
+    image: ${MONGO_IMAGE:-percona/percona-server-mongodb:4.2}
+    container_name: pmm-agent_mongo_noauth
+    command: --profile 2
+    ports:
+      - 127.0.0.1:27018:27017
+
   postgres:
     image: ${POSTGRES_IMAGE:-postgres:11}
     container_name: pmm-agent_postgres

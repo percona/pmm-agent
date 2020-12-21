@@ -59,6 +59,13 @@ func TestConnectionChecker(t *testing.T) {
 		},
 
 		{
+			name: "MongoDB with no auth",
+			req: &agentpb.CheckConnectionRequest{
+				Dsn:     "mongodb://127.0.0.1:27018/admin?connectTimeoutMS=1000",
+				Type:    inventorypb.ServiceType_MONGODB_SERVICE,
+				Timeout: ptypes.DurationProto(3 * time.Second),
+			},
+		}, {
 			name: "MongoDB",
 			req: &agentpb.CheckConnectionRequest{
 				Dsn:     "mongodb://root:root-password@127.0.0.1:27017/admin?connectTimeoutMS=1000",
@@ -72,7 +79,7 @@ func TestConnectionChecker(t *testing.T) {
 				Type:    inventorypb.ServiceType_MONGODB_SERVICE,
 				Timeout: ptypes.DurationProto(3 * time.Second),
 			},
-			expectedErr: `\(Unauthorized\) command serverStatus requires authentication`,
+			expectedErr: `\(Unauthorized\) command listDatabases requires authentication`,
 		}, {
 			name: "MongoDB wrong params",
 			req: &agentpb.CheckConnectionRequest{

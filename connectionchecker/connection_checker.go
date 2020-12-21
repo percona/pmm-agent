@@ -137,9 +137,9 @@ func (cc *ConnectionChecker) checkMongoDBConnection(ctx context.Context, dsn str
 		return &res
 	}
 
-	resp := client.Database("admin").RunCommand(ctx, bson.D{{"serverStatus", 1}})
+	resp := client.Database("admin").RunCommand(ctx, bson.D{{"listDatabases", 1}})
 	if err = resp.Err(); err != nil {
-		cc.l.Debugf("checkMongoDBConnection: failed to runCommand serverStatus: %s", err)
+		cc.l.Debugf("checkMongoDBConnection: failed to runCommand listDatabases: %s", err)
 		res.Error = err.Error()
 		return &res
 	}
