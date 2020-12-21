@@ -142,7 +142,7 @@ env-mysql:                      ## Run mysql client.
 	docker exec -ti pmm-agent_mysql mysql --host=127.0.0.1 --user=root --password=root-password
 
 env-mongo:                      ## Run mongo client.
-	docker exec -ti pmm-agent_mongo mongo
+	docker exec -ti pmm-agent_mongo mongo --username=root --password=root-password
 
 env-psql:                       ## Run psql client.
 	docker exec -ti pmm-agent_postgres env PGPASSWORD=pmm-agent-password psql --username=pmm-agent
