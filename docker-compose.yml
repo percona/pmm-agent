@@ -59,7 +59,7 @@ services:
 
   mongonoauth:
     image: ${MONGO_IMAGE:-percona/percona-server-mongodb:4.2}
-    container_name: pmm-agent_mongo_noauth
+    container_name: pmm-agent_mongonoauth
     command: --profile 2
     ports:
       - 127.0.0.1:27018:27017
