@@ -88,7 +88,9 @@ func TestConnectionChecker(t *testing.T) {
 				Type:    inventorypb.ServiceType_MONGODB_SERVICE,
 				Timeout: ptypes.DurationProto(3 * time.Second),
 			},
-			expectedErr: `\(Unauthorized\) (?:command listDatabases requires authentication|there are no users authenticated)`,
+			expectedErr: `\(Unauthorized\) (?:command listDatabases requires authentication|` +
+				`there are no users authenticated|` +
+				`not authorized on admin to execute command \{ listDatabases\: 1 \})`,
 		}, {
 			name: "MongoDB wrong params",
 			req: &agentpb.CheckConnectionRequest{
