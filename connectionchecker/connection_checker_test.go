@@ -66,6 +66,15 @@ func TestConnectionChecker(t *testing.T) {
 				Timeout: ptypes.DurationProto(3 * time.Second),
 			},
 		}, {
+			name: "MongoDB with no auth with params",
+			req: &agentpb.CheckConnectionRequest{
+				Dsn:     "mongodb://root:root-password@127.0.0.1:27018/admin?connectTimeoutMS=1000",
+				Type:    inventorypb.ServiceType_MONGODB_SERVICE,
+				Timeout: ptypes.DurationProto(3 * time.Second),
+			},
+			expectedErr: `.*auth error: sasl conversation error: unable to authenticate using mechanism "[\w-]+": ` +
+				`\(AuthenticationFailed\) Authentication failed.`,
+		}, {
 			name: "MongoDB",
 			req: &agentpb.CheckConnectionRequest{
 				Dsn:     "mongodb://root:root-password@127.0.0.1:27017/admin?connectTimeoutMS=1000",
@@ -79,7 +88,7 @@ func TestConnectionChecker(t *testing.T) {
 				Type:    inventorypb.ServiceType_MONGODB_SERVICE,
 				Timeout: ptypes.DurationProto(3 * time.Second),
 			},
-			expectedErr: `\(Unauthorized\) command listDatabases requires authentication`,
+			expectedErr: `\(Unauthorized\) (?:command listDatabases requires authentication|there are no users authenticated)`,
 		}, {
 			name: "MongoDB wrong params",
 			req: &agentpb.CheckConnectionRequest{
