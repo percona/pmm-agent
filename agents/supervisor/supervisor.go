@@ -17,18 +17,14 @@
 package supervisor
 
 import (
-	"bytes"
 	"context"
 	"fmt"
-	"io/ioutil"
-	"os"
 	"path/filepath"
 	"regexp"
 	"runtime/pprof"
 	"sort"
 	"strings"
 	"sync"
-	"text/template"
 
 	"github.com/golang/protobuf/proto"
 	"github.com/percona/pmm/api/agentlocalpb"
@@ -46,6 +42,7 @@ import (
 	"github.com/percona/pmm-agent/agents/postgres/pgstatstatements"
 	"github.com/percona/pmm-agent/agents/process"
 	"github.com/percona/pmm-agent/config"
+	"github.com/percona/pmm-agent/utils/templates"
 )
 
 // Supervisor manages all Agents, both processes and built-in.
@@ -385,10 +382,36 @@ func (s *Supervisor) startBuiltin(agentID string, builtinAgent *agentpb.SetState
 	done := make(chan struct{})
 	var agent agents.BuiltinAgent
 	var err error
+
+	var dsn string
+	if builtinAgent.TextFiles != nil {
+		tr := &templates.TemplateRenderer{
+			TextFiles:          builtinAgent.TextFiles.Files,
+			TemplateLeftDelim:  builtinAgent.TextFiles.TemplateLeftDelim,
+			TemplateRightDelim: builtinAgent.TextFiles.TemplateRightDelim,
+			TempDir:            filepath.Join(s.paths.TempDir, strings.ToLower(builtinAgent.Type.String()), agentID),
+		}
+
+		templateParams, err := tr.RenderFiles(make(map[string]interface{}))
+		if err != nil {
+			cancel()
+			return err
+		}
+
+		b, err := tr.RenderTemplate("dsn", builtinAgent.Dsn, templateParams)
+		if err != nil {
+			cancel()
+			return err
+		}
+		dsn = string(b)
+	} else {
+		dsn = builtinAgent.Dsn
+	}
+
 	switch builtinAgent.Type {
 	case inventorypb.AgentType_QAN_MYSQL_PERFSCHEMA_AGENT:
 		params := &perfschema.Params{
-			DSN:                  builtinAgent.Dsn,
+			DSN:                  dsn,
 			AgentID:              agentID,
 			DisableQueryExamples: builtinAgent.DisableQueryExamples,
 		}
@@ -396,14 +419,14 @@ func (s *Supervisor) startBuiltin(agentID string, builtinAgent *agentpb.SetState
 
 	case inventorypb.AgentType_QAN_MONGODB_PROFILER_AGENT:
 		params := &mongodb.Params{
-			DSN:     builtinAgent.Dsn,
+			DSN:     dsn,
 			AgentID: agentID,
 		}
 		agent, err = mongodb.New(params, l)
 
 	case inventorypb.AgentType_QAN_MYSQL_SLOWLOG_AGENT:
 		params := &slowlog.Params{
-			DSN:                  builtinAgent.Dsn,
+			DSN:                  dsn,
 			AgentID:              agentID,
 			SlowLogFilePrefix:    s.paths.SlowLogFilePrefix,
 			DisableQueryExamples: builtinAgent.DisableQueryExamples,
@@ -413,14 +436,14 @@ func (s *Supervisor) startBuiltin(agentID string, builtinAgent *agentpb.SetState
 
 	case inventorypb.AgentType_QAN_POSTGRESQL_PGSTATEMENTS_AGENT:
 		params := &pgstatstatements.Params{
-			DSN:     builtinAgent.Dsn,
+			DSN:     dsn,
 			AgentID: agentID,
 		}
 		agent, err = pgstatstatements.New(params, l)
 
 	case inventorypb.AgentType_QAN_POSTGRESQL_PGSTATMONITOR_AGENT:
 		params := &pgstatmonitor.Params{
-			DSN:                  builtinAgent.Dsn,
+			DSN:                  dsn,
 			AgentID:              agentID,
 			DisableQueryExamples: builtinAgent.DisableQueryExamples,
 		}
@@ -512,55 +535,21 @@ func (s *Supervisor) processParams(agentID string, agentProcess *agentpb.SetStat
 		return nil, errors.Errorf("no path for agent type %[1]s (%[1]d).", agentProcess.Type)
 	}
 
-	renderTemplate := func(name, text string, params map[string]interface{}) ([]byte, error) {
-		t := template.New(name)
-		t.Delims(agentProcess.TemplateLeftDelim, agentProcess.TemplateRightDelim)
-		t.Option("missingkey=error")
-
-		var buf bytes.Buffer
-		if _, err := t.Parse(text); err != nil {
-			return nil, errors.WithStack(err)
-		}
-		if err := t.Execute(&buf, params); err != nil {
-			return nil, errors.WithStack(err)
-		}
-		return buf.Bytes(), nil
+	tr := &templates.TemplateRenderer{
+		TextFiles:          agentProcess.TextFiles,
+		TemplateLeftDelim:  agentProcess.TemplateLeftDelim,
+		TemplateRightDelim: agentProcess.TemplateRightDelim,
+		TempDir:            filepath.Join(s.paths.TempDir, strings.ToLower(agentProcess.Type.String()), agentID),
 	}
 
-	// render files only if they are present to avoid creating temporary directory for every agent
-	if len(agentProcess.TextFiles) > 0 {
-		dir := filepath.Join(s.paths.TempDir, strings.ToLower(agentProcess.Type.String()), agentID)
-		if err := os.RemoveAll(dir); err != nil {
-			return nil, errors.WithStack(err)
-		}
-		if err := os.MkdirAll(dir, 0750); err != nil {
-			return nil, errors.WithStack(err)
-		}
-
-		textFiles := make(map[string]string, len(agentProcess.TextFiles)) // template name => full file path
-		for name, text := range agentProcess.TextFiles {
-			// avoid /, .., ., \, and other special symbols
-			if !textFileRE.MatchString(name) {
-				return nil, errors.Errorf("invalid text file name %q", name)
-			}
-
-			b, err := renderTemplate(name, text, templateParams)
-			if err != nil {
-				return nil, err
-			}
-
-			path := filepath.Join(dir, name)
-			if err = ioutil.WriteFile(path, b, 0640); err != nil {
-				return nil, errors.WithStack(err)
-			}
-			textFiles[name] = path
-		}
-		templateParams["TextFiles"] = textFiles
+	templateParams, err := tr.RenderFiles(templateParams)
+	if err != nil {
+		return nil, err
 	}
 
 	processParams.Args = make([]string, len(agentProcess.Args))
 	for i, e := range agentProcess.Args {
-		b, err := renderTemplate("args", e, templateParams)
+		b, err := tr.RenderTemplate("args", e, templateParams)
 		if err != nil {
 			return nil, err
 		}
@@ -569,7 +558,7 @@ func (s *Supervisor) processParams(agentID string, agentProcess *agentpb.SetStat
 
 	processParams.Env = make([]string, len(agentProcess.Env))
 	for i, e := range agentProcess.Env {
-		b, err := renderTemplate("env", e, templateParams)
+		b, err := tr.RenderTemplate("env", e, templateParams)
 		if err != nil {
 			return nil, err
 		}

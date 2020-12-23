@@ -20,6 +20,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -41,7 +42,8 @@ func TestMongoDBExplain(t *testing.T) {
 	id := "abcd1234"
 	ctx := context.TODO()
 
-	client := tests.OpenTestMongoDB(t)
+	dsn := tests.GetTestMongoDBDSN(t)
+	client := tests.OpenTestMongoDB(t, dsn)
 	defer client.Database(database).Drop(ctx) //nolint:errcheck
 
 	err := prepareData(ctx, client, database, collection)
@@ -53,7 +55,7 @@ func TestMongoDBExplain(t *testing.T) {
 			Query: `{"ns":"test.coll","op":"query","query":{"k":{"$lte":{"$numberInt":"1"}}}}`,
 		}
 
-		ex := NewMongoDBExplainAction(id, params)
+		ex := NewMongoDBExplainAction(id, params, os.TempDir())
 		res, err := ex.Run(ctx)
 		assert.Nil(t, err)
 
@@ -84,7 +86,8 @@ func TestNewMongoDBExplain(t *testing.T) {
 	id := "abcd1234"
 	ctx := context.TODO()
 
-	client := tests.OpenTestMongoDB(t)
+	dsn := tests.GetTestMongoDBDSN(t)
+	client := tests.OpenTestMongoDB(t, dsn)
 	defer client.Database(database).Drop(ctx) //nolint:errcheck
 
 	_, err := client.Database(database).Collection("people").InsertOne(ctx, bson.M{"last_name": "Brannigan", "first_name": "Zapp"})
@@ -139,7 +142,7 @@ func TestNewMongoDBExplain(t *testing.T) {
 				Query: string(query),
 			}
 
-			ex := NewMongoDBExplainAction(id, params)
+			ex := NewMongoDBExplainAction(id, params, os.TempDir())
 			res, err := ex.Run(ctx)
 			assert.NoError(t, err)
 

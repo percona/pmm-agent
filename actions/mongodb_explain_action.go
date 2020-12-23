@@ -18,8 +18,7 @@ package actions
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
-	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/percona/percona-toolkit/src/go/mongolib/proto"
@@ -28,11 +27,14 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
+
+	"github.com/percona/pmm-agent/utils/templates"
 )
 
 type mongodbExplainAction struct {
-	id     string
-	params *agentpb.StartActionRequest_MongoDBExplainParams
+	id      string
+	params  *agentpb.StartActionRequest_MongoDBExplainParams
+	tempDir string
 }
 
 var (
@@ -41,10 +43,11 @@ var (
 )
 
 // NewMongoDBExplainAction creates a MongoDB EXPLAIN query Action.
-func NewMongoDBExplainAction(id string, params *agentpb.StartActionRequest_MongoDBExplainParams) Action {
+func NewMongoDBExplainAction(id string, params *agentpb.StartActionRequest_MongoDBExplainParams, tempDir string) Action {
 	return &mongodbExplainAction{
-		id:     id,
-		params: params,
+		id:      id,
+		params:  params,
+		tempDir: tempDir,
 	}
 }
 
@@ -60,27 +63,12 @@ func (a *mongodbExplainAction) Type() string {
 
 // Run runs an Action and returns output and error.
 func (a *mongodbExplainAction) Run(ctx context.Context) ([]byte, error) {
-	if a.params.MongoDbOptions.TlsCertificateKey != "" {
-		certificate, err := ioutil.TempFile("", "cert")
-		certificate.Write([]byte(a.params.MongoDbOptions.TlsCertificateKey))
-		certificate.Close()
-		if err == nil {
-			defer os.Remove(certificate.Name())
-			a.params.Dsn = strings.Replace(a.params.Dsn, "certificateKeyFileHolder", certificate.Name(), 1)
-		}
+	dsn, err := templates.RenderDSN(a.params.Dsn, a.params.TextFiles, filepath.Join(a.tempDir, strings.ToLower(a.Type()), a.id))
+	if err != nil {
+		return nil, errors.WithStack(err)
 	}
 
-	if a.params.MongoDbOptions.TlsCa != "" {
-		caCertificate, err := ioutil.TempFile("", "caCert")
-		caCertificate.Write([]byte(a.params.MongoDbOptions.TlsCa))
-		caCertificate.Close()
-		if err == nil {
-			defer os.Remove(caCertificate.Name())
-			a.params.Dsn = strings.Replace(a.params.Dsn, "caFileHolder", caCertificate.Name(), 1)
-		}
-	}
-
-	client, err := mongo.Connect(ctx, options.Client().ApplyURI(a.params.Dsn))
+	client, err := mongo.Connect(ctx, options.Client().ApplyURI(dsn))
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}

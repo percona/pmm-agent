@@ -20,10 +20,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"io/ioutil"
 	"math"
-	"os"
-	"strings"
 
 	"github.com/go-sql-driver/mysql"
 	"github.com/golang/protobuf/ptypes"
@@ -33,19 +30,24 @@ import (
 	"github.com/sirupsen/logrus"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
+
+	"github.com/percona/pmm-agent/config"
+	"github.com/percona/pmm-agent/utils/templates"
 )
 
 // ConnectionChecker is a struct to check connection to services.
 type ConnectionChecker struct {
-	ctx context.Context
-	l   *logrus.Entry
+	ctx   context.Context
+	l     *logrus.Entry
+	paths *config.Paths
 }
 
 // New creates new ConnectionChecker.
-func New(ctx context.Context) *ConnectionChecker {
+func New(ctx context.Context, paths *config.Paths) *ConnectionChecker {
 	return &ConnectionChecker{
-		ctx: ctx,
-		l:   logrus.WithField("component", "connectionchecker"),
+		ctx:   ctx,
+		l:     logrus.WithField("component", "connectionchecker"),
+		paths: paths,
 	}
 }
 
@@ -63,36 +65,7 @@ func (cc *ConnectionChecker) Check(msg *agentpb.CheckConnectionRequest) *agentpb
 	case inventorypb.ServiceType_MYSQL_SERVICE:
 		return cc.checkMySQLConnection(ctx, msg.Dsn)
 	case inventorypb.ServiceType_MONGODB_SERVICE:
-		var certificate *os.File
-		var caCertificate *os.File
-		var err error
-		dsn := msg.Dsn
-
-		if msg.MongoDbOptions.TlsCertificateKey != "" {
-			certificate, err = ioutil.TempFile("", "cert")
-			certificate.Write([]byte(msg.MongoDbOptions.TlsCertificateKey))
-			certificate.Close()
-			if err == nil {
-				defer os.Remove(certificate.Name())
-				dsn = strings.Replace(dsn, "certificateKeyFileHolder", certificate.Name(), 1)
-			}
-		}
-
-		if msg.MongoDbOptions.TlsCertificateKeyFilePassword != "" {
-			dsn = strings.Replace(dsn, "certificateKeyFilePasswordHolder", msg.MongoDbOptions.TlsCertificateKeyFilePassword, 1)
-		}
-
-		if msg.MongoDbOptions.TlsCa != "" {
-			caCertificate, err = ioutil.TempFile("", "caCert")
-			caCertificate.Write([]byte(msg.MongoDbOptions.TlsCa))
-			caCertificate.Close()
-			if err == nil {
-				defer os.Remove(caCertificate.Name())
-				dsn = strings.Replace(dsn, "caFileHolder", caCertificate.Name(), 1)
-			}
-		}
-
-		return cc.checkMongoDBConnection(ctx, dsn)
+		return cc.checkMongoDBConnection(ctx, msg.Dsn, msg.TextFiles)
 	case inventorypb.ServiceType_POSTGRESQL_SERVICE:
 		return cc.checkPostgreSQLConnection(ctx, msg.Dsn)
 	case inventorypb.ServiceType_PROXYSQL_SERVICE:
@@ -151,8 +124,16 @@ func (cc *ConnectionChecker) checkMySQLConnection(ctx context.Context, dsn strin
 	return &res
 }
 
-func (cc *ConnectionChecker) checkMongoDBConnection(ctx context.Context, dsn string) *agentpb.CheckConnectionResponse {
+func (cc *ConnectionChecker) checkMongoDBConnection(ctx context.Context, dsn string, files *agentpb.TextFiles) *agentpb.CheckConnectionResponse {
 	var res agentpb.CheckConnectionResponse
+	var err error
+
+	dsn, err = templates.RenderDSN(dsn, files, cc.paths.TempDir)
+	if err != nil {
+		cc.l.Debugf("checkMongoDBConnection: failed to Render DSN: %s", err)
+		res.Error = err.Error()
+		return &res
+	}
 
 	client, err := mongo.Connect(ctx, options.Client().ApplyURI(dsn))
 	if err != nil {

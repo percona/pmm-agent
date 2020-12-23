@@ -19,6 +19,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"sort"
 	"strings"
 	"testing"
@@ -209,7 +210,7 @@ func TestProfiler(t *testing.T) {
 			Query: findBucket.Common.Example,
 		}
 
-		ex := actions.NewMongoDBExplainAction(id, params)
+		ex := actions.NewMongoDBExplainAction(id, params, os.TempDir())
 		res, err := ex.Run(ctx)
 		assert.Nil(t, err)
 
