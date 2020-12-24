@@ -334,7 +334,7 @@ func TestSupervisorProcessParams(t *testing.T) {
 			TextFiles: map[string]string{
 				"Cert":                          "-----BEGIN CERTIFICATE-----\n...",
 				"Config":                        "test={{ .listen_port }}",
-				"caFilePlaceHolder":             "ca",
+				"caFilePlaceholder":             "ca",
 				"certificateKeyFilePlaceholder": "certificate",
 			},
 		}
@@ -348,9 +348,11 @@ func TestSupervisorProcessParams(t *testing.T) {
 				"-web.ssl-cert-file=" + filepath.Join(s.paths.TempDir, "mysqld_exporter", "ID", "Cert"),
 			},
 			Env: []string{
+				"MONGODB_URI=mongodb://username:s3cur3%20p%40$$w0r4.@1.2.3.4:12345/?connectTimeoutMS=1000&ssl=true&" +
+					"sslCaFile=" + filepath.Join(s.paths.TempDir, "mysqld_exporter", "ID", "caFilePlaceholder") +
+					"&sslCertificateKeyFile=" + filepath.Join(s.paths.TempDir, "mysqld_exporter", "ID", "certificateKeyFilePlaceholder"),
 				"HTTP_AUTH=pmm:secret",
 				"TEST=:12345",
-				"MONGODB_URI=mongodb://username:s3cur3%20p%40$$w0r4.@1.2.3.4:12345/?connectTimeoutMS=1000&ssl=true&sslCaFile={{.TextFiles.caFilePlaceholder}}&sslCertificateKeyFile={{.TextFiles.certificateKeyFilePlaceholder}}",
 			},
 		}
 		assert.Equal(t, expected, *actual)
