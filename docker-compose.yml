@@ -63,7 +63,7 @@ services:
       - 127.0.0.1:27018:27017
     command:
       - --profile=2
-      - --sslMode=preferSSL
+      - --sslMode=requireSSL
       - --sslPEMKeyFile=/etc/ssl/certificates/server.pem
       - --sslCAFile=/etc/ssl/certificates/ca.crt
       - --sslWeakCertificateValidation

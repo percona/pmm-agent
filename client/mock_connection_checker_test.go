@@ -13,7 +13,7 @@ type mockConnectionChecker struct {
 }
 
 // Check provides a mock function with given fields: req
-func (_m *mockConnectionChecker) Check(req *agentpb.CheckConnectionRequest) *agentpb.CheckConnectionResponse {
+func (_m *mockConnectionChecker) Check(req *agentpb.CheckConnectionRequest, id uint32) *agentpb.CheckConnectionResponse {
 	ret := _m.Called(req)
 
 	var r0 *agentpb.CheckConnectionResponse

@@ -24,7 +24,6 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/percona/percona-toolkit/src/go/mongolib/proto"
 	"github.com/percona/pmm/api/agentpb"
 	"github.com/percona/pmm/version"
 	"github.com/stretchr/testify/assert"
@@ -114,22 +113,13 @@ func TestNewMongoDBExplain(t *testing.T) {
 			in: "find_and_modify.json",
 		},
 	}
-
-	res := client.Database("admin").RunCommand(ctx, primitive.M{"buildInfo": 1})
-	if res.Err() != nil {
-		t.Fatalf("Cannot get buildInfo: %s", err)
-	}
-	bi := proto.BuildInfo{}
-	if err := res.Decode(&bi); err != nil {
-		t.Fatalf("Cannot decode buildInfo response: %s", err)
-	}
-
+	mongoDBVersion := tests.MongoDBVersion(t, client)
 	for _, tf := range testFiles {
 		// Not all MongoDB versions allow explaining all commands
 		if tf.minVersion != "" {
-			c, err := notLessThan(tf.minVersion, bi.Version)
+			c, err := lessThan(tf.minVersion, mongoDBVersion)
 			require.NoError(t, err)
-			if !c {
+			if c {
 				continue
 			}
 		}
@@ -173,7 +163,7 @@ func prepareData(ctx context.Context, client *mongo.Client, database, collection
 	return nil
 }
 
-func notLessThan(minVersionStr, currentVersion string) (bool, error) {
+func lessThan(minVersionStr, currentVersion string) (bool, error) {
 	v, err := version.Parse(currentVersion)
 	if err != nil {
 		return false, err
@@ -185,5 +175,5 @@ func notLessThan(minVersionStr, currentVersion string) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	return !minVersion.Less(v), nil
+	return minVersion.Less(v), nil
 }

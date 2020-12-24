@@ -18,6 +18,7 @@ package connectionchecker
 import (
 	"context"
 	"io/ioutil"
+	"math/rand"
 	"testing"
 	"time"
 
@@ -157,7 +158,7 @@ func TestConnectionChecker(t *testing.T) {
 			c := New(context.Background(), &config.Paths{
 				TempDir: temp,
 			})
-			resp := c.Check(tt.req)
+			resp := c.Check(tt.req, 0)
 			require.NotNil(t, resp)
 			if tt.expectedErr == "" {
 				assert.Empty(t, resp.Error)
@@ -177,7 +178,7 @@ func TestConnectionChecker(t *testing.T) {
 		resp := c.Check(&agentpb.CheckConnectionRequest{
 			Dsn:  "root:root-password@tcp(127.0.0.1:3306)/?clientFoundRows=true&parseTime=true&timeout=1s",
 			Type: inventorypb.ServiceType_MYSQL_SERVICE,
-		})
+		}, 0)
 		require.NotNil(t, resp)
 		assert.InDelta(t, 250, resp.Stats.TableCount, 150)
 	})
@@ -195,7 +196,7 @@ func TestConnectionChecker(t *testing.T) {
 			Type:      inventorypb.ServiceType_MONGODB_SERVICE,
 			Timeout:   ptypes.DurationProto(30 * time.Second),
 			TextFiles: mongoDBTextFiles,
-		})
+		}, rand.Uint32())
 		require.NotNil(t, resp)
 		assert.Empty(t, resp.Error)
 	})

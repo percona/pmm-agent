@@ -23,6 +23,7 @@ import (
 
 	"github.com/percona/pmm/api/agentpb"
 	"github.com/stretchr/testify/require"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
@@ -46,7 +47,7 @@ func GetTestMongoDBWithSSLDSN(tb testing.TB) (string, *agentpb.TextFiles) {
 		tb.Skip("-short flag is passed, skipping test with real database.")
 	}
 
-	dsn := "mongodb://127.0.0.1:27018/admin/?ssl=true&tlsInsecure=true&tlsCaFile={{.TextFiles.caFilePlaceholder}}&tlsCertificateKeyFile={{.TextFiles.certificateKeyFilePlaceholder}}"
+	dsn := "mongodb://localhost:27018/admin/?ssl=true&tlsCaFile={{.TextFiles.caFilePlaceholder}}&tlsCertificateKeyFile={{.TextFiles.certificateKeyFilePlaceholder}}"
 
 	caFile, err := ioutil.ReadFile(filepath.Join("../utils/tests/testdata/", "mongodb/", "ca.crt"))
 	require.NoError(tb, err)
@@ -74,4 +75,18 @@ func OpenTestMongoDB(tb testing.TB, dsn string) *mongo.Client {
 	require.NoError(tb, client.Ping(context.Background(), nil))
 
 	return client
+}
+
+func MongoDBVersion(t testing.TB, client *mongo.Client) string {
+	res := client.Database("admin").RunCommand(context.Background(), primitive.M{"buildInfo": 1})
+	if res.Err() != nil {
+		t.Fatalf("Cannot get buildInfo: %s", res.Err())
+	}
+	bi := struct {
+		Version string
+	}{}
+	if err := res.Decode(&bi); err != nil {
+		t.Fatalf("Cannot decode buildInfo response: %s", err)
+	}
+	return bi.Version
 }

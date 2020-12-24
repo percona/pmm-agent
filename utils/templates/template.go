@@ -18,7 +18,6 @@ package templates
 
 import (
 	"bytes"
-	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -112,7 +111,6 @@ func RenderDSN(dsn string, files *agentpb.TextFiles, tempDir string) (string, er
 			return "", err
 		}
 		dsn = string(b)
-		fmt.Println(dsn, templateParams)
 	}
 	return dsn, nil
 }
