@@ -57,19 +57,18 @@ install-race:                   ## Install pmm-agent binary with race detector.
 
 TEST_PACKAGES ?= ./...
 TEST_FLAGS ?= -timeout=60s
-TEST_ENV_VARS ?= GODEBUG=x509ignoreCN=0
 
 test:                           ## Run tests.
-	$(TEST_ENV_VARS) go test $(TEST_FLAGS) -p 1 $(TEST_PACKAGES)
+	go test $(TEST_FLAGS) -p 1 $(TEST_PACKAGES)
 
 test-race:                      ## Run tests with race detector.
-	$(TEST_ENV_VARS) go test $(TEST_FLAGS) -p 1 -race $(TEST_PACKAGES)
+	go test $(TEST_FLAGS) -p 1 -race $(TEST_PACKAGES)
 
 test-cover:                     ## Run tests and collect per-package coverage information.
-	$(TEST_ENV_VARS) go test $(TEST_FLAGS) -p 1 -coverprofile=cover.out -covermode=count $(TEST_PACKAGES)
+	go test $(TEST_FLAGS) -p 1 -coverprofile=cover.out -covermode=count $(TEST_PACKAGES)
 
 test-crosscover:                ## Run tests and collect cross-package coverage information.
-	$(TEST_ENV_VARS) go test $(TEST_FLAGS) -p 1 -coverprofile=crosscover.out -covermode=count -coverpkg=./... $(TEST_PACKAGES)
+	go test $(TEST_FLAGS) -p 1 -coverprofile=crosscover.out -covermode=count -coverpkg=./... $(TEST_PACKAGES)
 
 fuzz-slowlog-parser:            ## Run fuzzer for agents/mysql/slowlog/parser package.
 	# go get -u github.com/dvyukov/go-fuzz/go-fuzz github.com/dvyukov/go-fuzz/go-fuzz-build
