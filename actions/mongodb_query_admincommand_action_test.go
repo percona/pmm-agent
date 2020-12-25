@@ -19,6 +19,7 @@ import (
 	"context"
 	"io/ioutil"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -237,10 +238,14 @@ func TestMongoDBBuildinfoWithSSL(t *testing.T) {
 		argv := m.Get("argv").InterSlice()
 		expected := []interface{}{"mongod", "--sslMode=requireSSL", "--sslPEMKeyFile=/etc/ssl/certificates/server.pem"}
 
-		mongoDBVersion := tests.MongoDBVersion(t, client)
-		c, err := lessThan(mongoDBVersion, "4.1.0")
-		require.NoError(t, err)
-		if !c {
+		var tlsMode bool
+		for _, arg := range argv {
+			if strings.Contains(arg.(string), "tlsMode") {
+				tlsMode = true
+				break
+			}
+		}
+		if tlsMode {
 			expected = []interface{}{"mongod", "--tlsMode", "requireTLS", "--tlsCertificateKeyFile", "/etc/ssl/certificates/server.pem"}
 		}
 		assert.Subset(t, argv, expected)
