@@ -130,12 +130,10 @@ env-up:                         ## Start development environment.
 	mkdir -p testdata/mysql/slowlogs
 	chmod -R 0777 testdata
 
-	echo "$(DOCKER_PASSWORD)" | docker login -u "$(DOCKER_USERNAME)" --password-stdin
 	docker-compose up $(ENV_UP_FLAGS)
 
 env-down:                       ## Stop development environment.
 	docker-compose down --volumes --remove-orphans
-	docker logout
 
 setup-dev: install              ## Run pmm-agent setup in development environment.
 	pmm-agent setup $(RUN_FLAGS) --server-insecure-tls --server-address=127.0.0.1:${PMM_DEV_SERVER_PORT} --server-username=admin --server-password=admin --paths-exporters_base=$(GOPATH)/bin

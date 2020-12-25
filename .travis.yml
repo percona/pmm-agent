@@ -65,6 +65,7 @@ env:
     - MYSQL_IMAGE=mariadb:10.4                                                POSTGRES_IMAGE=postgres:9.6 PMM_SERVER_IMAGE=perconalab/pmm-server:dev-latest
 
 before_install:
+  - echo "$(DOCKER_PASSWORD)" | docker login -u "$(DOCKER_USERNAME)" --password-stdin
   - env ENV_UP_FLAGS=--detach make env-up
 
 install:
