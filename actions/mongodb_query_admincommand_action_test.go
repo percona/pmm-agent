@@ -235,13 +235,13 @@ func TestMongoDBBuildinfoWithSSL(t *testing.T) {
 		assert.Len(t, security, 0)
 
 		argv := m.Get("argv").InterSlice()
-		expected := []interface{}{"mongod", "--sslMode=preferSSL", "--sslPEMKeyFile=/etc/ssl/certificates/server.pem"}
+		expected := []interface{}{"mongod", "--sslMode=requireSSL", "--sslPEMKeyFile=/etc/ssl/certificates/server.pem"}
 
 		mongoDBVersion := tests.MongoDBVersion(t, client)
-		c, err := lessThan("4.1", mongoDBVersion)
+		c, err := lessThan(mongoDBVersion, "4.1.0")
 		require.NoError(t, err)
 		if !c {
-			expected = []interface{}{"mongod", "--tlsMode", "preferTLS", "--tlsCertificateKeyFile", "/etc/ssl/certificates/server.pem"}
+			expected = []interface{}{"mongod", "--tlsMode", "requireTLS", "--tlsCertificateKeyFile", "/etc/ssl/certificates/server.pem"}
 		}
 		assert.Subset(t, argv, expected)
 
