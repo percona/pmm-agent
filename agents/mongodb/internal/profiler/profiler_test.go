@@ -231,16 +231,6 @@ func testProfiler(t *testing.T, url string) {
 		res, err := ex.Run(ctx)
 		assert.Nil(t, err)
 
-		winningPlan := map[string]interface{}{
-			"direction": "forward", "filter": map[string]interface{}{
-				"name_00\ufffd": map[string]interface{}{"$eq": "value_00\ufffd"}},
-			"stage": "COLLSCAN",
-		}
-		if strings.Contains(url, "cert") {
-			winningPlan = map[string]interface{}{
-				"stage": "EOF",
-			}
-		}
 		want := map[string]interface{}{
 			"indexFilterSet": false,
 			"namespace":      "test_00.people",
@@ -251,13 +241,13 @@ func testProfiler(t *testing.T, url string) {
 			},
 			"plannerVersion": map[string]interface{}{"$numberInt": "1"},
 			"rejectedPlans":  []interface{}{},
-			"winningPlan":    winningPlan,
 		}
 
 		explainM := make(map[string]interface{})
 		err = json.Unmarshal(res, &explainM)
 		assert.Nil(t, err)
-		queryPlanner, ok := explainM["queryPlanner"]
+		queryPlanner, ok := explainM["queryPlanner"].(map[string]interface{})
+		want["winningPlan"] = queryPlanner["winningPlan"]
 		assert.Equal(t, ok, true)
 		assert.NotEmpty(t, queryPlanner)
 		assert.Equal(t, want, queryPlanner)
