@@ -184,7 +184,7 @@ func TestConnectionChecker(t *testing.T) {
 	})
 
 	t.Run("MongoDBWithSSL", func(t *testing.T) {
-		mongoDBDSNWithSSL, mongoDBTextFiles := tests.GetTestMongoDBWithSSLDSN(t)
+		mongoDBDSNWithSSL, mongoDBTextFiles := tests.GetTestMongoDBWithSSLDSN(t, "../")
 		temp, err := ioutil.TempDir("", "pmm-agent-")
 		require.NoError(t, err)
 

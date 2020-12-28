@@ -40,7 +40,7 @@ func GetTestMongoDBDSN(tb testing.TB) string {
 }
 
 // GetTestMongoDBWithSSLDSN returns DNS template and files for MongoDB test database with ssl.
-func GetTestMongoDBWithSSLDSN(tb testing.TB) (string, *agentpb.TextFiles) {
+func GetTestMongoDBWithSSLDSN(tb testing.TB, pathToRoot string) (string, *agentpb.TextFiles) {
 	tb.Helper()
 
 	if testing.Short() {
@@ -49,10 +49,10 @@ func GetTestMongoDBWithSSLDSN(tb testing.TB) (string, *agentpb.TextFiles) {
 
 	dsn := "mongodb://localhost:27018/admin/?ssl=true&tlsCaFile={{.TextFiles.caFilePlaceholder}}&tlsCertificateKeyFile={{.TextFiles.certificateKeyFilePlaceholder}}"
 
-	caFile, err := ioutil.ReadFile(filepath.Join("../utils/tests/testdata/", "mongodb/", "ca.crt"))
+	caFile, err := ioutil.ReadFile(filepath.Join(pathToRoot, "utils/tests/testdata/", "mongodb/", "ca.crt"))
 	require.NoError(tb, err)
 
-	certificateKey, err := ioutil.ReadFile(filepath.Join("../utils/tests/testdata/", "mongodb/", "client.pem"))
+	certificateKey, err := ioutil.ReadFile(filepath.Join(pathToRoot, "utils/tests/testdata/", "mongodb/", "client.pem"))
 	require.NoError(tb, err)
 
 	return dsn, &agentpb.TextFiles{
@@ -77,6 +77,7 @@ func OpenTestMongoDB(tb testing.TB, dsn string) *mongo.Client {
 	return client
 }
 
+// MongoDBVersion returns Mongo DB version.
 func MongoDBVersion(t testing.TB, client *mongo.Client) string {
 	res := client.Database("admin").RunCommand(context.Background(), primitive.M{"buildInfo": 1})
 	if res.Err() != nil {

@@ -137,7 +137,7 @@ func TestMongoDBBuildinfo(t *testing.T) {
 func TestMongoDBBuildinfoWithSSL(t *testing.T) {
 	t.Parallel()
 
-	dsnTemplate, files := tests.GetTestMongoDBWithSSLDSN(t)
+	dsnTemplate, files := tests.GetTestMongoDBWithSSLDSN(t, "../")
 	tempDir, err := ioutil.TempDir("", "pmm-agent-")
 	require.NoError(t, err)
 	dsn, err := templates.RenderDSN(dsnTemplate, files, tempDir)

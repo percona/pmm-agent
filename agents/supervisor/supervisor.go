@@ -385,25 +385,12 @@ func (s *Supervisor) startBuiltin(agentID string, builtinAgent *agentpb.SetState
 
 	var dsn string
 	if builtinAgent.TextFiles != nil {
-		tr := &templates.TemplateRenderer{
-			TextFiles:          builtinAgent.TextFiles.Files,
-			TemplateLeftDelim:  builtinAgent.TextFiles.TemplateLeftDelim,
-			TemplateRightDelim: builtinAgent.TextFiles.TemplateRightDelim,
-			TempDir:            filepath.Join(s.paths.TempDir, strings.ToLower(builtinAgent.Type.String()), agentID),
-		}
-
-		templateParams, err := tr.RenderFiles(make(map[string]interface{}))
+		tempDir := filepath.Join(s.paths.TempDir, strings.ToLower(builtinAgent.Type.String()), agentID)
+		dsn, err = templates.RenderDSN(builtinAgent.Dsn, builtinAgent.TextFiles, tempDir)
 		if err != nil {
 			cancel()
 			return err
 		}
-
-		b, err := tr.RenderTemplate("dsn", builtinAgent.Dsn, templateParams)
-		if err != nil {
-			cancel()
-			return err
-		}
-		dsn = string(b)
 	} else {
 		dsn = builtinAgent.Dsn
 	}
