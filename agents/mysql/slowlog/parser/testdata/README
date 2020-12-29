@@ -45,3 +45,11 @@ slow023 - Test db is not inherited and multiple "use" commands.
 slow024 - Test header with invalid # Time or invalid # User lines
 
 slow028 mariadb 10.1.20 with explain https://jira.percona.com/browse/PMM-1834
+
+slow029 - Percona Server for MySQL 8 with log_slow_extra=ON + log_slow_verbosity=full
+https://jira.percona.com/browse/PMM-7137
+
+slow030 - For the same case as in slow029, but when the query goes right after
+the header without '#' at the beginning.
+
+slow031 - Header line without hash sign shouldn't be parsed when located at the beginning.

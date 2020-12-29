@@ -1,0 +1,9 @@
+# Time: 2020-12-28T18:45:29.380944Z
+# User@Host: root[root] @  [172.21.0.1]  Id:     9
+# Query_time: 0.009934  Lock_time: 0.004805 Rows_sent: 239  Rows_examined: 239 Thread_id: 9 Errno: 0 Killed: 0 Bytes_received: 0 Bytes_sent: 33895 Read_first: 1 Read_last: 0 Read_key: 1 Read_next: 239 Read_prev: 0 Read_rnd: 0 Read_rnd_next: 0 Sort_merge_passes: 0 Sort_range_count: 0 Sort_rows: 0 Sort_scan_count: 0 Created_tmp_disk_tables: 0 Created_tmp_tables: 0 Start: 2020-12-28T18:45:29.371010Z End: 2020-12-28T18:45:29.380944Z Schema: world Rows_affected: 0
+  Tmp_tables: 1  Tmp_disk_tables: 2  Tmp_table_sizes: 3
+SET timestamp=1609181129;
+/* ApplicationName=GoLand 2020.3 */ SELECT t.*
+FROM world.country t
+ORDER BY Code
+LIMIT 501;

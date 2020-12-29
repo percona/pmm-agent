@@ -1,0 +1,22 @@
+[
+  {
+    "Offset": 56,
+    "OffsetEnd": 128,
+    "Ts": "0001-01-01T00:00:00Z",
+    "Admin": false,
+    "Query": "SELECT t.* FROM world",
+    "User": "",
+    "Host": "",
+    "Db": "",
+    "Server": "",
+    "LabelsKey": null,
+    "LabelsValue": null,
+    "TimeMetrics": {
+      "Query_time": 0.009934
+    },
+    "NumberMetrics": {},
+    "BoolMetrics": {},
+    "RateType": "",
+    "RateLimit": 0
+  }
+]

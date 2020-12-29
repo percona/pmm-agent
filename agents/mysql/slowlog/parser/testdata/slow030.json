@@ -1,0 +1,50 @@
+[
+  {
+    "Offset": 0,
+    "OffsetEnd": 726,
+    "Ts": "2020-12-28T18:45:29.380944Z",
+    "Admin": false,
+    "Query": "/* ApplicationName=GoLand 2020.3 */ SELECT t.*\nFROM world.country t\nORDER BY Code\nLIMIT 501",
+    "User": "root",
+    "Host": "",
+    "Db": "world",
+    "Server": "",
+    "LabelsKey": null,
+    "LabelsValue": null,
+    "TimeMetrics": {
+      "Lock_time": 0.004805,
+      "Query_time": 0.009934
+    },
+    "NumberMetrics": {
+      "Bytes_received": 0,
+      "Bytes_sent": 33895,
+      "Created_tmp_disk_tables": 0,
+      "Created_tmp_tables": 0,
+      "End": 0,
+      "Errno": 0,
+      "Killed": 0,
+      "Read_first": 1,
+      "Read_key": 1,
+      "Read_last": 0,
+      "Read_next": 239,
+      "Read_prev": 0,
+      "Read_rnd": 0,
+      "Read_rnd_next": 0,
+      "Rows_affected": 0,
+      "Rows_examined": 239,
+      "Rows_sent": 239,
+      "Sort_merge_passes": 0,
+      "Sort_range_count": 0,
+      "Sort_rows": 0,
+      "Sort_scan_count": 0,
+      "Start": 0,
+      "Thread_id": 9,
+      "Tmp_disk_tables": 2,
+      "Tmp_table_sizes": 3,
+      "Tmp_tables": 1
+    },
+    "BoolMetrics": {},
+    "RateType": "",
+    "RateLimit": 0
+  }
+]

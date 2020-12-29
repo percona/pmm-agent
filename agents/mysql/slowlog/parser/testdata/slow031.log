@@ -1,0 +1,4 @@
+  Tmp_tables: 1  Tmp_disk_tables: 2  Tmp_table_sizes: 3
+# Query_time: 0.009934
+SET timestamp=1609181129;
+SELECT t.* FROM world;

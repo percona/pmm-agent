@@ -1,0 +1,12 @@
+# Time: 2020-12-09T19:21:35.374108Z
+# User@Host: sbtest[sbtest] @ localhost []  Id:  2166
+# Query_time: 0.002575  Lock_time: 0.000114 Rows_sent: 0  Rows_examined: 1 Thread_id: 2166 Errno: 0 Killed: 0 Bytes_received: 0 Bytes_sent: 52 Read_first: 0 Read_last: 0 Read_key: 1 Read_next: 0 Read_prev: 0 Read_rnd: 0 Read_rnd_next: 0 Sort_merge_passes: 0 Sort_range_count: 0 Sort_rows: 0 Sort_scan_count: 0 Created_tmp_disk_tables: 0 Created_tmp_tables: 0 Start: 2020-12-09T19:21:35.371533Z End: 2020-12-09T19:21:35.374108Z Schema: sbtest Rows_affected: 1
+  Tmp_tables: 1  Tmp_disk_tables: 2  Tmp_table_sizes: 3
+# InnoDB_trx_id: B43D17
+# Full_scan: No  Full_join: No  Tmp_table: No  Tmp_table_on_disk: No
+# Filesort: No  Filesort_on_disk: No  Merge_passes: 0
+#   InnoDB_IO_r_ops: 0  InnoDB_IO_r_bytes: 0  InnoDB_IO_r_wait: 0.000000
+#   InnoDB_rec_lock_wait: 0.000000  InnoDB_queue_wait: 0.000000
+#   InnoDB_pages_distinct: 3
+SET timestamp=1607541695;
+UPDATE sbtest1 SET c='16345165387-09118488204-80196276203-72484701811-98907421242-34753057913-75232806999-46215706819-16000796136-12299977587' WHERE id=5036;
