@@ -64,6 +64,20 @@ services:
     ports:
       - 127.0.0.1:27018:27017
 
+  mongo_with_ssl:
+    image: ${MONGO_IMAGE:-percona/percona-server-mongodb:4.2}
+    ports:
+      - 127.0.0.1:27018:27017
+    command:
+      - --profile=2
+      - --sslMode=requireSSL
+      - --sslPEMKeyFile=/etc/ssl/certificates/server.pem
+      - --sslCAFile=/etc/ssl/certificates/ca.crt
+      - --sslWeakCertificateValidation
+      - --bind_ip=0.0.0.0
+    volumes:
+      - ${PWD}/utils/tests/testdata/mongodb:/etc/ssl/certificates
+
   postgres:
     image: ${POSTGRES_IMAGE:-postgres:11}
     container_name: pmm-agent_postgres
