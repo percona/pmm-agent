@@ -66,14 +66,14 @@ func TestConnectionChecker(t *testing.T) {
 		{
 			name: "MongoDB with no auth",
 			req: &agentpb.CheckConnectionRequest{
-				Dsn:     "mongodb://127.0.0.1:27018/admin?connectTimeoutMS=1000",
+				Dsn:     "mongodb://127.0.0.1:27019/admin?connectTimeoutMS=1000",
 				Type:    inventorypb.ServiceType_MONGODB_SERVICE,
 				Timeout: ptypes.DurationProto(3 * time.Second),
 			},
 		}, {
 			name: "MongoDB with no auth with params",
 			req: &agentpb.CheckConnectionRequest{
-				Dsn:     "mongodb://root:root-password@127.0.0.1:27018/admin?connectTimeoutMS=1000",
+				Dsn:     "mongodb://root:root-password@127.0.0.1:27019/admin?connectTimeoutMS=1000",
 				Type:    inventorypb.ServiceType_MONGODB_SERVICE,
 				Timeout: ptypes.DurationProto(3 * time.Second),
 			},
