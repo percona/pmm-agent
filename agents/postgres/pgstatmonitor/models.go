@@ -66,7 +66,6 @@ type pgStatMonitor struct {
 	RespCalls         pq.StringArray `reform:"resp_calls"`
 	CPUUserTime       float64        `reform:"cpu_user_time"`
 	CPUSysTime        float64        `reform:"cpu_sys_time"`
-	TablesNames       pq.StringArray `reform:"tables_names"`
 }
 
 // pgStatMonitorSettings represents a row in pg_stat_monitor_settings view.
@@ -90,5 +89,5 @@ type pgStatMonitorExtended struct {
 
 func (e *pgStatMonitorExtended) String() string {
 	return fmt.Sprintf("%q %q %v: %s: %s (truncated = %t)",
-		e.Database, e.Username, e.TablesNames, e.QueryID, e.Query, e.IsQueryTruncated)
+		e.Database, e.Username, e.QueryID, e.Query, e.IsQueryTruncated)
 }
