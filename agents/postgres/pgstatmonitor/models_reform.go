@@ -215,7 +215,7 @@ func (v *pgStatMonitorViewType) Columns() []string {
 		"resp_calls",
 		"cpu_user_time",
 		"cpu_sys_time",
-		"Relations",
+		"relations",
 	}
 }
 
@@ -255,7 +255,7 @@ var pgStatMonitorView = &pgStatMonitorViewType{
 			{Name: "RespCalls", Type: "pq.StringArray", Column: "resp_calls"},
 			{Name: "CPUUserTime", Type: "float64", Column: "cpu_user_time"},
 			{Name: "CPUSysTime", Type: "float64", Column: "cpu_sys_time"},
-			{Name: "Relations", Type: "pq.StringArray", Column: "Relations"},
+			{Name: "Relations", Type: "pq.StringArray", Column: "relations"},
 		},
 		PKFieldIndex: -1,
 	},
