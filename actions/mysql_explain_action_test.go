@@ -210,5 +210,31 @@ id |select_type |table |partitions |type |possible_keys |key  |key_len |ref  |ro
 			require.NoError(t, err)
 			checkCity(t)
 		})
+
+		t.Run("Stored function", func(t *testing.T) {
+			_, err := db.Exec("DROP FUNCTION IF EXISTS cleanup")
+			require.NoError(t, err)
+			_, err = db.Exec(`CREATE FUNCTION cleanup() RETURNS char(50) CHARSET latin1
+			DETERMINISTIC
+			BEGIN
+			delete from world.city;
+			RETURN 'OK';
+			END
+			`)
+			require.NoError(t, err)
+
+			params := &agentpb.StartActionRequest_MySQLExplainParams{
+				Dsn:          dsn,
+				Query:        `select * from (select cleanup()) as testclean;`,
+				OutputFormat: agentpb.MysqlExplainOutputFormat_MYSQL_EXPLAIN_OUTPUT_FORMAT_DEFAULT,
+			}
+			a := NewMySQLExplainAction("", params)
+			ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+			defer cancel()
+
+			_, err = a.Run(ctx)
+			require.NoError(t, err)
+			checkCity(t)
+		})
 	})
 }
