@@ -215,6 +215,7 @@ func (v *pgStatMonitorViewType) Columns() []string {
 		"resp_calls",
 		"cpu_user_time",
 		"cpu_sys_time",
+		"Relations",
 	}
 }
 
@@ -254,6 +255,7 @@ var pgStatMonitorView = &pgStatMonitorViewType{
 			{Name: "RespCalls", Type: "pq.StringArray", Column: "resp_calls"},
 			{Name: "CPUUserTime", Type: "float64", Column: "cpu_user_time"},
 			{Name: "CPUSysTime", Type: "float64", Column: "cpu_sys_time"},
+			{Name: "Relations", Type: "pq.StringArray", Column: "Relations"},
 		},
 		PKFieldIndex: -1,
 	},
@@ -262,7 +264,7 @@ var pgStatMonitorView = &pgStatMonitorViewType{
 
 // String returns a string representation of this struct or record.
 func (s pgStatMonitor) String() string {
-	res := make([]string, 25)
+	res := make([]string, 26)
 	res[0] = "Bucket: " + reform.Inspect(s.Bucket, true)
 	res[1] = "BucketStartTime: " + reform.Inspect(s.BucketStartTime, true)
 	res[2] = "UserID: " + reform.Inspect(s.UserID, true)
@@ -288,6 +290,7 @@ func (s pgStatMonitor) String() string {
 	res[22] = "RespCalls: " + reform.Inspect(s.RespCalls, true)
 	res[23] = "CPUUserTime: " + reform.Inspect(s.CPUUserTime, true)
 	res[24] = "CPUSysTime: " + reform.Inspect(s.CPUSysTime, true)
+	res[25] = "Relations: " + reform.Inspect(s.Relations, true)
 	return strings.Join(res, ", ")
 }
 
@@ -320,6 +323,7 @@ func (s *pgStatMonitor) Values() []interface{} {
 		s.RespCalls,
 		s.CPUUserTime,
 		s.CPUSysTime,
+		s.Relations,
 	}
 }
 
@@ -352,6 +356,7 @@ func (s *pgStatMonitor) Pointers() []interface{} {
 		&s.RespCalls,
 		&s.CPUUserTime,
 		&s.CPUSysTime,
+		&s.Relations,
 	}
 }
 

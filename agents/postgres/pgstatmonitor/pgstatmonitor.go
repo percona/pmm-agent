@@ -239,6 +239,7 @@ func (m *PGStatMonitorQAN) makeBuckets(current, cache map[time.Time]map[string]*
 					IsTruncated:         currentPSM.IsQueryTruncated,
 					Fingerprint:         currentPSM.Fingerprint,
 					Database:            currentPSM.Database,
+					Relations:           currentPSM.Relations,
 					Username:            currentPSM.Username,
 					Queryid:             currentPSM.QueryID,
 					NumQueries:          count,
