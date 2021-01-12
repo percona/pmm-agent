@@ -88,6 +88,6 @@ type pgStatMonitorExtended struct {
 }
 
 func (e *pgStatMonitorExtended) String() string {
-	return fmt.Sprintf("%q %q %v: %s: %s (truncated = %t)",
+	return fmt.Sprintf("%q %q %s: %s (truncated = %t)",
 		e.Database, e.Username, e.QueryID, e.Query, e.IsQueryTruncated)
 }
