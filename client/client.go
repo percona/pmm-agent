@@ -561,7 +561,7 @@ func (c *Client) Collect(ch chan<- prometheus.Metric) {
 	}
 }
 
-// argListFromMgDbParams creates an array of strings from the pointer to the parameters for pt-mongodb-sumamry
+// argListFromMongoDBParams creates an array of strings from the pointer to the parameters for pt-mongodb-sumamry
 func argListFromMongoDBParams(pParams *agentpb.StartActionRequest_PTMongoDBSummaryParams) []string {
 	var args []string
 
