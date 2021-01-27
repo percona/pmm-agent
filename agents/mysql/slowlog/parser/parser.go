@@ -28,16 +28,15 @@ import (
 
 // Regular expressions to match important lines in slow log.
 var (
-	timeRe          = regexp.MustCompile(`Time: (\S+\s{1,2}\S+)`)
-	timeNewRe       = regexp.MustCompile(`Time:\s+(\d{4}-\d{2}-\d{2}\S+)`)
-	userRe          = regexp.MustCompile(`User@Host: ([^\[]+|\[[^[]+\]).*?@ (\S*) \[(.*)\]`)
-	schema          = regexp.MustCompile(`Schema: +(.*?) +Last_errno:`)
-	headerRe        = regexp.MustCompile(`^#\s+[A-Z]`)
-	metricsHeaderRe = regexp.MustCompile(`^( +\w+: \S+)+\z`)
-	metricsRe       = regexp.MustCompile(`(\w+): (\S+|\z)`)
-	adminRe         = regexp.MustCompile(`command: (.+)`)
-	setRe           = regexp.MustCompile(`^SET (?:last_insert_id|insert_id|timestamp)`)
-	useRe           = regexp.MustCompile(`^(?i)use `)
+	timeRe    = regexp.MustCompile(`Time: (\S+\s{1,2}\S+)`)
+	timeNewRe = regexp.MustCompile(`Time:\s+(\d{4}-\d{2}-\d{2}\S+)`)
+	userRe    = regexp.MustCompile(`User@Host: ([^\[]+|\[[^[]+\]).*?@ (\S*) \[(.*)\]`)
+	schema    = regexp.MustCompile(`Schema: +(.*?) +Last_errno:`)
+	headerRe  = regexp.MustCompile(`^#\s+[A-Z]`)
+	metricsRe = regexp.MustCompile(`(\w+): (\S+|\z)`)
+	adminRe   = regexp.MustCompile(`command: (.+)`)
+	setRe     = regexp.MustCompile(`^SET (?:last_insert_id|insert_id|timestamp)`)
+	useRe     = regexp.MustCompile(`^(?i)use `)
 )
 
 // A SlowLogParser parses a MySQL slow log.
@@ -147,7 +146,6 @@ func (p *SlowLogParser) Run() {
 		if line == "#\n" || strings.HasPrefix(line, "# explain:") {
 			continue
 		}
-
 		// Remove \n.
 		line = line[0 : lineLen-1]
 
@@ -166,10 +164,25 @@ func (p *SlowLogParser) Run() {
 	}
 }
 
+// isBuggyHeaderLine checks if line is a header with metrics Tmp_tables, Tmp_disk_tables, Tmp_table_sizes and
+// without hash sign at the beginning caused by bug https://jira.percona.com/browse/PS-7492
+func isBuggyHeaderLine(line string) bool {
+	metrics := strings.Fields(line)
+	if len(metrics) != 6 {
+		return false
+	}
+
+	if metrics[0] != "Tmp_tables:" || metrics[2] != "Tmp_disk_tables:" || metrics[4] != "Tmp_table_sizes:" {
+		return false
+	}
+
+	return true
+}
+
 func (p *SlowLogParser) parseHeader(line string) {
 	p.logf("header")
 
-	if !headerRe.MatchString(line) && !metricsHeaderRe.MatchString(line) {
+	if !headerRe.MatchString(line) && !isBuggyHeaderLine(line) {
 		p.inHeader = false
 		p.inQuery = true
 		p.parseQuery(line)
