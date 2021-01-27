@@ -172,11 +172,7 @@ func isBuggyHeaderLine(line string) bool {
 		return false
 	}
 
-	if metrics[0] != "Tmp_tables:" || metrics[2] != "Tmp_disk_tables:" || metrics[4] != "Tmp_table_sizes:" {
-		return false
-	}
-
-	return true
+	return metrics[0] == "Tmp_tables:" && metrics[2] == "Tmp_disk_tables:" && metrics[4] == "Tmp_table_sizes:"
 }
 
 func (p *SlowLogParser) parseHeader(line string) {
