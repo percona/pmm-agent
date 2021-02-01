@@ -358,7 +358,7 @@
 
 [[projects]]
   branch = "PMM-6640-haproxy-api"
-  digest = "1:48c7153e6f43255fb49a444aa80cb01a7428330be94b3f64b2d9bad540bcc909"
+  digest = "1:0b2edae145256ec351dc3de5acc8f03847ab1b4ef3dffda779bdcfdbc0b89fdf"
   name = "github.com/percona/pmm"
   packages = [
     "api/agentlocalpb",
@@ -386,7 +386,7 @@
     "version",
   ]
   pruneopts = "NUT"
-  revision = "90a69d0e4e72a0233c4fc360d6cab3a00c52a0ab"
+  revision = "1033833f4c8fa34f4ea4b894b84a3b840d313c04"
 
 [[projects]]
   digest = "1:4047c378584616813d610c9f993bf90dd0d07aed8d94bd3bc299cd35ececdcba"
