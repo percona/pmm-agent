@@ -85,7 +85,6 @@ func TestGet(t *testing.T) {
 			"--id=agent-id",
 			"--listen-port=9999",
 			"--server-address=127.0.0.1",
-			"--disable-collectors=\"cpu,diskstats\"",
 		}, logrus.WithField("test", t.Name()))
 		require.NoError(t, err)
 
@@ -96,7 +95,6 @@ func TestGet(t *testing.T) {
 			Server: Server{
 				Address: "127.0.0.1:443",
 			},
-			DisableCollectors: []string{"cpu", "diskstats"},
 			Paths: Paths{
 				ExportersBase:    "/usr/local/percona/pmm2/exporters",
 				NodeExporter:     "/usr/local/percona/pmm2/exporters/node_exporter",
