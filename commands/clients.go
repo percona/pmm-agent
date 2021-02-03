@@ -142,12 +142,10 @@ func serverRegister(cfgSetup *config.Setup) (string, error) {
 	}
 
 	var disableCollectors []string
-	if cfgSetup.DisableCollectors != "" {
-		for _, v := range strings.Split(cfgSetup.DisableCollectors, ",") {
-			disableCollector := strings.TrimSpace(v)
-			if disableCollector != "" {
-				disableCollectors = append(disableCollectors, disableCollector)
-			}
+	for _, v := range strings.Split(cfgSetup.DisableCollectors, ",") {
+		disableCollector := strings.TrimSpace(v)
+		if disableCollector != "" {
+			disableCollectors = append(disableCollectors, disableCollector)
 		}
 	}
 
