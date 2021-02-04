@@ -357,8 +357,8 @@
   version = "v3.2.1"
 
 [[projects]]
-  branch = "PMM-7306-disable-collectors"
-  digest = "1:c31ffa6f38ae1eafd168a43f525841e0beef169494f9bfc9812134ecc30d5d08"
+  branch = "release/2.15"
+  digest = "1:c5bfbe0129457e11467c977ef4cd3e4b9b3acf9682e2036c4b6571f8c1208a88"
   name = "github.com/percona/pmm"
   packages = [
     "api/agentlocalpb",
@@ -385,7 +385,7 @@
     "version",
   ]
   pruneopts = "NUT"
-  revision = "68ec68588d77ff1f460b442a06f16f5e5a12120c"
+  revision = "92a5626ee0bc8b349ff4049fcc013e24aa43f5bc"
 
 [[projects]]
   digest = "1:4047c378584616813d610c9f993bf90dd0d07aed8d94bd3bc299cd35ececdcba"
