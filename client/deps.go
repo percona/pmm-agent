@@ -25,7 +25,7 @@ import (
 // connectionChecker is a subset of methods of connectionchecker.ConnectionChecker used by this package.
 // We use it instead of real type for testing and to avoid dependency cycle.
 type connectionChecker interface {
-	Check(req *agentpb.CheckConnectionRequest) *agentpb.CheckConnectionResponse
+	Check(req *agentpb.CheckConnectionRequest, id uint32) *agentpb.CheckConnectionResponse
 }
 
 // supervisor is a subset of methods of supervisor.Supervisor used by this package.
