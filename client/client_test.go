@@ -22,7 +22,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang/protobuf/proto"
+	"github.com/golang/protobuf/proto" //nolint:staticcheck
 	"github.com/golang/protobuf/ptypes"
 	"github.com/percona/pmm/api/agentpb"
 	"github.com/pkg/errors"
