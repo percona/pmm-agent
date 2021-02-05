@@ -150,8 +150,8 @@ func TestClient(t *testing.T) {
 			}
 
 			s := new(mockSupervisor)
-			s.On("Changes").Return(make(<-chan agentpb.StateChangedRequest))
-			s.On("QANRequests").Return(make(<-chan agentpb.QANCollectRequest))
+			s.On("Changes").Return(make(<-chan *agentpb.StateChangedRequest))
+			s.On("QANRequests").Return(make(<-chan *agentpb.QANCollectRequest))
 
 			client := New(cfg, s, nil)
 			err := client.Run(context.Background())
