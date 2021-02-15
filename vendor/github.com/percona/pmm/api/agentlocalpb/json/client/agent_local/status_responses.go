@@ -615,73 +615,10 @@ type TunnelsInfoItems0 struct {
 
 	// Tunnel ID.
 	TunnelID string `json:"tunnel_id,omitempty"`
-
-	// TunnelType represents tunnel type.
-	//
-	//  - TUNNEL_TYPE_INVALID: Invalid tunnel type.
-	//  - TCP_CONNECT: pmm-agent will act as a TCP client and connect to the given address.
-	//  - TCP_LISTEN: pmm-agent will act as a TCP server and listen on the given address.
-	// Enum: [TUNNEL_TYPE_INVALID TCP_CONNECT TCP_LISTEN]
-	TunnelType *string `json:"tunnel_type,omitempty"`
 }
 
 // Validate validates this tunnels info items0
 func (o *TunnelsInfoItems0) Validate(formats strfmt.Registry) error {
-	var res []error
-
-	if err := o.validateTunnelType(formats); err != nil {
-		res = append(res, err)
-	}
-
-	if len(res) > 0 {
-		return errors.CompositeValidationError(res...)
-	}
-	return nil
-}
-
-var tunnelsInfoItems0TypeTunnelTypePropEnum []interface{}
-
-func init() {
-	var res []string
-	if err := json.Unmarshal([]byte(`["TUNNEL_TYPE_INVALID","TCP_CONNECT","TCP_LISTEN"]`), &res); err != nil {
-		panic(err)
-	}
-	for _, v := range res {
-		tunnelsInfoItems0TypeTunnelTypePropEnum = append(tunnelsInfoItems0TypeTunnelTypePropEnum, v)
-	}
-}
-
-const (
-
-	// TunnelsInfoItems0TunnelTypeTUNNELTYPEINVALID captures enum value "TUNNEL_TYPE_INVALID"
-	TunnelsInfoItems0TunnelTypeTUNNELTYPEINVALID string = "TUNNEL_TYPE_INVALID"
-
-	// TunnelsInfoItems0TunnelTypeTCPCONNECT captures enum value "TCP_CONNECT"
-	TunnelsInfoItems0TunnelTypeTCPCONNECT string = "TCP_CONNECT"
-
-	// TunnelsInfoItems0TunnelTypeTCPLISTEN captures enum value "TCP_LISTEN"
-	TunnelsInfoItems0TunnelTypeTCPLISTEN string = "TCP_LISTEN"
-)
-
-// prop value enum
-func (o *TunnelsInfoItems0) validateTunnelTypeEnum(path, location string, value string) error {
-	if err := validate.EnumCase(path, location, value, tunnelsInfoItems0TypeTunnelTypePropEnum, true); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (o *TunnelsInfoItems0) validateTunnelType(formats strfmt.Registry) error {
-
-	if swag.IsZero(o.TunnelType) { // not required
-		return nil
-	}
-
-	// value enum
-	if err := o.validateTunnelTypeEnum("tunnel_type", "body", *o.TunnelType); err != nil {
-		return err
-	}
-
 	return nil
 }
 

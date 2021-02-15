@@ -26,6 +26,7 @@ import (
 	"time"
 
 	"github.com/golang/protobuf/ptypes"
+	validator "github.com/mwitkow/go-proto-validators"
 	"github.com/percona/pmm/api/agentpb"
 	"github.com/percona/pmm/utils/tlsconfig"
 	"github.com/percona/pmm/version"
@@ -248,6 +249,14 @@ func (c *Client) processSupervisorRequests() {
 
 func (c *Client) processChannelRequests() {
 	for req := range c.channel.Requests() {
+		if req, _ := req.Payload.(validator.Validator); req != nil {
+			if err := req.Validate(); err != nil {
+				// Requests() is not closed, so exit early to break channel
+				c.l.Errorf("Unhandled validation error: %s.", err)
+				return
+			}
+		}
+
 		var responsePayload agentpb.AgentResponsePayload
 		switch p := req.Payload.(type) {
 		case *agentpb.Ping:

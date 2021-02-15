@@ -358,7 +358,7 @@
 
 [[projects]]
   branch = "PMM-5194-tunnels"
-  digest = "1:bea66e7f52d22b945bb914c3ab797df9a1eb1c832665b24e0835d8b4768c7ef3"
+  digest = "1:f52d33922ef5413054314bfa5d0a02701d7193506a73178fbe6e762eb5f1d20a"
   name = "github.com/percona/pmm"
   packages = [
     "api/agentlocalpb",
@@ -386,7 +386,7 @@
     "version",
   ]
   pruneopts = "NUT"
-  revision = "111dffe3d2847e530e9851b03259c55296f5c300"
+  revision = "e14e09f25e2b41a0cc255fa90269f5e734e77d57"
 
 [[projects]]
   digest = "1:4047c378584616813d610c9f993bf90dd0d07aed8d94bd3bc299cd35ececdcba"
@@ -837,6 +837,7 @@
     "github.com/lfittl/pg_query_go",
     "github.com/lfittl/pg_query_go/nodes",
     "github.com/lib/pq",
+    "github.com/mwitkow/go-proto-validators",
     "github.com/percona/exporter_shared/helpers",
     "github.com/percona/go-mysql/event",
     "github.com/percona/go-mysql/log",
