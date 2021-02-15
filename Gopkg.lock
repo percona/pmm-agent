@@ -358,7 +358,7 @@
 
 [[projects]]
   branch = "PMM-5194-tunnels"
-  digest = "1:db4cde36e3dc6063cf3a673ae5c945d0eea40eb2a90147ead8c36ae00c41bbb2"
+  digest = "1:a26935a5a8ec11cc960e030b19c22bca7f2865533981219acebaebdab4864152"
   name = "github.com/percona/pmm"
   packages = [
     "api/agentlocalpb",
@@ -370,6 +370,7 @@
     "api/managementpb/json/client/actions",
     "api/managementpb/json/client/annotation",
     "api/managementpb/json/client/external",
+    "api/managementpb/json/client/ha_proxy",
     "api/managementpb/json/client/mongo_db",
     "api/managementpb/json/client/my_sql",
     "api/managementpb/json/client/node",
@@ -385,7 +386,7 @@
     "version",
   ]
   pruneopts = "NUT"
-  revision = "8fa745e3186ab7a79c8444318f7a51d8ded6d673"
+  revision = "78ae27590b296e03239b5f30b7b6b0d4cd075884"
 
 [[projects]]
   digest = "1:4047c378584616813d610c9f993bf90dd0d07aed8d94bd3bc299cd35ececdcba"
