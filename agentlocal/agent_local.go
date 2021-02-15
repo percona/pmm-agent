@@ -151,6 +151,7 @@ func (s *Server) Status(ctx context.Context, req *agentlocalpb.StatusRequest) (*
 	}
 
 	agentsInfo := s.supervisor.AgentsList()
+	tunnelsInfo := s.supervisor.TunnelsList()
 
 	return &agentlocalpb.StatusResponse{
 		AgentId:        s.cfg.ID,
@@ -159,6 +160,7 @@ func (s *Server) Status(ctx context.Context, req *agentlocalpb.StatusRequest) (*
 		AgentsInfo:     agentsInfo,
 		ConfigFilepath: s.configFilepath,
 		AgentVersion:   version.Version,
+		TunnelsInfo:    tunnelsInfo,
 	}, nil
 }
 

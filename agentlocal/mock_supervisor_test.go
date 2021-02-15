@@ -27,3 +27,19 @@ func (_m *mockSupervisor) AgentsList() []*agentlocalpb.AgentInfo {
 
 	return r0
 }
+
+// TunnelsList provides a mock function with given fields:
+func (_m *mockSupervisor) TunnelsList() []*agentlocalpb.TunnelInfo {
+	ret := _m.Called()
+
+	var r0 []*agentlocalpb.TunnelInfo
+	if rf, ok := ret.Get(0).(func() []*agentlocalpb.TunnelInfo); ok {
+		r0 = rf()
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*agentlocalpb.TunnelInfo)
+		}
+	}
+
+	return r0
+}
