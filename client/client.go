@@ -249,10 +249,10 @@ func (c *Client) processSupervisorRequests() {
 
 func (c *Client) processChannelRequests() {
 	for req := range c.channel.Requests() {
-		if req, _ := req.Payload.(validator.Validator); req != nil {
-			if err := req.Validate(); err != nil {
+		if p, _ := req.Payload.(validator.Validator); p != nil {
+			if err := p.Validate(); err != nil {
 				// Requests() is not closed, so exit early to break channel
-				c.l.Errorf("Unhandled validation error: %s.", err)
+				c.l.Errorf("Unhandled server request validation error: %v\n%s.", req, err)
 				return
 			}
 		}
@@ -365,6 +365,14 @@ func (c *Client) processChannelRequests() {
 			// Requests() is not closed, so exit early to break channel
 			c.l.Errorf("Unhandled server request: %v.", req)
 			return
+		}
+
+		if p, _ := responsePayload.(validator.Validator); p != nil {
+			if err := p.Validate(); err != nil {
+				// Requests() is not closed, so exit early to break channel
+				c.l.Errorf("Unhandled response validation error: %v\n%s.", p, err)
+				return
+			}
 		}
 
 		c.channel.SendResponse(&channel.AgentResponse{
