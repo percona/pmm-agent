@@ -615,6 +615,15 @@ type TunnelsInfoItems0 struct {
 
 	// Tunnel ID.
 	TunnelID string `json:"tunnel_id,omitempty"`
+
+	// Listen port of the listening pmm-agent.
+	ListenPort int64 `json:"listen_port,omitempty"`
+
+	// Target port of the connecting pmm-agent.
+	ConnectPort int64 `json:"connect_port,omitempty"`
+
+	// The current number of established connections.
+	CurrentConnection int64 `json:"current_connection,omitempty"`
 }
 
 // Validate validates this tunnels info items0

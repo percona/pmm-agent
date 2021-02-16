@@ -238,6 +238,11 @@ func (c *Channel) runReceiver() {
 				ID:      msg.Id,
 				Payload: p.CheckConnection,
 			}
+		case *agentpb.ServerMessage_TunnelData:
+			c.requests <- &ServerRequest{
+				ID:      msg.Id,
+				Payload: p.TunnelData,
+			}
 
 		// responses
 		case *agentpb.ServerMessage_Pong:
@@ -248,6 +253,8 @@ func (c *Channel) runReceiver() {
 			c.publish(msg.Id, p.QanCollect)
 		case *agentpb.ServerMessage_ActionResult:
 			c.publish(msg.Id, p.ActionResult)
+		case *agentpb.ServerMessage_TunnelDataAck:
+			c.publish(msg.Id, p.TunnelDataAck)
 
 		case nil:
 			c.close(errors.Errorf("failed to handle received message %s", msg))

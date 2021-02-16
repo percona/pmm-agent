@@ -356,6 +356,11 @@ func (c *Client) processChannelRequests() {
 		case *agentpb.CheckConnectionRequest:
 			responsePayload = c.connectionChecker.Check(p, req.ID)
 
+		case *agentpb.TunnelData:
+			responsePayload = &agentpb.TunnelDataAck{
+				// TODO
+			}
+
 		case nil:
 			// Requests() is not closed, so exit early to break channel
 			c.l.Errorf("Unhandled server request: %v.", req)
