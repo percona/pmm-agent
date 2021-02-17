@@ -623,7 +623,7 @@ type TunnelsInfoItems0 struct {
 	ConnectPort int64 `json:"connect_port,omitempty"`
 
 	// The current number of established connections.
-	CurrentConnection int64 `json:"current_connection,omitempty"`
+	CurrentConnections int64 `json:"current_connections,omitempty"`
 }
 
 // Validate validates this tunnels info items0
