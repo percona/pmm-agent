@@ -59,6 +59,7 @@ var ErrReload = errors.New("reload")
 type Server struct {
 	cfg            *config.Config
 	supervisor     supervisor
+	registry       registry
 	client         client
 	configFilepath string
 
@@ -70,10 +71,11 @@ type Server struct {
 // NewServer creates new server.
 //
 // Caller should call Run.
-func NewServer(cfg *config.Config, supervisor supervisor, client client, configFilepath string) *Server {
+func NewServer(cfg *config.Config, supervisor supervisor, registry registry, client client, configFilepath string) *Server {
 	return &Server{
 		cfg:            cfg,
 		supervisor:     supervisor,
+		registry:       registry,
 		client:         client,
 		configFilepath: configFilepath,
 		l:              logrus.WithField("component", "local-server"),
@@ -151,7 +153,7 @@ func (s *Server) Status(ctx context.Context, req *agentlocalpb.StatusRequest) (*
 	}
 
 	agentsInfo := s.supervisor.AgentsList()
-	tunnelsInfo := s.supervisor.TunnelsList()
+	tunnelsInfo := s.registry.TunnelsList()
 
 	return &agentlocalpb.StatusResponse{
 		AgentId:        s.cfg.ID,

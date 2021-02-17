@@ -28,6 +28,7 @@ import (
 	"github.com/percona/pmm-agent/client"
 	"github.com/percona/pmm-agent/config"
 	"github.com/percona/pmm-agent/connectionchecker"
+	"github.com/percona/pmm-agent/tunnels"
 )
 
 // Run implements `pmm-agent run` default command.
@@ -58,8 +59,9 @@ func Run() {
 			ctx, cancel := context.WithCancel(appCtx)
 			supervisor := supervisor.NewSupervisor(ctx, &cfg.Paths, &cfg.Ports, &cfg.Server)
 			connectionChecker := connectionchecker.New(ctx, &cfg.Paths)
-			client := client.New(cfg, supervisor, connectionChecker)
-			localServer := agentlocal.NewServer(cfg, supervisor, client, configFilepath)
+			registry := tunnels.NewRegistry()
+			client := client.New(cfg, supervisor, connectionChecker, registry)
+			localServer := agentlocal.NewServer(cfg, supervisor, registry, client, configFilepath)
 
 			go func() {
 				_ = client.Run(ctx)

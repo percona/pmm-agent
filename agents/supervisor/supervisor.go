@@ -138,12 +138,6 @@ func (s *Supervisor) AgentsList() []*agentlocalpb.AgentInfo {
 	return res
 }
 
-// TunnelsList returns info for all Tunnels managed by this supervisor.
-func (s *Supervisor) TunnelsList() []*agentlocalpb.TunnelInfo {
-	// TODO
-	return nil
-}
-
 // Changes returns channel with Agent's state changes.
 func (s *Supervisor) Changes() <-chan *agentpb.StateChangedRequest {
 	return s.changes

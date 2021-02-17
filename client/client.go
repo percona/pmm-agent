@@ -56,6 +56,7 @@ type Client struct {
 	cfg               *config.Config
 	supervisor        supervisor
 	connectionChecker connectionChecker
+	registry          registry
 
 	l       *logrus.Entry
 	backoff *backoff.Backoff
@@ -74,11 +75,12 @@ type Client struct {
 // New creates new client.
 //
 // Caller should call Run.
-func New(cfg *config.Config, supervisor supervisor, connectionChecker connectionChecker) *Client {
+func New(cfg *config.Config, supervisor supervisor, connectionChecker connectionChecker, registry registry) *Client {
 	return &Client{
 		cfg:               cfg,
 		supervisor:        supervisor,
 		connectionChecker: connectionChecker,
+		registry:          registry,
 		l:                 logrus.WithField("component", "client"),
 		backoff:           backoff.New(backoffMinDelay, backoffMaxDelay),
 		done:              make(chan struct{}),
@@ -266,6 +268,7 @@ func (c *Client) processChannelRequests() {
 
 		case *agentpb.SetStateRequest:
 			c.supervisor.SetState(p)
+			c.registry.SetState(p.Tunnels)
 			responsePayload = new(agentpb.SetStateResponse)
 
 		case *agentpb.StartActionRequest:
@@ -357,6 +360,8 @@ func (c *Client) processChannelRequests() {
 			responsePayload = c.connectionChecker.Check(p, req.ID)
 
 		case *agentpb.TunnelData:
+			// TODO
+
 			responsePayload = &agentpb.TunnelDataAck{
 				// TODO
 			}

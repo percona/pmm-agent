@@ -27,5 +27,6 @@ digraph packages {
 	"/commands" -> "/client";
 	"/commands" -> "/config";
 	"/commands" -> "/connectionchecker";
+	"/commands" -> "/tunnels";
 	"/connectionchecker" -> "/config";
 }
