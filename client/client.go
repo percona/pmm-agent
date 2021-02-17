@@ -37,7 +37,7 @@ import (
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/status"
 
-	"github.com/percona/pmm-agent/actions"
+	"github.com/percona/pmm-agent/actions" // TODO https://jira.percona.com/browse/PMM-7206
 	"github.com/percona/pmm-agent/client/channel"
 	"github.com/percona/pmm-agent/config"
 	"github.com/percona/pmm-agent/utils/backoff"
@@ -184,7 +184,7 @@ func (c *Client) Run(ctx context.Context) error {
 		oneDone <- struct{}{}
 	}()
 	go func() {
-		c.processChannelRequests()
+		c.processChannelRequests(ctx)
 		oneDone <- struct{}{}
 	}()
 	<-oneDone
@@ -249,7 +249,7 @@ func (c *Client) processSupervisorRequests() {
 	wg.Wait()
 }
 
-func (c *Client) processChannelRequests() {
+func (c *Client) processChannelRequests(ctx context.Context) {
 	for req := range c.channel.Requests() {
 		if p, _ := req.Payload.(validator.Validator); p != nil {
 			if err := p.Validate(); err != nil {
@@ -357,7 +357,7 @@ func (c *Client) processChannelRequests() {
 			responsePayload = new(agentpb.StopActionResponse)
 
 		case *agentpb.CheckConnectionRequest:
-			responsePayload = c.connectionChecker.Check(p, req.ID)
+			responsePayload = c.connectionChecker.Check(ctx, p, req.ID)
 
 		case *agentpb.TunnelData:
 			// TODO

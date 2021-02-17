@@ -30,38 +30,53 @@ import (
 	"github.com/percona/pmm-agent/config"
 )
 
-func TestServerStatus(t *testing.T) {
-	setup := func(t *testing.T) ([]*agentlocalpb.AgentInfo, *mockSupervisor, *mockClient, *config.Config) {
-		agentInfo := []*agentlocalpb.AgentInfo{{
-			AgentId:   "/agent_id/00000000-0000-4000-8000-000000000002",
-			AgentType: inventorypb.AgentType_NODE_EXPORTER,
-			Status:    inventorypb.AgentStatus_RUNNING,
-		}}
-		supervisor := new(mockSupervisor)
-		supervisor.Test(t)
-		supervisor.On("AgentsList").Return(agentInfo)
-		client := new(mockClient)
-		client.Test(t)
-		client.On("GetServerConnectMetadata").Return(&agentpb.ServerConnectMetadata{
-			AgentRunsOnNodeID: "/node_id/00000000-0000-4000-8000-000000000003",
-			ServerVersion:     "2.0.0-dev",
-		})
-		cfg := &config.Config{
-			ID: "/agent_id/00000000-0000-4000-8000-000000000001",
-			Server: config.Server{
-				Address:  "127.0.0.1:8443",
-				Username: "username",
-				Password: "password",
-			},
-		}
-		return agentInfo, supervisor, client, cfg
+func setup(t *testing.T) ([]*agentlocalpb.AgentInfo, []*agentlocalpb.TunnelInfo, *mockSupervisor, *mockRegistry, *mockClient, *config.Config) {
+	t.Helper()
+
+	agentInfo := []*agentlocalpb.AgentInfo{{
+		AgentId:   "/agent_id/00000000-0000-4000-8000-000000000002",
+		AgentType: inventorypb.AgentType_NODE_EXPORTER,
+		Status:    inventorypb.AgentStatus_RUNNING,
+	}}
+	supervisor := new(mockSupervisor)
+	supervisor.Test(t)
+	supervisor.On("AgentsList").Return(agentInfo)
+	t.Cleanup(func() { supervisor.AssertExpectations(t) })
+
+	tunnelInfo := []*agentlocalpb.TunnelInfo{}
+	registry := new(mockRegistry)
+	registry.Test(t)
+	registry.On("TunnelsList").Return(tunnelInfo)
+	t.Cleanup(func() { registry.AssertExpectations(t) })
+
+	client := new(mockClient)
+	client.Test(t)
+	client.On("GetServerConnectMetadata").Return(&agentpb.ServerConnectMetadata{
+		AgentRunsOnNodeID: "/node_id/00000000-0000-4000-8000-000000000003",
+		ServerVersion:     "2.0.0-dev",
+	})
+	t.Cleanup(func() { client.AssertExpectations(t) })
+
+	cfg := &config.Config{
+		ID: "/agent_id/00000000-0000-4000-8000-000000000001",
+		Server: config.Server{
+			Address:  "127.0.0.1:8443",
+			Username: "username",
+			Password: "password",
+		},
 	}
 
+	return agentInfo, tunnelInfo, supervisor, registry, client, cfg
+}
+
+func TestServerStatus(t *testing.T) {
+	t.Parallel()
+
 	t.Run("without network info", func(t *testing.T) {
-		agentInfo, supervisor, client, cfg := setup(t)
-		defer supervisor.AssertExpectations(t)
-		defer client.AssertExpectations(t)
-		s := NewServer(cfg, supervisor, client, "/some/dir/pmm-agent.yaml")
+		t.Parallel()
+
+		agentInfo, tunnelInfo, supervisor, registry, client, cfg := setup(t)
+		s := NewServer(cfg, supervisor, registry, client, "/some/dir/pmm-agent.yaml")
 
 		// without network info
 		actual, err := s.Status(context.Background(), &agentlocalpb.StatusRequest{GetNetworkInfo: false})
@@ -76,18 +91,19 @@ func TestServerStatus(t *testing.T) {
 			},
 			AgentsInfo:     agentInfo,
 			ConfigFilepath: "/some/dir/pmm-agent.yaml",
+			TunnelsInfo:    tunnelInfo,
 		}
 		assert.Equal(t, expected, actual)
 	})
 
 	t.Run("with network info", func(t *testing.T) {
-		agentInfo, supervisor, client, cfg := setup(t)
+		t.Parallel()
+
+		agentInfo, tunnelInfo, supervisor, registry, client, cfg := setup(t)
 		latency := 5 * time.Millisecond
 		clockDrift := time.Second
 		client.On("GetNetworkInformation").Return(latency, clockDrift, nil)
-		defer supervisor.AssertExpectations(t)
-		defer client.AssertExpectations(t)
-		s := NewServer(cfg, supervisor, client, "/some/dir/pmm-agent.yaml")
+		s := NewServer(cfg, supervisor, registry, client, "/some/dir/pmm-agent.yaml")
 
 		// with network info
 		actual, err := s.Status(context.Background(), &agentlocalpb.StatusRequest{GetNetworkInfo: true})
@@ -104,6 +120,7 @@ func TestServerStatus(t *testing.T) {
 			},
 			AgentsInfo:     agentInfo,
 			ConfigFilepath: "/some/dir/pmm-agent.yaml",
+			TunnelsInfo:    tunnelInfo,
 		}
 		assert.Equal(t, expected, actual)
 	})

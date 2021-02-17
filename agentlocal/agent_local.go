@@ -35,7 +35,6 @@ import (
 	"github.com/percona/pmm/api/agentlocalpb"
 	"github.com/percona/pmm/api/agentpb"
 	"github.com/percona/pmm/version"
-	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/sirupsen/logrus"
@@ -51,9 +50,6 @@ import (
 const (
 	shutdownTimeout = 1 * time.Second
 )
-
-// ErrReload is returned from Service.Run after request to reload configuration.
-var ErrReload = errors.New("reload")
 
 // Server represents local pmm-agent API server.
 type Server struct {
@@ -86,8 +82,7 @@ func NewServer(cfg *config.Config, supervisor supervisor, registry registry, cli
 // Run runs gRPC and JSON servers with API and debug endpoints until ctx is canceled.
 //
 // Run exits when ctx is canceled, or when a request to reload configuration is received.
-// In the latter case, the returned error is ErrReload.
-func (s *Server) Run(ctx context.Context) error {
+func (s *Server) Run(ctx context.Context) {
 	defer s.l.Info("Done.")
 
 	serverCtx, serverCancel := context.WithCancel(ctx)
@@ -111,16 +106,12 @@ func (s *Server) Run(ctx context.Context) error {
 		s.runJSONServer(serverCtx, l.Addr().String())
 	}()
 
-	var res error
 	select {
 	case <-ctx.Done():
-		res = ctx.Err()
 	case <-s.reload:
-		res = ErrReload
 	}
 	serverCancel()
 	wg.Wait()
-	return res
 }
 
 // Status returns current pmm-agent status.
