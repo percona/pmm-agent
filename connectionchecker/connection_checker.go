@@ -25,6 +25,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/go-sql-driver/mysql"
 	"github.com/golang/protobuf/ptypes"
@@ -213,7 +214,13 @@ func (cc *ConnectionChecker) checkProxySQLConnection(ctx context.Context, dsn st
 func (cc *ConnectionChecker) checkExternalConnection(ctx context.Context, uri string) *agentpb.CheckConnectionResponse {
 	var res agentpb.CheckConnectionResponse
 
-	resp, err := http.Get(uri)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	req, _ := http.NewRequestWithContext(ctx, "GET", uri, nil)
+	client := &http.Client{}
+
+	resp, err := client.Do(req)
 	if err != nil {
 		res.Error = err.Error()
 		return &res
