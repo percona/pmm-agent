@@ -358,7 +358,7 @@
 
 [[projects]]
   branch = "PMM-5194-tunnels"
-  digest = "1:4a38c7b999c64a6ab729f9d35aa3f3187737dc61b1b50e3b11c90b4a71df970f"
+  digest = "1:b800a92d6c4e81d6625c3c776803020d9e7733b38fff28da3cffd58070d677a0"
   name = "github.com/percona/pmm"
   packages = [
     "api/agentlocalpb",
@@ -386,7 +386,7 @@
     "version",
   ]
   pruneopts = "NUT"
-  revision = "1eec7892ea9512975689f358a1a392ee05e6cb45"
+  revision = "4e1df54fd1b88701bfe6a8330284915200bdc345"
 
 [[projects]]
   digest = "1:4047c378584616813d610c9f993bf90dd0d07aed8d94bd3bc299cd35ececdcba"
@@ -564,7 +564,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:22f1b75bab1d3e83419f99dd355afcdfc727fbc3e16cc472718e9f41e907c7e1"
+  digest = "1:b85b902a0b12019b731f79fbded81cf1a5ddae396f01abcb57b879f7c040c4a4"
   name = "golang.org/x/net"
   packages = [
     "http/httpguts",
@@ -572,6 +572,7 @@
     "http2/hpack",
     "idna",
     "internal/timeseries",
+    "nettest",
     "trace",
   ]
   pruneopts = "NUT"
@@ -872,9 +873,11 @@
     "go.mongodb.org/mongo-driver/mongo/options",
     "go.mongodb.org/mongo-driver/mongo/readpref",
     "go.mongodb.org/mongo-driver/x/mongo/driver/connstring",
+    "golang.org/x/net/nettest",
     "golang.org/x/perf/cmd/benchstat",
     "golang.org/x/sys/unix",
     "golang.org/x/tools/cmd/goimports",
+    "google.golang.org/genproto/googleapis/rpc/status",
     "google.golang.org/grpc",
     "google.golang.org/grpc/channelz/service",
     "google.golang.org/grpc/codes",

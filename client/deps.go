@@ -35,6 +35,7 @@ type connectionChecker interface {
 // We use it instead of real type for testing and to avoid dependency cycle.
 type registry interface {
 	SetState(map[string]*agentpb.SetStateRequest_Tunnel)
+	Write(ctx context.Context, data *agentpb.TunnelData) *agentpb.TunnelDataAck
 }
 
 // supervisor is a subset of methods of supervisor.Supervisor used by this package.

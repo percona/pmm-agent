@@ -3,7 +3,10 @@
 package client
 
 import (
+	context "context"
+
 	agentpb "github.com/percona/pmm/api/agentpb"
+
 	mock "github.com/stretchr/testify/mock"
 )
 
@@ -15,4 +18,20 @@ type mockRegistry struct {
 // SetState provides a mock function with given fields: _a0
 func (_m *mockRegistry) SetState(_a0 map[string]*agentpb.SetStateRequest_Tunnel) {
 	_m.Called(_a0)
+}
+
+// Write provides a mock function with given fields: ctx, data
+func (_m *mockRegistry) Write(ctx context.Context, data *agentpb.TunnelData) *agentpb.TunnelDataAck {
+	ret := _m.Called(ctx, data)
+
+	var r0 *agentpb.TunnelDataAck
+	if rf, ok := ret.Get(0).(func(context.Context, *agentpb.TunnelData) *agentpb.TunnelDataAck); ok {
+		r0 = rf(ctx, data)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*agentpb.TunnelDataAck)
+		}
+	}
+
+	return r0
 }
