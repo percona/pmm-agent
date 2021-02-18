@@ -234,7 +234,7 @@ func (cc *ConnectionChecker) checkExternalConnection(ctx context.Context, uri st
 		return &res
 	}
 
-	res.Body = string(body)
+	res.ExporterResponseBody = string(body)
 
 	return &res
 }
