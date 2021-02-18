@@ -18,7 +18,10 @@ package conn
 import (
 	"bytes"
 	"context"
+	"fmt"
+	"io"
 	"net"
+	"os"
 	"sync"
 	"testing"
 
@@ -72,20 +75,31 @@ func TestPipe(t *testing.T) {
 	nettest.TestConn(t, makePipe)
 }
 
-func TestConn(t *testing.T) {
-	t.Parallel()
+func setup(t *testing.T) (*Conn, *Conn, fmt.Stringer) {
+	t.Helper()
 
 	tcp1, tcp2, err := pipe()
 	require.NoError(t, err)
-	defer tcp1.Close()
-	defer tcp2.Close()
+	t.Cleanup(func() {
+		_ = tcp1.Close()
+		_ = tcp2.Close()
+	})
 
 	var loggerOutput bytes.Buffer
 	logger := logrus.New()
-	logger.SetOutput(&loggerOutput)
-	c1 := newConn(tcp1.(*net.TCPConn), logger.WithField("conn", "c1"))
-	c2 := newConn(tcp2.(*net.TCPConn), logger.WithField("conn", "c2"))
+	logger.SetFormatter(&logrus.TextFormatter{DisableColors: true})
+	logger.SetOutput(io.MultiWriter(os.Stderr, &loggerOutput))
+	logger.SetLevel(logrus.TraceLevel)
 
+	c1 := NewConn(tcp1.(*net.TCPConn), logger.WithField("conn", "c1"))
+	c2 := NewConn(tcp2.(*net.TCPConn), logger.WithField("conn", "c2"))
+	return c1, c2, &loggerOutput
+}
+
+func TestBasic(t *testing.T) {
+	t.Parallel()
+
+	c1, c2, log := setup(t)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -101,52 +115,14 @@ func TestConn(t *testing.T) {
 	}()
 
 	expected := []byte("hello")
-	err = c1.Write(ctx, expected)
+	err := c1.Write(ctx, expected)
 	assert.NoError(t, err)
 	actual := <-c2.Data()
 	assert.Equal(t, expected, actual)
 
 	cancel()
-	// wg.Wait()
-	assert.Empty(t, loggerOutput.String())
+	wg.Wait()
+	assert.NotContains(t, log.String(), "level=error")
+	assert.NotContains(t, log.String(), "level=warn")
+	assert.Contains(t, log.String(), "level=debug")
 }
-
-// 	// // now check conn implementation
-// 	// makePipe = func() (c1, c2 net.Conn, stop func(), err error) {
-// 	// 	var tcp1, tcp2 net.Conn
-// 	// 	tcp1, tcp2, err = pipe()
-// 	// 	if err != nil {
-// 	// 		return
-// 	// 	}
-
-// 	// 	c1 = newConn(tcp1.(*net.TCPConn))
-// 	// 	c2 = newConn(tcp2.(*net.TCPConn))
-// 	// 	stop = func() {
-// 	// 		_ = c1.Close()
-// 	// 		_ = c2.Close()
-// 	// 		_ = tcp1.Close()
-// 	// 		_ = tcp2.Close()
-// 	// 	}
-// 	// 	return
-// 	// }
-// 	// nettest.TestConn(t, makePipe)
-// }
-
-// func TestConn(t *testing.T) {
-// 	t.Parallel()
-
-// 	c1, src := pipe(t)
-// 	dst, c2 := pipe(t)
-
-// 	go func() {
-// 		err := copy(dst, src)
-// 		require.NoError(t, err)
-// 	}()
-
-// 	_, err := fmt.Fprint(c1, "hello\n")
-// 	require.NoError(t, err)
-// 	var actual string
-// 	_, err = fmt.Fscan(c2, &actual)
-// 	require.NoError(t, err)
-// 	assert.Equal(t, "hello", actual)
-// }

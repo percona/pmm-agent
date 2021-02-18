@@ -18,6 +18,7 @@ package conn
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"sync"
 	"time"
@@ -36,14 +37,16 @@ const (
 	setWriteBuffer     = 8192
 )
 
-type conn struct {
+type Conn struct {
 	tcp   *net.TCPConn
 	l     *logrus.Entry
 	read  chan []byte
 	write chan []byte
 }
 
-func newConn(tcp *net.TCPConn, l *logrus.Entry) *conn {
+func NewConn(tcp *net.TCPConn, l *logrus.Entry) *Conn {
+	l = l.WithField("conn", fmt.Sprintf("%s->%s", tcp.LocalAddr(), tcp.RemoteAddr()))
+	// set socket options, log warnings on errors
 	for _, f := range []func() error{
 		func() error { return tcp.SetNoDelay(setNoDelay) },
 		func() error { return tcp.SetLinger(int(setLinger.Seconds())) },
@@ -54,7 +57,7 @@ func newConn(tcp *net.TCPConn, l *logrus.Entry) *conn {
 				return tcp.SetKeepAlive(false)
 			}
 			if err := tcp.SetKeepAlive(true); err != nil {
-				return err
+				return err //nolint:wrapcheck
 			}
 			return tcp.SetKeepAlivePeriod(setKeepAlivePeriod)
 		},
@@ -64,7 +67,7 @@ func newConn(tcp *net.TCPConn, l *logrus.Entry) *conn {
 		}
 	}
 
-	return &conn{
+	return &Conn{
 		tcp:   tcp,
 		l:     l,
 		read:  make(chan []byte, readCap),
@@ -72,11 +75,11 @@ func newConn(tcp *net.TCPConn, l *logrus.Entry) *conn {
 	}
 }
 
-func (c *conn) Data() <-chan []byte {
+func (c *Conn) Data() <-chan []byte {
 	return c.read
 }
 
-func (c *conn) Write(ctx context.Context, b []byte) error {
+func (c *Conn) Write(ctx context.Context, b []byte) error {
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
@@ -85,7 +88,8 @@ func (c *conn) Write(ctx context.Context, b []byte) error {
 	}
 }
 
-func (c *conn) Run(ctx context.Context) {
+// Run runs reader and writer until ctx is done or underlying connection is fully closed.
+func (c *Conn) Run(ctx context.Context) {
 	var wg sync.WaitGroup
 
 	wg.Add(1)
@@ -102,11 +106,17 @@ func (c *conn) Run(ctx context.Context) {
 
 	// FIXME connection can close itself "normally", not waiting for ctx
 	<-ctx.Done()
+	c.l.Debug("ctx Done")
 
 	c.tcp.Close()
+	c.l.Debug("tcp closed")
+
+	close(c.write)
+	c.l.Debug("write closed")
 
 	wg.Wait()
-	close(c.write)
+	c.l.Debug("wait done")
+
 	close(c.read)
 	return
 }
@@ -114,7 +124,7 @@ func (c *conn) Run(ctx context.Context) {
 // runReader reads data from the TCP connection and sends it to the read channel.
 // It exits on read error (when connection is closed, for example).
 // The caller should close connection and drain the read channel to let runReader return.
-func (c *conn) runReader() error {
+func (c *Conn) runReader() {
 	// runReader does not accept ctx to have only one way to stop it.
 
 	for {
@@ -124,25 +134,25 @@ func (c *conn) runReader() error {
 			c.read <- b[:n]
 		}
 		if err != nil {
-			return err
+			c.l.Debugf("runReader: %s", err)
+			return
 		}
 	}
 }
 
 // runWriter reads data from the write channel and writes it to the TCP connection.
-// It exits on write error (when connection is closed, for example).
-// The caller should close connection to let runWriter return.
-// The write channel should not be closed before that.
-func (c *conn) runWriter() error {
+// It exits on write error (when connection is closed, for example) or when the write channel is closed.
+func (c *Conn) runWriter() {
 	// runWriter does not accept ctx to have only one way to stop it.
 
 	for b := range c.write {
 		// TODO Collect several slices, use net.Buffers?
 
 		if _, err := c.tcp.Write(b); err != nil {
-			return err
+			c.l.Debugf("runWriter: %s", err)
+			return
 		}
 	}
 
-	panic("c.write is closed")
+	c.l.Debug("runWriter: write channel closed")
 }

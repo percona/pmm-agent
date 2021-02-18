@@ -20,6 +20,7 @@ import (
 	"sort"
 	"sync"
 
+	"github.com/percona/pmm-agent/tunnels/conn"
 	"github.com/percona/pmm/api/agentlocalpb"
 	"github.com/percona/pmm/api/agentpb"
 	spb "google.golang.org/genproto/googleapis/rpc/status"
@@ -35,7 +36,7 @@ type Registry struct {
 type tunnelInfo struct {
 	listenPort  uint16
 	connectPort uint16
-	connns      map[string]conn
+	connns      map[string]conn.Conn
 }
 
 func NewRegistry() *Registry {
