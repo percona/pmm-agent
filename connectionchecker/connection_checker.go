@@ -20,6 +20,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"io/ioutil"
 	"math"
 	"net/http"
 	"path/filepath"
@@ -221,11 +222,19 @@ func (cc *ConnectionChecker) checkExternalConnection(ctx context.Context, uri st
 		res.Error = err.Error()
 		return &res
 	}
-
 	if resp.StatusCode != 200 {
 		res.Error = fmt.Sprintf("Unexpected HTTP status code: %d. Expected: 200", resp.StatusCode)
 		return &res
 	}
+
+	defer resp.Body.Close()
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		res.Error = fmt.Sprintf("Cannot read body of exporter's response: %v", err)
+		return &res
+	}
+
+	res.Body = string(body)
 
 	return &res
 }
