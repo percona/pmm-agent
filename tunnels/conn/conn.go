@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"net"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -29,29 +30,54 @@ import (
 const (
 	readCap            = 42
 	writeCap           = 77
-	readBuffer         = 4096
+	readBuffer         = 64 * 1024
 	setNoDelay         = true
 	setKeepAlivePeriod = 10 * time.Second
-	setLinger          = time.Second
-	setReadBuffer      = 8192
-	setWriteBuffer     = 8192
+	setLinger          = -1
+	setReadBuffer      = 64 * 1024
+	setWriteBuffer     = 64 * 1024
 )
 
 type Conn struct {
-	tcp   *net.TCPConn
-	l     *logrus.Entry
-	read  chan []byte
-	write chan []byte
+	tcp *net.TCPConn
+	l   *logrus.Entry
+
+	read         chan []byte
+	write        chan []byte
+	ignoreWrites chan struct{}
+	writeOnce    sync.Once
+
+	readBytesTotal  uint64
+	wroteBytesTotal uint64
+}
+
+type Metrics struct {
+	ReadBytesTotal             uint64
+	WroteBytesTotal            uint64
+	ReadChanLen, ReadChanCap   int
+	WriteChanLen, WriteChanCap int
 }
 
 func NewConn(tcp *net.TCPConn, l *logrus.Entry) *Conn {
-	l = l.WithField("conn", fmt.Sprintf("%s->%s", tcp.LocalAddr(), tcp.RemoteAddr()))
+	l = l.WithField("local", tcp.LocalAddr().String())
+	l = l.WithField("remote", tcp.RemoteAddr().String())
+
 	// set socket options, log warnings on errors
 	for _, f := range []func() error{
 		func() error { return tcp.SetNoDelay(setNoDelay) },
-		func() error { return tcp.SetLinger(int(setLinger.Seconds())) },
-		func() error { return tcp.SetReadBuffer(setReadBuffer) },
-		func() error { return tcp.SetWriteBuffer(setWriteBuffer) },
+		func() error { return tcp.SetLinger(setLinger) },
+		func() error {
+			if setReadBuffer <= 0 {
+				return nil
+			}
+			return tcp.SetReadBuffer(setReadBuffer)
+		},
+		func() error {
+			if setWriteBuffer <= 0 {
+				return nil
+			}
+			return tcp.SetWriteBuffer(setWriteBuffer)
+		},
 		func() error {
 			if setKeepAlivePeriod <= 0 {
 				return tcp.SetKeepAlive(false)
@@ -68,10 +94,11 @@ func NewConn(tcp *net.TCPConn, l *logrus.Entry) *Conn {
 	}
 
 	return &Conn{
-		tcp:   tcp,
-		l:     l,
-		read:  make(chan []byte, readCap),
-		write: make(chan []byte, writeCap),
+		tcp:          tcp,
+		l:            l,
+		read:         make(chan []byte, readCap),
+		write:        make(chan []byte, writeCap),
+		ignoreWrites: make(chan struct{}),
 	}
 }
 
@@ -79,12 +106,35 @@ func (c *Conn) Data() <-chan []byte {
 	return c.read
 }
 
-func (c *Conn) Write(ctx context.Context, b []byte) error {
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	case c.write <- b:
+func (c *Conn) Write(b []byte) error {
+	if len(b) == 0 {
 		return nil
+	}
+
+	select {
+	case <-c.ignoreWrites:
+		return fmt.Errorf("ignoreWrites")
+	default:
+	}
+
+	c.write <- b
+	return nil
+}
+
+func (c *Conn) CloseWrite() {
+	c.writeOnce.Do(func() {
+		close(c.ignoreWrites)
+	})
+}
+
+func (c *Conn) Metrics() *Metrics {
+	return &Metrics{
+		ReadBytesTotal:  atomic.LoadUint64(&c.readBytesTotal),
+		WroteBytesTotal: atomic.LoadUint64(&c.wroteBytesTotal),
+		ReadChanLen:     len(c.read),
+		ReadChanCap:     cap(c.read),
+		WriteChanLen:    len(c.write),
+		WriteChanCap:    cap(c.write),
 	}
 }
 
@@ -92,67 +142,105 @@ func (c *Conn) Write(ctx context.Context, b []byte) error {
 func (c *Conn) Run(ctx context.Context) {
 	var wg sync.WaitGroup
 
+	readerDone := make(chan struct{})
 	wg.Add(1)
 	go func() {
 		c.runReader()
+		c.l.Debugf("runReader done, closing read channel")
+		close(c.read)
+		close(readerDone)
 		wg.Done()
 	}()
 
+	writerDone := make(chan struct{})
 	wg.Add(1)
 	go func() {
 		c.runWriter()
+		c.l.Debugf("runWriter done, closing TCP connection's write side")
+		_ = c.tcp.CloseWrite()
+		close(writerDone)
 		wg.Done()
 	}()
 
-	// FIXME connection can close itself "normally", not waiting for ctx
-	<-ctx.Done()
-	c.l.Debug("ctx Done")
+	var cancel context.CancelFunc
+	ctx, cancel = context.WithCancel(ctx)
+	wg.Add(1)
+	go func() {
+		<-ctx.Done()
+		c.l.Debugf("ctx done, closing TCP connection")
+		_ = c.tcp.Close()
+		wg.Done()
+	}()
 
-	c.tcp.Close()
-	c.l.Debug("tcp closed")
-
-	close(c.write)
-	c.l.Debug("write closed")
-
+	<-writerDone
+	c.CloseWrite()
+	<-readerDone
+	cancel()
 	wg.Wait()
-	c.l.Debug("wait done")
-
-	close(c.read)
-	return
 }
 
 // runReader reads data from the TCP connection and sends it to the read channel.
 // It exits on read error (when connection is closed, for example).
-// The caller should close connection and drain the read channel to let runReader return.
 func (c *Conn) runReader() {
 	// runReader does not accept ctx to have only one way to stop it.
 
 	for {
+		// time.Sleep(25 * time.Millisecond)
+
 		b := make([]byte, readBuffer)
 		n, err := c.tcp.Read(b)
+		atomic.AddUint64(&c.readBytesTotal, uint64(n))
+
+		log := c.l.Tracef
+		if err != nil {
+			log = c.l.Debugf
+		}
+		log("runReader: read %d/%d bytes; channel %d/%d; %v", n, len(b), len(c.read), cap(c.read), err)
+
 		if n > 0 {
 			c.read <- b[:n]
 		}
 		if err != nil {
-			c.l.Debugf("runReader: %s", err)
 			return
 		}
 	}
 }
 
 // runWriter reads data from the write channel and writes it to the TCP connection.
-// It exits on write error (when connection is closed, for example) or when the write channel is closed.
+// It exits on write error (when connection is closed, for example).
 func (c *Conn) runWriter() {
 	// runWriter does not accept ctx to have only one way to stop it.
 
-	for b := range c.write {
-		// TODO Collect several slices, use net.Buffers?
+	for {
+		select {
+		case b := <-c.write:
+			if err := c.realWrite(b); err != nil {
+				return
+			}
+			continue
+		default:
+		}
 
-		if _, err := c.tcp.Write(b); err != nil {
-			c.l.Debugf("runWriter: %s", err)
+		select {
+		case <-c.ignoreWrites:
 			return
+		case b := <-c.write:
+			if err := c.realWrite(b); err != nil {
+				return
+			}
 		}
 	}
+}
 
-	c.l.Debug("runWriter: write channel closed")
+func (c *Conn) realWrite(b []byte) error {
+	n, err := c.tcp.Write(b)
+	atomic.AddUint64(&c.wroteBytesTotal, uint64(n))
+
+	log := c.l.Tracef
+	if err != nil {
+		log = c.l.Debugf
+	}
+	log("runWriter: wrote %d/%d bytes; channel %d/%d; %v", n, len(b), len(c.write), cap(c.write), err)
+
+	return err
 }

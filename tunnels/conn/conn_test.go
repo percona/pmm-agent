@@ -62,8 +62,6 @@ func pipe() (net.Conn, net.Conn, error) {
 }
 
 func TestPipe(t *testing.T) {
-	t.Parallel()
-
 	makePipe := func() (c1, c2 net.Conn, stop func(), err error) {
 		c1, c2, err = pipe()
 		stop = func() {
@@ -87,9 +85,12 @@ func setup(t *testing.T) (*Conn, *Conn, fmt.Stringer) {
 
 	var loggerOutput bytes.Buffer
 	logger := logrus.New()
-	logger.SetFormatter(&logrus.TextFormatter{DisableColors: true})
+	logger.SetFormatter(&logrus.TextFormatter{
+		DisableColors:   true,
+		TimestampFormat: "15:04:05.000000",
+	})
 	logger.SetOutput(io.MultiWriter(os.Stderr, &loggerOutput))
-	logger.SetLevel(logrus.TraceLevel)
+	logger.SetLevel(logrus.DebugLevel)
 
 	c1 := NewConn(tcp1.(*net.TCPConn), logger.WithField("conn", "c1"))
 	c2 := NewConn(tcp2.(*net.TCPConn), logger.WithField("conn", "c2"))
@@ -97,8 +98,6 @@ func setup(t *testing.T) (*Conn, *Conn, fmt.Stringer) {
 }
 
 func TestBasic(t *testing.T) {
-	t.Parallel()
-
 	c1, c2, log := setup(t)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -114,14 +113,42 @@ func TestBasic(t *testing.T) {
 		wg.Done()
 	}()
 
-	expected := []byte("hello")
-	err := c1.Write(ctx, expected)
-	assert.NoError(t, err)
-	actual := <-c2.Data()
-	assert.Equal(t, expected, actual)
+	const total = 10 * 1024 * 1024
+
+	// c1 writer
+	var wrote int
+	go func() {
+		// r := rand.New(rand.NewSource(1)) //nolint:gosec
+		for {
+			b := make([]byte, 1024*1024) // r.Intn(1024*1024))
+			wrote += len(b)
+			// if wrote > total {
+			// 	b = b[:len(b)-(wrote-total)]
+			// 	wrote = total
+			// }
+			err := c1.Write(b)
+			if !assert.NoError(t, err) {
+				return
+			}
+			if wrote == total {
+				c1.CloseWrite()
+				return
+			}
+		}
+	}()
+
+	c2.CloseWrite()
+
+	var read int
+	for b := range c2.Data() {
+		read += len(b)
+	}
+
+	require.Equal(t, wrote, read)
 
 	cancel()
 	wg.Wait()
+
 	assert.NotContains(t, log.String(), "level=error")
 	assert.NotContains(t, log.String(), "level=warn")
 	assert.Contains(t, log.String(), "level=debug")

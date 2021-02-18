@@ -358,7 +358,7 @@
 
 [[projects]]
   branch = "PMM-5194-tunnels"
-  digest = "1:b800a92d6c4e81d6625c3c776803020d9e7733b38fff28da3cffd58070d677a0"
+  digest = "1:779c4c8657488275b306276f6e683c8dc9cda909745cd1f3da1623a7183bf68b"
   name = "github.com/percona/pmm"
   packages = [
     "api/agentlocalpb",
@@ -386,7 +386,7 @@
     "version",
   ]
   pruneopts = "NUT"
-  revision = "4e1df54fd1b88701bfe6a8330284915200bdc345"
+  revision = "4a47e69663fbf943789a2168b24d3f6f3c870cb2"
 
 [[projects]]
   digest = "1:4047c378584616813d610c9f993bf90dd0d07aed8d94bd3bc299cd35ececdcba"
