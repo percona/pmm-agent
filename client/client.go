@@ -26,6 +26,7 @@ import (
 	"time"
 
 	"github.com/golang/protobuf/ptypes"
+	validator "github.com/mwitkow/go-proto-validators"
 	"github.com/percona/pmm/api/agentpb"
 	"github.com/percona/pmm/utils/tlsconfig"
 	"github.com/percona/pmm/version"
@@ -36,7 +37,7 @@ import (
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/status"
 
-	"github.com/percona/pmm-agent/actions"
+	"github.com/percona/pmm-agent/actions" // TODO https://jira.percona.com/browse/PMM-7206
 	"github.com/percona/pmm-agent/client/channel"
 	"github.com/percona/pmm-agent/config"
 	"github.com/percona/pmm-agent/utils/backoff"
@@ -55,6 +56,7 @@ type Client struct {
 	cfg               *config.Config
 	supervisor        supervisor
 	connectionChecker connectionChecker
+	registry          registry
 
 	l       *logrus.Entry
 	backoff *backoff.Backoff
@@ -73,11 +75,12 @@ type Client struct {
 // New creates new client.
 //
 // Caller should call Run.
-func New(cfg *config.Config, supervisor supervisor, connectionChecker connectionChecker) *Client {
+func New(cfg *config.Config, supervisor supervisor, connectionChecker connectionChecker, registry registry) *Client {
 	return &Client{
 		cfg:               cfg,
 		supervisor:        supervisor,
 		connectionChecker: connectionChecker,
+		registry:          registry,
 		l:                 logrus.WithField("component", "client"),
 		backoff:           backoff.New(backoffMinDelay, backoffMaxDelay),
 		done:              make(chan struct{}),
@@ -181,7 +184,7 @@ func (c *Client) Run(ctx context.Context) error {
 		oneDone <- struct{}{}
 	}()
 	go func() {
-		c.processChannelRequests()
+		c.processChannelRequests(ctx)
 		oneDone <- struct{}{}
 	}()
 	<-oneDone
@@ -246,8 +249,16 @@ func (c *Client) processSupervisorRequests() {
 	wg.Wait()
 }
 
-func (c *Client) processChannelRequests() {
+func (c *Client) processChannelRequests(ctx context.Context) {
 	for req := range c.channel.Requests() {
+		if p, _ := req.Payload.(validator.Validator); p != nil {
+			if err := p.Validate(); err != nil {
+				// Requests() is not closed, so exit early to break channel
+				c.l.Errorf("Unhandled server request validation error: %v\n%s.", req, err)
+				return
+			}
+		}
+
 		var responsePayload agentpb.AgentResponsePayload
 		switch p := req.Payload.(type) {
 		case *agentpb.Ping:
@@ -257,6 +268,7 @@ func (c *Client) processChannelRequests() {
 
 		case *agentpb.SetStateRequest:
 			c.supervisor.SetState(p)
+			c.registry.SetState(p.Tunnels)
 			responsePayload = new(agentpb.SetStateResponse)
 
 		case *agentpb.StartActionRequest:
@@ -345,12 +357,27 @@ func (c *Client) processChannelRequests() {
 			responsePayload = new(agentpb.StopActionResponse)
 
 		case *agentpb.CheckConnectionRequest:
-			responsePayload = c.connectionChecker.Check(p, req.ID)
+			responsePayload = c.connectionChecker.Check(ctx, p, req.ID)
+
+		case *agentpb.TunnelData:
+			// TODO
+
+			responsePayload = &agentpb.TunnelDataAck{
+				// TODO
+			}
 
 		case nil:
 			// Requests() is not closed, so exit early to break channel
 			c.l.Errorf("Unhandled server request: %v.", req)
 			return
+		}
+
+		if p, _ := responsePayload.(validator.Validator); p != nil {
+			if err := p.Validate(); err != nil {
+				// Requests() is not closed, so exit early to break channel
+				c.l.Errorf("Unhandled response validation error: %v\n%s.", p, err)
+				return
+			}
 		}
 
 		c.channel.SendResponse(&channel.AgentResponse{

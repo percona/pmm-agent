@@ -16,16 +16,27 @@
 package client
 
 import (
+	"context"
+
 	"github.com/percona/pmm/api/agentpb"
+	spb "google.golang.org/genproto/googleapis/rpc/status"
 )
 
 //go:generate mockery -name=connectionChecker -case=snake -inpkg -testonly
+//go:generate mockery -name=registry -case=snake -inpkg -testonly
 //go:generate mockery -name=supervisor -case=snake -inpkg -testonly
 
 // connectionChecker is a subset of methods of connectionchecker.ConnectionChecker used by this package.
 // We use it instead of real type for testing and to avoid dependency cycle.
 type connectionChecker interface {
-	Check(req *agentpb.CheckConnectionRequest, id uint32) *agentpb.CheckConnectionResponse
+	Check(ctx context.Context, req *agentpb.CheckConnectionRequest, id uint32) *agentpb.CheckConnectionResponse
+}
+
+// registry is a subset of methods of tunnels.Registry used by this package.
+// We use it instead of real type for testing and to avoid dependency cycle.
+type registry interface {
+	SetState(tunnels map[string]*agentpb.SetStateRequest_Tunnel) map[string]*spb.Status
+	Write(ctx context.Context, data *agentpb.TunnelData) *agentpb.TunnelDataAck
 }
 
 // supervisor is a subset of methods of supervisor.Supervisor used by this package.

@@ -53,6 +53,9 @@ type AgentResponse struct {
 
 // Channel encapsulates two-way communication channel between pmm-managed and pmm-agent.
 //
+// pmm-agent establishes a single gRPC connection with pmm-managed
+// and then starts a single gRPC bidirectional stream, which is represented by this type.
+//
 // All exported methods are thread-safe.
 type Channel struct { //nolint:maligned
 	s agentpb.Agent_ConnectClient
@@ -73,7 +76,7 @@ type Channel struct { //nolint:maligned
 	closeErr  error
 }
 
-// New creates new two-way communication channel with given stream.
+// New creates new two-way communication channel with given gRPC bidirectional stream.
 //
 // Stream should not be used by the caller after channel is created.
 func New(stream agentpb.Agent_ConnectClient) *Channel {
@@ -137,7 +140,7 @@ func (c *Channel) Requests() <-chan *ServerRequest {
 	return c.requests
 }
 
-// SendResponse sends message to pmm-managed. It is no-op once channel is closed (see Wait).
+// SendResponse sends response to pmm-managed. It is no-op once channel is closed (see Wait).
 func (c *Channel) SendResponse(resp *AgentResponse) {
 	msg := &agentpb.AgentMessage{
 		Id:      resp.ID,
@@ -235,6 +238,11 @@ func (c *Channel) runReceiver() {
 				ID:      msg.Id,
 				Payload: p.CheckConnection,
 			}
+		case *agentpb.ServerMessage_TunnelData:
+			c.requests <- &ServerRequest{
+				ID:      msg.Id,
+				Payload: p.TunnelData,
+			}
 
 		// responses
 		case *agentpb.ServerMessage_Pong:
@@ -245,6 +253,8 @@ func (c *Channel) runReceiver() {
 			c.publish(msg.Id, p.QanCollect)
 		case *agentpb.ServerMessage_ActionResult:
 			c.publish(msg.Id, p.ActionResult)
+		case *agentpb.ServerMessage_TunnelDataAck:
+			c.publish(msg.Id, p.TunnelDataAck)
 
 		case nil:
 			c.close(errors.Errorf("failed to handle received message %s", msg))

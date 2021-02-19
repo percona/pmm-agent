@@ -24,6 +24,7 @@ import (
 )
 
 //go:generate mockery -name=client -case=snake -inpkg -testonly
+//go:generate mockery -name=registry -case=snake -inpkg -testonly
 //go:generate mockery -name=supervisor -case=snake -inpkg -testonly
 
 // client is a subset of methods of client.Client used by this package.
@@ -33,6 +34,12 @@ type client interface {
 	Describe(chan<- *prometheus.Desc)
 	Collect(chan<- prometheus.Metric)
 	GetNetworkInformation() (latency, clockDrift time.Duration, err error)
+}
+
+// registry is a subset of methods of tunnels.Registry used by this package.
+// We use it instead of real type for testing and to avoid dependency cycle.
+type registry interface {
+	TunnelsList() []*agentlocalpb.TunnelInfo
 }
 
 // supervisor is a subset of methods of supervisor.Supervisor used by this package.

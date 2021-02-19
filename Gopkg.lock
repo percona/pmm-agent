@@ -357,8 +357,8 @@
   version = "v3.2.1"
 
 [[projects]]
-  branch = "PMM-2.0"
-  digest = "1:0b5f100748df73363fa283c3d72a2823614d8fe39903e4beb33043375b9c0d32"
+  branch = "PMM-5194-tunnels"
+  digest = "1:779c4c8657488275b306276f6e683c8dc9cda909745cd1f3da1623a7183bf68b"
   name = "github.com/percona/pmm"
   packages = [
     "api/agentlocalpb",
@@ -386,7 +386,7 @@
     "version",
   ]
   pruneopts = "NUT"
-  revision = "baf33d36ecf1651f70c0acae1be11c61d3f30b2c"
+  revision = "4a47e69663fbf943789a2168b24d3f6f3c870cb2"
 
 [[projects]]
   digest = "1:4047c378584616813d610c9f993bf90dd0d07aed8d94bd3bc299cd35ececdcba"
@@ -564,7 +564,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:22f1b75bab1d3e83419f99dd355afcdfc727fbc3e16cc472718e9f41e907c7e1"
+  digest = "1:b85b902a0b12019b731f79fbded81cf1a5ddae396f01abcb57b879f7c040c4a4"
   name = "golang.org/x/net"
   packages = [
     "http/httpguts",
@@ -572,6 +572,7 @@
     "http2/hpack",
     "idna",
     "internal/timeseries",
+    "nettest",
     "trace",
   ]
   pruneopts = "NUT"
@@ -837,6 +838,7 @@
     "github.com/lfittl/pg_query_go",
     "github.com/lfittl/pg_query_go/nodes",
     "github.com/lib/pq",
+    "github.com/mwitkow/go-proto-validators",
     "github.com/percona/exporter_shared/helpers",
     "github.com/percona/go-mysql/event",
     "github.com/percona/go-mysql/log",
@@ -871,9 +873,11 @@
     "go.mongodb.org/mongo-driver/mongo/options",
     "go.mongodb.org/mongo-driver/mongo/readpref",
     "go.mongodb.org/mongo-driver/x/mongo/driver/connstring",
+    "golang.org/x/net/nettest",
     "golang.org/x/perf/cmd/benchstat",
     "golang.org/x/sys/unix",
     "golang.org/x/tools/cmd/goimports",
+    "google.golang.org/genproto/googleapis/rpc/status",
     "google.golang.org/grpc",
     "google.golang.org/grpc/channelz/service",
     "google.golang.org/grpc/codes",
