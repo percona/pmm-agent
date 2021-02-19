@@ -107,9 +107,9 @@ func (s *Server) Run(ctx context.Context) {
 	select {
 	case <-ctx.Done():
 	case <-s.reload:
-		serverCancel()
 	}
 
+	serverCancel()
 	wg.Wait()
 }
 
