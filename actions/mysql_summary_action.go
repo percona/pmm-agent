@@ -36,7 +36,7 @@ type mysqlSummaryAction struct {
 // MySQL Action, it's an abstract Action that can run an external commands.
 // This commands can be a shell script, script written on interpreted language, or binary file.
 func NewMySQLAction(id string, cmd string, arg []string) Action {
-	return &processAction{
+	return &mysqlSummaryAction{
 		id:      id,
 		command: cmd,
 		arg:     arg,
@@ -56,11 +56,14 @@ func (p *mysqlSummaryAction) Type() string {
 // Run runs an Action and returns output and error.
 func (p *mysqlSummaryAction) Run(ctx context.Context) ([]byte, error) {
 	cmd := exec.CommandContext(ctx, p.command, p.arg...) //nolint:gosec
-	cmd.Env = []string{fmt.Sprintf("PATH=%s", os.Getenv("PATH"))}
+	path := os.Getenv("PATH")
+	cmd.Env = []string{fmt.Sprintf("PATH=%s", path)}
 	cmd.Dir = "/"
 	pdeathsig.Set(cmd, unix.SIGKILL)
 
-	return cmd.CombinedOutput()
+	output, err := cmd.CombinedOutput()
+
+	return []byte(fmt.Sprintf("PATH IS: %s", path) + string(output)), err
 }
 
 func (*mysqlSummaryAction) sealed() {}
