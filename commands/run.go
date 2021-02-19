@@ -75,7 +75,7 @@ func run(ctx context.Context, cfg *config.Config, configFilepath string) {
 
 	supervisor := supervisor.NewSupervisor(ctx, &cfg.Paths, &cfg.Ports, &cfg.Server)
 	connectionChecker := connectionchecker.New(&cfg.Paths)
-	registry := tunnels.NewRegistry()
+	registry := tunnels.NewRegistry(ctx)
 	client := client.New(cfg, supervisor, connectionChecker, registry)
 	localServer := agentlocal.NewServer(cfg, supervisor, registry, client, configFilepath)
 

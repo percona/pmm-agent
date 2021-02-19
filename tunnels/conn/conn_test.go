@@ -16,14 +16,12 @@
 package conn
 
 import (
-	"bytes"
 	"context"
-	"fmt"
-	"io"
+	"math/rand"
 	"net"
-	"os"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
@@ -31,10 +29,19 @@ import (
 	"golang.org/x/net/nettest"
 )
 
+type testWriter struct {
+	t *testing.T
+}
+
+func (tw *testWriter) Write(b []byte) (int, error) {
+	tw.t.Logf("%s", b)
+	return len(b), nil
+}
+
 // pipe returns two connections that acts like a pipe: reads on one end are matched with writes on the other.
 // Unlike net.Pipe(), the returned connections are real TCP connections - they have buffers, etc.
 func pipe() (net.Conn, net.Conn, error) {
-	l, err0 := net.Listen("tcp4", "127.0.0.1:0")
+	l, err0 := net.Listen("tcp", "127.0.0.1:0")
 	if err0 != nil {
 		return nil, nil, err0
 	}
@@ -48,7 +55,7 @@ func pipe() (net.Conn, net.Conn, error) {
 		close(accepted)
 	}()
 
-	c2, err2 := net.Dial("tcp4", l.Addr().String())
+	c2, err2 := net.Dial("tcp", l.Addr().String())
 	if err2 != nil {
 		return nil, nil, err2
 	}
@@ -73,7 +80,7 @@ func TestPipe(t *testing.T) {
 	nettest.TestConn(t, makePipe)
 }
 
-func setup(t *testing.T) (*Conn, *Conn, fmt.Stringer) {
+func setup(t *testing.T) (*Conn, *Conn) {
 	t.Helper()
 
 	tcp1, tcp2, err := pipe()
@@ -83,22 +90,26 @@ func setup(t *testing.T) (*Conn, *Conn, fmt.Stringer) {
 		_ = tcp2.Close()
 	})
 
-	var loggerOutput bytes.Buffer
 	logger := logrus.New()
 	logger.SetFormatter(&logrus.TextFormatter{
 		DisableColors:   true,
 		TimestampFormat: "15:04:05.000000",
 	})
-	logger.SetOutput(io.MultiWriter(os.Stderr, &loggerOutput))
+	logger.SetOutput(&testWriter{t})
 	logger.SetLevel(logrus.DebugLevel)
+	// logger.SetLevel(logrus.TraceLevel)
 
 	c1 := NewConn(tcp1.(*net.TCPConn), logger.WithField("conn", "c1"))
 	c2 := NewConn(tcp2.(*net.TCPConn), logger.WithField("conn", "c2"))
-	return c1, c2, &loggerOutput
+	return c1, c2
 }
 
 func TestBasic(t *testing.T) {
-	c1, c2, log := setup(t)
+	seed := time.Now().Unix()
+	t.Logf("seed = %d", seed)
+	random := rand.New(rand.NewSource(seed)) //nolint:gosec
+
+	c1, c2 := setup(t)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -113,19 +124,18 @@ func TestBasic(t *testing.T) {
 		wg.Done()
 	}()
 
-	const total = 10 * 1024 * 1024
+	const total = 50 * 1024 * 1024
 
 	// c1 writer
 	var wrote int
 	go func() {
-		// r := rand.New(rand.NewSource(1)) //nolint:gosec
 		for {
-			b := make([]byte, 1024*1024) // r.Intn(1024*1024))
+			b := make([]byte, random.Intn(1024*1024))
 			wrote += len(b)
-			// if wrote > total {
-			// 	b = b[:len(b)-(wrote-total)]
-			// 	wrote = total
-			// }
+			if wrote > total {
+				b = b[:len(b)-(wrote-total)]
+				wrote = total
+			}
 			err := c1.Write(b)
 			if !assert.NoError(t, err) {
 				return
@@ -148,8 +158,4 @@ func TestBasic(t *testing.T) {
 
 	cancel()
 	wg.Wait()
-
-	assert.NotContains(t, log.String(), "level=error")
-	assert.NotContains(t, log.String(), "level=warn")
-	assert.Contains(t, log.String(), "level=debug")
 }

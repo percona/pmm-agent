@@ -30,12 +30,12 @@ import (
 const (
 	readCap            = 42
 	writeCap           = 77
-	readBuffer         = 64 * 1024
+	readBuffer         = 9 * 1024
 	setNoDelay         = true
 	setKeepAlivePeriod = 10 * time.Second
 	setLinger          = -1
-	setReadBuffer      = 64 * 1024
-	setWriteBuffer     = 64 * 1024
+	setReadBuffer      = 7 * 1024
+	setWriteBuffer     = 13 * 1024
 )
 
 type Conn struct {
@@ -46,6 +46,7 @@ type Conn struct {
 	write        chan []byte
 	ignoreWrites chan struct{}
 	writeOnce    sync.Once
+	done         chan struct{}
 
 	readBytesTotal  uint64
 	wroteBytesTotal uint64
@@ -99,7 +100,12 @@ func NewConn(tcp *net.TCPConn, l *logrus.Entry) *Conn {
 		read:         make(chan []byte, readCap),
 		write:        make(chan []byte, writeCap),
 		ignoreWrites: make(chan struct{}),
+		done:         make(chan struct{}),
 	}
+}
+
+func (c *Conn) Done() <-chan struct{} {
+	return c.done
 }
 
 func (c *Conn) Data() <-chan []byte {
@@ -174,9 +180,21 @@ func (c *Conn) Run(ctx context.Context) {
 
 	<-writerDone
 	c.CloseWrite()
+
+	// drain write channel to unblock Write callers
+	for {
+		select {
+		case <-c.write:
+			continue
+		default:
+		}
+		break
+	}
+
 	<-readerDone
 	cancel()
 	wg.Wait()
+	close(c.done)
 }
 
 // runReader reads data from the TCP connection and sends it to the read channel.

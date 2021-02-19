@@ -17,18 +17,26 @@ package tunnels
 
 import (
 	"context"
+	"fmt"
+	"net"
 	"sort"
 	"sync"
+	"time"
 
-	"github.com/percona/pmm-agent/tunnels/conn"
 	"github.com/percona/pmm/api/agentlocalpb"
 	"github.com/percona/pmm/api/agentpb"
+	"github.com/sirupsen/logrus"
 	spb "google.golang.org/genproto/googleapis/rpc/status"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+
+	"github.com/percona/pmm-agent/tunnels/conn"
 )
 
 type Registry struct {
+	ctx context.Context
+	l   *logrus.Entry
+
 	rw      sync.RWMutex
 	tunnels map[string]tunnelInfo
 }
@@ -36,15 +44,15 @@ type Registry struct {
 type tunnelInfo struct {
 	listenPort  uint16
 	connectPort uint16
-	connns      map[string]conn.Conn
+	conns       map[string]*conn.Conn
+	cancels     map[string]context.CancelFunc
 }
 
-func NewRegistry() *Registry {
-	return &Registry{}
-}
-
-func (r *Registry) Run(ctx context.Context) {
-
+func NewRegistry(ctx context.Context) *Registry {
+	return &Registry{
+		ctx: ctx,
+		l:   logrus.WithField("component", "tunnels-registry"),
+	}
 }
 
 func (r *Registry) TunnelsList() []*agentlocalpb.TunnelInfo {
@@ -58,7 +66,7 @@ func (r *Registry) TunnelsList() []*agentlocalpb.TunnelInfo {
 			TunnelId:           id,
 			ListenPort:         uint32(tunnel.listenPort),
 			ConnectPort:        uint32(tunnel.connectPort),
-			CurrentConnections: 42, // TODO
+			CurrentConnections: uint32(len(tunnel.conns)),
 		}
 		res = append(res, info)
 	}
@@ -84,6 +92,8 @@ func (r *Registry) SetState(tunnels map[string]*agentpb.SetStateRequest_Tunnel) 
 		r.tunnels[id] = tunnelInfo{
 			listenPort:  uint16(t.ListenPort),
 			connectPort: uint16(t.ConnectPort),
+			conns:       make(map[string]*conn.Conn),
+			cancels:     make(map[string]context.CancelFunc),
 		}
 	}
 
@@ -92,8 +102,61 @@ func (r *Registry) SetState(tunnels map[string]*agentpb.SetStateRequest_Tunnel) 
 
 func (r *Registry) Write(ctx context.Context, data *agentpb.TunnelData) *agentpb.TunnelDataAck {
 	r.rw.RLock()
-	t := r.tunnels[data.ConnectionId]
+
+	tunnel, ok := r.tunnels[data.TunnelId]
+	if !ok {
+		r.rw.RUnlock()
+		return &agentpb.TunnelDataAck{
+			Status: status.Newf(codes.NotFound, "Tunnel not configured: %s.", data.TunnelId).Proto(),
+		}
+	}
+
+	connectionID := data.ConnectionId
+	c := tunnel.conns[connectionID]
 
 	r.rw.RUnlock()
+
+	if c == nil {
+		if tunnel.listenPort != 0 {
+			panic("not implemented yet")
+		}
+
+		dialCtx, dialCancel := context.WithTimeout(ctx, 2*time.Second)
+		defer dialCancel()
+		d := net.Dialer{}
+		netConn, err := d.DialContext(dialCtx, "tcp", fmt.Sprintf(":%d", tunnel.connectPort))
+		if err != nil {
+			return &agentpb.TunnelDataAck{
+				Status: status.FromContextError(err).Proto(),
+			}
+		}
+
+		c = conn.NewConn(netConn.(*net.TCPConn), r.l)
+		connCtx, connCancel := context.WithCancel(r.ctx)
+		go func() {
+			c.Run(connCtx)
+
+			r.rw.Lock()
+
+			delete(r.tunnels[data.TunnelId].conns, connectionID)
+
+			r.rw.Unlock()
+		}()
+		r.rw.Lock()
+		r.tunnels[data.TunnelId].conns[connectionID] = c
+		r.tunnels[data.TunnelId].cancels[connectionID] = connCancel
+		r.rw.Unlock()
+	}
+
+	err := c.Write(data.Data)
+	if data.Close {
+		c.CloseWrite()
+	}
+	if err != nil {
+		return &agentpb.TunnelDataAck{
+			Status: status.FromContextError(err).Proto(),
+		}
+	}
+
 	return nil
 }

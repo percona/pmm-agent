@@ -19,6 +19,7 @@ import (
 	"context"
 
 	"github.com/percona/pmm/api/agentpb"
+	spb "google.golang.org/genproto/googleapis/rpc/status"
 )
 
 //go:generate mockery -name=connectionChecker -case=snake -inpkg -testonly
@@ -34,7 +35,7 @@ type connectionChecker interface {
 // registry is a subset of methods of tunnels.Registry used by this package.
 // We use it instead of real type for testing and to avoid dependency cycle.
 type registry interface {
-	SetState(map[string]*agentpb.SetStateRequest_Tunnel)
+	SetState(tunnels map[string]*agentpb.SetStateRequest_Tunnel) map[string]*spb.Status
 	Write(ctx context.Context, data *agentpb.TunnelData) *agentpb.TunnelDataAck
 }
 
