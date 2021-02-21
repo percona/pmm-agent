@@ -21,6 +21,10 @@ import (
 	"database/sql"
 	"fmt"
 	"math"
+	"net/http"
+	"path/filepath"
+	"strconv"
+	"strings"
 
 	"github.com/go-sql-driver/mysql"
 	"github.com/golang/protobuf/ptypes"
@@ -28,27 +32,30 @@ import (
 	"github.com/percona/pmm/api/agentpb"
 	"github.com/percona/pmm/api/inventorypb"
 	"github.com/sirupsen/logrus"
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
+
+	"github.com/percona/pmm-agent/config"
+	"github.com/percona/pmm-agent/utils/templates"
 )
 
 // ConnectionChecker is a struct to check connection to services.
 type ConnectionChecker struct {
-	ctx context.Context
-	l   *logrus.Entry
+	l     *logrus.Entry
+	paths *config.Paths
 }
 
 // New creates new ConnectionChecker.
-func New(ctx context.Context) *ConnectionChecker {
+func New(paths *config.Paths) *ConnectionChecker {
 	return &ConnectionChecker{
-		ctx: ctx,
-		l:   logrus.WithField("component", "connectionchecker"),
+		l:     logrus.WithField("component", "connectionchecker"),
+		paths: paths,
 	}
 }
 
 // Check checks connection to a service. It returns context cancelation/timeout or driver errors as is.
-func (cc *ConnectionChecker) Check(msg *agentpb.CheckConnectionRequest) *agentpb.CheckConnectionResponse {
-	ctx := cc.ctx
+func (cc *ConnectionChecker) Check(ctx context.Context, msg *agentpb.CheckConnectionRequest, id uint32) *agentpb.CheckConnectionResponse {
 	timeout, _ := ptypes.Duration(msg.Timeout)
 	if timeout > 0 {
 		var cancel context.CancelFunc
@@ -60,11 +67,13 @@ func (cc *ConnectionChecker) Check(msg *agentpb.CheckConnectionRequest) *agentpb
 	case inventorypb.ServiceType_MYSQL_SERVICE:
 		return cc.checkMySQLConnection(ctx, msg.Dsn)
 	case inventorypb.ServiceType_MONGODB_SERVICE:
-		return cc.checkMongoDBConnection(ctx, msg.Dsn)
+		return cc.checkMongoDBConnection(ctx, msg.Dsn, msg.TextFiles, id)
 	case inventorypb.ServiceType_POSTGRESQL_SERVICE:
 		return cc.checkPostgreSQLConnection(ctx, msg.Dsn)
 	case inventorypb.ServiceType_PROXYSQL_SERVICE:
 		return cc.checkProxySQLConnection(ctx, msg.Dsn)
+	case inventorypb.ServiceType_EXTERNAL_SERVICE, inventorypb.ServiceType_HAPROXY_SERVICE:
+		return cc.checkExternalConnection(ctx, msg.Dsn)
 	default:
 		panic(fmt.Sprintf("unhandled service type: %v", msg.Type))
 	}
@@ -119,8 +128,17 @@ func (cc *ConnectionChecker) checkMySQLConnection(ctx context.Context, dsn strin
 	return &res
 }
 
-func (cc *ConnectionChecker) checkMongoDBConnection(ctx context.Context, dsn string) *agentpb.CheckConnectionResponse {
+func (cc *ConnectionChecker) checkMongoDBConnection(ctx context.Context, dsn string, files *agentpb.TextFiles, id uint32) *agentpb.CheckConnectionResponse {
 	var res agentpb.CheckConnectionResponse
+	var err error
+
+	tempdir := filepath.Join(cc.paths.TempDir, strings.ToLower("check-mongodb-connection"), strconv.Itoa(int(id)))
+	dsn, err = templates.RenderDSN(dsn, files, tempdir)
+	if err != nil {
+		cc.l.Debugf("checkMongoDBConnection: failed to Render DSN: %s", err)
+		res.Error = err.Error()
+		return &res
+	}
 
 	client, err := mongo.Connect(ctx, options.Client().ApplyURI(dsn))
 	if err != nil {
@@ -133,6 +151,14 @@ func (cc *ConnectionChecker) checkMongoDBConnection(ctx context.Context, dsn str
 	if err = client.Ping(ctx, nil); err != nil {
 		cc.l.Debugf("checkMongoDBConnection: failed to Ping: %s", err)
 		res.Error = err.Error()
+		return &res
+	}
+
+	resp := client.Database("admin").RunCommand(ctx, bson.D{{Key: "listDatabases", Value: 1}})
+	if err = resp.Err(); err != nil {
+		cc.l.Debugf("checkMongoDBConnection: failed to runCommand listDatabases: %s", err)
+		res.Error = err.Error()
+		return &res
 	}
 
 	return &res
@@ -176,6 +202,26 @@ func (cc *ConnectionChecker) checkProxySQLConnection(ctx context.Context, dsn st
 
 	if err = cc.sqlPing(ctx, db); err != nil {
 		res.Error = err.Error()
+	}
+
+	return &res
+}
+
+func (cc *ConnectionChecker) checkExternalConnection(ctx context.Context, uri string) *agentpb.CheckConnectionResponse {
+	var res agentpb.CheckConnectionResponse
+
+	req, _ := http.NewRequestWithContext(ctx, "GET", uri, nil)
+	client := &http.Client{}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		res.Error = err.Error()
+		return &res
+	}
+
+	if resp.StatusCode != 200 {
+		res.Error = fmt.Sprintf("Unexpected HTTP status code: %d. Expected: 200", resp.StatusCode)
+		return &res
 	}
 
 	return &res

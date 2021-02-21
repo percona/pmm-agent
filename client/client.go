@@ -18,7 +18,9 @@ package client
 
 import (
 	"context"
+	"fmt"
 	"net"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -34,7 +36,7 @@ import (
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/status"
 
-	"github.com/percona/pmm-agent/actions"
+	"github.com/percona/pmm-agent/actions" // TODO https://jira.percona.com/browse/PMM-7206
 	"github.com/percona/pmm-agent/client/channel"
 	"github.com/percona/pmm-agent/config"
 	"github.com/percona/pmm-agent/utils/backoff"
@@ -179,7 +181,7 @@ func (c *Client) Run(ctx context.Context) error {
 		oneDone <- struct{}{}
 	}()
 	go func() {
-		c.processChannelRequests()
+		c.processChannelRequests(ctx)
 		oneDone <- struct{}{}
 	}()
 	<-oneDone
@@ -220,7 +222,7 @@ func (c *Client) processSupervisorRequests() {
 		defer wg.Done()
 
 		for state := range c.supervisor.Changes() {
-			resp := c.channel.SendRequest(&state)
+			resp := c.channel.SendRequest(state)
 			if resp == nil {
 				c.l.Warn("Failed to send StateChanged request.")
 			}
@@ -233,7 +235,7 @@ func (c *Client) processSupervisorRequests() {
 		defer wg.Done()
 
 		for collect := range c.supervisor.QANRequests() {
-			resp := c.channel.SendRequest(&collect)
+			resp := c.channel.SendRequest(collect)
 			if resp == nil {
 				c.l.Warn("Failed to send QanCollect request.")
 			}
@@ -244,7 +246,7 @@ func (c *Client) processSupervisorRequests() {
 	wg.Wait()
 }
 
-func (c *Client) processChannelRequests() {
+func (c *Client) processChannelRequests(ctx context.Context) {
 	for req := range c.channel.Requests() {
 		var responsePayload agentpb.AgentResponsePayload
 		switch p := req.Payload.(type) {
@@ -279,7 +281,7 @@ func (c *Client) processChannelRequests() {
 				action = actions.NewPostgreSQLShowIndexAction(p.ActionId, params.PostgresqlShowIndexParams)
 
 			case *agentpb.StartActionRequest_MongodbExplainParams:
-				action = actions.NewMongoDBExplainAction(p.ActionId, params.MongodbExplainParams)
+				action = actions.NewMongoDBExplainAction(p.ActionId, params.MongodbExplainParams, c.cfg.Paths.TempDir)
 
 			case *agentpb.StartActionRequest_MysqlQueryShowParams:
 				action = actions.NewMySQLQueryShowAction(p.ActionId, params.MysqlQueryShowParams)
@@ -294,16 +296,40 @@ func (c *Client) processChannelRequests() {
 				action = actions.NewPostgreSQLQuerySelectAction(p.ActionId, params.PostgresqlQuerySelectParams)
 
 			case *agentpb.StartActionRequest_MongodbQueryGetparameterParams:
-				action = actions.NewMongoDBQueryAdmincommandAction(p.ActionId, params.MongodbQueryGetparameterParams.Dsn, "getParameter", "*")
+				action = actions.NewMongoDBQueryAdmincommandAction(actions.MongoDBQueryAdmincommandActionParams{
+					ID:      p.ActionId,
+					DSN:     params.MongodbQueryGetparameterParams.Dsn,
+					Files:   params.MongodbQueryGetparameterParams.TextFiles,
+					Command: "getParameter",
+					Arg:     "*",
+					TempDir: c.cfg.Paths.TempDir,
+				})
 
 			case *agentpb.StartActionRequest_MongodbQueryBuildinfoParams:
-				action = actions.NewMongoDBQueryAdmincommandAction(p.ActionId, params.MongodbQueryBuildinfoParams.Dsn, "buildInfo", 1)
+				action = actions.NewMongoDBQueryAdmincommandAction(actions.MongoDBQueryAdmincommandActionParams{
+					ID:      p.ActionId,
+					DSN:     params.MongodbQueryBuildinfoParams.Dsn,
+					Files:   params.MongodbQueryBuildinfoParams.TextFiles,
+					Command: "buildInfo",
+					Arg:     1,
+					TempDir: c.cfg.Paths.TempDir,
+				})
 
 			case *agentpb.StartActionRequest_MongodbQueryGetcmdlineoptsParams:
-				action = actions.NewMongoDBQueryAdmincommandAction(p.ActionId, params.MongodbQueryGetcmdlineoptsParams.Dsn, "getCmdLineOpts", 1)
+				action = actions.NewMongoDBQueryAdmincommandAction(actions.MongoDBQueryAdmincommandActionParams{
+					ID:      p.ActionId,
+					DSN:     params.MongodbQueryGetcmdlineoptsParams.Dsn,
+					Files:   params.MongodbQueryGetcmdlineoptsParams.TextFiles,
+					Command: "getCmdLineOpts",
+					Arg:     1,
+					TempDir: c.cfg.Paths.TempDir,
+				})
 
 			case *agentpb.StartActionRequest_PtSummaryParams:
 				action = actions.NewProcessAction(p.ActionId, c.cfg.Paths.PTSummary, []string{})
+
+			case *agentpb.StartActionRequest_PtMongodbSummaryParams:
+				action = actions.NewProcessAction(p.ActionId, c.cfg.Paths.PTMongoDBSummary, argListFromMongoDBParams(params.PtMongodbSummaryParams))
 
 			case nil:
 				// Requests() is not closed, so exit early to break channel
@@ -319,7 +345,7 @@ func (c *Client) processChannelRequests() {
 			responsePayload = new(agentpb.StopActionResponse)
 
 		case *agentpb.CheckConnectionRequest:
-			responsePayload = c.connectionChecker.Check(p)
+			responsePayload = c.connectionChecker.Check(ctx, p, req.ID)
 
 		case nil:
 			// Requests() is not closed, so exit early to break channel
@@ -533,6 +559,35 @@ func (c *Client) Collect(ch chan<- prometheus.Metric) {
 	} else {
 		ch <- prometheus.MustNewConstMetric(desc, prometheus.GaugeValue, 0)
 	}
+}
+
+// argListFromMongoDBParams creates an array of strings from the pointer to the parameters for pt-mongodb-sumamry
+func argListFromMongoDBParams(pParams *agentpb.StartActionRequest_PTMongoDBSummaryParams) []string {
+	var args []string
+
+	// Only adds the arguments are valid
+
+	if pParams.Username != "" {
+		args = append(args, "--username", pParams.Username)
+	}
+
+	if pParams.Password != "" {
+		// TODO change this line when pt-mongodb-summary is updated
+		args = append(args, fmt.Sprintf("--password=%s", pParams.Password))
+	}
+
+	if pParams.Host != "" {
+		var hostPortStr string = pParams.Host
+
+		// If valid port attaches ':' and the port number after address
+		if pParams.Port > 0 && pParams.Port <= 65535 {
+			hostPortStr += ":" + strconv.Itoa(int(pParams.Port))
+		}
+
+		args = append(args, hostPortStr)
+	}
+
+	return args
 }
 
 // check interface
