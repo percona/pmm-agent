@@ -118,3 +118,6 @@ func mysqlOpen(dsn string) (*sql.DB, error) {
 
 	return sql.OpenDB(connector), nil
 }
+
+type NewActions struct {
+}
