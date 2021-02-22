@@ -67,10 +67,14 @@ jobs:
           			./vendor/golang.org/x/tools/cmd/goimports \
           			./vendor/gopkg.in/reform.v1/reform
 
-      - name: Check generated files
+      - name: Generate files
+        run: make gen
+
+      - name: Format files
+        run: make format
+
+      - name: Check difference
         run: |
-          make gen
-          make format
           git status
           git diff --exit-code
 
