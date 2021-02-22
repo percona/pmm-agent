@@ -23,14 +23,13 @@ jobs:
           - 1.15.x
         may-fail: [false]
         
-#        include:
-#          - go-version: tip
-#            may-fail: true
+        include:
+          - go-version: tip
+            may-fail: true
     continue-on-error: ${{ matrix.may-fail }}
 
     env:
       GOPATH: ${{ github.workspace }}
-      GOBIN: ${{ github.workspace }}/bin
       WORKING_DIR: ${{ github.workspace }}/src/percona/pmm-agent
 
     defaults:
