@@ -21,7 +21,7 @@ jobs:
             may-fail: false
           - version: tip
             may-fail: true
-    continue-on-error: ${{ matrix.may-fail }}
+    continue-on-error: ${{ matrix.go.may-fail }}
 
     env:
       GOPATH: ${{ github.workspace }}
