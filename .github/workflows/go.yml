@@ -24,6 +24,8 @@ jobs:
 #          - version: tip
 #            may-fail: true
 
+    continue-on-error: ${{ matrix.go.may-fail }}
+
     env:
       GOPATH: ${{ github.workspace }}
       WORKING_DIR: ${{ github.workspace }}/src/github.com/percona/pmm-agent
@@ -68,12 +70,9 @@ jobs:
           			./vendor/gopkg.in/reform.v1/reform
 
       - name: Generate files
-        run: go generate ./...
+        run: make gen
 
-      - name: Format files
-        run: make format
-
-      - name: Check difference
+      - name: Check differences
         run: |
           git status
           git diff --exit-code
