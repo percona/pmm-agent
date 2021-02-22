@@ -62,9 +62,7 @@ func (p *mysqlSummaryAction) Run(ctx context.Context) ([]byte, error) {
 	cmd.Dir = "/"
 	pdeathsig.Set(cmd, unix.SIGKILL)
 
-	output, err := cmd.CombinedOutput()
-
-	return []byte(fmt.Sprintf("PATH IS: %s", path) + string(output)), err
+	return cmd.CombinedOutput()
 }
 
 // Creates an array of strings from parameters.
