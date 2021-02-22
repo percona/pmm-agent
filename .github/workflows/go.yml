@@ -30,7 +30,7 @@ jobs:
 
     env:
       GOPATH: ${{ github.workspace }}
-      WORKING_DIR: ${{ github.workspace }}/src/percona/pmm-agent
+      WORKING_DIR: ${{ github.workspace }}/src/github.com/percona/pmm-agent
 
     defaults:
       run:
