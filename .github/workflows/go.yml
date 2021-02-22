@@ -68,7 +68,7 @@ jobs:
           			./vendor/gopkg.in/reform.v1/reform
 
       - name: Generate files
-        run: make gen
+        run: go generate ./...
 
       - name: Format files
         run: make format
@@ -85,6 +85,8 @@ jobs:
         run: make check
 
       - name: Run reviewdog
+        env:
+          REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: make ci-reviewdog
 
   test:
