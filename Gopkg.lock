@@ -386,7 +386,11 @@
     "version",
   ]
   pruneopts = "NUT"
+<<<<<<< HEAD
   revision = "3d1bd825eeb34af4228b044c2269b0e0d231ba14"
+=======
+  revision = "9dc419e555af38e1f88b63ce9b09b3dc837db3ca"
+>>>>>>> PMM-5784-pt-pg-summary
 
 [[projects]]
   digest = "1:4047c378584616813d610c9f993bf90dd0d07aed8d94bd3bc299cd35ececdcba"
