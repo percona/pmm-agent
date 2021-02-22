@@ -32,6 +32,7 @@ import (
 	"github.com/lib/pq"
 	"github.com/percona/pmm/api/agentpb"
 	"github.com/percona/pmm/api/inventorypb"
+	"github.com/prometheus/common/expfmt"
 	"github.com/sirupsen/logrus"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -43,23 +44,20 @@ import (
 
 // ConnectionChecker is a struct to check connection to services.
 type ConnectionChecker struct {
-	ctx   context.Context
 	l     *logrus.Entry
 	paths *config.Paths
 }
 
 // New creates new ConnectionChecker.
-func New(ctx context.Context, paths *config.Paths) *ConnectionChecker {
+func New(paths *config.Paths) *ConnectionChecker {
 	return &ConnectionChecker{
-		ctx:   ctx,
 		l:     logrus.WithField("component", "connectionchecker"),
 		paths: paths,
 	}
 }
 
 // Check checks connection to a service. It returns context cancelation/timeout or driver errors as is.
-func (cc *ConnectionChecker) Check(msg *agentpb.CheckConnectionRequest, id uint32) *agentpb.CheckConnectionResponse {
-	ctx := cc.ctx
+func (cc *ConnectionChecker) Check(ctx context.Context, msg *agentpb.CheckConnectionRequest, id uint32) *agentpb.CheckConnectionResponse {
 	timeout, _ := ptypes.Duration(msg.Timeout)
 	if timeout > 0 {
 		var cancel context.CancelFunc
@@ -76,7 +74,7 @@ func (cc *ConnectionChecker) Check(msg *agentpb.CheckConnectionRequest, id uint3
 		return cc.checkPostgreSQLConnection(ctx, msg.Dsn)
 	case inventorypb.ServiceType_PROXYSQL_SERVICE:
 		return cc.checkProxySQLConnection(ctx, msg.Dsn)
-	case inventorypb.ServiceType_EXTERNAL_SERVICE:
+	case inventorypb.ServiceType_EXTERNAL_SERVICE, inventorypb.ServiceType_HAPROXY_SERVICE:
 		return cc.checkExternalConnection(ctx, msg.Dsn)
 	default:
 		panic(fmt.Sprintf("unhandled service type: %v", msg.Type))
@@ -234,7 +232,12 @@ func (cc *ConnectionChecker) checkExternalConnection(ctx context.Context, uri st
 		return &res
 	}
 
-	res.ExporterResponseBody = string(body)
+	var parser expfmt.TextParser
+	_, err = parser.TextToMetricFamilies(strings.NewReader(string(body)))
+	if err != nil {
+		res.Error = fmt.Sprintf("Unexpected exporter's response format: %v", err)
+		return &res
+	}
 
 	return &res
 }
