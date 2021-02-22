@@ -16,18 +16,26 @@ jobs:
 
   test:
     runs-on: ubuntu-latest
-    
+
     strategy:
       matrix:
         go-version:
           - 1.15.x
         may-fail: [false]
         
-        include:
-          - go-version: tip
-            may-fail: true
+#        include:
+#          - go-version: tip
+#            may-fail: true
     continue-on-error: ${{ matrix.may-fail }}
-    
+
+    env:
+      GOPATH: ${{ github.workspace }}
+      GOBIN: ${{ github.workspace }}/bin
+      WORKING_DIR: ${{ github.workspace }}/src/percona/pmm-agent
+
+    defaults:
+      run:
+        working-directory: ${{ env.WORKING_DIR }}
     steps:
     - uses: actions/checkout@v2
 
@@ -64,7 +72,7 @@ jobs:
       uses: percona-platform/checkout@v2
       with:
         fetch-depth: 1
-        path: ${{ env.GOPATH }}/src/github.com/percona/pmm-agent
+        path: ${{ env.WORKING_DIR }}
 
     - name: Docker-compose
       run: env ENV_UP_FLAGS=--detach make env-up
