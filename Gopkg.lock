@@ -387,10 +387,14 @@
   ]
   pruneopts = "NUT"
 <<<<<<< HEAD
+<<<<<<< HEAD
   revision = "15ef11ccd572f14da36884ea424ce101baa5571d"
 =======
   revision = "4d9dcd2510cba20f0d3cd0bf168ca53da7227de2"
 >>>>>>> PMM-4172-pt-mysql-summary
+=======
+  revision = "6d6e85a05c2f45b8df60ff8225537cbc70b62b8e"
+>>>>>>> PMM-5784-pt-pg-summary
 
 [[projects]]
   digest = "1:4047c378584616813d610c9f993bf90dd0d07aed8d94bd3bc299cd35ececdcba"
