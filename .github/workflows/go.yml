@@ -156,7 +156,7 @@ jobs:
 
     - name: Docker-compose
       env:
-        ENV_UP_FLAGS=--detach
+        ENV_UP_FLAGS: "--detach"
       run: make env-up
       
     - name: Prepare
