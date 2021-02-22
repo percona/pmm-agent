@@ -60,7 +60,7 @@ jobs:
 
       - name: Prepare
         run: |
-          curl https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(GOPATH)/bin
+          curl https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(GOROOT)/bin
           go install ./vendor/github.com/BurntSushi/go-sumtype \
           			./vendor/github.com/vektra/mockery/cmd/mockery \
           			./vendor/golang.org/x/perf/cmd/benchstat \
