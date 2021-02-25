@@ -22,7 +22,6 @@ branches:
   except:
     - /^PMM\-\d{3,5}/
     - /^SAAS\-\d{2,5}/
-    - github-actions
 
 cache:
   directories:
