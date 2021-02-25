@@ -61,13 +61,13 @@ jobs:
 
       - name: Prepare
         run: |
+          curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
           curl https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $GOPATH/bin
           go install ./vendor/github.com/BurntSushi/go-sumtype \
           			./vendor/github.com/vektra/mockery/cmd/mockery \
           			./vendor/golang.org/x/perf/cmd/benchstat \
           			./vendor/golang.org/x/tools/cmd/goimports \
           			./vendor/gopkg.in/reform.v1/reform
-          curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
           curl -sfL https://raw.githubusercontent.com/reviewdog/reviewdog/master/install.sh| sh -s v0.10.2
 
       - name: Generate files
