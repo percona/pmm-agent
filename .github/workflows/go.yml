@@ -28,6 +28,7 @@ jobs:
     env:
       GOPATH: ${{ github.workspace }}
       WORKING_DIR: ${{ github.workspace }}/src/github.com/percona/pmm-agent
+      GO111MODULE: auto
 
     defaults:
       run:
@@ -133,6 +134,7 @@ jobs:
     env:
       GOPATH: ${{ github.workspace }}
       WORKING_DIR: ${{ github.workspace }}/src/github.com/percona/pmm-agent
+      GO111MODULE: auto
       MYSQL_IMAGE: ${{ matrix.images.mysql }}
       MONGO_IMAGE: ${{ matrix.images.mongo }}
       POSTGRES_IMAGE: ${{ matrix.images.postgres }}
@@ -164,6 +166,9 @@ jobs:
         ./make.bash
         echo "GOROOT=$HOME/gotip" >> $GITHUB_ENV
         echo "$HOME/gotip/bin" >> $GITHUB_PATH
+
+    - name: go env
+      run: go env
     
     - name: Set GO_VERSION environment variable
       run: |
