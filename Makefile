@@ -33,7 +33,7 @@ init:                           ## Installs tools to $GOPATH/bin (which is expec
 				./vendor/golang.org/x/tools/cmd/goimports \
 				./vendor/gopkg.in/reform.v1/reform
 
-	curl -sfL https://raw.githubusercontent.com/reviewdog/reviewdog/master/install.sh| sh -s v0.10.2 -- -b $(GOPATH)/bin
+	curl -sfL https://raw.githubusercontent.com/reviewdog/reviewdog/master/install.sh | sh -s v0.10.2 -- -b $(GOPATH)/bin
 
 gen:                            ## Generate files.
 	go generate ./...

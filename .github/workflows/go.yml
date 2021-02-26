@@ -56,9 +56,6 @@ jobs:
           echo "GOROOT=$HOME/gotip" >> $GITHUB_ENV
           echo "$HOME/gotip/bin" >> $GITHUB_PATH
 
-      - name: go env
-        run: go env
-
       - name: Set GO_VERSION environment variable
         run: |
           go version
@@ -85,6 +82,15 @@ jobs:
         env:
           REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: make ci-reviewdog
+
+      - name: Run debug commands on failure
+        if: ${{ failure() }}
+        run: |
+          env
+          go version
+          go env
+          pwd
+          git status
 
   test:
     runs-on: ubuntu-20.04
@@ -159,9 +165,6 @@ jobs:
         ./make.bash
         echo "GOROOT=$HOME/gotip" >> $GITHUB_ENV
         echo "$HOME/gotip/bin" >> $GITHUB_PATH
-
-    - name: go env
-      run: go env
     
     - name: Set GO_VERSION environment variable
       run: |
@@ -200,3 +203,12 @@ jobs:
         flags: crosscover
         env_vars: GO_VERSION,MYSQL_IMAGE,MONGO_IMAGE,POSTGRES_IMAGE,PMM_SERVER_IMAGE
         fail_ci_if_error: false
+
+    - name: Run debug commands on failure
+      if: ${{ failure() }}
+      run: |
+        env
+        go version
+        go env
+        pwd
+        git status
