@@ -28,7 +28,7 @@ jobs:
     env:
       GOPATH: ${{ github.workspace }}
       WORKING_DIR: ${{ github.workspace }}/src/github.com/percona/pmm-agent
-      GO111MODULE: on #TODO: turn off once we move to go modules https://jira.percona.com/browse/PMM-7106
+      GO111MODULE: off #TODO: remove once we move to go modules https://jira.percona.com/browse/PMM-7106
 
     defaults:
       run:
