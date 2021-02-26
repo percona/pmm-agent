@@ -72,7 +72,7 @@ jobs:
           			./vendor/golang.org/x/perf/cmd/benchstat \
           			./vendor/golang.org/x/tools/cmd/goimports \
           			./vendor/gopkg.in/reform.v1/reform
-          curl -sfL https://raw.githubusercontent.com/reviewdog/reviewdog/master/install.sh| sh -s v0.10.2
+          curl -sfL https://raw.githubusercontent.com/reviewdog/reviewdog/master/install.sh | sh -s v0.10.2
 
       - name: Generate files
         run: make gen
@@ -198,4 +198,3 @@ jobs:
         chmod +x codecov
         ./codecov -f cover.out -F cover -X fix
         ./codecov -f crosscover.out -F crosscover -X fix
-
