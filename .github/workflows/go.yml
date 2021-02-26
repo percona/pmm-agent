@@ -139,7 +139,7 @@ jobs:
         working-directory: ${{ env.WORKING_DIR }}
 
     steps:
-    - name: Check out code into the Go module directory
+    - name: Check out code into the working directory under the GOPATH
       uses: percona-platform/checkout@v2
       with:
         fetch-depth: 1
