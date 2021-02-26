@@ -133,11 +133,11 @@ jobs:
       POSTGRES_IMAGE: ${{ matrix.images.postgres }}
       PMM_SERVER_IMAGE: ${{ matrix.images.pmm_server }}
       PG_PRELOADED_LIBS: ${{ matrix.images.pg_libs }}
-      CODECOV_ENV: MYSQL_IMAGE,MONGO_IMAGE,POSTGRES_IMAGE,PMM_SERVER_IMAGE
 
     defaults:
       run:
         working-directory: ${{ env.WORKING_DIR }}
+
     steps:
     - name: Check out code into the Go module directory
       uses: percona-platform/checkout@v2
