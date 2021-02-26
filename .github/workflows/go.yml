@@ -18,7 +18,7 @@ jobs:
           - version: 1.15.x
             may-fail: false
           - version: 1.16.x
-            may-fail: true
+            may-fail: false
           # TODO enable when 1.15.x is removed
 #          - version: tip
 #            may-fail: true
@@ -28,13 +28,14 @@ jobs:
     env:
       GOPATH: ${{ github.workspace }}
       WORKING_DIR: ${{ github.workspace }}/src/github.com/percona/pmm-agent
-      GO111MODULE: auto
+      GO111MODULE: on #TODO: turn off once we move to go modules https://jira.percona.com/browse/PMM-7106
 
     defaults:
       run:
         working-directory: ${{ env.WORKING_DIR }}
+
     steps:
-      - name: Check out code into the Go module directory
+      - name: Check out code into the working directory under the GOPATH
         uses: percona-platform/checkout@v2
         with:
           fetch-depth: 1
@@ -64,15 +65,7 @@ jobs:
           echo "GO_VERSION=$(go version)" >> $GITHUB_ENV
 
       - name: Prepare
-        run: |
-          curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
-          curl https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $GOPATH/bin
-          go install ./vendor/github.com/BurntSushi/go-sumtype \
-          			./vendor/github.com/vektra/mockery/cmd/mockery \
-          			./vendor/golang.org/x/perf/cmd/benchstat \
-          			./vendor/golang.org/x/tools/cmd/goimports \
-          			./vendor/gopkg.in/reform.v1/reform
-          curl -sfL https://raw.githubusercontent.com/reviewdog/reviewdog/master/install.sh | sh -s v0.10.2
+        run: make init
 
       - name: Generate files
         run: make gen
@@ -192,9 +185,18 @@ jobs:
     - name: Test crosscover
       run: make test-crosscover
 
-    - name: Deploy codecov
-      run: |
-        curl https://codecov.io/bash > codecov
-        chmod +x codecov
-        ./codecov -f cover.out -F cover -X fix
-        ./codecov -f crosscover.out -F crosscover -X fix
+    - name: Upload coverage results
+      uses: percona-platform/codecov-action@v1
+      with:
+        file: cover.out
+        flags: cover
+        env_vars: GO_VERSION,MYSQL_IMAGE,MONGO_IMAGE,POSTGRES_IMAGE,PMM_SERVER_IMAGE
+        fail_ci_if_error: false
+
+    - name: Upload coverage results
+      uses: percona-platform/codecov-action@v1
+      with:
+        file: crosscover.out
+        flags: crosscover
+        env_vars: GO_VERSION,MYSQL_IMAGE,MONGO_IMAGE,POSTGRES_IMAGE,PMM_SERVER_IMAGE
+        fail_ci_if_error: false
