@@ -54,6 +54,9 @@ jobs:
           echo "GOROOT=$HOME/gotip" >> $GITHUB_ENV
           echo "$HOME/gotip/bin" >> $GITHUB_PATH
 
+      - name: go env
+        run: go env
+
       - name: Set GO_VERSION environment variable
         run: |
           go version
@@ -135,6 +138,7 @@ jobs:
       POSTGRES_IMAGE: ${{ matrix.images.postgres }}
       PMM_SERVER_IMAGE: ${{ matrix.images.pmm_server }}
       PG_PRELOADED_LIBS: ${{ matrix.images.pg_libs }}
+      CODECOV_ENV: MYSQL_IMAGE,MONGO_IMAGE,POSTGRES_IMAGE,PMM_SERVER_IMAGE
 
     defaults:
       run:
