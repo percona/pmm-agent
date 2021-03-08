@@ -163,7 +163,6 @@ func (ssc *statMonitorCache) getStatMonitorExtended(ctx context.Context, q *refo
 		if current[c.BucketStartTime] == nil {
 			current[c.BucketStartTime] = make(map[string]*pgStatMonitorExtended)
 		}
-
 		current[c.BucketStartTime][c.QueryID] = &c
 	}
 
