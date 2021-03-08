@@ -83,65 +83,134 @@ func (ssc *statMonitorCache) getStatMonitorExtended(ctx context.Context, q *refo
 	databases := queryDatabases(q)
 	usernames := queryUsernames(q)
 
-	rows, err := q.SelectRows(pgStatMonitorView, "WHERE queryid IS NOT NULL AND query IS NOT NULL")
-	if err != nil {
-		err = errors.Wrap(err, "failed to query pg_stat_monitor")
+	pgMonitorVersion, e := getPGMonitorVersion(q)
+	if e != nil {
+		err = errors.Wrap(e, "failed to get pg_stat_monitor version")
 		return
 	}
-	defer rows.Close() //nolint:errcheck
-
-	for ctx.Err() == nil {
-		var row pgStatMonitor
-		if err = q.NextRow(&row, rows); err != nil {
-			if errors.Is(err, reform.ErrNoRows) {
-				err = nil
-			}
-			break
+	switch {
+	case pgMonitorVersion >= float64(0.8):
+		rows, e := q.SelectRows(pgStatMonitor08View, "WHERE queryid IS NOT NULL AND query IS NOT NULL")
+		if e != nil {
+			err = errors.Wrap(e, "failed to query pg_stat_monitor")
+			return
 		}
-		totalN++
+		defer rows.Close() //nolint:errcheck
 
-		c := &pgStatMonitorExtended{
-			pgStatMonitor: row,
-			Database:      databases[row.DBID],
-			Username:      usernames[row.UserID],
-		}
-		for _, m := range cache {
-			if p, ok := m[c.QueryID]; ok {
-				oldN++
-
-				c.Fingerprint = p.Fingerprint
-				c.Example = p.Example
-				c.IsQueryTruncated = p.IsQueryTruncated
+		for ctx.Err() == nil {
+			var row pgStatMonitor08
+			if err = q.NextRow(&row, rows); err != nil {
+				if errors.Is(err, reform.ErrNoRows) {
+					err = nil
+				}
 				break
 			}
-		}
-		if c.Fingerprint == "" {
-			newN++
+			totalN++
 
-			fingerprint := c.Query
-			example := ""
-			if !normalizedQuery {
-				example = c.Query
-				fingerprint = ssc.generateFingerprint(c.Query)
+			c := &pgStatMonitorExtended{
+				pgStatMonitor: row.ToPgStatMonitor(),
+				Database:      row.DatName,
+				Username:      usernames[row.UserID],
 			}
-			var isTruncated bool
+			for _, m := range cache {
+				if p, ok := m[c.QueryID]; ok {
+					oldN++
 
-			c.Fingerprint, isTruncated = truncate.Query(fingerprint)
-			if isTruncated {
-				c.IsQueryTruncated = isTruncated
+					c.Fingerprint = p.Fingerprint
+					c.Example = p.Example
+					c.IsQueryTruncated = p.IsQueryTruncated
+					break
+				}
 			}
-			c.Example, isTruncated = truncate.Query(example)
-			if isTruncated {
-				c.IsQueryTruncated = isTruncated
+			if c.Fingerprint == "" {
+				newN++
+
+				fingerprint := c.Query
+				example := ""
+				if !normalizedQuery {
+					example = c.Query
+					fingerprint = ssc.generateFingerprint(c.Query)
+				}
+				var isTruncated bool
+
+				c.Fingerprint, isTruncated = truncate.Query(fingerprint)
+				if isTruncated {
+					c.IsQueryTruncated = isTruncated
+				}
+				c.Example, isTruncated = truncate.Query(example)
+				if isTruncated {
+					c.IsQueryTruncated = isTruncated
+				}
 			}
-		}
 
-		if current[c.BucketStartTime] == nil {
-			current[c.BucketStartTime] = make(map[string]*pgStatMonitorExtended)
-		}
+			if current[c.BucketStartTime] == nil {
+				current[c.BucketStartTime] = make(map[string]*pgStatMonitorExtended)
+			}
 
-		current[c.BucketStartTime][c.QueryID] = c
+			current[c.BucketStartTime][c.QueryID] = c
+		}
+	default:
+		rows, e := q.SelectRows(pgStatMonitorDefaultView, "WHERE queryid IS NOT NULL AND query IS NOT NULL")
+		if e != nil {
+			err = errors.Wrap(e, "failed to query pg_stat_monitor")
+			return
+		}
+		defer rows.Close() //nolint:errcheck
+
+		for ctx.Err() == nil {
+			var row pgStatMonitorDefault
+			if err = q.NextRow(&row, rows); err != nil {
+				if errors.Is(err, reform.ErrNoRows) {
+					err = nil
+				}
+				break
+			}
+			totalN++
+
+			c := &pgStatMonitorExtended{
+				pgStatMonitor: row.ToPgStatMonitor(),
+				Database:      databases[row.DBID],
+				Username:      usernames[row.UserID],
+			}
+			for _, m := range cache {
+				if p, ok := m[c.QueryID]; ok {
+					oldN++
+
+					c.Fingerprint = p.Fingerprint
+					c.Example = p.Example
+					c.IsQueryTruncated = p.IsQueryTruncated
+					break
+				}
+			}
+			if c.Fingerprint == "" {
+				newN++
+
+				fingerprint := c.Query
+				example := ""
+				if !normalizedQuery {
+					example = c.Query
+					fingerprint = ssc.generateFingerprint(c.Query)
+				}
+				var isTruncated bool
+
+				c.Fingerprint, isTruncated = truncate.Query(fingerprint)
+				if isTruncated {
+					c.IsQueryTruncated = isTruncated
+				}
+				c.Example, isTruncated = truncate.Query(example)
+				if isTruncated {
+					c.IsQueryTruncated = isTruncated
+				}
+			}
+
+			if current[c.BucketStartTime] == nil {
+				current[c.BucketStartTime] = make(map[string]*pgStatMonitorExtended)
+			}
+
+			current[c.BucketStartTime][c.QueryID] = c
+		}
 	}
+
 	if ctx.Err() != nil {
 		err = ctx.Err()
 	}
