@@ -122,9 +122,7 @@ func getPGMonitorVersion(q *reform.Querier) (pgMonitorVersion float64, err error
 	if err != nil {
 		return
 	}
-	fmt.Printf("\n\n\n%+v\n\n\n", v)
 	split := strings.Split(v, ".")
-	fmt.Printf("\n\n\n%+v\n\n\n", split)
 	return strconv.ParseFloat(fmt.Sprintf("%s.%s%s", split[0], split[1], split[2]), 64)
 }
 

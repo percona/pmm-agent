@@ -107,10 +107,15 @@ func (ssc *statMonitorCache) getStatMonitorExtended(ctx context.Context, q *refo
 			}
 			totalN++
 
+			pgStatMonitor, e := row.ToPgStatMonitor()
+			if e != nil {
+				err = e
+				return
+			}
 			c := &pgStatMonitorExtended{
-				pgStatMonitor: row.ToPgStatMonitor(),
+				pgStatMonitor: pgStatMonitor,
 				Database:      row.DatName,
-				Username:      usernames[row.UserID],
+				Username:      row.User,
 			}
 			for _, m := range cache {
 				if p, ok := m[c.QueryID]; ok {

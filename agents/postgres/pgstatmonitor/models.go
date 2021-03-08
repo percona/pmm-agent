@@ -104,8 +104,8 @@ func (m pgStatMonitorDefault) ToPgStatMonitor() pgStatMonitor {
 //reform:pg_stat_monitor
 type pgStatMonitor08 struct {
 	Bucket            int64          `reform:"bucket"`
-	BucketStartTime   time.Time      `reform:"bucket_start_time"`
-	UserID            int64          `reform:"userid"`
+	BucketStartTime   string         `reform:"bucket_start_time"`
+	User              string         `reform:"userid"`
 	DatName           string         `reform:"datname"`
 	QueryID           string         `reform:"queryid"` // we select only non-NULL rows
 	Query             string         `reform:"query"`   // we select only non-NULL rows
@@ -131,11 +131,18 @@ type pgStatMonitor08 struct {
 	Relations         pq.StringArray `reform:"relations"`
 }
 
-func (m pgStatMonitor08) ToPgStatMonitor() pgStatMonitor {
+func (m pgStatMonitor08) ToPgStatMonitor() (pgStatMonitor, error) {
+
+	//parsing time "2021-03-08 14:48:00  +0000 UTC": month out of range
+	bucketStartTime, err := time.Parse("2006-01-02 15:04:05", m.BucketStartTime)
+	if err != nil {
+		bucketStartTime = time.Now()
+	}
+
 	return pgStatMonitor{
 		Bucket:            m.Bucket,
-		BucketStartTime:   m.BucketStartTime,
-		UserID:            m.UserID,
+		BucketStartTime:   bucketStartTime,
+		User:              m.User,
 		DatName:           m.DatName,
 		QueryID:           m.QueryID,
 		Query:             m.Query,
@@ -159,7 +166,7 @@ func (m pgStatMonitor08) ToPgStatMonitor() pgStatMonitor {
 		CPUUserTime:       m.CPUUserTime,
 		CPUSysTime:        m.CPUSysTime,
 		Relations:         m.Relations,
-	}
+	}, nil
 }
 
 // pgStatMonitor represents a row in pg_stat_monitor view.
@@ -167,6 +174,7 @@ type pgStatMonitor struct {
 	Bucket            int64
 	BucketStartTime   time.Time
 	UserID            int64
+	User              string
 	DBID              int64
 	DatName           string
 	QueryID           string

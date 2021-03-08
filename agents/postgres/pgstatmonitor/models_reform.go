@@ -431,8 +431,8 @@ var pgStatMonitor08View = &pgStatMonitor08ViewType{
 		SQLName: "pg_stat_monitor",
 		Fields: []parse.FieldInfo{
 			{Name: "Bucket", Type: "int64", Column: "bucket"},
-			{Name: "BucketStartTime", Type: "time.Time", Column: "bucket_start_time"},
-			{Name: "UserID", Type: "int64", Column: "userid"},
+			{Name: "BucketStartTime", Type: "string", Column: "bucket_start_time"},
+			{Name: "User", Type: "string", Column: "userid"},
 			{Name: "DatName", Type: "string", Column: "datname"},
 			{Name: "QueryID", Type: "string", Column: "queryid"},
 			{Name: "Query", Type: "string", Column: "query"},
@@ -467,7 +467,7 @@ func (s pgStatMonitor08) String() string {
 	res := make([]string, 26)
 	res[0] = "Bucket: " + reform.Inspect(s.Bucket, true)
 	res[1] = "BucketStartTime: " + reform.Inspect(s.BucketStartTime, true)
-	res[2] = "UserID: " + reform.Inspect(s.UserID, true)
+	res[2] = "User: " + reform.Inspect(s.User, true)
 	res[3] = "DatName: " + reform.Inspect(s.DatName, true)
 	res[4] = "QueryID: " + reform.Inspect(s.QueryID, true)
 	res[5] = "Query: " + reform.Inspect(s.Query, true)
@@ -500,7 +500,7 @@ func (s *pgStatMonitor08) Values() []interface{} {
 	return []interface{}{
 		s.Bucket,
 		s.BucketStartTime,
-		s.UserID,
+		s.User,
 		s.DatName,
 		s.QueryID,
 		s.Query,
@@ -533,7 +533,7 @@ func (s *pgStatMonitor08) Pointers() []interface{} {
 	return []interface{}{
 		&s.Bucket,
 		&s.BucketStartTime,
-		&s.UserID,
+		&s.User,
 		&s.DatName,
 		&s.QueryID,
 		&s.Query,
