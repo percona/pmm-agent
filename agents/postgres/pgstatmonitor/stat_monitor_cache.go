@@ -126,6 +126,7 @@ func (ssc *statMonitorCache) getStatMonitorExtended(ctx context.Context, q *refo
 				err = e
 				break
 			}
+
 			c.pgStatMonitor = m
 			c.Database = r.DatName
 			c.Username = r.User
