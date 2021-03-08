@@ -83,12 +83,6 @@ func (ssc *statMonitorCache) getStatMonitorExtended(ctx context.Context, q *refo
 	databases := queryDatabases(q)
 	usernames := queryUsernames(q)
 
-	pgMonitorVersion, e := getPGMonitorVersion(q)
-	if e != nil {
-		err = errors.Wrap(e, "failed to get pg_stat_monitor version")
-		return
-	}
-
 	rows, e := q.SelectRows(pgStatMonitor08View, "WHERE queryid IS NOT NULL AND query IS NOT NULL")
 	if e != nil {
 		err = errors.Wrap(e, "failed to query pg_stat_monitor")
@@ -97,6 +91,12 @@ func (ssc *statMonitorCache) getStatMonitorExtended(ctx context.Context, q *refo
 	defer rows.Close() //nolint:errcheck
 
 	for ctx.Err() == nil {
+		pgMonitorVersion, e := getPGMonitorVersion(q)
+		if e != nil {
+			err = errors.Wrap(e, "failed to get pg_stat_monitor version")
+			return
+		}
+
 		var c *pgStatMonitorExtended
 		switch {
 		case pgMonitorVersion >= float64(0.8):
