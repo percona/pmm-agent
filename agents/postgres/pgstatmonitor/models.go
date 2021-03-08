@@ -102,7 +102,7 @@ func (m pgStatMonitorDefault) ToPgStatMonitor() pgStatMonitor {
 }
 
 // pgStatMonitor08 represents a row in pg_stat_monitor
-// view with version 0.8 and higher.
+// view in version 0.8 and higher.
 //reform:pg_stat_monitor
 type pgStatMonitor08 struct {
 	Bucket            int64          `reform:"bucket"`

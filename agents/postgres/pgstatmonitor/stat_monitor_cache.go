@@ -88,6 +88,7 @@ func (ssc *statMonitorCache) getStatMonitorExtended(ctx context.Context, q *refo
 		err = errors.Wrap(e, "failed to get pg_stat_monitor version")
 		return
 	}
+
 	var view reform.View
 	var row reform.Struct
 	view = pgStatMonitorDefaultView
@@ -96,12 +97,14 @@ func (ssc *statMonitorCache) getStatMonitorExtended(ctx context.Context, q *refo
 		view = pgStatMonitor08View
 		row = &pgStatMonitor08{}
 	}
+
 	rows, e := q.SelectRows(view, "WHERE queryid IS NOT NULL AND query IS NOT NULL")
 	if e != nil {
 		err = errors.Wrap(e, "failed to query pg_stat_monitor")
 		return
 	}
 	defer rows.Close() //nolint:errcheck
+
 	for ctx.Err() == nil {
 		if err = q.NextRow(row, rows); err != nil {
 			if errors.Is(err, reform.ErrNoRows) {
@@ -110,6 +113,7 @@ func (ssc *statMonitorCache) getStatMonitorExtended(ctx context.Context, q *refo
 			break
 		}
 		totalN++
+
 		var c pgStatMonitorExtended
 		switch r := row.(type) {
 		case *pgStatMonitorDefault:
@@ -126,6 +130,7 @@ func (ssc *statMonitorCache) getStatMonitorExtended(ctx context.Context, q *refo
 			c.Database = r.DatName
 			c.Username = r.User
 		}
+
 		for _, m := range cache {
 			if p, ok := m[c.QueryID]; ok {
 				oldN++
@@ -135,6 +140,7 @@ func (ssc *statMonitorCache) getStatMonitorExtended(ctx context.Context, q *refo
 				break
 			}
 		}
+
 		if c.Fingerprint == "" {
 			newN++
 			fingerprint := c.Query
@@ -153,17 +159,22 @@ func (ssc *statMonitorCache) getStatMonitorExtended(ctx context.Context, q *refo
 				c.IsQueryTruncated = isTruncated
 			}
 		}
+
 		if current[c.BucketStartTime] == nil {
 			current[c.BucketStartTime] = make(map[string]*pgStatMonitorExtended)
 		}
+
 		current[c.BucketStartTime][c.QueryID] = &c
 	}
+
 	if ctx.Err() != nil {
 		err = ctx.Err()
 	}
+
 	if err != nil {
 		err = errors.Wrap(err, "failed to fetch pg_stat_monitor")
 	}
+
 	return current, cache, err
 }
 
