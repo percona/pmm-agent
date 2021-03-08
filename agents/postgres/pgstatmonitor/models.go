@@ -136,7 +136,7 @@ func (m pgStatMonitor08) ToPgStatMonitor() (pgStatMonitor, error) {
 	//parsing time "2021-03-08 14:48:00  +0000 UTC": month out of range
 	bucketStartTime, err := time.Parse("2006-01-02 15:04:05", m.BucketStartTime)
 	if err != nil {
-		bucketStartTime = time.Now()
+		return pgStatMonitor{}, err
 	}
 
 	return pgStatMonitor{
