@@ -38,7 +38,8 @@ type pgUser struct {
 	UserName *string `reform:"usename"`
 }
 
-// pgStatMonitorDefault represents a row in pg_stat_monitor view.
+// pgStatMonitorDefault represents a row in pg_stat_monitor
+// view in version lower than 0.8.
 //reform:pg_stat_monitor
 type pgStatMonitorDefault struct {
 	Bucket            int64          `reform:"bucket"`
@@ -100,7 +101,8 @@ func (m pgStatMonitorDefault) ToPgStatMonitor() pgStatMonitor {
 	}
 }
 
-// pgStatMonitor08 represents a row in pg_stat_monitor view.
+// pgStatMonitor08 represents a row in pg_stat_monitor
+// view with version 0.8 and higher.
 //reform:pg_stat_monitor
 type pgStatMonitor08 struct {
 	Bucket            int64          `reform:"bucket"`
@@ -132,8 +134,6 @@ type pgStatMonitor08 struct {
 }
 
 func (m pgStatMonitor08) ToPgStatMonitor() (pgStatMonitor, error) {
-
-	//parsing time "2021-03-08 14:48:00  +0000 UTC": month out of range
 	bucketStartTime, err := time.Parse("2006-01-02 15:04:05", m.BucketStartTime)
 	if err != nil {
 		return pgStatMonitor{}, err
