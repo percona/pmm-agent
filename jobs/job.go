@@ -20,7 +20,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/percona/pmm/api/jobspb"
+	"github.com/percona/pmm-agent/client/channel"
 )
 
 type Job interface {
@@ -32,5 +32,5 @@ type Job interface {
 }
 
 type Sender interface {
-	Send(msg *jobspb.AgentMessage)
+	SendResponse(msg *channel.AgentResponse)
 }

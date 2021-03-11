@@ -27,7 +27,6 @@ import (
 
 	"github.com/golang/protobuf/ptypes"
 	"github.com/percona/pmm/api/agentpb"
-	"github.com/percona/pmm/api/jobspb"
 	"github.com/percona/pmm/utils/tlsconfig"
 	"github.com/percona/pmm/version"
 	"github.com/pkg/errors"
@@ -68,10 +67,9 @@ type Client struct {
 	actionsRunner *actions.ConcurrentRunner
 	jobsRunner    *jobs.Runner
 
-	rw             sync.RWMutex
-	md             *agentpb.ServerConnectMetadata
-	actionsChannel *channel.ActionsChannel
-	jobsChannel    *channel.JobsChannel
+	rw      sync.RWMutex
+	md      *agentpb.ServerConnectMetadata
+	channel *channel.Channel
 }
 
 // New creates new client.
@@ -152,11 +150,10 @@ func (c *Client) Run(ctx context.Context) error {
 
 	c.rw.Lock()
 	c.md = dialResult.md
-	c.actionsChannel = dialResult.actionsChannel
-	c.jobsChannel = dialResult.jobsChannel
+	c.channel = dialResult.actionsChannel
 	c.rw.Unlock()
 
-	runner := jobs.NewRunner(c.jobsChannel)
+	c.jobsRunner = jobs.NewRunner(c.channel)
 
 	// Once the client is connected, ctx cancellation is ignored by it.
 	//
@@ -180,7 +177,7 @@ func (c *Client) Run(ctx context.Context) error {
 
 	oneDone := make(chan struct{}, 3)
 	go func() {
-		runner.Run(ctx)
+		c.jobsRunner.Run(ctx)
 		oneDone <- struct{}{}
 	}()
 	go func() {
@@ -195,13 +192,8 @@ func (c *Client) Run(ctx context.Context) error {
 		c.processActionsRequests(ctx)
 		oneDone <- struct{}{}
 	}()
+
 	go func() {
-		c.processJobsRequests(runner)
-		oneDone <- struct{}{}
-	}()
-	<-oneDone
-	go func() {
-		<-oneDone
 		<-oneDone
 		<-oneDone
 		<-oneDone
@@ -218,7 +210,7 @@ func (c *Client) Done() <-chan struct{} {
 
 func (c *Client) processActionResults() {
 	for result := range c.actionsRunner.Results() {
-		resp := c.actionsChannel.SendRequest(&agentpb.ActionResultRequest{
+		resp := c.channel.SendRequest(&agentpb.ActionResultRequest{
 			ActionId: result.ID,
 			Output:   result.Output,
 			Done:     true,
@@ -239,7 +231,7 @@ func (c *Client) processSupervisorRequests() {
 		defer wg.Done()
 
 		for state := range c.supervisor.Changes() {
-			resp := c.actionsChannel.SendRequest(state)
+			resp := c.channel.SendRequest(state)
 			if resp == nil {
 				c.l.Warn("Failed to send StateChanged request.")
 			}
@@ -252,7 +244,7 @@ func (c *Client) processSupervisorRequests() {
 		defer wg.Done()
 
 		for collect := range c.supervisor.QANRequests() {
-			resp := c.actionsChannel.SendRequest(collect)
+			resp := c.channel.SendRequest(collect)
 			if resp == nil {
 				c.l.Warn("Failed to send QanCollect request.")
 			}
@@ -264,7 +256,7 @@ func (c *Client) processSupervisorRequests() {
 }
 
 func (c *Client) processActionsRequests(ctx context.Context) {
-	for req := range c.actionsChannel.Requests() {
+	for req := range c.channel.Requests() {
 		var responsePayload agentpb.AgentResponsePayload
 		switch p := req.Payload.(type) {
 		case *agentpb.Ping:
@@ -370,49 +362,39 @@ func (c *Client) processActionsRequests(ctx context.Context) {
 		case *agentpb.CheckConnectionRequest:
 			responsePayload = c.connectionChecker.Check(ctx, p, req.ID)
 
+		case *agentpb.StartJob:
+			var job jobs.Job
+			switch j := p.Job.(type) {
+			case *agentpb.StartJob_Echo_:
+				job = jobs.NewEchoJob(
+					p.JobId,
+					p.Timeout.AsDuration(),
+					j.Echo.Message,
+					j.Echo.Delay.AsDuration(),
+				)
+			}
+
+			c.jobsRunner.Start(job)
+		case *agentpb.StopJob:
+			c.jobsRunner.Stop(p.JobId)
+
 		case nil:
 			// Requests() is not closed, so exit early to break channel
 			c.l.Errorf("Unhandled server request: %v.", req)
 			return
 		}
 
-		c.actionsChannel.SendResponse(&channel.AgentResponse{
+		c.channel.SendResponse(&channel.AgentResponse{
 			ID:      req.ID,
 			Payload: responsePayload,
 		})
 	}
 
-	if err := c.actionsChannel.Wait(); err != nil {
+	if err := c.channel.Wait(); err != nil {
 		c.l.Debugf("ActionsChannel closed: %s.", err)
 		return
 	}
 	c.l.Debug("ActionsChannel closed.")
-}
-
-func (c *Client) processJobsRequests(runner *jobs.Runner) {
-	for req := range c.jobsChannel.Requests() {
-		switch p := req.Payload.(type) {
-		case *jobspb.ServerMessage_StartJob:
-			job := p.StartJob
-			switch j := job.Job.(type) {
-			case *jobspb.StartJob_Echo_:
-				runner.Start(jobs.NewEchoJob(
-					req.JobId,
-					job.Timeout.AsDuration(),
-					j.Echo.Message,
-					j.Echo.Delay.AsDuration(),
-				))
-			}
-		case *jobspb.ServerMessage_StopJob:
-			runner.Stop(req.JobId)
-		}
-	}
-
-	if err := c.jobsChannel.Wait(); err != nil {
-		c.l.Debugf("JobsChannel closed: %s.", err)
-		return
-	}
-	c.l.Debug("JobsChannel closed.")
 }
 
 func (c *Client) getActionTimeout(req *agentpb.StartActionRequest) time.Duration {
@@ -430,8 +412,7 @@ func (c *Client) getActionTimeout(req *agentpb.StartActionRequest) time.Duration
 type dialResult struct {
 	conn           *grpc.ClientConn
 	streamCancel   context.CancelFunc
-	actionsChannel *channel.ActionsChannel
-	jobsChannel    *channel.JobsChannel
+	actionsChannel *channel.Channel
 	md             *agentpb.ServerConnectMetadata
 }
 
@@ -499,7 +480,7 @@ func dial(dialCtx context.Context, cfg *config.Config, l *logrus.Entry) (*dialRe
 		ID:      cfg.ID,
 		Version: version.Version,
 	})
-	actionsStream, err := agentpb.NewAgentClient(conn).Connect(streamCtx)
+	stream, err := agentpb.NewAgentClient(conn).Connect(streamCtx)
 	if err != nil {
 		l.Errorf("Failed to establish actions two-way communication channel: %s.", err)
 		teardown()
@@ -510,8 +491,8 @@ func dial(dialCtx context.Context, cfg *config.Config, l *logrus.Entry) (*dialRe
 	// We need to exchange one pair of messages (ping/pong) for metadata headers to reach pmm-managed
 	// to ensure that pmm-managed is alive and that Agent ID is valid.
 
-	actionsChannel := channel.NewActionsChannle(actionsStream)
-	_, clockDrift, err := getNetworkInformation(actionsChannel) // ping/pong
+	channel := channel.New(stream)
+	_, clockDrift, err := getNetworkInformation(channel) // ping/pong
 	if err != nil {
 		msg := err.Error()
 
@@ -525,17 +506,8 @@ func dial(dialCtx context.Context, cfg *config.Config, l *logrus.Entry) (*dialRe
 		return nil, err
 	}
 
-	jobsStream, err := jobspb.NewJobsClient(conn).Connect(streamCtx)
-	if err != nil {
-		l.Errorf("Failed to establish jobs two-way communication channel: %s.", err)
-		teardown()
-		return nil, errors.Wrap(err, "failed to connect")
-	}
-
-	jobsChannel := channel.NewJobsChannel(jobsStream)
-
 	// read metadata header after receiving pong
-	md, err := agentpb.ReceiveServerConnectMetadata(actionsStream)
+	md, err := agentpb.ReceiveServerConnectMetadata(stream)
 	l.Debugf("Received server metadata: %+v. Error: %+v.", md, err)
 	if err != nil {
 		l.Errorf("Failed to receive server metadata: %s.", err)
@@ -558,12 +530,11 @@ func dial(dialCtx context.Context, cfg *config.Config, l *logrus.Entry) (*dialRe
 	return &dialResult{
 		conn:           conn,
 		streamCancel:   streamCancel,
-		actionsChannel: actionsChannel,
-		jobsChannel:    jobsChannel,
+		actionsChannel: channel,
 		md:             md}, nil
 }
 
-func getNetworkInformation(channel *channel.ActionsChannel) (latency, clockDrift time.Duration, err error) {
+func getNetworkInformation(channel *channel.Channel) (latency, clockDrift time.Duration, err error) {
 	start := time.Now()
 	resp := channel.SendRequest(new(agentpb.Ping))
 	if resp == nil {
@@ -584,14 +555,14 @@ func getNetworkInformation(channel *channel.ActionsChannel) (latency, clockDrift
 // GetNetworkInformation sends ping request to the server and returns info about latency and clock drift.
 func (c *Client) GetNetworkInformation() (latency, clockDrift time.Duration, err error) {
 	c.rw.RLock()
-	channel := c.actionsChannel
+	channel := c.channel
 	c.rw.RUnlock()
 	if channel == nil {
 		err = errors.New("not connected")
 		return
 	}
 
-	latency, clockDrift, err = getNetworkInformation(c.actionsChannel)
+	latency, clockDrift, err = getNetworkInformation(c.channel)
 	return
 }
 
@@ -613,7 +584,7 @@ func (c *Client) Describe(chan<- *prometheus.Desc) {
 // Collect implements "unchecked" prometheus.Collector.
 func (c *Client) Collect(ch chan<- prometheus.Metric) {
 	c.rw.RLock()
-	actionsChannel := c.actionsChannel
+	actionsChannel := c.channel
 	c.rw.RUnlock()
 
 	desc := prometheus.NewDesc("pmm_agent_connected", "Has value 1 if two-way communication channel is established.", nil, nil)

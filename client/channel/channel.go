@@ -51,10 +51,10 @@ type AgentResponse struct {
 	Payload agentpb.AgentResponsePayload
 }
 
-// ActionsChannel encapsulates two-way communication channel between pmm-managed and pmm-agent.
+// Channel encapsulates two-way communication channel between pmm-managed and pmm-agent.
 //
 // All exported methods are thread-safe.
-type ActionsChannel struct { //nolint:maligned
+type Channel struct { //nolint:maligned
 	s agentpb.Agent_ConnectClient
 	l *logrus.Entry
 
@@ -73,13 +73,13 @@ type ActionsChannel struct { //nolint:maligned
 	closeErr  error
 }
 
-// NewActionsChannle creates new two-way communication channel with given stream.
+// New creates new two-way communication channel with given stream.
 //
 // Stream should not be used by the caller after channel is created.
-func NewActionsChannle(stream agentpb.Agent_ConnectClient) *ActionsChannel {
-	s := &ActionsChannel{
+func New(stream agentpb.Agent_ConnectClient) *Channel {
+	s := &Channel{
 		s: stream,
-		l: logrus.WithField("component", "actions_channel"), // only for debug logging
+		l: logrus.WithField("component", "channel"), // only for debug logging
 
 		mRecv: prometheus.NewCounter(prometheus.CounterOpts{
 			Namespace: prometheusNamespace,
@@ -105,7 +105,7 @@ func NewActionsChannle(stream agentpb.Agent_ConnectClient) *ActionsChannel {
 }
 
 // close marks channel as closed with given error - only once.
-func (c *ActionsChannel) close(err error) {
+func (c *Channel) close(err error) {
 	c.closeOnce.Do(func() {
 		c.l.Debugf("Closing with error: %+v", err)
 		c.closeErr = err
@@ -127,18 +127,18 @@ func (c *ActionsChannel) close(err error) {
 // Wait blocks until channel is closed and returns the reason why it was closed.
 //
 // When Wait returns, underlying gRPC connection should be terminated to prevent goroutine leak.
-func (c *ActionsChannel) Wait() error {
+func (c *Channel) Wait() error {
 	<-c.closeWait
 	return c.closeErr
 }
 
 // Requests returns a channel for incoming requests. It must be read. It is closed on any error (see Wait).
-func (c *ActionsChannel) Requests() <-chan *ServerRequest {
+func (c *Channel) Requests() <-chan *ServerRequest {
 	return c.requests
 }
 
 // SendResponse sends message to pmm-managed. It is no-op once channel is closed (see Wait).
-func (c *ActionsChannel) SendResponse(resp *AgentResponse) {
+func (c *Channel) SendResponse(resp *AgentResponse) {
 	msg := &agentpb.AgentMessage{
 		Id:      resp.ID,
 		Payload: resp.Payload.AgentMessageResponsePayload(),
@@ -149,7 +149,7 @@ func (c *ActionsChannel) SendResponse(resp *AgentResponse) {
 // SendRequest sends request to pmm-managed, blocks until response is available, and returns it.
 // Response will be nil if channel is closed.
 // It is no-op once channel is closed (see Wait).
-func (c *ActionsChannel) SendRequest(payload agentpb.AgentRequestPayload) agentpb.ServerResponsePayload {
+func (c *Channel) SendRequest(payload agentpb.AgentRequestPayload) agentpb.ServerResponsePayload {
 	id := atomic.AddUint32(&c.lastSentRequestID, 1)
 	ch := c.subscribe(id)
 
@@ -161,7 +161,7 @@ func (c *ActionsChannel) SendRequest(payload agentpb.AgentRequestPayload) agentp
 	return <-ch
 }
 
-func (c *ActionsChannel) send(msg *agentpb.AgentMessage) {
+func (c *Channel) send(msg *agentpb.AgentMessage) {
 	c.sendM.Lock()
 	select {
 	case <-c.closeWait:
@@ -187,7 +187,7 @@ func (c *ActionsChannel) send(msg *agentpb.AgentMessage) {
 }
 
 // runReader receives messages from server
-func (c *ActionsChannel) runReceiver() {
+func (c *Channel) runReceiver() {
 	defer func() {
 		close(c.requests)
 		c.l.Debug("Exiting receiver goroutine.")
@@ -235,6 +235,16 @@ func (c *ActionsChannel) runReceiver() {
 				ID:      msg.Id,
 				Payload: p.CheckConnection,
 			}
+		case *agentpb.ServerMessage_StartJob:
+			c.requests <- &ServerRequest{
+				ID:      msg.Id,
+				Payload: p.StartJob,
+			}
+		case *agentpb.ServerMessage_StopJob:
+			c.requests <- &ServerRequest{
+				ID:      msg.Id,
+				Payload: p.StopJob,
+			}
 
 		// responses
 		case *agentpb.ServerMessage_Pong:
@@ -253,11 +263,11 @@ func (c *ActionsChannel) runReceiver() {
 	}
 }
 
-func (c *ActionsChannel) subscribe(id uint32) chan agentpb.ServerResponsePayload {
+func (c *Channel) subscribe(id uint32) chan agentpb.ServerResponsePayload {
 	ch := make(chan agentpb.ServerResponsePayload, 1)
 
 	c.m.Lock()
-	if c.responses == nil { // ActionsChannel is closed, no more subscriptions
+	if c.responses == nil { // Channel is closed, no more subscriptions
 		c.m.Unlock()
 		close(ch)
 		return ch
@@ -274,9 +284,9 @@ func (c *ActionsChannel) subscribe(id uint32) chan agentpb.ServerResponsePayload
 	return ch
 }
 
-func (c *ActionsChannel) publish(id uint32, resp agentpb.ServerResponsePayload) {
+func (c *Channel) publish(id uint32, resp agentpb.ServerResponsePayload) {
 	c.m.Lock()
-	if c.responses == nil { // ActionsChannel is closed, no more publishing
+	if c.responses == nil { // Channel is closed, no more publishing
 		c.m.Unlock()
 		return
 	}
@@ -294,18 +304,18 @@ func (c *ActionsChannel) publish(id uint32, resp agentpb.ServerResponsePayload) 
 }
 
 // Describe implements prometheus.Collector.
-func (c *ActionsChannel) Describe(ch chan<- *prometheus.Desc) {
+func (c *Channel) Describe(ch chan<- *prometheus.Desc) {
 	c.mRecv.Describe(ch)
 	c.mSend.Describe(ch)
 }
 
 // Collect implement prometheus.Collector.
-func (c *ActionsChannel) Collect(ch chan<- prometheus.Metric) {
+func (c *Channel) Collect(ch chan<- prometheus.Metric) {
 	c.mRecv.Collect(ch)
 	c.mSend.Collect(ch)
 }
 
 // check interfaces
 var (
-	_ prometheus.Collector = (*ActionsChannel)(nil)
+	_ prometheus.Collector = (*Channel)(nil)
 )

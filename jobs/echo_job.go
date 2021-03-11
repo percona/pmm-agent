@@ -21,10 +21,10 @@ import (
 	"time"
 
 	"github.com/golang/protobuf/ptypes"
-	"github.com/percona/pmm/api/jobspb"
+	"github.com/percona/pmm/api/agentpb"
 	"github.com/sirupsen/logrus"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
+
+	"github.com/percona/pmm-agent/client/channel"
 )
 
 type echoJob struct {
@@ -59,16 +59,13 @@ func (j *echoJob) Timeout() time.Duration {
 }
 
 func (j *echoJob) Run(ctx context.Context, sender Sender) {
-	sender.Send(&jobspb.AgentMessage{
-		JobId:  j.id,
-		Status: status.New(codes.OK, "").Proto(),
-		Payload: &jobspb.AgentMessage_JobProgress{
-			JobProgress: &jobspb.JobProgress{
-				Timestamp: ptypes.TimestampNow(),
-				Result: &jobspb.JobProgress_Echo_{
-					Echo: &jobspb.JobProgress_Echo{
-						Status: fmt.Sprintf("Echo job %s started", j.id),
-					},
+	sender.SendResponse(&channel.AgentResponse{
+		Payload: &agentpb.JobProgress{
+			JobId:     j.id,
+			Timestamp: ptypes.TimestampNow(),
+			Result: &agentpb.JobProgress_Echo_{
+				Echo: &agentpb.JobProgress_Echo{
+					Status: fmt.Sprintf("Echo job %s started", j.id),
 				},
 			},
 		},
@@ -78,31 +75,25 @@ func (j *echoJob) Run(ctx context.Context, sender Sender) {
 
 	select {
 	case <-delay.C:
-		sender.Send(&jobspb.AgentMessage{
-			JobId:  j.id,
-			Status: status.New(codes.OK, "").Proto(),
-			Payload: &jobspb.AgentMessage_JobResult{
-				JobResult: &jobspb.JobResult{
-					Timestamp: ptypes.TimestampNow(),
-					Result: &jobspb.JobResult_Echo_{
-						Echo: &jobspb.JobResult_Echo{
-							Message: j.message,
-						},
+		sender.SendResponse(&channel.AgentResponse{
+			Payload: &agentpb.JobResult{
+				JobId:     j.id,
+				Timestamp: ptypes.TimestampNow(),
+				Result: &agentpb.JobResult_Echo_{
+					Echo: &agentpb.JobResult_Echo{
+						Message: j.message,
 					},
 				},
 			},
 		})
 	case <-ctx.Done():
-		sender.Send(&jobspb.AgentMessage{
-			JobId:  j.id,
-			Status: status.New(codes.OK, "").Proto(),
-			Payload: &jobspb.AgentMessage_JobResult{
-				JobResult: &jobspb.JobResult{
-					Timestamp: ptypes.TimestampNow(),
-					Result: &jobspb.JobResult_Error_{
-						Error: &jobspb.JobResult_Error{
-							Message: ctx.Err().Error(),
-						},
+		sender.SendResponse(&channel.AgentResponse{
+			Payload: &agentpb.JobResult{
+				JobId:     j.id,
+				Timestamp: ptypes.TimestampNow(),
+				Result: &agentpb.JobResult_Error_{
+					Error: &agentpb.JobResult_Error{
+						Message: ctx.Err().Error(),
 					},
 				},
 			},
