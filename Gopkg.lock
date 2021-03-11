@@ -357,8 +357,8 @@
   version = "v3.2.1"
 
 [[projects]]
-  branch = "release/2.16"
-  digest = "1:c25026699386ed5538bf3421a67cf6120f8245129a4726b416489fe6a83c4485"
+  branch = "PMM-7590-jobs-api"
+  digest = "1:87b1ecfd90ec5defb8f72aac43285898bf4d5088b890b760af10b52de18f5417"
   name = "github.com/percona/pmm"
   packages = [
     "api/agentlocalpb",
@@ -366,6 +366,7 @@
     "api/agentlocalpb/json/client/agent_local",
     "api/agentpb",
     "api/inventorypb",
+    "api/jobspb",
     "api/managementpb/json/client",
     "api/managementpb/json/client/actions",
     "api/managementpb/json/client/annotation",
@@ -386,7 +387,7 @@
     "version",
   ]
   pruneopts = "NUT"
-  revision = "37c694d4aa243ce9f1345bec9da75462e1c2a074"
+  revision = "b21f65d5a5e54310e5927caef512f81700152dba"
 
 [[projects]]
   digest = "1:4047c378584616813d610c9f993bf90dd0d07aed8d94bd3bc299cd35ececdcba"
@@ -849,6 +850,7 @@
     "github.com/percona/pmm/api/agentlocalpb/json/client/agent_local",
     "github.com/percona/pmm/api/agentpb",
     "github.com/percona/pmm/api/inventorypb",
+    "github.com/percona/pmm/api/jobspb",
     "github.com/percona/pmm/api/managementpb/json/client",
     "github.com/percona/pmm/api/managementpb/json/client/node",
     "github.com/percona/pmm/utils/nodeinfo",

@@ -49,7 +49,7 @@ func (s *testServer) Connect(stream agentpb.Agent_ConnectServer) error {
 var _ agentpb.AgentServer = (*testServer)(nil)
 
 //nolint:nakedret
-func setup(t *testing.T, connect func(agentpb.Agent_ConnectServer) error, expected ...error) (channel *Channel, cc *grpc.ClientConn, teardown func()) {
+func setup(t *testing.T, connect func(agentpb.Agent_ConnectServer) error, expected ...error) (channel *ActionsChannel, cc *grpc.ClientConn, teardown func()) {
 	// logrus.SetLevel(logrus.DebugLevel)
 
 	t.Parallel()
@@ -79,7 +79,7 @@ func setup(t *testing.T, connect func(agentpb.Agent_ConnectServer) error, expect
 	require.NoError(t, err, "failed to dial server")
 	stream, err := agentpb.NewAgentClient(cc).Connect(ctx)
 	require.NoError(t, err, "failed to create stream")
-	channel = New(stream)
+	channel = NewActionsChannle(stream)
 
 	teardown = func() {
 		err := channel.Wait()

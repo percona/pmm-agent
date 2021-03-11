@@ -213,7 +213,7 @@ func (s *Server) runGRPCServer(ctx context.Context, listener net.Listener) {
 	}()
 	gRPCServer.GracefulStop()
 	shutdownCancel()
-	<-stopped // wait for Stop() to return
+	<-stopped // wait for StopJob() to return
 }
 
 // runJSONServer runs JSON proxy server (grpc-gateway) until context is canceled, then gracefully stops it.
