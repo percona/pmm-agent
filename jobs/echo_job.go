@@ -17,6 +17,7 @@ package jobs
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/golang/protobuf/ptypes"
@@ -58,7 +59,22 @@ func (j *echoJob) Timeout() time.Duration {
 }
 
 func (j *echoJob) Run(ctx context.Context, sender Sender) {
+	sender.Send(&jobspb.AgentMessage{
+		JobId:  j.id,
+		Status: status.New(codes.OK, "").Proto(),
+		Payload: &jobspb.AgentMessage_JobProgress{
+			JobProgress: &jobspb.JobProgress{
+				Timestamp: ptypes.TimestampNow(),
+				Result: &jobspb.JobProgress_Echo_{
+					Echo: &jobspb.JobProgress_Echo{
+						Status: fmt.Sprintf("Echo job %s started", j.id),
+					},
+				},
+			},
+		},
+	})
 	delay := time.NewTimer(j.delay)
+	defer delay.Stop()
 
 	select {
 	case <-delay.C:
@@ -77,7 +93,20 @@ func (j *echoJob) Run(ctx context.Context, sender Sender) {
 			},
 		})
 	case <-ctx.Done():
-		sender.Send()
+		sender.Send(&jobspb.AgentMessage{
+			JobId:  j.id,
+			Status: status.New(codes.OK, "").Proto(),
+			Payload: &jobspb.AgentMessage_JobResult{
+				JobResult: &jobspb.JobResult{
+					Timestamp: ptypes.TimestampNow(),
+					Result: &jobspb.JobResult_Error_{
+						Error: &jobspb.JobResult_Error{
+							Message: ctx.Err().Error(),
+						},
+					},
+				},
+			},
+		})
 		j.l.Warnf("Job %s terminated: +%v", j.id, ctx.Err())
 	}
 }
