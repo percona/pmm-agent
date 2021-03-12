@@ -20,17 +20,20 @@ import (
 	"context"
 	"time"
 
-	"github.com/percona/pmm-agent/client/channel"
+	"github.com/percona/pmm/api/agentpb"
 )
 
-type Job interface {
-	ID() string
-	// Type returns an Action type.
-	Type() string
-	Timeout() time.Duration
-	Run(ctx context.Context, sender Sender)
-}
+// Send is interface for function that used by jobs to send messages back to pmm-server.
+type Send func(payload agentpb.AgentResponsePayload)
 
-type Sender interface {
-	SendResponse(msg *channel.AgentResponse)
+// Job represents job interface.
+type Job interface {
+	// ID returns Job ID.
+	ID() string
+	// Type returns Job type.
+	Type() string
+	// Timeout returns Job timeout.
+	Timeout() time.Duration
+	// Run runs job.
+	Run(ctx context.Context, send Send) error
 }

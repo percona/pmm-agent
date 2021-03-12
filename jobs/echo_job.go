@@ -23,8 +23,6 @@ import (
 	"github.com/golang/protobuf/ptypes"
 	"github.com/percona/pmm/api/agentpb"
 	"github.com/sirupsen/logrus"
-
-	"github.com/percona/pmm-agent/client/channel"
 )
 
 type echoJob struct {
@@ -58,46 +56,29 @@ func (j *echoJob) Timeout() time.Duration {
 	return j.timeout
 }
 
-func (j *echoJob) Run(ctx context.Context, sender Sender) {
-	sender.SendResponse(&channel.AgentResponse{
-		Payload: &agentpb.JobProgress{
-			JobId:     j.id,
-			Timestamp: ptypes.TimestampNow(),
-			Result: &agentpb.JobProgress_Echo_{
-				Echo: &agentpb.JobProgress_Echo{
-					Status: fmt.Sprintf("Echo job %s started", j.id),
-				},
-			},
-		},
-	})
+func (j *echoJob) Run(ctx context.Context, send Send) error {
+	send(&agentpb.JobProgress{
+		JobId:     j.id,
+		Timestamp: ptypes.TimestampNow(),
+		Result: &agentpb.JobProgress_Echo_{
+			Echo: &agentpb.JobProgress_Echo{
+				Status: fmt.Sprintf("Echo job %s started.", j.id),
+			}}})
 	delay := time.NewTimer(j.delay)
 	defer delay.Stop()
 
 	select {
 	case <-delay.C:
-		sender.SendResponse(&channel.AgentResponse{
-			Payload: &agentpb.JobResult{
-				JobId:     j.id,
-				Timestamp: ptypes.TimestampNow(),
-				Result: &agentpb.JobResult_Echo_{
-					Echo: &agentpb.JobResult_Echo{
-						Message: j.message,
-					},
-				},
-			},
-		})
+		send(&agentpb.JobResult{
+			JobId:     j.id,
+			Timestamp: ptypes.TimestampNow(),
+			Result: &agentpb.JobResult_Echo_{
+				Echo: &agentpb.JobResult_Echo{
+					Message: j.message,
+				}}})
 	case <-ctx.Done():
-		sender.SendResponse(&channel.AgentResponse{
-			Payload: &agentpb.JobResult{
-				JobId:     j.id,
-				Timestamp: ptypes.TimestampNow(),
-				Result: &agentpb.JobResult_Error_{
-					Error: &agentpb.JobResult_Error{
-						Message: ctx.Err().Error(),
-					},
-				},
-			},
-		})
-		j.l.Warnf("Job %s terminated: +%v", j.id, ctx.Err())
+		return ctx.Err()
 	}
+
+	return nil
 }

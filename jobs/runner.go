@@ -20,8 +20,16 @@ import (
 	"runtime/pprof"
 	"sync"
 
+	"github.com/golang/protobuf/ptypes"
+	"github.com/percona/pmm/api/agentpb"
 	"github.com/sirupsen/logrus"
+
+	"github.com/percona/pmm-agent/client/channel"
 )
+
+type Sender interface {
+	SendResponse(msg *channel.AgentResponse)
+}
 
 type Runner struct {
 	l *logrus.Entry
@@ -44,10 +52,10 @@ func NewRunner(sender Sender) *Runner {
 	}
 }
 
-func (e *Runner) Run(ctx context.Context) {
+func (r *Runner) Run(ctx context.Context) {
 	for {
 		select {
-		case job := <-e.jobs:
+		case job := <-r.jobs:
 			jobID, jobType := job.ID(), job.Type()
 
 			var ctx context.Context
@@ -58,56 +66,78 @@ func (e *Runner) Run(ctx context.Context) {
 				ctx, cancel = context.WithCancel(ctx)
 			}
 
-			e.addJobCancel(jobID, cancel)
-			e.runningJobs.Add(1)
+			r.addJobCancel(jobID, cancel)
+			r.runningJobs.Add(1)
 			run := func(ctx context.Context) {
-				defer e.runningJobs.Done()
+				defer r.runningJobs.Done()
 				defer cancel()
 
-				l := e.l.WithFields(logrus.Fields{"id": jobID, "type": jobType})
+				l := r.l.WithFields(logrus.Fields{"id": jobID, "type": jobType})
 				l.Infof("Starting...")
 
-				job.Run(ctx, e.sender)
+				err := job.Run(ctx, r.send)
+				if err != nil {
+					r.sender.SendResponse(&channel.AgentResponse{
+						Payload: &agentpb.JobResult{
+							JobId:     job.ID(),
+							Timestamp: ptypes.TimestampNow(),
+							Result: &agentpb.JobResult_Error_{
+								Error: &agentpb.JobResult_Error{
+									Message: err.Error(),
+								},
+							},
+						},
+					})
+					l.Warnf("Job terminated with error %+v", err)
+				}
 			}
 
 			go pprof.Do(ctx, pprof.Labels("jobID", jobID, "type", jobType), run)
 		case <-ctx.Done():
-			e.runningJobs.Wait() // wait for all jobs termination
+			r.runningJobs.Wait() // wait for all jobs termination
 			return
 		}
 	}
 }
 
-func (e *Runner) Start(job Job) {
-	e.jobs <- job
+func (r *Runner) send(payload agentpb.AgentResponsePayload) {
+	r.sender.SendResponse(&channel.AgentResponse{
+		ID:      0, // TODO add comment
+		Payload: payload,
+	})
+}
+
+// Start starts given job.
+func (r *Runner) Start(job Job) {
+	r.jobs <- job
 }
 
 // Stop stops running Job.
-func (e *Runner) Stop(id string) {
-	e.rw.RLock()
-	defer e.rw.RUnlock()
-	if cancel, ok := e.jobsCancel[id]; ok {
+func (r *Runner) Stop(id string) {
+	r.rw.RLock()
+	defer r.rw.RUnlock()
+	if cancel, ok := r.jobsCancel[id]; ok {
 		cancel()
 	}
 }
 
 // IsRunning returns true if job with given ID still running.
-func (e *Runner) IsRunning(id string) bool {
-	e.rw.RLock()
-	defer e.rw.RUnlock()
-	_, ok := e.jobsCancel[id]
+func (r *Runner) IsRunning(id string) bool {
+	r.rw.RLock()
+	defer r.rw.RUnlock()
+	_, ok := r.jobsCancel[id]
 
 	return ok
 }
 
-func (e *Runner) addJobCancel(jobID string, cancel context.CancelFunc) {
-	e.rw.Lock()
-	defer e.rw.Unlock()
-	e.jobsCancel[jobID] = cancel
+func (r *Runner) addJobCancel(jobID string, cancel context.CancelFunc) {
+	r.rw.Lock()
+	defer r.rw.Unlock()
+	r.jobsCancel[jobID] = cancel
 }
 
-func (e *Runner) removeJobCancel(jobID string) {
-	e.rw.Lock()
-	defer e.rw.Unlock()
-	delete(e.jobsCancel, jobID)
+func (r *Runner) removeJobCancel(jobID string) {
+	r.rw.Lock()
+	defer r.rw.Unlock()
+	delete(r.jobsCancel, jobID)
 }
