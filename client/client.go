@@ -362,10 +362,10 @@ func (c *Client) processActionsRequests(ctx context.Context) {
 		case *agentpb.CheckConnectionRequest:
 			responsePayload = c.connectionChecker.Check(ctx, p, req.ID)
 
-		case *agentpb.StartJob:
+		case *agentpb.StartJobRequest:
 			var job jobs.Job
 			switch j := p.Job.(type) {
-			case *agentpb.StartJob_Echo_:
+			case *agentpb.StartJobRequest_Echo_:
 				job = jobs.NewEchoJob(
 					p.JobId,
 					p.Timeout.AsDuration(),
@@ -375,8 +375,15 @@ func (c *Client) processActionsRequests(ctx context.Context) {
 			}
 
 			c.jobsRunner.Start(job)
-		case *agentpb.StopJob:
+			responsePayload = new(agentpb.StartJobResponse)
+
+		case *agentpb.StopJobRequest:
 			c.jobsRunner.Stop(p.JobId)
+			responsePayload = new(agentpb.StopJobResponse)
+
+		case *agentpb.JobStatusRequest:
+			alive := c.jobsRunner.IsRunning(p.JobId)
+			responsePayload = &agentpb.JobStatusResponse{Alive: alive}
 
 		case nil:
 			// Requests() is not closed, so exit early to break channel
