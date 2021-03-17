@@ -358,7 +358,7 @@
 
 [[projects]]
   branch = "PMM-7590-jobs-api"
-  digest = "1:84dad1c1801ffee4a79d30ca078a74858289fc01a1b474efe7836a2380107875"
+  digest = "1:f15c5e1c3b8c627cc9d675437f51ce1d1f60f821db16f995c99b539948b9d167"
   name = "github.com/percona/pmm"
   packages = [
     "api/agentlocalpb",
@@ -371,6 +371,7 @@
     "api/managementpb/json/client/annotation",
     "api/managementpb/json/client/external",
     "api/managementpb/json/client/ha_proxy",
+    "api/managementpb/json/client/jobs",
     "api/managementpb/json/client/mongo_db",
     "api/managementpb/json/client/my_sql",
     "api/managementpb/json/client/node",
@@ -386,7 +387,7 @@
     "version",
   ]
   pruneopts = "NUT"
-  revision = "28ccf140238fc76748ecb49037fa4a3894925e02"
+  revision = "9e801cd12ce2a2205550e8e72bb8220dd85500ee"
 
 [[projects]]
   digest = "1:4047c378584616813d610c9f993bf90dd0d07aed8d94bd3bc299cd35ececdcba"
