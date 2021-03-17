@@ -358,7 +358,7 @@
 
 [[projects]]
   branch = "PMM-7676-azure-exporter-integration"
-  digest = "1:11ad01394adc02d5bca621398cabd6b2ebd0c8ec8e5b35758666022d871681e2"
+  digest = "1:1e1aa7528234b6ca7599fcd42270e4a470940585ea8c08cb6c510c6d2397f14a"
   name = "github.com/percona/pmm"
   packages = [
     "api/agentlocalpb",
@@ -369,6 +369,7 @@
     "api/managementpb/json/client",
     "api/managementpb/json/client/actions",
     "api/managementpb/json/client/annotation",
+    "api/managementpb/json/client/azure_database",
     "api/managementpb/json/client/external",
     "api/managementpb/json/client/ha_proxy",
     "api/managementpb/json/client/mongo_db",
@@ -386,7 +387,7 @@
     "version",
   ]
   pruneopts = "NUT"
-  revision = "107f31d7f87b71e90ed43c547d8450c790066f31"
+  revision = "5b6115d63471ba8c8fc8b4bb8e88f98dbadee066"
 
 [[projects]]
   digest = "1:4047c378584616813d610c9f993bf90dd0d07aed8d94bd3bc299cd35ececdcba"
