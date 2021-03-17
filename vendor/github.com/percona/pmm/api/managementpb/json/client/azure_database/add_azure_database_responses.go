@@ -155,8 +155,8 @@ type AddAzureDatabaseBody struct {
 	// Password for scraping metrics.
 	Password string `json:"password,omitempty"`
 
-	// If true, adds azure_exporter.
-	AzureExporter bool `json:"azure_exporter,omitempty"`
+	// If true, adds azure_database_exporter.
+	AzureDatabaseExporter bool `json:"azure_database_exporter,omitempty"`
 
 	// If true, adds qan-mysql-perfschema-agent.
 	QANMysqlPerfschema bool `json:"qan_mysql_perfschema,omitempty"`

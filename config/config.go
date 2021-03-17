@@ -81,14 +81,14 @@ func (s *Server) FilteredURL() string {
 
 // Paths represents binaries paths configuration.
 type Paths struct {
-	ExportersBase    string `yaml:"exporters_base"`
-	NodeExporter     string `yaml:"node_exporter"`
-	MySQLdExporter   string `yaml:"mysqld_exporter"`
-	MongoDBExporter  string `yaml:"mongodb_exporter"`
-	PostgresExporter string `yaml:"postgres_exporter"`
-	ProxySQLExporter string `yaml:"proxysql_exporter"`
-	RDSExporter      string `yaml:"rds_exporter"`
-	AzureExporter    string `yaml:"azure_exporter"`
+	ExportersBase         string `yaml:"exporters_base"`
+	NodeExporter          string `yaml:"node_exporter"`
+	MySQLdExporter        string `yaml:"mysqld_exporter"`
+	MongoDBExporter       string `yaml:"mongodb_exporter"`
+	PostgresExporter      string `yaml:"postgres_exporter"`
+	ProxySQLExporter      string `yaml:"proxysql_exporter"`
+	RDSExporter           string `yaml:"rds_exporter"`
+	AzureDatabaseExporter string `yaml:"azure_database_exporter"`
 
 	VMAgent string `yaml:"vmagent"`
 
@@ -187,20 +187,20 @@ func get(args []string, l *logrus.Entry) (cfg *Config, configFileF string, err e
 			cfg.Ports.Max = 51999
 		}
 		for sp, v := range map[*string]string{
-			&cfg.Paths.ExportersBase:    "/usr/local/percona/pmm2/exporters",
-			&cfg.Paths.NodeExporter:     "node_exporter",
-			&cfg.Paths.MySQLdExporter:   "mysqld_exporter",
-			&cfg.Paths.MongoDBExporter:  "mongodb_exporter",
-			&cfg.Paths.PostgresExporter: "postgres_exporter",
-			&cfg.Paths.ProxySQLExporter: "proxysql_exporter",
-			&cfg.Paths.RDSExporter:      "rds_exporter",
-			&cfg.Paths.AzureExporter:    "azure_exporter",
-			&cfg.Paths.VMAgent:          "vmagent",
-			&cfg.Paths.TempDir:          os.TempDir(),
-			&cfg.Paths.PTSummary:        "/usr/local/percona/pmm2/tools/pt-summary",
-			&cfg.Paths.PTPgSummary:      "/usr/local/percona/pmm2/tools/pt-pg-summary",
-			&cfg.Paths.PTMongoDBSummary: "/usr/local/percona/pmm2/tools/pt-mongodb-summary",
-			&cfg.Paths.PTMySqlSummary:   "/usr/local/percona/pmm2/tools/pt-mysql-summary",
+			&cfg.Paths.ExportersBase:         "/usr/local/percona/pmm2/exporters",
+			&cfg.Paths.NodeExporter:          "node_exporter",
+			&cfg.Paths.MySQLdExporter:        "mysqld_exporter",
+			&cfg.Paths.MongoDBExporter:       "mongodb_exporter",
+			&cfg.Paths.PostgresExporter:      "postgres_exporter",
+			&cfg.Paths.ProxySQLExporter:      "proxysql_exporter",
+			&cfg.Paths.RDSExporter:           "rds_exporter",
+			&cfg.Paths.AzureDatabaseExporter: "azure_database_exporter",
+			&cfg.Paths.VMAgent:               "vmagent",
+			&cfg.Paths.TempDir:               os.TempDir(),
+			&cfg.Paths.PTSummary:             "/usr/local/percona/pmm2/tools/pt-summary",
+			&cfg.Paths.PTPgSummary:           "/usr/local/percona/pmm2/tools/pt-pg-summary",
+			&cfg.Paths.PTMongoDBSummary:      "/usr/local/percona/pmm2/tools/pt-mongodb-summary",
+			&cfg.Paths.PTMySqlSummary:        "/usr/local/percona/pmm2/tools/pt-mysql-summary",
 		} {
 			if *sp == "" {
 				*sp = v
@@ -220,7 +220,7 @@ func get(args []string, l *logrus.Entry) (cfg *Config, configFileF string, err e
 			&cfg.Paths.PostgresExporter,
 			&cfg.Paths.ProxySQLExporter,
 			&cfg.Paths.RDSExporter,
-			&cfg.Paths.AzureExporter,
+			&cfg.Paths.AzureDatabaseExporter,
 			&cfg.Paths.VMAgent,
 		} {
 			if cfg.Paths.ExportersBase != "" && !filepath.IsAbs(*sp) {
