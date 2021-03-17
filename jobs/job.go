@@ -34,6 +34,6 @@ type Job interface {
 	Type() string
 	// Timeout returns Job timeout.
 	Timeout() time.Duration
-	// Run runs job.
+	// Run runs Job.
 	Run(ctx context.Context, send Send) error
 }

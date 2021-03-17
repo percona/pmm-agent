@@ -34,6 +34,7 @@ type echoJob struct {
 	delay   time.Duration
 }
 
+// NewEchoJob create simple echo job for testing purposes.
 func NewEchoJob(id string, timeout time.Duration, message string, delay time.Duration) Job {
 	return &echoJob{
 		id:      id,
@@ -44,18 +45,22 @@ func NewEchoJob(id string, timeout time.Duration, message string, delay time.Dur
 	}
 }
 
+// ID returns job id.
 func (j *echoJob) ID() string {
 	return j.id
 }
 
+// Type returns job type.
 func (j *echoJob) Type() string {
 	return "echo"
 }
 
+// Timeouts returns job timeout.
 func (j *echoJob) Timeout() time.Duration {
 	return j.timeout
 }
 
+// Run runs job.
 func (j *echoJob) Run(ctx context.Context, send Send) error {
 	j.l.Info("Job started.")
 	send(&agentpb.JobProgress{

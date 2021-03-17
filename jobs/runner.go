@@ -27,10 +27,12 @@ import (
 	"github.com/percona/pmm-agent/client/channel"
 )
 
+// Sender provides method for sending message to PMM server.
 type Sender interface {
 	SendResponse(msg *channel.AgentResponse)
 }
 
+// Runner allows to execute jobs.
 type Runner struct {
 	l *logrus.Entry
 
@@ -43,6 +45,7 @@ type Runner struct {
 	jobsCancel map[string]context.CancelFunc
 }
 
+// NewRunner creates new jobs runner.
 func NewRunner(sender Sender) *Runner {
 	return &Runner{
 		l:          logrus.WithField("component", "jobs-executor"),
@@ -52,6 +55,7 @@ func NewRunner(sender Sender) *Runner {
 	}
 }
 
+// Run starts jobs execution loop. It reads jobs from the channel and starts them in separate goroutines.
 func (r *Runner) Run(ctx context.Context) {
 	for {
 		select {
