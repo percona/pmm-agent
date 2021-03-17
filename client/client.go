@@ -193,6 +193,7 @@ func (c *Client) Run(ctx context.Context) error {
 		oneDone <- struct{}{}
 	}()
 
+	<- oneDone
 	go func() {
 		<-oneDone
 		<-oneDone
