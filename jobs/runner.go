@@ -79,7 +79,7 @@ func (r *Runner) Run(ctx context.Context) {
 				l := r.l.WithFields(logrus.Fields{"id": jobID, "type": jobType})
 				l.Infof("Starting...")
 
-				err := job.Run(nCtx, r.send)
+				err := job.Run(ctx, r.send)
 				if err != nil {
 					r.sender.SendResponse(&channel.AgentResponse{
 						Payload: &agentpb.JobResult{
