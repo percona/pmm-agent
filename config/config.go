@@ -88,6 +88,7 @@ type Paths struct {
 	PostgresExporter string `yaml:"postgres_exporter"`
 	ProxySQLExporter string `yaml:"proxysql_exporter"`
 	RDSExporter      string `yaml:"rds_exporter"`
+	AzureExporter    string `yaml:"azure_exporter"`
 
 	VMAgent string `yaml:"vmagent"`
 
@@ -193,6 +194,7 @@ func get(args []string, l *logrus.Entry) (cfg *Config, configFileF string, err e
 			&cfg.Paths.PostgresExporter: "postgres_exporter",
 			&cfg.Paths.ProxySQLExporter: "proxysql_exporter",
 			&cfg.Paths.RDSExporter:      "rds_exporter",
+			&cfg.Paths.AzureExporter:    "azure_exporter",
 			&cfg.Paths.VMAgent:          "vmagent",
 			&cfg.Paths.TempDir:          os.TempDir(),
 			&cfg.Paths.PTSummary:        "/usr/local/percona/pmm2/tools/pt-summary",
@@ -218,6 +220,7 @@ func get(args []string, l *logrus.Entry) (cfg *Config, configFileF string, err e
 			&cfg.Paths.PostgresExporter,
 			&cfg.Paths.ProxySQLExporter,
 			&cfg.Paths.RDSExporter,
+			&cfg.Paths.AzureExporter,
 			&cfg.Paths.VMAgent,
 		} {
 			if cfg.Paths.ExportersBase != "" && !filepath.IsAbs(*sp) {
