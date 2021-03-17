@@ -57,6 +57,7 @@ func (j *echoJob) Timeout() time.Duration {
 }
 
 func (j *echoJob) Run(ctx context.Context, send Send) error {
+	j.l.Info("Job started.")
 	send(&agentpb.JobProgress{
 		JobId:     j.id,
 		Timestamp: ptypes.TimestampNow(),
@@ -80,5 +81,6 @@ func (j *echoJob) Run(ctx context.Context, send Send) error {
 		return ctx.Err()
 	}
 
+	j.l.Info("Job complete")
 	return nil
 }

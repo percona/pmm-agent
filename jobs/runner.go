@@ -58,12 +58,12 @@ func (r *Runner) Run(ctx context.Context) {
 		case job := <-r.jobs:
 			jobID, jobType := job.ID(), job.Type()
 
-			var ctx context.Context
+			var nCtx context.Context
 			var cancel context.CancelFunc
 			if timeout := job.Timeout(); timeout != 0 {
-				ctx, cancel = context.WithTimeout(ctx, timeout)
+				nCtx, cancel = context.WithTimeout(ctx, timeout)
 			} else {
-				ctx, cancel = context.WithCancel(ctx)
+				nCtx, cancel = context.WithCancel(ctx)
 			}
 
 			r.addJobCancel(jobID, cancel)
@@ -75,7 +75,7 @@ func (r *Runner) Run(ctx context.Context) {
 				l := r.l.WithFields(logrus.Fields{"id": jobID, "type": jobType})
 				l.Infof("Starting...")
 
-				err := job.Run(ctx, r.send)
+				err := job.Run(nCtx, r.send)
 				if err != nil {
 					r.sender.SendResponse(&channel.AgentResponse{
 						Payload: &agentpb.JobResult{
@@ -92,7 +92,7 @@ func (r *Runner) Run(ctx context.Context) {
 				}
 			}
 
-			go pprof.Do(ctx, pprof.Labels("jobID", jobID, "type", jobType), run)
+			go pprof.Do(nCtx, pprof.Labels("jobID", jobID, "type", jobType), run)
 		case <-ctx.Done():
 			r.runningJobs.Wait() // wait for all jobs termination
 			return
