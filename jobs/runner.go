@@ -75,6 +75,7 @@ func (r *Runner) Run(ctx context.Context) {
 			run := func(ctx context.Context) {
 				defer r.runningJobs.Done()
 				defer cancel()
+				defer r.removeJobCancel(jobID)
 
 				l := r.l.WithFields(logrus.Fields{"id": jobID, "type": jobType})
 				l.Infof("Starting...")
