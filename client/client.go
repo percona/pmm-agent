@@ -150,7 +150,7 @@ func (c *Client) Run(ctx context.Context) error {
 
 	c.rw.Lock()
 	c.md = dialResult.md
-	c.channel = dialResult.actionsChannel
+	c.channel = dialResult.channel
 	c.rw.Unlock()
 
 	c.jobsRunner = jobs.NewRunner(c.channel)
@@ -166,7 +166,7 @@ func (c *Client) Run(ctx context.Context) error {
 	//    It exits when the supervisor is stopped by the caller.
 	//    Caller stops supervisor when Run is left and gRPC connection is closed.
 	//
-	// 3. processActionsRequests reads requests from the channel and processes them.
+	// 3. processChannelRequests reads requests from the channel and processes them.
 	//    It exits when an unexpected message is received from the channel, or when can't be received at all.
 	//    When Run is left, caller stops supervisor, and that allows processSupervisorRequests to exit.
 	//
@@ -189,11 +189,11 @@ func (c *Client) Run(ctx context.Context) error {
 		oneDone <- struct{}{}
 	}()
 	go func() {
-		c.processActionsRequests(ctx)
+		c.processChannelRequests(ctx)
 		oneDone <- struct{}{}
 	}()
 
-	<- oneDone
+	<-oneDone
 	go func() {
 		<-oneDone
 		<-oneDone
@@ -256,7 +256,7 @@ func (c *Client) processSupervisorRequests() {
 	wg.Wait()
 }
 
-func (c *Client) processActionsRequests(ctx context.Context) {
+func (c *Client) processChannelRequests(ctx context.Context) {
 	for req := range c.channel.Requests() {
 		var responsePayload agentpb.AgentResponsePayload
 		switch p := req.Payload.(type) {
@@ -418,10 +418,10 @@ func (c *Client) getActionTimeout(req *agentpb.StartActionRequest) time.Duration
 }
 
 type dialResult struct {
-	conn           *grpc.ClientConn
-	streamCancel   context.CancelFunc
-	actionsChannel *channel.Channel
-	md             *agentpb.ServerConnectMetadata
+	conn         *grpc.ClientConn
+	streamCancel context.CancelFunc
+	channel      *channel.Channel
+	md           *agentpb.ServerConnectMetadata
 }
 
 // dial tries to connect to the server once.
@@ -490,7 +490,7 @@ func dial(dialCtx context.Context, cfg *config.Config, l *logrus.Entry) (*dialRe
 	})
 	stream, err := agentpb.NewAgentClient(conn).Connect(streamCtx)
 	if err != nil {
-		l.Errorf("Failed to establish actions two-way communication channel: %s.", err)
+		l.Errorf("Failed to establish two-way communication channel: %s.", err)
 		teardown()
 		return nil, errors.Wrap(err, "failed to connect")
 	}
@@ -536,10 +536,10 @@ func dial(dialCtx context.Context, cfg *config.Config, l *logrus.Entry) (*dialRe
 		time.Since(start), clockDrift)
 
 	return &dialResult{
-		conn:           conn,
-		streamCancel:   streamCancel,
-		actionsChannel: channel,
-		md:             md}, nil
+		conn:         conn,
+		streamCancel: streamCancel,
+		channel:      channel,
+		md:           md}, nil
 }
 
 func getNetworkInformation(channel *channel.Channel) (latency, clockDrift time.Duration, err error) {
@@ -592,13 +592,13 @@ func (c *Client) Describe(chan<- *prometheus.Desc) {
 // Collect implements "unchecked" prometheus.Collector.
 func (c *Client) Collect(ch chan<- prometheus.Metric) {
 	c.rw.RLock()
-	actionsChannel := c.channel
+	channel := c.channel
 	c.rw.RUnlock()
 
 	desc := prometheus.NewDesc("pmm_agent_connected", "Has value 1 if two-way communication channel is established.", nil, nil)
-	if actionsChannel != nil {
+	if channel != nil {
 		ch <- prometheus.MustNewConstMetric(desc, prometheus.GaugeValue, 1)
-		actionsChannel.Collect(ch)
+		channel.Collect(ch)
 	} else {
 		ch <- prometheus.MustNewConstMetric(desc, prometheus.GaugeValue, 0)
 	}
