@@ -42,7 +42,7 @@ gen:                            ## Generate files.
 
 # generate stub models for perfschema QAN agent; hidden from help as it is not generally useful
 gen-init:
-	go build -o $(BIN_PATH)/reform-db gopkg.in/reform.v1/reform-db
+	go build -modfile=tools/go.mod -o $(BIN_PATH)/reform-db gopkg.in/reform.v1/reform-db
 	mkdir tmp-mysql
 	$(BIN_PATH)/reform-db -db-driver=mysql -db-source='root:root-password@tcp(127.0.0.1:3306)/performance_schema' init tmp-mysql
 
