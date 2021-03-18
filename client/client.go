@@ -399,10 +399,10 @@ func (c *Client) processChannelRequests(ctx context.Context) {
 	}
 
 	if err := c.channel.Wait(); err != nil {
-		c.l.Debugf("ActionsChannel closed: %s.", err)
+		c.l.Debugf("Channel closed: %s.", err)
 		return
 	}
-	c.l.Debug("ActionsChannel closed.")
+	c.l.Debug("Channel closed.")
 }
 
 func (c *Client) getActionTimeout(req *agentpb.StartActionRequest) time.Duration {
