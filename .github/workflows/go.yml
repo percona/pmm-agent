@@ -182,8 +182,8 @@ jobs:
         restore-keys: |
           ${{ matrix.os }}-go-${{ matrix.go-version }}-modules-
 
-      - name: Download Go modules
-        run: go mod download
+    - name: Download Go modules
+      run: go mod download
 
     - name: Docker-compose
       env:
