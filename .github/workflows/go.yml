@@ -25,14 +25,6 @@ jobs:
 
     continue-on-error: ${{ matrix.go.may-fail }}
 
-#    env:
-#      GOPATH: ${{ github.workspace }}
-#      WORKING_DIR: ${{ github.workspace }}/src/github.com/percona/pmm-agent
-
-#    defaults:
-#      run:
-#        working-directory: ${{ env.WORKING_DIR }}
-
     steps:
       - name: Set up Go release
         if: matrix.go.version != 'tip'
@@ -64,9 +56,6 @@ jobs:
           key: ${{ matrix.os }}-go-${{ matrix.go-version }}-modules-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             ${{ matrix.os }}-go-${{ matrix.go-version }}-modules-
-
-      - name: Download Go modules
-        run: go mod download
 
       - name: Prepare
         run: make init
@@ -138,17 +127,11 @@ jobs:
     continue-on-error: ${{ matrix.go.may-fail }}
 
     env:
-#      GOPATH: ${{ github.workspace }}
-#      WORKING_DIR: ${{ github.workspace }}/src/github.com/percona/pmm-agent
       MYSQL_IMAGE: ${{ matrix.images.mysql }}
       MONGO_IMAGE: ${{ matrix.images.mongo }}
       POSTGRES_IMAGE: ${{ matrix.images.postgres }}
       PMM_SERVER_IMAGE: ${{ matrix.images.pmm_server }}
       PG_PRELOADED_LIBS: ${{ matrix.images.pg_libs }}
-
-#    defaults:
-#      run:
-#        working-directory: ${{ env.WORKING_DIR }}
 
     steps:
     - name: Set up Go release
@@ -181,9 +164,6 @@ jobs:
         key: ${{ matrix.os }}-go-${{ matrix.go-version }}-modules-${{ hashFiles('**/go.sum') }}
         restore-keys: |
           ${{ matrix.os }}-go-${{ matrix.go-version }}-modules-
-
-    - name: Download Go modules
-      run: go mod download
 
     - name: Docker-compose
       env:
