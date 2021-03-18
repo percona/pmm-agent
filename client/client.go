@@ -373,6 +373,10 @@ func (c *Client) processChannelRequests(ctx context.Context) {
 					j.Echo.Message,
 					j.Echo.Delay.AsDuration(),
 				)
+			default:
+				// Requests() is not closed, so exit early to break channel
+				c.l.Errorf("Unhandled StartJob request: %v.", req)
+				return
 			}
 
 			c.jobsRunner.Start(job)
