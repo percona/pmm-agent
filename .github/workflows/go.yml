@@ -34,12 +34,6 @@ jobs:
         working-directory: ${{ env.WORKING_DIR }}
 
     steps:
-      - name: Check out code into the working directory under the GOPATH
-        uses: percona-platform/checkout@v2
-        with:
-          fetch-depth: 1
-          path: ${{ env.WORKING_DIR }}
-
       - name: Set up Go release
         if: matrix.go.version != 'tip'
         uses: percona-platform/setup-go@v2
@@ -59,6 +53,20 @@ jobs:
         run: |
           go version
           echo "GO_VERSION=$(go version)" >> $GITHUB_ENV
+
+      - name: Check out code into the Go module directory
+        uses: percona-platform/checkout@v2
+
+      - name: Enable Go modules cache
+        uses: percona-platform/cache@v2
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ matrix.os }}-go-${{ matrix.go-version }}-modules-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ matrix.os }}-go-${{ matrix.go-version }}-modules-
+
+      - name: Download Go modules
+        run: go mod download
 
       - name: Prepare
         run: make init
@@ -143,12 +151,6 @@ jobs:
         working-directory: ${{ env.WORKING_DIR }}
 
     steps:
-    - name: Check out code into the working directory under the GOPATH
-      uses: percona-platform/checkout@v2
-      with:
-        fetch-depth: 1
-        path: ${{ env.WORKING_DIR }}
-
     - name: Set up Go release
       if: matrix.go.version != 'tip'
       uses: percona-platform/setup-go@v2
@@ -168,6 +170,20 @@ jobs:
       run: |
         go version
         echo "GO_VERSION=$(go version)" >> $GITHUB_ENV
+
+    - name: Check out code into the Go module directory
+      uses: percona-platform/checkout@v2
+
+    - name: Enable Go modules cache
+      uses: percona-platform/cache@v2
+      with:
+        path: ~/go/pkg/mod
+        key: ${{ matrix.os }}-go-${{ matrix.go-version }}-modules-${{ hashFiles('**/go.sum') }}
+        restore-keys: |
+          ${{ matrix.os }}-go-${{ matrix.go-version }}-modules-
+
+      - name: Download Go modules
+        run: go mod download
 
     - name: Docker-compose
       env:
