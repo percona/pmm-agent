@@ -25,13 +25,13 @@ jobs:
 
     continue-on-error: ${{ matrix.go.may-fail }}
 
-    env:
-      GOPATH: ${{ github.workspace }}
-      WORKING_DIR: ${{ github.workspace }}/src/github.com/percona/pmm-agent
+#    env:
+#      GOPATH: ${{ github.workspace }}
+#      WORKING_DIR: ${{ github.workspace }}/src/github.com/percona/pmm-agent
 
-    defaults:
-      run:
-        working-directory: ${{ env.WORKING_DIR }}
+#    defaults:
+#      run:
+#        working-directory: ${{ env.WORKING_DIR }}
 
     steps:
       - name: Set up Go release
@@ -138,17 +138,17 @@ jobs:
     continue-on-error: ${{ matrix.go.may-fail }}
 
     env:
-      GOPATH: ${{ github.workspace }}
-      WORKING_DIR: ${{ github.workspace }}/src/github.com/percona/pmm-agent
+#      GOPATH: ${{ github.workspace }}
+#      WORKING_DIR: ${{ github.workspace }}/src/github.com/percona/pmm-agent
       MYSQL_IMAGE: ${{ matrix.images.mysql }}
       MONGO_IMAGE: ${{ matrix.images.mongo }}
       POSTGRES_IMAGE: ${{ matrix.images.postgres }}
       PMM_SERVER_IMAGE: ${{ matrix.images.pmm_server }}
       PG_PRELOADED_LIBS: ${{ matrix.images.pg_libs }}
 
-    defaults:
-      run:
-        working-directory: ${{ env.WORKING_DIR }}
+#    defaults:
+#      run:
+#        working-directory: ${{ env.WORKING_DIR }}
 
     steps:
     - name: Set up Go release
@@ -165,7 +165,7 @@ jobs:
         ./make.bash
         echo "GOROOT=$HOME/gotip" >> $GITHUB_ENV
         echo "$HOME/gotip/bin" >> $GITHUB_PATH
-    
+
     - name: Set GO_VERSION environment variable
       run: |
         go version
