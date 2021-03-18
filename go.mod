@@ -9,11 +9,17 @@ replace github.com/lfittl/pg_query_go v1.0.2 => github.com/Percona-Lab/pg_query_
 require (
 	github.com/AlekSi/pointer v1.1.0
 	github.com/alecthomas/units v0.0.0-20190924025748-f65c72e2690d // indirect
-	github.com/aws/aws-sdk-go v1.34.28 // indirect
+	github.com/asaskevich/govalidator v0.0.0-20200428143746-21a406dcc535 // indirect
 	github.com/brianvoe/gofakeit v3.18.0+incompatible // indirect
 	github.com/davecgh/go-spew v1.1.1
 	github.com/denisenkom/go-mssqldb v0.9.0 // indirect
-	github.com/go-openapi/runtime v0.19.19
+	github.com/go-openapi/errors v0.19.6 // indirect
+	github.com/go-openapi/loads v0.19.5 // indirect
+	github.com/go-openapi/runtime v0.19.15
+	github.com/go-openapi/spec v0.19.8 // indirect
+	github.com/go-openapi/strfmt v0.19.5 // indirect
+	github.com/go-openapi/swag v0.19.9 // indirect
+	github.com/go-openapi/validate v0.19.8 // indirect
 	github.com/go-sql-driver/mysql v1.5.0
 	github.com/golang/protobuf v1.4.3
 	github.com/google/go-cmp v0.5.0 // indirect
@@ -23,6 +29,7 @@ require (
 	github.com/lfittl/pg_query_go v1.0.2
 	github.com/lib/pq v1.10.0
 	github.com/mattn/go-sqlite3 v1.13.0 // indirect
+	github.com/mitchellh/mapstructure v1.3.2 // indirect
 	github.com/mwitkow/go-proto-validators v0.3.2 // indirect
 	github.com/percona/exporter_shared v0.7.2
 	github.com/percona/go-mysql v0.0.0-20200630114833-b77f37c0bfa2
@@ -35,8 +42,9 @@ require (
 	github.com/sirupsen/logrus v1.4.2
 	github.com/stretchr/objx v0.2.0
 	github.com/stretchr/testify v1.6.1
-	go.mongodb.org/mongo-driver v1.4.1
+	go.mongodb.org/mongo-driver v1.3.2
 	golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9 // indirect
+	golang.org/x/net v0.0.0-20200602114024-627f9648deb9 // indirect
 	golang.org/x/sync v0.0.0-20201207232520-09787c993a3a // indirect
 	golang.org/x/sys v0.0.0-20200323222414-85ca7c5b95cd
 	golang.org/x/text v0.3.4 // indirect
@@ -44,5 +52,6 @@ require (
 	google.golang.org/grpc v1.32.0
 	gopkg.in/alecthomas/kingpin.v2 v2.2.6
 	gopkg.in/reform.v1 v1.3.4
+	gopkg.in/yaml.v2 v2.3.0 // indirect
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b
 )
