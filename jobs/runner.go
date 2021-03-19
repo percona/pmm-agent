@@ -48,9 +48,9 @@ type Runner struct {
 // NewRunner creates new jobs runner.
 func NewRunner(sender Sender) *Runner {
 	return &Runner{
-		l:          logrus.WithField("component", "jobs-executor"),
+		l:          logrus.WithField("component", "jobs-runner"),
 		sender:     sender,
-		jobs:       make(chan Job, 32), // TODO add constant
+		jobs:       make(chan Job, 32),
 		jobsCancel: make(map[string]context.CancelFunc),
 	}
 }
@@ -107,7 +107,7 @@ func (r *Runner) Run(ctx context.Context) {
 
 func (r *Runner) send(payload agentpb.AgentResponsePayload) {
 	r.sender.SendResponse(&channel.AgentResponse{
-		ID:      0, // TODO add comment
+		ID:      0, // Jobs send messages that doesn't require any responses, so we can leave message ID blank.
 		Payload: payload,
 	})
 }
@@ -121,6 +121,8 @@ func (r *Runner) Start(job Job) {
 func (r *Runner) Stop(id string) {
 	r.rw.RLock()
 	defer r.rw.RUnlock()
+
+	// Job removes itself from jobsCancel map. So here we only invoke cancel.
 	if cancel, ok := r.jobsCancel[id]; ok {
 		cancel()
 	}
