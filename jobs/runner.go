@@ -27,6 +27,8 @@ import (
 	"github.com/percona/pmm-agent/client/channel"
 )
 
+const jobsBufferSize = 32
+
 // Sender provides method for sending message to PMM server.
 type Sender interface {
 	SendResponse(msg *channel.AgentResponse)
@@ -50,7 +52,7 @@ func NewRunner(sender Sender) *Runner {
 	return &Runner{
 		l:          logrus.WithField("component", "jobs-runner"),
 		sender:     sender,
-		jobs:       make(chan Job, 32),
+		jobs:       make(chan Job, jobsBufferSize),
 		jobsCancel: make(map[string]context.CancelFunc),
 	}
 }
