@@ -26,7 +26,11 @@ required = [
 
 [[constraint]]
   name = "github.com/percona/pmm"
+<<<<<<< HEAD
   branch = "PMM-7676-azure-exporter-integration"
+=======
+  branch = "PMM-2.0"
+>>>>>>> master
 
 [[constraint]]
   name = "github.com/percona/go-mysql"
