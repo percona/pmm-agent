@@ -364,15 +364,22 @@ func (c *Client) processChannelRequests(ctx context.Context) {
 			responsePayload = c.connectionChecker.Check(ctx, p, req.ID)
 
 		case *agentpb.StartJobRequest:
+			timeout, err := ptypes.Duration(p.Timeout)
+			if err != nil {
+				c.l.Errorf("Invalid job timeout: %+v", err)
+				return
+			}
+
 			var job jobs.Job
 			switch j := p.Job.(type) {
 			case *agentpb.StartJobRequest_Echo_:
-				job = jobs.NewEchoJob(
-					p.JobId,
-					p.Timeout.AsDuration(),
-					j.Echo.Message,
-					j.Echo.Delay.AsDuration(),
-				)
+				delay, err := ptypes.Duration(j.Echo.Delay)
+				if err != nil {
+					c.l.Errorf("Invalid job delay: %+v", err)
+					return
+				}
+
+				job = jobs.NewEchoJob(p.JobId, timeout, j.Echo.Message, delay)
 			default:
 				// Requests() is not closed, so exit early to break channel
 				c.l.Errorf("Unhandled StartJob request: %v.", req)
