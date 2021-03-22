@@ -156,7 +156,7 @@ func (c *Client) Run(ctx context.Context) error {
 
 	// Once the client is connected, ctx cancellation is ignored by it.
 	//
-	// We start three goroutines, and terminate the gRPC connection and exit Run when any of them exits:
+	// We start goroutines, and terminate the gRPC connection and exit Run when any of them exits:
 	//
 	// 1. processActionResults reads action results from action runner and sends them to the channel.
 	//    It exits when the action runner is stopped by cancelling ctx.
@@ -174,7 +174,7 @@ func (c *Client) Run(ctx context.Context) error {
 	// TODO Make 2 and 3 behave more like 1 - that seems to be simpler.
 	// https://jira.percona.com/browse/PMM-4245
 
-	oneDone := make(chan struct{}, 3)
+	oneDone := make(chan struct{}, 5)
 	go func() {
 		c.jobsRunner.Run(ctx)
 		oneDone <- struct{}{}
@@ -375,29 +375,11 @@ func (c *Client) processChannelRequests(ctx context.Context) {
 			responsePayload = c.connectionChecker.Check(ctx, p, req.ID)
 
 		case *agentpb.StartJobRequest:
-			timeout, err := ptypes.Duration(p.Timeout)
-			if err != nil {
-				c.l.Errorf("Invalid job timeout: %+v", err)
-				return
-			}
-
-			var job jobs.Job
-			switch j := p.Job.(type) {
-			case *agentpb.StartJobRequest_Echo_:
-				delay, err := ptypes.Duration(j.Echo.Delay)
-				if err != nil {
-					c.l.Errorf("Invalid job delay: %+v", err)
-					return
-				}
-
-				job = jobs.NewEchoJob(p.JobId, timeout, j.Echo.Message, delay)
-			default:
+			if err := c.handleStartJobRequest(p); err != nil {
 				// Requests() is not closed, so exit early to break channel
-				c.l.Errorf("Unhandled StartJob request: %v.", req)
+				c.l.Errorf("Unhandled server request: %v.", req)
 				return
 			}
-
-			c.jobsRunner.Start(job)
 			responsePayload = new(agentpb.StartJobResponse)
 
 		case *agentpb.StopJobRequest:
@@ -425,6 +407,30 @@ func (c *Client) processChannelRequests(ctx context.Context) {
 		return
 	}
 	c.l.Debug("Channel closed.")
+}
+
+func (c *Client) handleStartJobRequest(p *agentpb.StartJobRequest) error {
+	timeout, err := ptypes.Duration(p.Timeout)
+	if err != nil {
+		return err
+	}
+
+	var job jobs.Job
+	switch j := p.Job.(type) {
+	case *agentpb.StartJobRequest_Echo_:
+		delay, err := ptypes.Duration(j.Echo.Delay)
+		if err != nil {
+			return err
+		}
+
+		job = jobs.NewEchoJob(p.JobId, timeout, j.Echo.Message, delay)
+	default:
+		return errors.Errorf("unknown job type: %T", j)
+	}
+
+	c.jobsRunner.Start(job)
+
+	return nil
 }
 
 func (c *Client) getActionTimeout(req *agentpb.StartActionRequest) time.Duration {
