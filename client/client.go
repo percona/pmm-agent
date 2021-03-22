@@ -98,6 +98,7 @@ func (c *Client) Run(ctx context.Context) error {
 	c.l.Info("Starting...")
 
 	c.actionsRunner = actions.NewConcurrentRunner(ctx)
+	c.jobsRunner = jobs.NewRunner()
 
 	// do nothing until ctx is canceled if config misses critical info
 	var missing string
@@ -153,8 +154,6 @@ func (c *Client) Run(ctx context.Context) error {
 	c.channel = dialResult.channel
 	c.rw.Unlock()
 
-	c.jobsRunner = jobs.NewRunner(c.channel)
-
 	// Once the client is connected, ctx cancellation is ignored by it.
 	//
 	// We start three goroutines, and terminate the gRPC connection and exit Run when any of them exits:
@@ -185,6 +184,10 @@ func (c *Client) Run(ctx context.Context) error {
 		oneDone <- struct{}{}
 	}()
 	go func() {
+		c.processJobsResults()
+		oneDone <- struct{}{}
+	}()
+	go func() {
 		c.processSupervisorRequests()
 		oneDone <- struct{}{}
 	}()
@@ -195,6 +198,7 @@ func (c *Client) Run(ctx context.Context) error {
 
 	<-oneDone
 	go func() {
+		<-oneDone
 		<-oneDone
 		<-oneDone
 		<-oneDone
@@ -221,7 +225,14 @@ func (c *Client) processActionResults() {
 			c.l.Warn("Failed to send ActionResult request.")
 		}
 	}
-	c.l.Debugf("Runner Results() channel drained.")
+	c.l.Debugf("Actions runner Results() channel drained.")
+}
+
+func (c *Client) processJobsResults() {
+	for message := range c.jobsRunner.Messages() {
+		c.channel.Send(message)
+	}
+	c.l.Debugf("Jobs runner Messages() channel drained.")
 }
 
 func (c *Client) processSupervisorRequests() {

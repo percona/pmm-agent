@@ -29,16 +29,11 @@ import (
 
 const jobsBufferSize = 32
 
-// Sender provides method for sending message to PMM server.
-type Sender interface {
-	Send(msg *channel.AgentResponse)
-}
-
 // Runner allows to execute jobs.
 type Runner struct {
 	l *logrus.Entry
 
-	sender Sender
+	messages chan *channel.AgentResponse
 
 	jobs        chan Job
 	runningJobs sync.WaitGroup
@@ -48,12 +43,12 @@ type Runner struct {
 }
 
 // NewRunner creates new jobs runner.
-func NewRunner(sender Sender) *Runner {
+func NewRunner() *Runner {
 	return &Runner{
 		l:          logrus.WithField("component", "jobs-runner"),
-		sender:     sender,
 		jobs:       make(chan Job, jobsBufferSize),
 		jobsCancel: make(map[string]context.CancelFunc),
+		messages:   make(chan *channel.AgentResponse),
 	}
 }
 
@@ -84,14 +79,12 @@ func (r *Runner) Run(ctx context.Context) {
 
 				err := job.Run(ctx, r.send)
 				if err != nil {
-					r.sender.Send(&channel.AgentResponse{
-						Payload: &agentpb.JobResult{
-							JobId:     job.ID(),
-							Timestamp: ptypes.TimestampNow(),
-							Result: &agentpb.JobResult_Error_{
-								Error: &agentpb.JobResult_Error{
-									Message: err.Error(),
-								},
+					r.send(&agentpb.JobResult{
+						JobId:     job.ID(),
+						Timestamp: ptypes.TimestampNow(),
+						Result: &agentpb.JobResult_Error_{
+							Error: &agentpb.JobResult_Error{
+								Message: err.Error(),
 							},
 						},
 					})
@@ -102,16 +95,22 @@ func (r *Runner) Run(ctx context.Context) {
 			go pprof.Do(nCtx, pprof.Labels("jobID", jobID, "type", jobType), run)
 		case <-ctx.Done():
 			r.runningJobs.Wait() // wait for all jobs termination
+			close(r.messages)
 			return
 		}
 	}
 }
 
+// Messages returns channel with Jobs messages.
+func (r *Runner) Messages() <-chan *channel.AgentResponse {
+	return r.messages
+}
+
 func (r *Runner) send(payload agentpb.AgentResponsePayload) {
-	r.sender.Send(&channel.AgentResponse{
+	r.messages <- &channel.AgentResponse{
 		ID:      0, // Jobs send messages that doesn't require any responses, so we can leave message ID blank.
 		Payload: payload,
-	})
+	}
 }
 
 // Start starts given job.
