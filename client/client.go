@@ -211,7 +211,7 @@ func (c *Client) Done() <-chan struct{} {
 
 func (c *Client) processActionResults() {
 	for result := range c.actionsRunner.Results() {
-		resp := c.channel.SendRequest(&agentpb.ActionResultRequest{
+		resp := c.channel.SendAndWaitResponse(&agentpb.ActionResultRequest{
 			ActionId: result.ID,
 			Output:   result.Output,
 			Done:     true,
@@ -232,7 +232,7 @@ func (c *Client) processSupervisorRequests() {
 		defer wg.Done()
 
 		for state := range c.supervisor.Changes() {
-			resp := c.channel.SendRequest(state)
+			resp := c.channel.SendAndWaitResponse(state)
 			if resp == nil {
 				c.l.Warn("Failed to send StateChanged request.")
 			}
@@ -245,7 +245,7 @@ func (c *Client) processSupervisorRequests() {
 		defer wg.Done()
 
 		for collect := range c.supervisor.QANRequests() {
-			resp := c.channel.SendRequest(collect)
+			resp := c.channel.SendAndWaitResponse(collect)
 			if resp == nil {
 				c.l.Warn("Failed to send QanCollect request.")
 			}
@@ -396,7 +396,7 @@ func (c *Client) processChannelRequests(ctx context.Context) {
 			return
 		}
 
-		c.channel.SendResponse(&channel.AgentResponse{
+		c.channel.Send(&channel.AgentResponse{
 			ID:      req.ID,
 			Payload: responsePayload,
 		})
@@ -548,7 +548,7 @@ func dial(dialCtx context.Context, cfg *config.Config, l *logrus.Entry) (*dialRe
 
 func getNetworkInformation(channel *channel.Channel) (latency, clockDrift time.Duration, err error) {
 	start := time.Now()
-	resp := channel.SendRequest(new(agentpb.Ping))
+	resp := channel.SendAndWaitResponse(new(agentpb.Ping))
 	if resp == nil {
 		err = channel.Wait()
 		return

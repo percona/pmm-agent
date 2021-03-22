@@ -31,7 +31,7 @@ const jobsBufferSize = 32
 
 // Sender provides method for sending message to PMM server.
 type Sender interface {
-	SendResponse(msg *channel.AgentResponse)
+	Send(msg *channel.AgentResponse)
 }
 
 // Runner allows to execute jobs.
@@ -84,7 +84,7 @@ func (r *Runner) Run(ctx context.Context) {
 
 				err := job.Run(ctx, r.send)
 				if err != nil {
-					r.sender.SendResponse(&channel.AgentResponse{
+					r.sender.Send(&channel.AgentResponse{
 						Payload: &agentpb.JobResult{
 							JobId:     job.ID(),
 							Timestamp: ptypes.TimestampNow(),
@@ -108,7 +108,7 @@ func (r *Runner) Run(ctx context.Context) {
 }
 
 func (r *Runner) send(payload agentpb.AgentResponsePayload) {
-	r.sender.SendResponse(&channel.AgentResponse{
+	r.sender.Send(&channel.AgentResponse{
 		ID:      0, // Jobs send messages that doesn't require any responses, so we can leave message ID blank.
 		Payload: payload,
 	})
