@@ -321,7 +321,7 @@ func Application(cfg *Config) (*kingpin.Application, *string) {
 		Envar("PMM_AGENT_PATHS_POSTGRES_EXPORTER").StringVar(&cfg.Paths.PostgresExporter)
 	app.Flag("paths-proxysql_exporter", "Path to proxysql_exporter to use [PMM_AGENT_PATHS_PROXYSQL_EXPORTER]").
 		Envar("PMM_AGENT_PATHS_PROXYSQL_EXPORTER").StringVar(&cfg.Paths.ProxySQLExporter)
-	app.Flag("paths-azure-database_exporter", "Path to mysqld_exporter to use [PMM_AGENT_PATHS_AZURE_DATABASE_EXPORTER]").
+	app.Flag("paths-azure-database_exporter", "Path to azure_database_exporter to use [PMM_AGENT_PATHS_AZURE_DATABASE_EXPORTER]").
 		Envar("PMM_AGENT_PATHS_AZURE_DATABASE_EXPORTER").StringVar(&cfg.Paths.AzureDatabaseExporter)
 	app.Flag("paths-pt-summary", "Path to pt summary to use [PMM_AGENT_PATHS_PT_SUMMARY]").
 		Envar("PMM_AGENT_PATHS_PT_SUMMARY").StringVar(&cfg.Paths.PTSummary)
