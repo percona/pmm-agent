@@ -375,12 +375,11 @@ func (c *Client) processChannelRequests(ctx context.Context) {
 			responsePayload = c.connectionChecker.Check(ctx, p, req.ID)
 
 		case *agentpb.StartJobRequest:
+			var resp agentpb.StartJobResponse
 			if err := c.handleStartJobRequest(p); err != nil {
-				// Requests() is not closed, so exit early to break channel
-				c.l.Errorf("Unhandled server request: %v.", req)
-				return
+				resp.Error = err.Error()
 			}
-			responsePayload = new(agentpb.StartJobResponse)
+			responsePayload = &resp
 
 		case *agentpb.StopJobRequest:
 			c.jobsRunner.Stop(p.JobId)
