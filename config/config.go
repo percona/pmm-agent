@@ -81,14 +81,14 @@ func (s *Server) FilteredURL() string {
 
 // Paths represents binaries paths configuration.
 type Paths struct {
-	ExportersBase         string `yaml:"exporters_base"`
-	NodeExporter          string `yaml:"node_exporter"`
-	MySQLdExporter        string `yaml:"mysqld_exporter"`
-	MongoDBExporter       string `yaml:"mongodb_exporter"`
-	PostgresExporter      string `yaml:"postgres_exporter"`
-	ProxySQLExporter      string `yaml:"proxysql_exporter"`
-	RDSExporter           string `yaml:"rds_exporter"`
-	AzureDatabaseExporter string `yaml:"azure_database_exporter"`
+	ExportersBase    string `yaml:"exporters_base"`
+	NodeExporter     string `yaml:"node_exporter"`
+	MySQLdExporter   string `yaml:"mysqld_exporter"`
+	MongoDBExporter  string `yaml:"mongodb_exporter"`
+	PostgresExporter string `yaml:"postgres_exporter"`
+	ProxySQLExporter string `yaml:"proxysql_exporter"`
+	RDSExporter      string `yaml:"rds_exporter"`
+	AzureExporter    string `yaml:"azure_exporter"`
 
 	VMAgent string `yaml:"vmagent"`
 
@@ -187,20 +187,20 @@ func get(args []string, l *logrus.Entry) (cfg *Config, configFileF string, err e
 			cfg.Ports.Max = 51999
 		}
 		for sp, v := range map[*string]string{
-			&cfg.Paths.ExportersBase:         "/usr/local/percona/pmm2/exporters",
-			&cfg.Paths.NodeExporter:          "node_exporter",
-			&cfg.Paths.MySQLdExporter:        "mysqld_exporter",
-			&cfg.Paths.MongoDBExporter:       "mongodb_exporter",
-			&cfg.Paths.PostgresExporter:      "postgres_exporter",
-			&cfg.Paths.ProxySQLExporter:      "proxysql_exporter",
-			&cfg.Paths.RDSExporter:           "rds_exporter",
-			&cfg.Paths.AzureDatabaseExporter: "azure_database_exporter",
-			&cfg.Paths.VMAgent:               "vmagent",
-			&cfg.Paths.TempDir:               os.TempDir(),
-			&cfg.Paths.PTSummary:             "/usr/local/percona/pmm2/tools/pt-summary",
-			&cfg.Paths.PTPgSummary:           "/usr/local/percona/pmm2/tools/pt-pg-summary",
-			&cfg.Paths.PTMongoDBSummary:      "/usr/local/percona/pmm2/tools/pt-mongodb-summary",
-			&cfg.Paths.PTMySqlSummary:        "/usr/local/percona/pmm2/tools/pt-mysql-summary",
+			&cfg.Paths.ExportersBase:    "/usr/local/percona/pmm2/exporters",
+			&cfg.Paths.NodeExporter:     "node_exporter",
+			&cfg.Paths.MySQLdExporter:   "mysqld_exporter",
+			&cfg.Paths.MongoDBExporter:  "mongodb_exporter",
+			&cfg.Paths.PostgresExporter: "postgres_exporter",
+			&cfg.Paths.ProxySQLExporter: "proxysql_exporter",
+			&cfg.Paths.RDSExporter:      "rds_exporter",
+			&cfg.Paths.AzureExporter:    "azure_exporter",
+			&cfg.Paths.VMAgent:          "vmagent",
+			&cfg.Paths.TempDir:          os.TempDir(),
+			&cfg.Paths.PTSummary:        "/usr/local/percona/pmm2/tools/pt-summary",
+			&cfg.Paths.PTPgSummary:      "/usr/local/percona/pmm2/tools/pt-pg-summary",
+			&cfg.Paths.PTMongoDBSummary: "/usr/local/percona/pmm2/tools/pt-mongodb-summary",
+			&cfg.Paths.PTMySqlSummary:   "/usr/local/percona/pmm2/tools/pt-mysql-summary",
 		} {
 			if *sp == "" {
 				*sp = v
@@ -220,7 +220,7 @@ func get(args []string, l *logrus.Entry) (cfg *Config, configFileF string, err e
 			&cfg.Paths.PostgresExporter,
 			&cfg.Paths.ProxySQLExporter,
 			&cfg.Paths.RDSExporter,
-			&cfg.Paths.AzureDatabaseExporter,
+			&cfg.Paths.AzureExporter,
 			&cfg.Paths.VMAgent,
 		} {
 			if cfg.Paths.ExportersBase != "" && !filepath.IsAbs(*sp) {
@@ -321,8 +321,8 @@ func Application(cfg *Config) (*kingpin.Application, *string) {
 		Envar("PMM_AGENT_PATHS_POSTGRES_EXPORTER").StringVar(&cfg.Paths.PostgresExporter)
 	app.Flag("paths-proxysql_exporter", "Path to proxysql_exporter to use [PMM_AGENT_PATHS_PROXYSQL_EXPORTER]").
 		Envar("PMM_AGENT_PATHS_PROXYSQL_EXPORTER").StringVar(&cfg.Paths.ProxySQLExporter)
-	app.Flag("paths-azure-database_exporter", "Path to azure_database_exporter to use [PMM_AGENT_PATHS_AZURE_DATABASE_EXPORTER]").
-		Envar("PMM_AGENT_PATHS_AZURE_DATABASE_EXPORTER").StringVar(&cfg.Paths.AzureDatabaseExporter)
+	app.Flag("paths-azure_exporter", "Path to azure_exporter to use [PMM_AGENT_PATHS_AZURE_EXPORTER]").
+		Envar("PMM_AGENT_PATHS_AZURE_EXPORTER").StringVar(&cfg.Paths.AzureExporter)
 	app.Flag("paths-pt-summary", "Path to pt summary to use [PMM_AGENT_PATHS_PT_SUMMARY]").
 		Envar("PMM_AGENT_PATHS_PT_SUMMARY").StringVar(&cfg.Paths.PTSummary)
 	app.Flag("paths-pt-pg-summary", "Path to pt-pg-summary to use [PMM_AGENT_PATHS_PT_PG_SUMMARY]").
