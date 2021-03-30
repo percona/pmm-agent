@@ -1,3 +1,18 @@
+// pmm-agent
+// Copyright 2019 Percona LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//  http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package jobs
 
 import (
@@ -23,6 +38,7 @@ type MySQLBackupJob struct {
 	id       string
 	timeout  time.Duration
 	l        *logrus.Entry
+	name     string
 	dsn      string
 	location BackupLocationConfig
 }
@@ -41,11 +57,12 @@ type BackupLocationConfig struct {
 	S3Config *S3LocationConfig
 }
 
-func NewMySQLBackupJob(id string, timeout time.Duration, dsn string, locationConfig BackupLocationConfig) *MySQLBackupJob {
+func NewMySQLBackupJob(id string, timeout time.Duration, name, dsn string, locationConfig BackupLocationConfig) *MySQLBackupJob {
 	return &MySQLBackupJob{
 		id:       id,
 		timeout:  timeout,
 		l:        logrus.WithFields(logrus.Fields{"id": id, "type": "mysql_backup"}),
+		name:     name,
 		dsn:      dsn,
 		location: locationConfig,
 	}
@@ -83,8 +100,6 @@ func (j *MySQLBackupJob) Run(ctx context.Context, send Send) error {
 		}
 	}
 
-	// @TODO from params
-	backupName := "backup-" + time.Now().Format(time.RFC3339)
 	tmpDir := os.TempDir()
 	xtrabackupCmd := exec.CommandContext(ctx, xtrabackupBin,
 		"--user="+mysqlConfig.User,
@@ -108,7 +123,7 @@ func (j *MySQLBackupJob) Run(ctx context.Context, send Send) error {
 			"--s3-bucket="+j.location.S3Config.BucketName,
 			"--s3-region="+j.location.S3Config.BucketRegion,
 			"--parallel=10",
-			backupName)
+			j.name)
 	default:
 		return errors.Errorf("unknown location config")
 	}
