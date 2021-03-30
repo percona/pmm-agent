@@ -432,6 +432,8 @@ func (c *Client) handleStartJobRequest(p *agentpb.StartJobRequest) error {
 				AccessKey:  cfg.S3Config.AccessKey,
 				SecretKey:  cfg.S3Config.SecretKey,
 				BucketName: cfg.S3Config.BucketName,
+				// @TODO from params
+				BucketRegion: "us-east-2",
 			}
 		default:
 			return errors.Errorf("unknown location config: %T", j.MysqlBackup.LocationConfig)

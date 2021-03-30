@@ -3,14 +3,20 @@ package jobs
 import (
 	"bytes"
 	"context"
+	"os"
+	"os/exec"
+	"time"
+
 	"github.com/go-sql-driver/mysql"
 	"github.com/golang/protobuf/ptypes"
 	"github.com/percona/pmm/api/agentpb"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
-	"os"
-	"os/exec"
-	"time"
+)
+
+const (
+	xtrabackupBin = "xtrabackup"
+	xbcloudBin    = "xbcloud"
 )
 
 type MySQLBackupJob struct {
@@ -23,10 +29,11 @@ type MySQLBackupJob struct {
 
 // S3LocationConfig contains required properties for accessing S3 Bucket.
 type S3LocationConfig struct {
-	Endpoint   string
-	AccessKey  string
-	SecretKey  string
-	BucketName string
+	Endpoint     string
+	AccessKey    string
+	SecretKey    string
+	BucketName   string
+	BucketRegion string
 }
 
 // BackupLocationConfig groups all backup locations configs.
@@ -65,10 +72,21 @@ func (j *MySQLBackupJob) Run(ctx context.Context, send Send) error {
 	if err != nil {
 		return err
 	}
+
+	if _, err := exec.LookPath(xtrabackupBin); err != nil {
+		return err
+	}
+
+	if j.location.S3Config != nil {
+		if _, err := exec.LookPath(xbcloudBin); err != nil {
+			return err
+		}
+	}
+
 	// @TODO from params
 	backupName := "backup-" + time.Now().Format(time.RFC3339)
 	tmpDir := os.TempDir()
-	xtrabackupCmd := exec.CommandContext(ctx, "xtrabackup",
+	xtrabackupCmd := exec.CommandContext(ctx, xtrabackupBin,
 		"--user="+mysqlConfig.User,
 		"--password="+mysqlConfig.Passwd,
 		"--port="+mysqlConfig.Passwd,
@@ -81,15 +99,14 @@ func (j *MySQLBackupJob) Run(ctx context.Context, send Send) error {
 	var xbcloudCmd *exec.Cmd
 	switch {
 	case j.location.S3Config != nil:
-		xbcloudCmd = exec.CommandContext(ctx, "xbcloud",
+		xbcloudCmd = exec.CommandContext(ctx, xbcloudBin,
 			"put",
 			"--storage=s3",
 			"--s3-endpoint="+j.location.S3Config.Endpoint,
 			"--s3-access-key="+j.location.S3Config.AccessKey,
 			"--s3-secret-key="+j.location.S3Config.SecretKey,
 			"--s3-bucket="+j.location.S3Config.BucketName,
-			// @TODO region from parameters
-			"--s3-region="+"us-east-2",
+			"--s3-region="+j.location.S3Config.BucketRegion,
 			"--parallel=10",
 			backupName)
 	default:
