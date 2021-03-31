@@ -20,6 +20,7 @@ import (
 	"context"
 	"os"
 	"os/exec"
+	"strings"
 	"time"
 
 	"github.com/go-sql-driver/mysql"
@@ -101,11 +102,18 @@ func (j *MySQLBackupJob) Run(ctx context.Context, send Send) error {
 	}
 
 	tmpDir := os.TempDir()
+	splitAddr := strings.Split(mysqlConfig.Addr, ":")
+	host := splitAddr[0]
+	port := "3306"
+	if len(splitAddr) > 1 {
+		port = splitAddr[1]
+	}
+
 	xtrabackupCmd := exec.CommandContext(ctx, xtrabackupBin,
 		"--user="+mysqlConfig.User,
 		"--password="+mysqlConfig.Passwd,
-		"--port="+mysqlConfig.Passwd,
-		"--host="+mysqlConfig.Addr,
+		"--host="+host,
+		"--port="+port,
 		"--backup",
 		"--stream=xbstream",
 		"--extra-lsndir="+tmpDir,
@@ -114,6 +122,10 @@ func (j *MySQLBackupJob) Run(ctx context.Context, send Send) error {
 	var xbcloudCmd *exec.Cmd
 	switch {
 	case j.location.S3Config != nil:
+		// @TODO remove this
+		if j.location.S3Config.BucketRegion == "" {
+			j.location.S3Config.BucketRegion = "us-east-2"
+		}
 		xbcloudCmd = exec.CommandContext(ctx, xbcloudBin,
 			"put",
 			"--storage=s3",
@@ -138,23 +150,30 @@ func (j *MySQLBackupJob) Run(ctx context.Context, send Send) error {
 		return err
 	}
 
+	wrapError := func(err error) error {
+		return errors.Wrapf(err, "xtrabackup err: %s\n xbcloud out: %s\n xbcloud err: %s",
+			errBackupBuffer.String(), outBuffer.String(), errCloudBuffer.String())
+	}
+
 	if xbcloudCmd != nil {
 		xbcloudCmd.Stdin = xtrabackupStdout
 		xbcloudCmd.Stdout = &outBuffer
 		xbcloudCmd.Stderr = &errCloudBuffer
 		if err := xbcloudCmd.Start(); err != nil {
-			return err
+			j.l.Errorf("xbcloud start: %s", errCloudBuffer.String())
+			return wrapError(err)
 		}
 	}
 
 	if err := xtrabackupCmd.Start(); err != nil {
-		return err
+		j.l.Errorf("xtrabackup start: %s", errBackupBuffer.String())
+		return wrapError(err)
 	}
 
 	if xbcloudCmd != nil {
 		if err := xbcloudCmd.Wait(); err != nil {
-			j.l.Infoln(errCloudBuffer.String())
-			return err
+			j.l.Errorf("xbcloud wait: %s", errCloudBuffer.String())
+			return wrapError(err)
 		}
 	}
 
