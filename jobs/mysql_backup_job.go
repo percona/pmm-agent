@@ -122,10 +122,6 @@ func (j *MySQLBackupJob) Run(ctx context.Context, send Send) error {
 	var xbcloudCmd *exec.Cmd
 	switch {
 	case j.location.S3Config != nil:
-		// @TODO remove this
-		if j.location.S3Config.BucketRegion == "" {
-			j.location.S3Config.BucketRegion = "us-east-2"
-		}
 		xbcloudCmd = exec.CommandContext(ctx, xbcloudBin,
 			"put",
 			"--storage=s3",
