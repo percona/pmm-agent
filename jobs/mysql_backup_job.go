@@ -35,6 +35,7 @@ const (
 	xbcloudBin    = "xbcloud"
 )
 
+// MySQLBackupJob implements Job for MySQL backup.
 type MySQLBackupJob struct {
 	id       string
 	timeout  time.Duration
@@ -58,6 +59,7 @@ type BackupLocationConfig struct {
 	S3Config *S3LocationConfig
 }
 
+// NewMySQLBackupJob constructs new Job for MySQL backup.
 func NewMySQLBackupJob(id string, timeout time.Duration, name, dsn string, locationConfig BackupLocationConfig) *MySQLBackupJob {
 	return &MySQLBackupJob{
 		id:       id,
@@ -80,7 +82,7 @@ func (j *MySQLBackupJob) Type() string {
 	return "mysql_backup"
 }
 
-// Timeouts returns job timeout.
+// Timeout returns job timeout.
 func (j *MySQLBackupJob) Timeout() time.Duration {
 	return j.timeout
 }
@@ -88,16 +90,16 @@ func (j *MySQLBackupJob) Timeout() time.Duration {
 func (j *MySQLBackupJob) Run(ctx context.Context, send Send) error {
 	mysqlConfig, err := mysql.ParseDSN(j.dsn)
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "mysql parse dsn")
 	}
 
 	if _, err := exec.LookPath(xtrabackupBin); err != nil {
-		return err
+		return errors.Wrapf(err, "lookpath: %s", xtrabackupBin)
 	}
 
 	if j.location.S3Config != nil {
 		if _, err := exec.LookPath(xbcloudBin); err != nil {
-			return err
+			return errors.Wrapf(err, "lookpath: %s", xbcloudBin)
 		}
 	}
 
@@ -117,7 +119,7 @@ func (j *MySQLBackupJob) Run(ctx context.Context, send Send) error {
 		"--backup",
 		"--stream=xbstream",
 		"--extra-lsndir="+tmpDir,
-		"--target-dir="+tmpDir)
+		"--target-dir="+tmpDir) // #nosec G204
 
 	var xbcloudCmd *exec.Cmd
 	switch {
@@ -131,7 +133,7 @@ func (j *MySQLBackupJob) Run(ctx context.Context, send Send) error {
 			"--s3-bucket="+j.location.S3Config.BucketName,
 			"--s3-region="+j.location.S3Config.BucketRegion,
 			"--parallel=10",
-			j.name)
+			j.name) // #nosec G204
 	default:
 		return errors.Errorf("unknown location config")
 	}
@@ -143,7 +145,7 @@ func (j *MySQLBackupJob) Run(ctx context.Context, send Send) error {
 
 	xtrabackupStdout, err := xtrabackupCmd.StdoutPipe()
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "xtrabackup stdout pipe")
 	}
 
 	wrapError := func(err error) error {
