@@ -64,7 +64,7 @@ func NewMySQLBackupJob(id string, timeout time.Duration, name, dsn string, locat
 	return &MySQLBackupJob{
 		id:       id,
 		timeout:  timeout,
-		l:        logrus.WithFields(logrus.Fields{"id": id, "type": "mysql_backup"}),
+		l:        logrus.WithFields(logrus.Fields{"id": id, "type": "mysql_backup", "name": name}),
 		name:     name,
 		dsn:      dsn,
 		location: locationConfig,
@@ -88,6 +88,9 @@ func (j *MySQLBackupJob) Timeout() time.Duration {
 }
 
 func (j *MySQLBackupJob) Run(ctx context.Context, send Send) error {
+	t := time.Now()
+	j.l.Info("MySQL backup started")
+
 	mysqlConfig, err := mysql.ParseDSN(j.dsn)
 	if err != nil {
 		return errors.Wrapf(err, "mysql parse dsn")
@@ -182,5 +185,7 @@ func (j *MySQLBackupJob) Run(ctx context.Context, send Send) error {
 			MysqlBackup: &agentpb.JobResult_MySQLBackup{},
 		},
 	})
+
+	j.l.WithField("duration", time.Since(t).String()).Info("MySQL backup finished")
 	return nil
 }
