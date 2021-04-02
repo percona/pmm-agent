@@ -18,7 +18,6 @@ package jobs
 import (
 	"bytes"
 	"context"
-	"os"
 	"os/exec"
 	"strings"
 	"time"
@@ -69,7 +68,6 @@ func NewMySQLBackupJob(id string, timeout time.Duration, name, dsn string, locat
 		dsn:      dsn,
 		location: locationConfig,
 	}
-
 }
 
 // ID returns job id.
@@ -106,27 +104,27 @@ func (j *MySQLBackupJob) Run(ctx context.Context, send Send) error {
 		}
 	}
 
-	tmpDir := os.TempDir()
-	splitAddr := strings.Split(mysqlConfig.Addr, ":")
-	host := splitAddr[0]
-	port := "3306"
-	if len(splitAddr) > 1 {
-		port = splitAddr[1]
-	}
-
 	xtrabackupCmd := exec.CommandContext(ctx, xtrabackupBin,
 		"--user="+mysqlConfig.User,
 		"--password="+mysqlConfig.Passwd,
-		"--host="+host,
-		"--port="+port,
-		"--backup",
-		"--stream=xbstream",
-		"--extra-lsndir="+tmpDir,
-		"--target-dir="+tmpDir) // #nosec G204
+		"--compress",
+		"--backup") // #nosec G204
+
+	switch mysqlConfig.Net {
+	case "tcp":
+		splitAddr := strings.Split(mysqlConfig.Addr, ":")
+		xtrabackupCmd.Args = append(xtrabackupCmd.Args, "--host="+splitAddr[0])
+		if len(splitAddr) > 1 {
+			xtrabackupCmd.Args = append(xtrabackupCmd.Args, "--port="+splitAddr[1])
+		}
+	case "unix":
+		xtrabackupCmd.Args = append(xtrabackupCmd.Args, "--socket="+mysqlConfig.Addr)
+	}
 
 	var xbcloudCmd *exec.Cmd
 	switch {
 	case j.location.S3Config != nil:
+		xtrabackupCmd.Args = append(xtrabackupCmd.Args, "--stream=xbstream")
 		xbcloudCmd = exec.CommandContext(ctx, xbcloudBin,
 			"put",
 			"--storage=s3",
@@ -148,7 +146,7 @@ func (j *MySQLBackupJob) Run(ctx context.Context, send Send) error {
 
 	xtrabackupStdout, err := xtrabackupCmd.StdoutPipe()
 	if err != nil {
-		return errors.Wrapf(err, "xtrabackup stdout pipe")
+		return errors.Wrapf(err, "failed to get xtrabackup stdout pipe")
 	}
 
 	wrapError := func(err error) error {
@@ -161,21 +159,22 @@ func (j *MySQLBackupJob) Run(ctx context.Context, send Send) error {
 		xbcloudCmd.Stdout = &outBuffer
 		xbcloudCmd.Stderr = &errCloudBuffer
 		if err := xbcloudCmd.Start(); err != nil {
-			j.l.Errorf("xbcloud start: %s", errCloudBuffer.String())
 			return wrapError(err)
 		}
 	}
 
 	if err := xtrabackupCmd.Start(); err != nil {
-		j.l.Errorf("xtrabackup start: %s", errBackupBuffer.String())
 		return wrapError(err)
 	}
 
 	if xbcloudCmd != nil {
 		if err := xbcloudCmd.Wait(); err != nil {
-			j.l.Errorf("xbcloud wait: %s", errCloudBuffer.String())
 			return wrapError(err)
 		}
+	}
+
+	if err := xtrabackupCmd.Wait(); err != nil {
+		return wrapError(err)
 	}
 
 	send(&agentpb.JobResult{
