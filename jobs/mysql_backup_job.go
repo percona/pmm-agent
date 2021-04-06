@@ -19,10 +19,9 @@ import (
 	"bytes"
 	"context"
 	"os/exec"
-	"strings"
+	"strconv"
 	"time"
 
-	"github.com/go-sql-driver/mysql"
 	"github.com/golang/protobuf/ptypes"
 	"github.com/percona/pmm/api/agentpb"
 	"github.com/pkg/errors"
@@ -39,9 +38,18 @@ type MySQLBackupJob struct {
 	id       string
 	timeout  time.Duration
 	l        *logrus.Entry
-	name     string
-	dsn      string
+	name string
+	db DatabaseConfig
 	location BackupLocationConfig
+}
+
+// DatabaseConfig contains required properties for connection to DB.
+type DatabaseConfig struct {
+	User string
+	Password string
+	Address string
+	Port int
+	Socket string
 }
 
 // S3LocationConfig contains required properties for accessing S3 Bucket.
@@ -59,13 +67,13 @@ type BackupLocationConfig struct {
 }
 
 // NewMySQLBackupJob constructs new Job for MySQL backup.
-func NewMySQLBackupJob(id string, timeout time.Duration, name, dsn string, locationConfig BackupLocationConfig) *MySQLBackupJob {
+func NewMySQLBackupJob(id string, timeout time.Duration, name string, dbConfig DatabaseConfig, locationConfig BackupLocationConfig) *MySQLBackupJob {
 	return &MySQLBackupJob{
 		id:       id,
 		timeout:  timeout,
 		l:        logrus.WithFields(logrus.Fields{"id": id, "type": "mysql_backup", "name": name}),
 		name:     name,
-		dsn:      dsn,
+		db: dbConfig,
 		location: locationConfig,
 	}
 }
@@ -89,11 +97,6 @@ func (j *MySQLBackupJob) Run(ctx context.Context, send Send) error {
 	t := time.Now()
 	j.l.Info("MySQL backup started")
 
-	mysqlConfig, err := mysql.ParseDSN(j.dsn)
-	if err != nil {
-		return errors.Wrapf(err, "mysql parse dsn")
-	}
-
 	if _, err := exec.LookPath(xtrabackupBin); err != nil {
 		return errors.Wrapf(err, "lookpath: %s", xtrabackupBin)
 	}
@@ -105,20 +108,19 @@ func (j *MySQLBackupJob) Run(ctx context.Context, send Send) error {
 	}
 
 	xtrabackupCmd := exec.CommandContext(ctx, xtrabackupBin,
-		"--user="+mysqlConfig.User,
-		"--password="+mysqlConfig.Passwd,
+		"--user="+j.db.User,
+		"--password="+j.db.Password,
 		"--compress",
 		"--backup") // #nosec G204
 
-	switch mysqlConfig.Net {
-	case "tcp":
-		splitAddr := strings.Split(mysqlConfig.Addr, ":")
-		xtrabackupCmd.Args = append(xtrabackupCmd.Args, "--host="+splitAddr[0])
-		if len(splitAddr) > 1 {
-			xtrabackupCmd.Args = append(xtrabackupCmd.Args, "--port="+splitAddr[1])
+	switch {
+	case j.db.Address != "":
+		xtrabackupCmd.Args = append(xtrabackupCmd.Args, "--host="+j.db.Address)
+		if j.db.Port > 0 {
+			xtrabackupCmd.Args = append(xtrabackupCmd.Args, "--port="+strconv.Itoa(j.db.Port))
 		}
-	case "unix":
-		xtrabackupCmd.Args = append(xtrabackupCmd.Args, "--socket="+mysqlConfig.Addr)
+	case j.db.Socket != "":
+		xtrabackupCmd.Args = append(xtrabackupCmd.Args, "--socket="+j.db.Socket)
 	}
 
 	var xbcloudCmd *exec.Cmd
