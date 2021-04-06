@@ -442,7 +442,7 @@ func (c *Client) handleStartJobRequest(p *agentpb.StartJobRequest) error {
 			User:     j.MysqlBackup.User,
 			Password: j.MysqlBackup.Password,
 			Address:  j.MysqlBackup.Address,
-			Port:     j.MysqlBackup.Port,
+			Port:     int(j.MysqlBackup.Port),
 			Socket:   j.MysqlBackup.Socket,
 		}
 		job = jobs.NewMySQLBackupJob(p.JobId, timeout, j.MysqlBackup.Name, dbConfig, locationConfig)

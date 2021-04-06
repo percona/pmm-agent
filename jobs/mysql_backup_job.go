@@ -38,18 +38,18 @@ type MySQLBackupJob struct {
 	id       string
 	timeout  time.Duration
 	l        *logrus.Entry
-	name string
-	db DatabaseConfig
+	name     string
+	db       DatabaseConfig
 	location BackupLocationConfig
 }
 
 // DatabaseConfig contains required properties for connection to DB.
 type DatabaseConfig struct {
-	User string
+	User     string
 	Password string
-	Address string
-	Port int
-	Socket string
+	Address  string
+	Port     int
+	Socket   string
 }
 
 // S3LocationConfig contains required properties for accessing S3 Bucket.
@@ -73,7 +73,7 @@ func NewMySQLBackupJob(id string, timeout time.Duration, name string, dbConfig D
 		timeout:  timeout,
 		l:        logrus.WithFields(logrus.Fields{"id": id, "type": "mysql_backup", "name": name}),
 		name:     name,
-		db: dbConfig,
+		db:       dbConfig,
 		location: locationConfig,
 	}
 }
