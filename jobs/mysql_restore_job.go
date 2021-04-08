@@ -18,14 +18,12 @@ package jobs
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"io/ioutil"
 	"os"
 	"os/exec"
 	"os/user"
 	"path/filepath"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/golang/protobuf/ptypes"
@@ -100,7 +98,6 @@ func binariesInstalled() error {
 		return errors.Wrapf(err, "lookpath: %s", xtrabackupBin)
 	}
 
-	//if j.location.S3Config != nil {
 	if _, err := exec.LookPath(xbcloudBin); err != nil {
 		return errors.Wrapf(err, "lookpath: %s", xbcloudBin)
 	}
@@ -108,7 +105,6 @@ func binariesInstalled() error {
 	if _, err := exec.LookPath(xbstreamBin); err != nil {
 		return errors.Wrapf(err, "lookpath: %s", xbstreamBin)
 	}
-	//}
 
 	if _, err := exec.LookPath(qpressBin); err != nil {
 		return errors.Wrapf(err, "lookpath: %s", qpressBin)
@@ -129,10 +125,8 @@ func restoreMySQLFromS3(
 		cancel()
 	}()
 
-	// TODO: redirect log (2>download.log)
 	xbcloudCmd := exec.CommandContext(ctx, xbcloudBin,
 		"get",
-		fmt.Sprintf("s3://%s/%s", config.S3Config.BucketName, backupName),
 		"--storage=s3",
 		"--s3-endpoint="+config.S3Config.Endpoint,
 		"--s3-access-key="+config.S3Config.AccessKey,
@@ -140,10 +134,11 @@ func restoreMySQLFromS3(
 		"--s3-bucket="+config.S3Config.BucketName,
 		"--s3-region="+config.S3Config.BucketRegion,
 		"--parallel=10",
+		backupName,
 	)
 
-	var xbcloudStderr bytes.Buffer
-	xbcloudCmd.Stderr = &xbcloudStderr
+	var stderrBuffer bytes.Buffer
+	xbcloudCmd.Stderr = &stderrBuffer
 
 	xbcloudStdout, err := xbcloudCmd.StdoutPipe()
 	if err != nil {
@@ -158,14 +153,13 @@ func restoreMySQLFromS3(
 		"--decompress",
 	)
 
-	var xbstreamStdout bytes.Buffer
-	var xbstreamStderr bytes.Buffer
+	var stdoutBuffer bytes.Buffer
 	xbstreamCmd.Stdin = xbcloudStdout
-	xbstreamCmd.Stdout = &xbstreamStdout
-	xbstreamCmd.Stderr = &xbstreamStderr
+	xbstreamCmd.Stdout = &stdoutBuffer
+	xbstreamCmd.Stderr = &stderrBuffer
 
 	if err := xbcloudCmd.Start(); err != nil {
-		return nil, nil, errors.WithStack(err)
+		return nil, nil, errors.Wrap(err, "xbcloud start failed")
 	}
 	defer func() {
 		err := xbcloudCmd.Wait()
@@ -174,87 +168,72 @@ func restoreMySQLFromS3(
 		}
 
 		if rerr != nil {
-			rerr = errors.Wrapf(rerr, "xbcloud waiting error: %s", err)
+			rerr = errors.Wrapf(rerr, "xbcloud wait error: %s", err)
 		} else {
-			rerr = errors.WithStack(err)
+			rerr = errors.Wrap(err, "xbcloud wait failed")
 		}
 	}()
 
 	if err := xbstreamCmd.Start(); err != nil {
-		return nil, nil, errors.WithStack(err)
+		return &stdoutBuffer, &stderrBuffer, errors.Wrap(err, "xbstream start failed")
 	}
 
 	if err := xbstreamCmd.Wait(); err != nil {
-		return &xbstreamStdout, &xbstreamStderr, errors.WithStack(err)
+		return &stdoutBuffer, &stderrBuffer, errors.Wrap(err, "xbstream wait failed")
 	}
 
-	return &xbstreamStdout, &xbstreamStderr, nil
+	return &stdoutBuffer, &stderrBuffer, nil
 }
 
 func mySQLActive() (bool, error) {
-	out, err := exec.Command("systemctl", "is-active", mySQLServiceName).Output()
-	if err != nil {
-		return false, err
+	// systemctl is-active returns an exit code 0 if service is active, or non-zero otherwise
+	_, err := exec.Command("systemctl", "is-active", "--quiet", mySQLServiceName).Output()
+	if err == nil {
+		return true, nil
 	}
 
-	switch strings.TrimSpace(string(out)) {
-	case "active":
-		return true, nil
-	case "inactive":
+	if _, ok := err.(*exec.ExitError); ok {
 		return false, nil
-	default:
-		return false, fmt.Errorf("unknown status '%s'", string(out))
+	}
+
+	return false, err
+}
+
+func waitForMySQL(expectedActiveStatus bool) error {
+	timeout := time.After(stopTimeout)
+	ticker := time.NewTicker(activeCheckInterval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ticker.C:
+			active, err := mySQLActive()
+			if err != nil {
+				return errors.Wrap(err, "couldn't get MySQL status")
+			}
+			if active == expectedActiveStatus {
+				return nil
+			}
+		case <-timeout:
+			return errors.New("couldn't wait for MySQL status: timeout")
+		}
 	}
 }
 
 func stopMySQL() error {
 	if _, err := exec.Command("systemctl", "stop", mySQLServiceName).Output(); err != nil {
-		return err
+		return errors.Wrap(err, "systemctl stop failed")
 	}
 
-	timeout := time.After(stopTimeout)
-	ticker := time.NewTicker(activeCheckInterval)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-ticker.C:
-			active, err := mySQLActive()
-			if err != nil {
-				return errors.Wrap(err, "couldn't get MySQL status")
-			}
-			if !active {
-				return nil
-			}
-		case <-timeout:
-			return errors.New("couldn't stop MySQL: timeout")
-		}
-	}
+	return errors.WithStack(waitForMySQL(false))
 }
 
 func startMySQL() error {
 	if _, err := exec.Command("systemctl", "start", mySQLServiceName).Output(); err != nil {
-		return err
+		return errors.Wrap(err, "systemctl start failed")
 	}
 
-	timeout := time.After(stopTimeout)
-	ticker := time.NewTicker(activeCheckInterval)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-ticker.C:
-			active, err := mySQLActive()
-			if err != nil {
-				return errors.Wrap(err, "couldn't get MySQL status")
-			}
-			if active {
-				return nil
-			}
-		case <-timeout:
-			return errors.New("couldn't start MySQL: timeout")
-		}
-	}
+	return errors.WithStack(waitForMySQL(true))
 }
 
 func chownRecursive(path string, uid, gid int) error {
@@ -268,7 +247,7 @@ func chownRecursive(path string, uid, gid int) error {
 }
 
 func mySQLUserAndGroupIDs() (uid, gid int, rerr error) {
-	u, err := user.LookupId(mySQLUserName)
+	u, err := user.Lookup(mySQLUserName)
 	if err != nil {
 		return 0, 0, errors.WithStack(err)
 	}
@@ -291,17 +270,36 @@ func mySQLUserAndGroupIDs() (uid, gid int, rerr error) {
 	return uid, gid, nil
 }
 
+func isPathExists(path string) (bool, error) {
+	_, err := os.Stat(path)
+	switch {
+	case err == nil:
+		return true, nil
+	case os.IsNotExist(err):
+		return false, nil
+	default:
+		return false, errors.WithStack(err)
+	}
+}
+
 func restoreBackup(backupDirectory, mySQLDirectory string) error {
 	if _, err := exec.Command(xtrabackupBin, "--prepare", "--target-dir="+backupDirectory).Output(); err != nil {
 		return errors.WithStack(err)
 	}
 
-	if err := os.Rename(mySQLDirectory, mySQLDirectory+".old"); err != nil {
+	if exists, err := isPathExists(mySQLDirectory); err != nil {
 		return errors.WithStack(err)
+	} else if exists {
+		postfix := ".old" + strconv.FormatInt(time.Now().Unix(), 10)
+		if err := os.Rename(mySQLDirectory, mySQLDirectory+postfix); err != nil {
+			return errors.WithStack(err)
+		}
 	}
 
-	// TODO: restore target dir!!!
-	if _, err := exec.Command(xtrabackupBin, "--copy-back", "--target-dir="+backupDirectory).Output(); err != nil {
+	if _, err := exec.Command(xtrabackupBin,
+		"--copy-back",
+		"--datadir="+mySQLDirectory,
+		"--target-dir="+backupDirectory).Output(); err != nil {
 		return errors.WithStack(err)
 	}
 
@@ -317,6 +315,10 @@ func restoreBackup(backupDirectory, mySQLDirectory string) error {
 }
 
 func (j *MySQLRestoreJob) Run(ctx context.Context, send Send) (rerr error) {
+	if j.location.S3Config == nil {
+		return errors.New("S3 config is not set")
+	}
+
 	if err := binariesInstalled(); err != nil {
 		return errors.WithStack(err)
 	}
@@ -344,7 +346,7 @@ func (j *MySQLRestoreJob) Run(ctx context.Context, send Send) (rerr error) {
 		return errors.WithStack(err)
 	}
 
-	// TODO: stream stdout, stderr
+	// TODO: stream or store somewhere stdout, stderr
 	_, _ = stdout, stderr
 
 	active, err := mySQLActive()
