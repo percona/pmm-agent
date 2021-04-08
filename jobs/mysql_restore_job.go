@@ -328,6 +328,9 @@ func (j *MySQLRestoreJob) Run(ctx context.Context, send Send) (rerr error) {
 	}
 
 	tmpDir, err := ioutil.TempDir("", "backup-restore")
+	if err != nil {
+		return errors.Wrap(err, "cannot create temporary directory")
+	}
 	defer func() {
 		err := os.RemoveAll(tmpDir)
 		if err == nil {
