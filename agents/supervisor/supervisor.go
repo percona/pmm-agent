@@ -42,6 +42,7 @@ import (
 	"github.com/percona/pmm-agent/agents/postgres/pgstatstatements"
 	"github.com/percona/pmm-agent/agents/process"
 	"github.com/percona/pmm-agent/config"
+	"github.com/percona/pmm-agent/tls_helpers"
 	"github.com/percona/pmm-agent/utils/templates"
 )
 
@@ -342,6 +343,18 @@ func (s *Supervisor) startProcess(agentID string, agentProcess *agentpb.SetState
 		"type":      agentType,
 	})
 	l.Debugf("Starting: %s.", processParams)
+
+	switch agentProcess.Type {
+	case inventorypb.AgentType_MYSQLD_EXPORTER:
+		if agentProcess.TextFiles != nil {
+			err = tls_helpers.RegisterMySQL(agentProcess.TextFiles)
+			if err != nil {
+				return err
+			}
+
+		}
+	}
+
 	process := process.New(processParams, agentProcess.RedactWords, l)
 	go pprof.Do(ctx, pprof.Labels("agentID", agentID, "type", agentType), process.Run)
 
@@ -397,6 +410,10 @@ func (s *Supervisor) startBuiltin(agentID string, builtinAgent *agentpb.SetState
 
 	switch builtinAgent.Type {
 	case inventorypb.AgentType_QAN_MYSQL_PERFSCHEMA_AGENT:
+		if strings.Contains(dsn, "tls=custom") {
+			err = tls_helpers.RegisterMySQL(builtinAgent.TextFiles.Files)
+		}
+
 		params := &perfschema.Params{
 			DSN:                  dsn,
 			AgentID:              agentID,
@@ -412,6 +429,10 @@ func (s *Supervisor) startBuiltin(agentID string, builtinAgent *agentpb.SetState
 		agent, err = mongodb.New(params, l)
 
 	case inventorypb.AgentType_QAN_MYSQL_SLOWLOG_AGENT:
+		if strings.Contains(dsn, "tls=custom") {
+			err = tls_helpers.RegisterMySQL(builtinAgent.TextFiles.Files)
+		}
+
 		params := &slowlog.Params{
 			DSN:                  dsn,
 			AgentID:              agentID,
