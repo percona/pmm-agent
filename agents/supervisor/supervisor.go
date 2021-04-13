@@ -350,8 +350,7 @@ func (s *Supervisor) startProcess(agentID string, agentProcess *agentpb.SetState
 			// TODO generate temp certs from attached files and replace paths
 			processParams.Args = append(processParams.Args, "--mysql.ssl-cert-file=/home/jirka/mysql/cert.pem")
 			processParams.Args = append(processParams.Args, "--mysql.ssl-key-file=/home/jirka/mysql/key.pem")
-			processParams.Args = append(processParams.Args, "--mysql.ssl-skip-verify")
-
+			//processParams.Args = append(processParams.Args, "--mysql.ssl-skip-verify")
 		}
 	}
 
@@ -412,6 +411,7 @@ func (s *Supervisor) startBuiltin(agentID string, builtinAgent *agentpb.SetState
 	case inventorypb.AgentType_QAN_MYSQL_PERFSCHEMA_AGENT:
 		if strings.Contains(dsn, "tls=custom") {
 			err = tls_helpers.RegisterMySQL(builtinAgent.TextFiles.Files)
+			break
 		}
 
 		params := &perfschema.Params{
@@ -431,6 +431,7 @@ func (s *Supervisor) startBuiltin(agentID string, builtinAgent *agentpb.SetState
 	case inventorypb.AgentType_QAN_MYSQL_SLOWLOG_AGENT:
 		if strings.Contains(dsn, "tls=custom") {
 			err = tls_helpers.RegisterMySQL(builtinAgent.TextFiles.Files)
+			break
 		}
 
 		params := &slowlog.Params{
