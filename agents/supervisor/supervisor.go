@@ -347,10 +347,10 @@ func (s *Supervisor) startProcess(agentID string, agentProcess *agentpb.SetState
 	switch agentProcess.Type {
 	case inventorypb.AgentType_MYSQLD_EXPORTER:
 		if agentProcess.TextFiles != nil {
-			err = tls_helpers.RegisterMySQL(agentProcess.TextFiles)
-			if err != nil {
-				return err
-			}
+			// TODO generate temp certs from attached files and replace paths
+			processParams.Args = append(processParams.Args, "--mysql.ssl-cert-file=/home/jirka/mysql/cert.pem")
+			processParams.Args = append(processParams.Args, "--mysql.ssl-key-file=/home/jirka/mysql/key.pem")
+			processParams.Args = append(processParams.Args, "--mysql.ssl-skip-verify")
 
 		}
 	}
