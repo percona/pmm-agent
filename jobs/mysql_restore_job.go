@@ -69,6 +69,7 @@ type BackupLocationConfig struct {
 	S3Config *S3LocationConfig
 }
 
+// NewMySQLRestoreJob constructs new Job for MySQL backup restore.
 func NewMySQLRestoreJob(id string, timeout time.Duration, name string, locationConfig BackupLocationConfig) *MySQLRestoreJob {
 	return &MySQLRestoreJob{
 		id:       id,
@@ -90,7 +91,7 @@ func (j *MySQLRestoreJob) Type() string {
 	return "mysql_restore"
 }
 
-// Timeouts returns job timeout.
+// Timeout returns job timeout.
 func (j *MySQLRestoreJob) Timeout() time.Duration {
 	return j.timeout
 }
@@ -306,7 +307,8 @@ func isPathExists(path string) (bool, error) {
 }
 
 func restoreBackup(backupDirectory, mySQLDirectory string) error {
-	if _, err := exec.Command(xtrabackupBin, "--prepare", "--target-dir="+backupDirectory).Output(); err != nil {
+	if _, err := exec.Command(xtrabackupBin, "--prepare", "--target-dir="+backupDirectory).
+		Output(); err != nil { // #nosec G204
 		return errors.WithStack(err)
 	}
 
