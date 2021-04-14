@@ -95,7 +95,7 @@ func (cc *ConnectionChecker) checkMySQLConnection(ctx context.Context, dsn strin
 	var err error
 
 	if strings.Contains(dsn, "tls=custom") {
-		err = tls_helpers.RegisterMySQL(files.Files)
+		err = tls_helpers.RegisterMySQLCerts(files.Files)
 		if err != nil {
 			cc.l.Debugf("checkMySQLConnection: failed to register cert: %s", err)
 			res.Error = err.Error()

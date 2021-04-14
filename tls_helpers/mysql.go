@@ -18,13 +18,21 @@ package tls_helpers
 import (
 	"crypto/tls"
 	"crypto/x509"
+	"fmt"
+	"io/ioutil"
+	"os"
 
 	"github.com/go-sql-driver/mysql"
+	"github.com/percona/pmm-agent/agents/process"
 	"github.com/pkg/errors"
 )
 
-// RegisterMySQL is used for register TLS config before sql.Open is called.
-func RegisterMySQL(files map[string]string) error {
+// RegisterMySQLCerts is used for register TLS config before sql.Open is called.
+func RegisterMySQLCerts(files map[string]string) error {
+	if files == nil {
+		return fmt.Errorf("CreateMySQLTempCerts: nothing to register")
+	}
+
 	ca := x509.NewCertPool()
 	cert, err := tls.X509KeyPair([]byte(files["tlsCert"]), []byte(files["tlsKey"]))
 	if err != nil {
@@ -43,4 +51,37 @@ func RegisterMySQL(files map[string]string) error {
 	}
 
 	return nil
+}
+
+// CreateMySQLCerts generate certificates into temp folder from provided files.
+func CreateMySQLCerts(process *process.Params, files map[string]string, tempDir string) ([]string, error) {
+	var certFileNames []string
+	for k, v := range files {
+		var flag string
+		switch k {
+		case "tlsCert":
+			flag = "mysql.ssl-cert-file"
+		case "tlsKey":
+			flag = "mysql.ssl-key-file"
+		default:
+			continue
+		}
+
+		tempFile, err := ioutil.TempFile(tempDir, fmt.Sprintf("mysql_ssl_%s_*", k))
+		if err != nil {
+			return []string{}, errors.WithStack(err)
+		}
+		defer os.Remove(tempFile.Name()) //nolint:errcheck
+
+		if err = ioutil.WriteFile(tempFile.Name(), []byte(v), 0600); err != nil {
+			return []string{}, errors.WithStack(err)
+		}
+
+		process.Args = append(certFileNames, fmt.Sprintf("--%s=%s", flag, tempFile.Name()))
+		certFileNames = append(process.Args, tempFile.Name())
+	}
+
+	// TODO SSL: processParams.Args = append(processParams.Args, "--mysql.ssl-skip-verify")
+
+	return certFileNames, nil
 }
