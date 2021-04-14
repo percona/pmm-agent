@@ -71,7 +71,7 @@ func NewMySQLRestoreJob(id string, timeout time.Duration, name string, locationC
 	return &MySQLRestoreJob{
 		id:       id,
 		timeout:  timeout,
-		l:        logrus.WithFields(logrus.Fields{"id": id, "type": "mysql_backup"}),
+		l:        logrus.WithFields(logrus.Fields{"id": id, "type": "mysql_restore"}),
 		name:     name,
 		location: locationConfig,
 	}
