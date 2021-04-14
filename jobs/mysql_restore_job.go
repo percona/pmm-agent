@@ -305,9 +305,13 @@ func isPathExists(path string) (bool, error) {
 	}
 }
 
-func restoreBackup(backupDirectory, mySQLDirectory string) error {
-	if _, err := exec.Command(xtrabackupBin, "--prepare", "--target-dir="+backupDirectory). //nolint:gosec
-		Output(); err != nil {
+func restoreBackup(ctx context.Context, backupDirectory, mySQLDirectory string) error {
+	if _, err := exec.CommandContext( //nolint:gosec
+		ctx,
+		xtrabackupBin,
+		"--prepare",
+		"--target-dir="+backupDirectory,
+	).Output(); err != nil {
 		return errors.WithStack(err)
 	}
 
@@ -320,7 +324,9 @@ func restoreBackup(backupDirectory, mySQLDirectory string) error {
 		}
 	}
 
-	if _, err := exec.Command(xtrabackupBin,
+	if _, err := exec.CommandContext( //nolint:gosec
+		ctx,
+		xtrabackupBin,
 		"--copy-back",
 		"--datadir="+mySQLDirectory,
 		"--target-dir="+backupDirectory).Output(); err != nil {
@@ -386,7 +392,7 @@ func (j *MySQLRestoreJob) Run(ctx context.Context, send Send) (rerr error) {
 		}
 	}
 
-	if err := restoreBackup(tmpDir, mySQLDirectory); err != nil {
+	if err := restoreBackup(ctx, tmpDir, mySQLDirectory); err != nil {
 		return errors.WithStack(err)
 	}
 
