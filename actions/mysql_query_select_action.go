@@ -19,7 +19,7 @@ import (
 	"context"
 	"strings"
 
-	"github.com/percona/pmm-agent/tls_helpers"
+	"github.com/percona/pmm-agent/tlshelpers"
 	"github.com/percona/pmm/api/agentpb"
 	"github.com/pkg/errors"
 	"github.com/prometheus/common/log"
@@ -33,7 +33,7 @@ type mysqlQuerySelectAction struct {
 // NewMySQLQuerySelectAction creates MySQL SELECT query Action.
 func NewMySQLQuerySelectAction(id string, params *agentpb.StartActionRequest_MySQLQuerySelectParams) Action {
 	if strings.Contains(params.Dsn, "tls=custom") {
-		err := tls_helpers.RegisterMySQLCerts(params.TextFiles.Files)
+		err := tlshelpers.RegisterMySQLCerts(params.TextFiles.Files)
 		if err != nil {
 			log.Error(err)
 		}

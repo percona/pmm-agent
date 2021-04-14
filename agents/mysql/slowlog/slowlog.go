@@ -38,7 +38,7 @@ import (
 
 	"github.com/percona/pmm-agent/agents"
 	"github.com/percona/pmm-agent/agents/mysql/slowlog/parser"
-	"github.com/percona/pmm-agent/tls_helpers"
+	"github.com/percona/pmm-agent/tlshelpers"
 	"github.com/percona/pmm-agent/utils/backoff"
 	"github.com/percona/pmm-agent/utils/truncate"
 )
@@ -77,7 +77,7 @@ type slowLogInfo struct {
 // New creates new SlowLog QAN service.
 func New(params *Params, l *logrus.Entry) (*SlowLog, error) {
 	if strings.Contains(params.DSN, "tls=custom") {
-		err := tls_helpers.RegisterMySQLCerts(params.TextFiles.Files)
+		err := tlshelpers.RegisterMySQLCerts(params.TextFiles.Files)
 		if err != nil {
 			return nil, err
 		}

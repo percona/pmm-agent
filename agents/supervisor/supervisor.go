@@ -42,7 +42,7 @@ import (
 	"github.com/percona/pmm-agent/agents/postgres/pgstatstatements"
 	"github.com/percona/pmm-agent/agents/process"
 	"github.com/percona/pmm-agent/config"
-	"github.com/percona/pmm-agent/tls_helpers"
+	"github.com/percona/pmm-agent/tlshelpers"
 	"github.com/percona/pmm-agent/utils/templates"
 )
 
@@ -348,7 +348,7 @@ func (s *Supervisor) startProcess(agentID string, agentProcess *agentpb.SetState
 	switch agentProcess.Type {
 	case inventorypb.AgentType_MYSQLD_EXPORTER:
 		tempDir := filepath.Join(s.paths.TempDir, strings.ToLower(agentType), agentID)
-		cleanCerts, err = tls_helpers.ProcessMySQLCertsArgs(processParams, agentProcess.GetTextFiles(), tempDir)
+		cleanCerts, err = tlshelpers.ProcessMySQLCertsArgs(processParams, agentProcess.GetTextFiles(), tempDir)
 		if err != nil {
 			cancel()
 			return err

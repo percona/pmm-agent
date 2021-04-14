@@ -39,7 +39,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 
 	"github.com/percona/pmm-agent/config"
-	"github.com/percona/pmm-agent/tls_helpers"
+	"github.com/percona/pmm-agent/tlshelpers"
 	"github.com/percona/pmm-agent/utils/templates"
 )
 
@@ -95,7 +95,7 @@ func (cc *ConnectionChecker) checkMySQLConnection(ctx context.Context, dsn strin
 	var err error
 
 	if strings.Contains(dsn, "tls=custom") {
-		err = tls_helpers.RegisterMySQLCerts(files.Files)
+		err = tlshelpers.RegisterMySQLCerts(files.Files)
 		if err != nil {
 			cc.l.Debugf("checkMySQLConnection: failed to register cert: %s", err)
 			res.Error = err.Error()

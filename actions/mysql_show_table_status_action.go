@@ -19,7 +19,7 @@ import (
 	"context"
 	"strings"
 
-	"github.com/percona/pmm-agent/tls_helpers"
+	"github.com/percona/pmm-agent/tlshelpers"
 	"github.com/percona/pmm/api/agentpb"
 	"github.com/pkg/errors"
 	"github.com/prometheus/common/log"
@@ -34,7 +34,7 @@ type mysqlShowTableStatusAction struct {
 // This is an Action that can run `SHOW TABLE STATUS` command on MySQL service with given DSN.
 func NewMySQLShowTableStatusAction(id string, params *agentpb.StartActionRequest_MySQLShowTableStatusParams) Action {
 	if strings.Contains(params.Dsn, "tls=custom") {
-		err := tls_helpers.RegisterMySQLCerts(params.TextFiles.Files)
+		err := tlshelpers.RegisterMySQLCerts(params.TextFiles.Files)
 		if err != nil {
 			log.Error(err)
 		}
