@@ -348,11 +348,7 @@ func (s *Supervisor) startProcess(agentID string, agentProcess *agentpb.SetState
 	switch agentProcess.Type {
 	case inventorypb.AgentType_MYSQLD_EXPORTER:
 		tempDir := filepath.Join(s.paths.TempDir, strings.ToLower(agentType), agentID)
-		cleanCerts, err = tlshelpers.ProcessMySQLCertsArgs(processParams, agentProcess.GetTextFiles(), tempDir)
-		if err != nil {
-			cancel()
-			return err
-		}
+		cleanCerts = tlshelpers.ProcessMySQLCertsArgs(processParams, agentProcess.GetTextFiles(), tempDir)
 	default:
 	}
 
