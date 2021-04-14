@@ -19,8 +19,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
-	"io/ioutil"
-	"os"
+	"path"
 
 	"github.com/go-sql-driver/mysql"
 	"github.com/percona/pmm-agent/agents/process"
@@ -56,7 +55,7 @@ func RegisterMySQLCerts(files map[string]string) error {
 // CreateMySQLCerts generate certificates into temp folder from provided files.
 func CreateMySQLCerts(process *process.Params, files map[string]string, tempDir string) ([]string, error) {
 	var certFileNames []string
-	for k, v := range files {
+	for k, _ := range files {
 		var flag string
 		switch k {
 		case "tlsCert":
@@ -67,21 +66,23 @@ func CreateMySQLCerts(process *process.Params, files map[string]string, tempDir 
 			continue
 		}
 
-		tempFile, err := ioutil.TempFile(tempDir, fmt.Sprintf("mysql_ssl_%s_*", k))
-		if err != nil {
-			return []string{}, errors.WithStack(err)
-		}
-		defer os.Remove(tempFile.Name()) //nolint:errcheck
+		// tempFile, err := ioutil.TempFile(tempDir, fmt.Sprintf("mysql_ssl_%s_*", k))
+		// if err != nil {
+		// 	return []string{}, errors.WithStack(err)
+		// }
+		// // TODO REMOVE
+		// //defer os.Remove(tempFile.Name()) //nolint:errcheck
 
-		if err = ioutil.WriteFile(tempFile.Name(), []byte(v), 0600); err != nil {
-			return []string{}, errors.WithStack(err)
-		}
-
-		process.Args = append(certFileNames, fmt.Sprintf("--%s=%s", flag, tempFile.Name()))
-		certFileNames = append(process.Args, tempFile.Name())
+		// if err = ioutil.WriteFile(tempFile.Name(), []byte(v), 0600); err != nil {
+		// 	return []string{}, errors.WithStack(err)
+		// }
+		path := path.Join(tempDir, k)
+		process.Args = append(process.Args, fmt.Sprintf("--%s=%s", flag, path))
+		certFileNames = append(certFileNames, path)
 	}
 
-	// TODO SSL: processParams.Args = append(processParams.Args, "--mysql.ssl-skip-verify")
+	// TODO REMOVE
+	process.Args = append(process.Args, "--mysql.ssl-skip-verify")
 
 	return certFileNames, nil
 }
