@@ -16,9 +16,7 @@
 package jobs
 
 import (
-	"bytes"
 	"context"
-	"io"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -121,10 +119,10 @@ func prepareRestoreCommands(
 	backupName string,
 	config *BackupLocationConfig,
 	targetDirectory string,
-	stdout io.Writer,
-	stderr io.Writer,
 ) (xbcloud, xbstream *exec.Cmd, _ error) {
-	xbcloudCmd := exec.CommandContext(ctx, xbcloudBin,
+	xbcloudCmd := exec.CommandContext( //nolint:gosec
+		ctx,
+		xbcloudBin,
 		"get",
 		"--storage=s3",
 		"--s3-endpoint="+config.S3Config.Endpoint,
@@ -134,26 +132,23 @@ func prepareRestoreCommands(
 		"--s3-region="+config.S3Config.BucketRegion,
 		"--parallel=10",
 		backupName,
-	) //nolint:gosec
-
-	xbcloudCmd.Stderr = stderr
+	)
 
 	xbcloudStdout, err := xbcloudCmd.StdoutPipe()
 	if err != nil {
 		return nil, nil, errors.Wrapf(err, "failed to get xbcloud stdout pipe")
 	}
 
-	xbstreamCmd := exec.CommandContext(ctx, xbstreamBin,
+	xbstreamCmd := exec.CommandContext( //nolint:gosec
+		ctx,
+		xbstreamBin,
 		"restore",
 		"-x",
 		"--directory="+targetDirectory,
 		"--parallel=10",
 		"--decompress",
-	) //nolint:gosec
-
+	)
 	xbstreamCmd.Stdin = xbcloudStdout
-	xbstreamCmd.Stdout = stdout
-	xbstreamCmd.Stderr = stderr
 
 	return xbcloudCmd, xbstreamCmd, nil
 }
@@ -164,25 +159,22 @@ func restoreMySQLFromS3(
 	backupName string,
 	config *BackupLocationConfig,
 	targetDirectory string,
-) (stdout, stderr *bytes.Buffer, rerr error) {
+) (rerr error) {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	var stdoutBuffer, stderrBuffer bytes.Buffer
 	xbcloudCmd, xbstreamCmd, err := prepareRestoreCommands(
 		ctx,
 		backupName,
 		config,
 		targetDirectory,
-		&stdoutBuffer,
-		&stderrBuffer,
 	)
 	if err != nil {
-		return &stdoutBuffer, &stderrBuffer, err
+		return err
 	}
 
 	if err := xbcloudCmd.Start(); err != nil {
-		return nil, nil, errors.Wrap(err, "xbcloud start failed")
+		return errors.Wrap(err, "xbcloud start failed")
 	}
 	defer func() {
 		err := xbcloudCmd.Wait()
@@ -198,14 +190,14 @@ func restoreMySQLFromS3(
 	}()
 
 	if err := xbstreamCmd.Start(); err != nil {
-		return &stdoutBuffer, &stderrBuffer, errors.Wrap(err, "xbstream start failed")
+		return errors.Wrap(err, "xbstream start failed")
 	}
 
 	if err := xbstreamCmd.Wait(); err != nil {
-		return &stdoutBuffer, &stderrBuffer, errors.Wrap(err, "xbstream wait failed")
+		return errors.Wrap(err, "xbstream wait failed")
 	}
 
-	return &stdoutBuffer, &stderrBuffer, nil
+	return nil
 }
 
 func mySQLActive() (bool, error) {
@@ -374,13 +366,9 @@ func (j *MySQLRestoreJob) Run(ctx context.Context, send Send) (rerr error) {
 		}
 	}()
 
-	stdout, stderr, err := restoreMySQLFromS3(ctx, j.name, &j.location, tmpDir)
-	if err != nil {
+	if err := restoreMySQLFromS3(ctx, j.name, &j.location, tmpDir); err != nil {
 		return errors.WithStack(err)
 	}
-
-	// TODO: stream or store somewhere stdout, stderr
-	_, _ = stdout, stderr
 
 	active, err := mySQLActive()
 	if err != nil {
