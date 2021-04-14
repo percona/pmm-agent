@@ -20,13 +20,15 @@ import (
 	"crypto/x509"
 
 	"github.com/go-sql-driver/mysql"
+	"github.com/pkg/errors"
 )
 
+// RegisterMySQL is used for register TLS config before sql.Open is called.
 func RegisterMySQL(files map[string]string) error {
 	ca := x509.NewCertPool()
 	cert, err := tls.X509KeyPair([]byte(files["tlsCert"]), []byte(files["tlsKey"]))
 	if err != nil {
-		return err
+		return errors.Wrap(err, "register MySQL client cert failed")
 	}
 
 	if ok := ca.AppendCertsFromPEM([]byte(files["tlsCa"])); ok {
@@ -36,7 +38,7 @@ func RegisterMySQL(files map[string]string) error {
 			Certificates:       []tls.Certificate{cert},
 		})
 		if err != nil {
-			return err
+			return errors.Wrap(err, "register MySQL CA cert failed")
 		}
 	}
 
