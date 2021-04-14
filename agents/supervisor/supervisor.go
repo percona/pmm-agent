@@ -353,7 +353,7 @@ func (s *Supervisor) startProcess(agentID string, agentProcess *agentpb.SetState
 			cancel()
 			return err
 		}
-
+	default:
 	}
 
 	process := process.New(processParams, agentProcess.RedactWords, l)
