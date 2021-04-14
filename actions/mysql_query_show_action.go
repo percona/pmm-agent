@@ -17,9 +17,12 @@ package actions
 
 import (
 	"context"
+	"strings"
 
+	"github.com/percona/pmm-agent/tls_helpers"
 	"github.com/percona/pmm/api/agentpb"
 	"github.com/pkg/errors"
+	"github.com/prometheus/common/log"
 )
 
 type mysqlQueryShowAction struct {
@@ -29,6 +32,13 @@ type mysqlQueryShowAction struct {
 
 // NewMySQLQueryShowAction creates MySQL SHOW query Action.
 func NewMySQLQueryShowAction(id string, params *agentpb.StartActionRequest_MySQLQueryShowParams) Action {
+	if strings.Contains(params.Dsn, "tls=custom") {
+		err := tls_helpers.RegisterMySQLCerts(params.TextFiles.Files)
+		if err != nil {
+			log.Error(err)
+		}
+	}
+
 	return &mysqlQueryShowAction{
 		id:     id,
 		params: params,

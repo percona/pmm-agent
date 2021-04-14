@@ -18,8 +18,11 @@ package actions
 import (
 	"context"
 	"fmt"
+	"strings"
 
+	"github.com/percona/pmm-agent/tls_helpers"
 	"github.com/percona/pmm/api/agentpb"
+	"github.com/prometheus/common/log"
 )
 
 type mysqlShowIndexAction struct {
@@ -30,6 +33,13 @@ type mysqlShowIndexAction struct {
 // NewMySQLShowIndexAction creates MySQL SHOW INDEX Action.
 // This is an Action that can run `SHOW INDEX` command on MySQL service with given DSN.
 func NewMySQLShowIndexAction(id string, params *agentpb.StartActionRequest_MySQLShowIndexParams) Action {
+	if strings.Contains(params.Dsn, "tls=custom") {
+		err := tls_helpers.RegisterMySQLCerts(params.TextFiles.Files)
+		if err != nil {
+			log.Error(err)
+		}
+	}
+
 	return &mysqlShowIndexAction{
 		id:     id,
 		params: params,

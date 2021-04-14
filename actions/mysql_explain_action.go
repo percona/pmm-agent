@@ -24,8 +24,10 @@ import (
 	"strings"
 	"text/tabwriter"
 
+	"github.com/percona/pmm-agent/tls_helpers"
 	"github.com/percona/pmm/api/agentpb"
 	"github.com/pkg/errors"
+	"github.com/prometheus/common/log"
 )
 
 type mysqlExplainAction struct {
@@ -36,6 +38,13 @@ type mysqlExplainAction struct {
 // NewMySQLExplainAction creates MySQL Explain Action.
 // This is an Action that can run `EXPLAIN` command on MySQL service with given DSN.
 func NewMySQLExplainAction(id string, params *agentpb.StartActionRequest_MySQLExplainParams) Action {
+	if strings.Contains(params.Dsn, "tls=custom") {
+		err := tls_helpers.RegisterMySQLCerts(params.TextFiles.Files)
+		if err != nil {
+			log.Error(err)
+		}
+	}
+
 	return &mysqlExplainAction{
 		id:     id,
 		params: params,
