@@ -24,6 +24,7 @@ import (
 
 	"github.com/go-sql-driver/mysql"
 	"github.com/pkg/errors"
+	"github.com/prometheus/common/log"
 
 	"github.com/percona/pmm-agent/agents/process"
 )
@@ -56,7 +57,7 @@ func RegisterMySQLCerts(files map[string]string) error {
 
 // ProcessMySQLCertsArgs generate right args for given certificates.
 func ProcessMySQLCertsArgs(process *process.Params, files map[string]string, tempDir string) (func(), error) {
-	var certFileNames []string
+	certFileNames := []string{}
 	for k := range files {
 		path := path.Join(tempDir, k)
 		certFileNames = append(certFileNames, path)
@@ -74,7 +75,11 @@ func ProcessMySQLCertsArgs(process *process.Params, files map[string]string, tem
 	cleanCerts := func() {
 		for _, cert := range certFileNames {
 			if _, err := os.Stat(cert); os.IsExist(err) {
-				os.Remove(cert)
+				e := os.Remove(cert)
+				if e != nil {
+					log.Error(e)
+					return
+				}
 			}
 		}
 	}
