@@ -56,7 +56,7 @@ func RegisterMySQLCerts(files map[string]string) error {
 }
 
 // ProcessMySQLCertsArgs generate right args for given certificates.
-func ProcessMySQLCertsArgs(process *process.Params, files map[string]string, tempDir string) (func(), error) {
+func ProcessMySQLCertsArgs(process *process.Params, files map[string]string, tempDir string) func() {
 	certFileNames := []string{}
 	for k := range files {
 		path := path.Join(tempDir, k)
@@ -84,5 +84,5 @@ func ProcessMySQLCertsArgs(process *process.Params, files map[string]string, tem
 		}
 	}
 
-	return cleanCerts, nil
+	return cleanCerts
 }
