@@ -344,17 +344,20 @@ func (s *Supervisor) startProcess(agentID string, agentProcess *agentpb.SetState
 	})
 	l.Debugf("Starting: %s.", processParams)
 
+	cleanCerts := func() {}
 	switch agentProcess.Type {
 	case inventorypb.AgentType_MYSQLD_EXPORTER:
 		tempDir := filepath.Join(s.paths.TempDir, strings.ToLower(agentType), agentID)
-		_, err := tls_helpers.CreateMySQLCerts(processParams, agentProcess.GetTextFiles(), tempDir)
+		cleanCerts, err = tls_helpers.ProcessMySQLCertsArgs(processParams, agentProcess.GetTextFiles(), tempDir)
 		if err != nil {
 			cancel()
 			return err
 		}
+
 	}
 
 	process := process.New(processParams, agentProcess.RedactWords, l)
+
 	go pprof.Do(ctx, pprof.Labels("agentID", agentID, "type", agentType), process.Run)
 
 	done := make(chan struct{})
@@ -369,6 +372,7 @@ func (s *Supervisor) startProcess(agentID string, agentProcess *agentpb.SetState
 			}
 		}
 		close(done)
+		cleanCerts()
 	}()
 
 	s.agentProcesses[agentID] = &agentProcessInfo{
@@ -409,15 +413,11 @@ func (s *Supervisor) startBuiltin(agentID string, builtinAgent *agentpb.SetState
 
 	switch builtinAgent.Type {
 	case inventorypb.AgentType_QAN_MYSQL_PERFSCHEMA_AGENT:
-		if strings.Contains(dsn, "tls=custom") {
-			textFiles := builtinAgent.GetTextFiles()
-			err = tls_helpers.RegisterMySQLCerts(textFiles.Files)
-		}
-
 		params := &perfschema.Params{
 			DSN:                  dsn,
 			AgentID:              agentID,
 			DisableQueryExamples: builtinAgent.DisableQueryExamples,
+			TextFiles:            builtinAgent.GetTextFiles(),
 		}
 		agent, err = perfschema.New(params, l)
 
@@ -429,17 +429,13 @@ func (s *Supervisor) startBuiltin(agentID string, builtinAgent *agentpb.SetState
 		agent, err = mongodb.New(params, l)
 
 	case inventorypb.AgentType_QAN_MYSQL_SLOWLOG_AGENT:
-		if strings.Contains(dsn, "tls=custom") {
-			textFiles := builtinAgent.GetTextFiles()
-			err = tls_helpers.RegisterMySQLCerts(textFiles.Files)
-		}
-
 		params := &slowlog.Params{
 			DSN:                  dsn,
 			AgentID:              agentID,
 			SlowLogFilePrefix:    s.paths.SlowLogFilePrefix,
 			DisableQueryExamples: builtinAgent.DisableQueryExamples,
 			MaxSlowlogFileSize:   builtinAgent.MaxQueryLogSize,
+			TextFiles:            builtinAgent.GetTextFiles(),
 		}
 		agent, err = slowlog.New(params, l)
 

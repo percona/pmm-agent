@@ -19,6 +19,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
+	"os"
 	"path"
 
 	"github.com/go-sql-driver/mysql"
@@ -52,37 +53,30 @@ func RegisterMySQLCerts(files map[string]string) error {
 	return nil
 }
 
-// CreateMySQLCerts generate certificates into temp folder from provided files.
-func CreateMySQLCerts(process *process.Params, files map[string]string, tempDir string) ([]string, error) {
+// ProcessMySQLCertsArgs generate right args for given certificates.
+func ProcessMySQLCertsArgs(process *process.Params, files map[string]string, tempDir string) (func(), error) {
 	var certFileNames []string
 	for k, _ := range files {
-		var flag string
+		path := path.Join(tempDir, k)
+		certFileNames = append(certFileNames, path)
+
 		switch k {
 		case "tlsCert":
-			flag = "mysql.ssl-cert-file"
+			process.Args = append(process.Args, fmt.Sprintf("--%s=%s", "mysql.ssl-cert-file", path))
 		case "tlsKey":
-			flag = "mysql.ssl-key-file"
+			process.Args = append(process.Args, fmt.Sprintf("--%s=%s", "mysql.ssl-key-file", path))
 		default:
 			continue
 		}
-
-		// tempFile, err := ioutil.TempFile(tempDir, fmt.Sprintf("mysql_ssl_%s_*", k))
-		// if err != nil {
-		// 	return []string{}, errors.WithStack(err)
-		// }
-		// // TODO REMOVE
-		// //defer os.Remove(tempFile.Name()) //nolint:errcheck
-
-		// if err = ioutil.WriteFile(tempFile.Name(), []byte(v), 0600); err != nil {
-		// 	return []string{}, errors.WithStack(err)
-		// }
-		path := path.Join(tempDir, k)
-		process.Args = append(process.Args, fmt.Sprintf("--%s=%s", flag, path))
-		certFileNames = append(certFileNames, path)
 	}
 
-	// TODO REMOVE
-	process.Args = append(process.Args, "--mysql.ssl-skip-verify")
+	cleanCerts := func() {
+		for _, cert := range certFileNames {
+			if _, err := os.Stat(cert); os.IsExist(err) {
+				os.Remove(cert)
+			}
+		}
+	}
 
-	return certFileNames, nil
+	return cleanCerts, nil
 }
