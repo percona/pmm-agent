@@ -20,9 +20,10 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/percona/pmm-agent/tlshelpers"
 	"github.com/percona/pmm/api/agentpb"
 	"github.com/prometheus/common/log"
+
+	"github.com/percona/pmm-agent/tlshelpers"
 )
 
 type mysqlShowIndexAction struct {
