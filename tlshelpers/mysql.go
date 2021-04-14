@@ -23,8 +23,9 @@ import (
 	"path"
 
 	"github.com/go-sql-driver/mysql"
-	"github.com/percona/pmm-agent/agents/process"
 	"github.com/pkg/errors"
+
+	"github.com/percona/pmm-agent/agents/process"
 )
 
 // RegisterMySQLCerts is used for register TLS config before sql.Open is called.
