@@ -18,6 +18,7 @@ package jobs
 import (
 	"bytes"
 	"context"
+	"io"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -45,10 +46,11 @@ const (
 	activeCheckInterval = time.Second
 )
 
+// MySQLRestoreJob implements Job for MySQL backup restore.
 type MySQLRestoreJob struct {
 	id       string
 	timeout  time.Duration
-	l        *logrus.Entry
+	l        logrus.FieldLogger
 	name     string
 	location BackupLocationConfig
 }
@@ -113,17 +115,14 @@ func binariesInstalled() error {
 	return nil
 }
 
-// stdout and stderr could be returned even if rerr is not nil
-func restoreMySQLFromS3(
+func prepareRestoreCommands(
 	ctx context.Context,
 	backupName string,
 	config *BackupLocationConfig,
 	targetDirectory string,
-) (stdout, stderr *bytes.Buffer, rerr error) {
-	ctx, cancel := context.WithCancel(ctx)
-	defer func() {
-		cancel()
-	}()
+	stdout io.Writer,
+	stderr io.Writer,
+) (xbcloud, xbstream *exec.Cmd, _ error) {
 
 	xbcloudCmd := exec.CommandContext(ctx, xbcloudBin,
 		"get",
@@ -135,10 +134,9 @@ func restoreMySQLFromS3(
 		"--s3-region="+config.S3Config.BucketRegion,
 		"--parallel=10",
 		backupName,
-	)
+	) // #nosec G204
 
-	var stderrBuffer bytes.Buffer
-	xbcloudCmd.Stderr = &stderrBuffer
+	xbcloudCmd.Stderr = stderr
 
 	xbcloudStdout, err := xbcloudCmd.StdoutPipe()
 	if err != nil {
@@ -151,12 +149,37 @@ func restoreMySQLFromS3(
 		"--directory="+targetDirectory,
 		"--parallel=10",
 		"--decompress",
-	)
+	) // #nosec G204
 
-	var stdoutBuffer bytes.Buffer
 	xbstreamCmd.Stdin = xbcloudStdout
-	xbstreamCmd.Stdout = &stdoutBuffer
-	xbstreamCmd.Stderr = &stderrBuffer
+	xbstreamCmd.Stdout = stdout
+	xbstreamCmd.Stderr = stderr
+
+	return xbcloudCmd, xbstreamCmd, nil
+}
+
+// stdout and stderr could be returned even if rerr is not nil
+func restoreMySQLFromS3(
+	ctx context.Context,
+	backupName string,
+	config *BackupLocationConfig,
+	targetDirectory string,
+) (stdout, stderr *bytes.Buffer, rerr error) {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	var stdoutBuffer, stderrBuffer bytes.Buffer
+	xbcloudCmd, xbstreamCmd, err := prepareRestoreCommands(
+		ctx,
+		backupName,
+		config,
+		targetDirectory,
+		&stdoutBuffer,
+		&stderrBuffer,
+	)
+	if err != nil {
+		return &stdoutBuffer, &stderrBuffer, err
+	}
 
 	if err := xbcloudCmd.Start(); err != nil {
 		return nil, nil, errors.Wrap(err, "xbcloud start failed")
