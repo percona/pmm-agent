@@ -124,7 +124,6 @@ func prepareRestoreCommands(
 	stdout io.Writer,
 	stderr io.Writer,
 ) (xbcloud, xbstream *exec.Cmd, _ error) {
-
 	xbcloudCmd := exec.CommandContext(ctx, xbcloudBin,
 		"get",
 		"--storage=s3",
@@ -135,7 +134,7 @@ func prepareRestoreCommands(
 		"--s3-region="+config.S3Config.BucketRegion,
 		"--parallel=10",
 		backupName,
-	) // #nosec G204
+	) //nolint:gosec
 
 	xbcloudCmd.Stderr = stderr
 
@@ -150,7 +149,7 @@ func prepareRestoreCommands(
 		"--directory="+targetDirectory,
 		"--parallel=10",
 		"--decompress",
-	) // #nosec G204
+	) //nolint:gosec
 
 	xbstreamCmd.Stdin = xbcloudStdout
 	xbstreamCmd.Stdout = stdout
@@ -216,7 +215,7 @@ func mySQLActive() (bool, error) {
 		return true, nil
 	}
 
-	if _, ok := err.(*exec.ExitError); ok {
+	if errors.As(err, &exec.ExitError{}) {
 		return false, nil
 	}
 
@@ -307,8 +306,8 @@ func isPathExists(path string) (bool, error) {
 }
 
 func restoreBackup(backupDirectory, mySQLDirectory string) error {
-	if _, err := exec.Command(xtrabackupBin, "--prepare", "--target-dir="+backupDirectory).
-		Output(); err != nil { // #nosec G204
+	if _, err := exec.Command(xtrabackupBin, "--prepare", "--target-dir="+backupDirectory). //nolint:gosec
+		Output(); err != nil {
 		return errors.WithStack(err)
 	}
 
