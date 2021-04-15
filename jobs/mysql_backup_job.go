@@ -31,13 +31,14 @@ import (
 const (
 	xtrabackupBin = "xtrabackup"
 	xbcloudBin    = "xbcloud"
+	qpressBin     = "qpress"
 )
 
 // MySQLBackupJob implements Job for MySQL backup.
 type MySQLBackupJob struct {
 	id       string
 	timeout  time.Duration
-	l        *logrus.Entry
+	l        logrus.FieldLogger
 	name     string
 	db       DatabaseConfig
 	location BackupLocationConfig
@@ -99,6 +100,10 @@ func (j *MySQLBackupJob) Run(ctx context.Context, send Send) error {
 
 	if _, err := exec.LookPath(xtrabackupBin); err != nil {
 		return errors.Wrapf(err, "lookpath: %s", xtrabackupBin)
+	}
+
+	if _, err := exec.LookPath(qpressBin); err != nil {
+		return errors.Wrapf(err, "lookpath: %s", qpressBin)
 	}
 
 	if j.location.S3Config != nil {
