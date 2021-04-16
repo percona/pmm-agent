@@ -94,7 +94,7 @@ func (j *MySQLBackupJob) Timeout() time.Duration {
 	return j.timeout
 }
 
-func (j *MySQLBackupJob) Run(ctx context.Context, send Send) error {
+func (j *MySQLBackupJob) Run(ctx context.Context, send Send) (rerr error) {
 	t := time.Now()
 	j.l.Info("MySQL backup started")
 
@@ -168,16 +168,23 @@ func (j *MySQLBackupJob) Run(ctx context.Context, send Send) error {
 		if err := xbcloudCmd.Start(); err != nil {
 			return wrapError(err)
 		}
+
+		defer func() {
+			err := xbcloudCmd.Wait()
+			if err == nil {
+				return
+			}
+
+			if rerr != nil {
+				rerr = errors.Wrapf(rerr, "xbcloud wait error: %s", err)
+			} else {
+				rerr = wrapError(err)
+			}
+		}()
 	}
 
 	if err := xtrabackupCmd.Start(); err != nil {
 		return wrapError(err)
-	}
-
-	if xbcloudCmd != nil {
-		if err := xbcloudCmd.Wait(); err != nil {
-			return wrapError(err)
-		}
 	}
 
 	if err := xtrabackupCmd.Wait(); err != nil {
