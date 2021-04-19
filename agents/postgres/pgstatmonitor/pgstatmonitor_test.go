@@ -196,7 +196,6 @@ func TestPGStatMonitorSchema(t *testing.T) {
 		if !m.pgsmNormalizedQuery && !m.disableQueryExamples {
 			example = actual.Common.Example
 		}
-		actual.Common.Username = strings.ReplaceAll(actual.Common.Username, `"`, "")
 
 		expected := &agentpb.MetricsBucket{
 			Common: &agentpb.MetricsBucket_Common{
@@ -449,8 +448,8 @@ func TestPGStatMonitorSchema(t *testing.T) {
 				NumQueries:          float32(n),
 				MQueryTimeCnt:       float32(n),
 				MQueryTimeSum:       actual.Common.MQueryTimeSum,
-				// FIXME: Why tables is empty here?
-				// Tables:              []string{fmt.Sprintf("public.%s", tableName)},
+				// FIXME: Why tables is empty here? this will error.
+				Tables: []string{fmt.Sprintf("public.%s", tableName)},
 			},
 			Postgresql: &agentpb.MetricsBucket_PostgreSQL{
 				MBlkReadTimeCnt:       float32(n),
