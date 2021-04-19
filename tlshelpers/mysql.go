@@ -20,10 +20,8 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path"
-	"path/filepath"
 
 	"github.com/go-sql-driver/mysql"
 	"github.com/pkg/errors"
@@ -38,37 +36,21 @@ func RegisterMySQLCerts(files map[string]string) error {
 		return fmt.Errorf("CreateMySQLTempCerts: nothing to register")
 	}
 
-	var tlsCfg tls.Config
-	caBundle := x509.NewCertPool()
-
-	// CA is not mandatory. It is OK if we only have ssl-cert and ssl-key.
-	if files["tlsCa"] != "" {
-		pemCA, err := ioutil.ReadFile(filepath.Clean(files["tlsCa"]))
-		if err != nil {
-			return err
-		}
-		if ok := caBundle.AppendCertsFromPEM(pemCA); ok {
-			tlsCfg.RootCAs = caBundle
-		} else {
-			return errors.Wrapf(err, "failed parse pem-encoded CA certificates from %s", files["tlsCa"])
-		}
-	}
-
-	if files["tlsCert"] != "" && files["tlsKey"] != "" {
-		certPairs := make([]tls.Certificate, 0, 1)
-		keypair, err := tls.LoadX509KeyPair(files["tlsCert"], files["tlsKey"])
-		if err != nil {
-			return errors.Wrapf(err, "failed to parse pem-encoded SSL cert %s or SSL key %s", files["tlsCert"], files["tlsKey"])
-		}
-
-		certPairs = append(certPairs, keypair)
-		tlsCfg.Certificates = certPairs
-		tlsCfg.InsecureSkipVerify = true
-	}
-
-	err := mysql.RegisterTLSConfig("custom", &tlsCfg)
+	ca := x509.NewCertPool()
+	cert, err := tls.X509KeyPair([]byte(files["tlsCert"]), []byte(files["tlsKey"]))
 	if err != nil {
-		return errors.Wrap(err, "register MySQL CA cert failed")
+		return errors.Wrap(err, "register MySQL client cert failed")
+	}
+
+	if ok := ca.AppendCertsFromPEM([]byte(files["tlsCa"])); ok {
+		err = mysql.RegisterTLSConfig("custom", &tls.Config{
+			InsecureSkipVerify: false,
+			RootCAs:            ca,
+			Certificates:       []tls.Certificate{cert},
+		})
+		if err != nil {
+			return errors.Wrap(err, "register MySQL CA cert failed")
+		}
 	}
 
 	return nil
