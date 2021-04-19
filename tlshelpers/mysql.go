@@ -71,7 +71,6 @@ func ProcessMySQLCertsArgs(process *process.Params, files map[string]string, tem
 		default:
 			continue
 		}
-
 	}
 
 	if tlsSkipVerify {
