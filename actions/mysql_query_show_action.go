@@ -17,7 +17,6 @@ package actions
 
 import (
 	"context"
-	"strings"
 
 	"github.com/percona/pmm/api/agentpb"
 	"github.com/pkg/errors"
@@ -33,8 +32,8 @@ type mysqlQueryShowAction struct {
 
 // NewMySQLQueryShowAction creates MySQL SHOW query Action.
 func NewMySQLQueryShowAction(id string, params *agentpb.StartActionRequest_MySQLQueryShowParams) Action {
-	if strings.Contains(params.Dsn, "tls=custom") {
-		err := tlshelpers.RegisterMySQLCerts(params.TlsFiles.Files)
+	if params.Tls {
+		err := tlshelpers.RegisterMySQLCerts(params.TlsFiles.Files, params.TlsSkipVerify)
 		if err != nil {
 			log.Error(err)
 		}

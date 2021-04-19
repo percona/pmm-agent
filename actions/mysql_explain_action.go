@@ -39,8 +39,8 @@ type mysqlExplainAction struct {
 // NewMySQLExplainAction creates MySQL Explain Action.
 // This is an Action that can run `EXPLAIN` command on MySQL service with given DSN.
 func NewMySQLExplainAction(id string, params *agentpb.StartActionRequest_MySQLExplainParams) Action {
-	if strings.Contains(params.Dsn, "tls=custom") {
-		err := tlshelpers.RegisterMySQLCerts(params.TlsFiles.Files)
+	if params.Tls {
+		err := tlshelpers.RegisterMySQLCerts(params.TlsFiles.Files, params.TlsSkipVerify)
 		if err != nil {
 			log.Error(err)
 		}

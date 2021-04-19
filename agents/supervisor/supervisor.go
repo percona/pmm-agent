@@ -347,8 +347,16 @@ func (s *Supervisor) startProcess(agentID string, agentProcess *agentpb.SetState
 	cleanCerts := func() {}
 	switch agentProcess.Type {
 	case inventorypb.AgentType_MYSQLD_EXPORTER:
+		if agentProcess.Tls {
+			err := tlshelpers.RegisterMySQLCerts(agentProcess.TextFiles, agentProcess.TlsSkipVerify)
+			if err != nil {
+				cancel()
+				return err
+			}
+		}
+
 		tempDir := filepath.Join(s.paths.TempDir, strings.ToLower(agentType), agentID)
-		cleanCerts = tlshelpers.ProcessMySQLCertsArgs(processParams, agentProcess.GetTextFiles(), tempDir)
+		cleanCerts = tlshelpers.ProcessMySQLCertsArgs(processParams, agentProcess.GetTextFiles(), tempDir, agentProcess.TlsSkipVerify)
 	default:
 	}
 
@@ -414,6 +422,8 @@ func (s *Supervisor) startBuiltin(agentID string, builtinAgent *agentpb.SetState
 			AgentID:              agentID,
 			DisableQueryExamples: builtinAgent.DisableQueryExamples,
 			TextFiles:            builtinAgent.GetTextFiles(),
+			TLS:                  builtinAgent.Tls,
+			TLSSkipVerify:        builtinAgent.TlsSkipVerify,
 		}
 		agent, err = perfschema.New(params, l)
 
@@ -432,6 +442,8 @@ func (s *Supervisor) startBuiltin(agentID string, builtinAgent *agentpb.SetState
 			DisableQueryExamples: builtinAgent.DisableQueryExamples,
 			MaxSlowlogFileSize:   builtinAgent.MaxQueryLogSize,
 			TextFiles:            builtinAgent.GetTextFiles(),
+			TLS:                  builtinAgent.Tls,
+			TLSSkipVerify:        builtinAgent.TlsSkipVerify,
 		}
 		agent, err = slowlog.New(params, l)
 

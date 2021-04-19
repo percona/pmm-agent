@@ -24,7 +24,6 @@ import (
 	"math"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
 	_ "github.com/go-sql-driver/mysql" // register SQL driver
@@ -65,6 +64,8 @@ type Params struct {
 	MaxSlowlogFileSize   int64
 	SlowLogFilePrefix    string // for development and testing
 	TextFiles            *agentpb.TextFiles
+	TLS                  bool
+	TLSSkipVerify        bool
 }
 
 const queryTag = "pmm-agent:slowlog"
@@ -76,8 +77,8 @@ type slowLogInfo struct {
 
 // New creates new SlowLog QAN service.
 func New(params *Params, l *logrus.Entry) (*SlowLog, error) {
-	if strings.Contains(params.DSN, "tls=custom") {
-		err := tlshelpers.RegisterMySQLCerts(params.TextFiles.Files)
+	if params.TLS {
+		err := tlshelpers.RegisterMySQLCerts(params.TextFiles.Files, params.TLSSkipVerify)
 		if err != nil {
 			return nil, err
 		}

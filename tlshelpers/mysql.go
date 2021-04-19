@@ -31,7 +31,7 @@ import (
 )
 
 // RegisterMySQLCerts is used for register TLS config before sql.Open is called.
-func RegisterMySQLCerts(files map[string]string) error {
+func RegisterMySQLCerts(files map[string]string, tlsSkipVerify bool) error {
 	if files == nil {
 		return fmt.Errorf("CreateMySQLTempCerts: nothing to register")
 	}
@@ -44,7 +44,7 @@ func RegisterMySQLCerts(files map[string]string) error {
 
 	if ok := ca.AppendCertsFromPEM([]byte(files["tlsCa"])); ok {
 		err = mysql.RegisterTLSConfig("custom", &tls.Config{
-			InsecureSkipVerify: false,
+			InsecureSkipVerify: tlsSkipVerify,
 			RootCAs:            ca,
 			Certificates:       []tls.Certificate{cert},
 		})
@@ -57,7 +57,7 @@ func RegisterMySQLCerts(files map[string]string) error {
 }
 
 // ProcessMySQLCertsArgs generate right args for given certificates.
-func ProcessMySQLCertsArgs(process *process.Params, files map[string]string, tempDir string) func() {
+func ProcessMySQLCertsArgs(process *process.Params, files map[string]string, tempDir string, tlsSkipVerify bool) func() {
 	certFileNames := []string{}
 	for k := range files {
 		path := path.Join(tempDir, k)
@@ -71,6 +71,11 @@ func ProcessMySQLCertsArgs(process *process.Params, files map[string]string, tem
 		default:
 			continue
 		}
+
+	}
+
+	if tlsSkipVerify {
+		process.Args = append(process.Args, "--mysql.ssl-skip-verify")
 	}
 
 	cleanCerts := func() {

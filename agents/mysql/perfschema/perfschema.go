@@ -21,7 +21,6 @@ import (
 	"database/sql"
 	"io"
 	"math"
-	"strings"
 	"time"
 
 	"github.com/AlekSi/pointer"
@@ -64,6 +63,8 @@ type Params struct {
 	AgentID              string
 	DisableQueryExamples bool
 	TextFiles            *agentpb.TextFiles
+	TLS                  bool
+	TLSSkipVerify        bool
 }
 
 // newPerfSchemaParams holds all required parameters to instantiate a new PerfSchema
@@ -79,8 +80,8 @@ const queryTag = "pmm-agent:perfschema"
 
 // New creates new PerfSchema QAN service.
 func New(params *Params, l *logrus.Entry) (*PerfSchema, error) {
-	if strings.Contains(params.DSN, "tls=custom") {
-		err := tlshelpers.RegisterMySQLCerts(params.TextFiles.Files)
+	if params.TLS {
+		err := tlshelpers.RegisterMySQLCerts(params.TextFiles.Files, params.TLSSkipVerify)
 		if err != nil {
 			return nil, err
 		}
