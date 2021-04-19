@@ -34,7 +34,7 @@ type mysqlQueryShowAction struct {
 // NewMySQLQueryShowAction creates MySQL SHOW query Action.
 func NewMySQLQueryShowAction(id string, params *agentpb.StartActionRequest_MySQLQueryShowParams) Action {
 	if strings.Contains(params.Dsn, "tls=custom") {
-		err := tlshelpers.RegisterMySQLCerts(params.TextFiles.Files)
+		err := tlshelpers.RegisterMySQLCerts(params.TlsFiles.Files)
 		if err != nil {
 			log.Error(err)
 		}

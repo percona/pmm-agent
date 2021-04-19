@@ -35,7 +35,7 @@ type mysqlShowIndexAction struct {
 // This is an Action that can run `SHOW INDEX` command on MySQL service with given DSN.
 func NewMySQLShowIndexAction(id string, params *agentpb.StartActionRequest_MySQLShowIndexParams) Action {
 	if strings.Contains(params.Dsn, "tls=custom") {
-		err := tlshelpers.RegisterMySQLCerts(params.TextFiles.Files)
+		err := tlshelpers.RegisterMySQLCerts(params.TlsFiles.Files)
 		if err != nil {
 			log.Error(err)
 		}

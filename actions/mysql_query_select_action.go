@@ -34,7 +34,7 @@ type mysqlQuerySelectAction struct {
 // NewMySQLQuerySelectAction creates MySQL SELECT query Action.
 func NewMySQLQuerySelectAction(id string, params *agentpb.StartActionRequest_MySQLQuerySelectParams) Action {
 	if strings.Contains(params.Dsn, "tls=custom") {
-		err := tlshelpers.RegisterMySQLCerts(params.TextFiles.Files)
+		err := tlshelpers.RegisterMySQLCerts(params.TlsFiles.Files)
 		if err != nil {
 			log.Error(err)
 		}
