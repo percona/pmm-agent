@@ -20,8 +20,12 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
+	"path/filepath"
+	"strings"
 
 	"github.com/go-sql-driver/mysql"
+	"github.com/percona/pmm-agent/utils/templates"
+	"github.com/percona/pmm/api/agentpb"
 	"github.com/pkg/errors"
 )
 
@@ -49,4 +53,40 @@ func RegisterMySQLCerts(files map[string]string, tlsSkipVerify bool) error {
 	}
 
 	return nil
+}
+
+func CreateMySQLCerts(processArgs []string, agentProcess *agentpb.SetStateRequest_AgentProcess, path, agentID string) ([]string, error) {
+	tempDir := filepath.Join(path, strings.ToLower(agentProcess.Type.String()), agentID)
+
+	tr := &templates.TemplateRenderer{
+		TextFiles:          agentProcess.TextFiles,
+		TemplateLeftDelim:  agentProcess.TemplateLeftDelim,
+		TemplateRightDelim: agentProcess.TemplateRightDelim,
+		TempDir:            tempDir,
+	}
+
+	files, err := tr.RenderFiles(make(map[string]interface{}))
+	if err != nil {
+		return []string{}, err
+	}
+
+	var ok bool
+	var textFiles map[string]string
+	if textFiles, ok = files["TextFiles"].(map[string]string); ok {
+		args := []string{}
+		for _, a := range processArgs {
+			switch a {
+			case "--mysql.ssl-cert-file=tlsCert":
+				args = append(args, fmt.Sprintf("--mysql.ssl-cert-file=%s", textFiles["tlsCert"]))
+			case "--mysql.ssl-key-file=tlsKey":
+				args = append(args, fmt.Sprintf("--mysql.ssl-key-file=%s", textFiles["tlsKey"]))
+			default:
+				args = append(args, a)
+			}
+		}
+
+		return args, nil
+	}
+
+	return []string{}, fmt.Errorf("textfiles are not valid")
 }
