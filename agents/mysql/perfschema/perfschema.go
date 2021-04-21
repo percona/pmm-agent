@@ -79,7 +79,7 @@ const queryTag = "pmm-agent:perfschema"
 
 // New creates new PerfSchema QAN service.
 func New(params *Params, l *logrus.Entry) (*PerfSchema, error) {
-	if params.TextFiles.Files != nil {
+	if params.TextFiles != nil {
 		err := tlshelpers.RegisterMySQLCerts(params.TextFiles.Files, params.TLSSkipVerify)
 		if err != nil {
 			return nil, err

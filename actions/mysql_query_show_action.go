@@ -32,7 +32,7 @@ type mysqlQueryShowAction struct {
 
 // NewMySQLQueryShowAction creates MySQL SHOW query Action.
 func NewMySQLQueryShowAction(id string, params *agentpb.StartActionRequest_MySQLQueryShowParams) Action {
-	if params.TlsFiles.Files != nil {
+	if params.TlsFiles != nil {
 		err := tlshelpers.RegisterMySQLCerts(params.TlsFiles.Files, params.TlsSkipVerify)
 		if err != nil {
 			log.Error(err)

@@ -33,7 +33,7 @@ type mysqlShowIndexAction struct {
 // NewMySQLShowIndexAction creates MySQL SHOW INDEX Action.
 // This is an Action that can run `SHOW INDEX` command on MySQL service with given DSN.
 func NewMySQLShowIndexAction(id string, params *agentpb.StartActionRequest_MySQLShowIndexParams) Action {
-	if params.TlsFiles.Files != nil {
+	if params.TlsFiles != nil {
 		err := tlshelpers.RegisterMySQLCerts(params.TlsFiles.Files, params.TlsSkipVerify)
 		if err != nil {
 			log.Error(err)
