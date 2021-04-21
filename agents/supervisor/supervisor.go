@@ -344,7 +344,7 @@ func (s *Supervisor) startProcess(agentID string, agentProcess *agentpb.SetState
 	l.Debugf("Starting: %s.", processParams)
 
 	if agentProcess.TextFiles != nil {
-		switch agentType {
+		switch agentProcess.Type {
 		case inventorypb.AgentType_MYSQLD_EXPORTER:
 			tempDir := filepath.Join(s.paths.TempDir, strings.ToLower(agentProcess.Type.String()), agentID)
 
