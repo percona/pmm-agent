@@ -20,14 +20,9 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
-	"os"
-	"path"
 
 	"github.com/go-sql-driver/mysql"
 	"github.com/pkg/errors"
-	"github.com/prometheus/common/log"
-
-	"github.com/percona/pmm-agent/agents/process"
 )
 
 // RegisterMySQLCerts is used for register TLS config before sql.Open is called.
@@ -54,40 +49,4 @@ func RegisterMySQLCerts(files map[string]string, tlsSkipVerify bool) error {
 	}
 
 	return nil
-}
-
-// ProcessMySQLCertsArgs generate right args for given certificates.
-func ProcessMySQLCertsArgs(process *process.Params, files map[string]string, tempDir string, tlsSkipVerify bool) func() {
-	certFileNames := []string{}
-	for k := range files {
-		path := path.Join(tempDir, k)
-		certFileNames = append(certFileNames, path)
-
-		switch k {
-		case "tlsCert":
-			process.Args = append(process.Args, fmt.Sprintf("--%s=%s", "mysql.ssl-cert-file", path))
-		case "tlsKey":
-			process.Args = append(process.Args, fmt.Sprintf("--%s=%s", "mysql.ssl-key-file", path))
-		default:
-			continue
-		}
-	}
-
-	if tlsSkipVerify {
-		process.Args = append(process.Args, "--mysql.ssl-skip-verify")
-	}
-
-	cleanCerts := func() {
-		for _, cert := range certFileNames {
-			if _, err := os.Stat(cert); os.IsExist(err) {
-				e := os.Remove(cert)
-				if e != nil {
-					log.Error(e)
-					return
-				}
-			}
-		}
-	}
-
-	return cleanCerts
 }

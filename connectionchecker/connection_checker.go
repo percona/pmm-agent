@@ -68,7 +68,7 @@ func (cc *ConnectionChecker) Check(ctx context.Context, msg *agentpb.CheckConnec
 
 	switch msg.Type {
 	case inventorypb.ServiceType_MYSQL_SERVICE:
-		return cc.checkMySQLConnection(ctx, msg.Dsn, msg.TextFiles, msg.Tls, msg.TlsSkipVerify)
+		return cc.checkMySQLConnection(ctx, msg.Dsn, msg.TextFiles, msg.Tls, msg.TlsSkipVerify, id)
 	case inventorypb.ServiceType_MONGODB_SERVICE:
 		return cc.checkMongoDBConnection(ctx, msg.Dsn, msg.TextFiles, id)
 	case inventorypb.ServiceType_POSTGRESQL_SERVICE:
@@ -90,7 +90,7 @@ func (cc *ConnectionChecker) sqlPing(ctx context.Context, db *sql.DB) error {
 	return err
 }
 
-func (cc *ConnectionChecker) checkMySQLConnection(ctx context.Context, dsn string, files *agentpb.TextFiles, tls, tlsSkipVerify bool) *agentpb.CheckConnectionResponse {
+func (cc *ConnectionChecker) checkMySQLConnection(ctx context.Context, dsn string, files *agentpb.TextFiles, tls, tlsSkipVerify bool, id uint32) *agentpb.CheckConnectionResponse {
 	var res agentpb.CheckConnectionResponse
 	var err error
 
@@ -101,6 +101,14 @@ func (cc *ConnectionChecker) checkMySQLConnection(ctx context.Context, dsn strin
 			res.Error = err.Error()
 			return &res
 		}
+	}
+
+	tempdir := filepath.Join(cc.paths.TempDir, strings.ToLower("check-mysql-connection"), strconv.Itoa(int(id)))
+	_, err = templates.RenderDSN(dsn, files, tempdir)
+	if err != nil {
+		cc.l.Debugf("checkMySQLDBConnection: failed to Render DSN: %s", err)
+		res.Error = err.Error()
+		return &res
 	}
 
 	var cfg *mysql.Config

@@ -42,7 +42,6 @@ import (
 	"github.com/percona/pmm-agent/agents/postgres/pgstatstatements"
 	"github.com/percona/pmm-agent/agents/process"
 	"github.com/percona/pmm-agent/config"
-	"github.com/percona/pmm-agent/tlshelpers"
 	"github.com/percona/pmm-agent/utils/templates"
 )
 
@@ -344,20 +343,42 @@ func (s *Supervisor) startProcess(agentID string, agentProcess *agentpb.SetState
 	})
 	l.Debugf("Starting: %s.", processParams)
 
-	cleanCerts := func() {}
-	switch agentProcess.Type {
-	case inventorypb.AgentType_MYSQLD_EXPORTER:
-		if agentProcess.Tls {
-			err := tlshelpers.RegisterMySQLCerts(agentProcess.TextFiles, agentProcess.TlsSkipVerify)
+	if agentProcess.TextFiles != nil {
+		switch agentType {
+		case inventorypb.AgentType_MYSQLD_EXPORTER:
+			tempDir := filepath.Join(s.paths.TempDir, strings.ToLower(agentProcess.Type.String()), agentID)
+
+			tr := &templates.TemplateRenderer{
+				TextFiles:          agentProcess.TextFiles,
+				TemplateLeftDelim:  agentProcess.TemplateLeftDelim,
+				TemplateRightDelim: agentProcess.TemplateRightDelim,
+				TempDir:            tempDir,
+			}
+
+			files, err := tr.RenderFiles(make(map[string]interface{}))
 			if err != nil {
 				cancel()
 				return err
 			}
-		}
 
-		tempDir := filepath.Join(s.paths.TempDir, strings.ToLower(agentType), agentID)
-		cleanCerts = tlshelpers.ProcessMySQLCertsArgs(processParams, agentProcess.GetTextFiles(), tempDir, agentProcess.TlsSkipVerify)
-	default:
+			var ok bool
+			var textFiles map[string]string
+			if textFiles, ok = files["TextFiles"].(map[string]string); ok {
+				args := []string{}
+				for _, a := range processParams.Args {
+					switch a {
+					case "--mysql.ssl-cert-file=tlsCert":
+						args = append(args, fmt.Sprintf("--mysql.ssl-cert-file=%s", textFiles["tlsCert"]))
+					case "--mysql.ssl-key-file=tlsKey":
+						args = append(args, fmt.Sprintf("--mysql.ssl-key-file=%s", textFiles["tlsKey"]))
+					default:
+						args = append(args, a)
+					}
+				}
+
+				processParams.Args = args
+			}
+		}
 	}
 
 	process := process.New(processParams, agentProcess.RedactWords, l)
@@ -376,7 +397,6 @@ func (s *Supervisor) startProcess(agentID string, agentProcess *agentpb.SetState
 			}
 		}
 		close(done)
-		cleanCerts()
 	}()
 
 	s.agentProcesses[agentID] = &agentProcessInfo{
