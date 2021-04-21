@@ -33,7 +33,7 @@ import (
 // RegisterMySQLCerts is used for register TLS config before sql.Open is called.
 func RegisterMySQLCerts(files map[string]string, tlsSkipVerify bool) error {
 	if files == nil {
-		return fmt.Errorf("CreateMySQLTempCerts: nothing to register")
+		return fmt.Errorf("RegisterMySQLCerts: nothing to register")
 	}
 
 	ca := x509.NewCertPool()
@@ -56,6 +56,7 @@ func RegisterMySQLCerts(files map[string]string, tlsSkipVerify bool) error {
 	return nil
 }
 
+// CreateMySQLCerts create certs from attached files and return new args.
 func CreateMySQLCerts(processArgs []string, agentProcess *agentpb.SetStateRequest_AgentProcess, path, agentID string) ([]string, error) {
 	tempDir := filepath.Join(path, strings.ToLower(agentProcess.Type.String()), agentID)
 
@@ -68,7 +69,7 @@ func CreateMySQLCerts(processArgs []string, agentProcess *agentpb.SetStateReques
 
 	files, err := tr.RenderFiles(make(map[string]interface{}))
 	if err != nil {
-		return []string{}, err
+		return []string{}, errors.Wrap(err, "render of certs files failed")
 	}
 
 	var ok bool
@@ -89,5 +90,5 @@ func CreateMySQLCerts(processArgs []string, agentProcess *agentpb.SetStateReques
 		return args, nil
 	}
 
-	return []string{}, fmt.Errorf("textfiles are not valid")
+	return []string{}, fmt.Errorf("RegisterMySQLCerts: textfiles are not valid")
 }
