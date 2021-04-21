@@ -275,6 +275,14 @@ github.com/percona/pmm v2.16.1-0.20210419140207-a4c2281eb8cf+incompatible h1:1v/
 github.com/percona/pmm v2.16.1-0.20210419140207-a4c2281eb8cf+incompatible/go.mod h1:nN14kK4Dfl2Ub1k05aOnAHv7SmLEQtCsYX+DEfLgrkU=
 github.com/percona/pmm v2.16.1-0.20210419142301-57007689ac6b+incompatible h1:Pl03MtuP0/cu3FzEsVVVGAwhixpIWruYdWYw9ajvRio=
 github.com/percona/pmm v2.16.1-0.20210419142301-57007689ac6b+incompatible/go.mod h1:nN14kK4Dfl2Ub1k05aOnAHv7SmLEQtCsYX+DEfLgrkU=
+github.com/percona/pmm v2.16.1-0.20210421131705-1cc8fd0cb594+incompatible h1:egG9PvXJRiSRpw0MUb8ncoVhMKSd/XHF6pdZ9mUTcWI=
+github.com/percona/pmm v2.16.1-0.20210421131705-1cc8fd0cb594+incompatible/go.mod h1:nN14kK4Dfl2Ub1k05aOnAHv7SmLEQtCsYX+DEfLgrkU=
+github.com/percona/pmm v2.16.1-0.20210421134249-ce0cc789b5c7+incompatible h1:GLSsyMtsJQ0sRDqibZeii5fXcD9wFkiMljd6UWPfSiQ=
+github.com/percona/pmm v2.16.1-0.20210421134249-ce0cc789b5c7+incompatible/go.mod h1:nN14kK4Dfl2Ub1k05aOnAHv7SmLEQtCsYX+DEfLgrkU=
+github.com/percona/pmm v2.16.1-0.20210421140821-4b4c33093d0d+incompatible h1:CC4+3LsDe6zjKAvslpHgotwOxMduK0RJCBx9MFbWEeY=
+github.com/percona/pmm v2.16.1-0.20210421140821-4b4c33093d0d+incompatible/go.mod h1:nN14kK4Dfl2Ub1k05aOnAHv7SmLEQtCsYX+DEfLgrkU=
+github.com/percona/pmm v2.16.1-0.20210421144732-68d57ebfee58+incompatible h1:0o0UxR7rPOJ7Btz9ZkZeCeXrGtqlXpfNOvFaqTS2CiQ=
+github.com/percona/pmm v2.16.1-0.20210421144732-68d57ebfee58+incompatible/go.mod h1:nN14kK4Dfl2Ub1k05aOnAHv7SmLEQtCsYX+DEfLgrkU=
 github.com/pkg/errors v0.8.0/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
 github.com/pkg/errors v0.8.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
 github.com/pkg/errors v0.9.1 h1:FEBLx1zS214owpjy7qsBeixbURkuhQAwrK5UwLGTwt4=

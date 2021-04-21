@@ -63,7 +63,6 @@ type Params struct {
 	AgentID              string
 	DisableQueryExamples bool
 	TextFiles            *agentpb.TextFiles
-	TLS                  bool
 	TLSSkipVerify        bool
 }
 
@@ -80,7 +79,7 @@ const queryTag = "pmm-agent:perfschema"
 
 // New creates new PerfSchema QAN service.
 func New(params *Params, l *logrus.Entry) (*PerfSchema, error) {
-	if params.TLS {
+	if params.TextFiles.Files != nil {
 		err := tlshelpers.RegisterMySQLCerts(params.TextFiles.Files, params.TLSSkipVerify)
 		if err != nil {
 			return nil, err

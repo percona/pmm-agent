@@ -33,7 +33,7 @@ type mysqlShowTableStatusAction struct {
 // NewMySQLShowTableStatusAction creates MySQL SHOW TABLE STATUS Action.
 // This is an Action that can run `SHOW TABLE STATUS` command on MySQL service with given DSN.
 func NewMySQLShowTableStatusAction(id string, params *agentpb.StartActionRequest_MySQLShowTableStatusParams) Action {
-	if params.Tls {
+	if params.TlsFiles.Files != nil {
 		err := tlshelpers.RegisterMySQLCerts(params.TlsFiles.Files, params.TlsSkipVerify)
 		if err != nil {
 			log.Error(err)

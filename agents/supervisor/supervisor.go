@@ -416,7 +416,6 @@ func (s *Supervisor) startBuiltin(agentID string, builtinAgent *agentpb.SetState
 			AgentID:              agentID,
 			DisableQueryExamples: builtinAgent.DisableQueryExamples,
 			TextFiles:            builtinAgent.GetTextFiles(),
-			TLS:                  builtinAgent.Tls,
 			TLSSkipVerify:        builtinAgent.TlsSkipVerify,
 		}
 		agent, err = perfschema.New(params, l)
@@ -436,7 +435,6 @@ func (s *Supervisor) startBuiltin(agentID string, builtinAgent *agentpb.SetState
 			DisableQueryExamples: builtinAgent.DisableQueryExamples,
 			MaxSlowlogFileSize:   builtinAgent.MaxQueryLogSize,
 			TextFiles:            builtinAgent.GetTextFiles(),
-			TLS:                  builtinAgent.Tls,
 			TLSSkipVerify:        builtinAgent.TlsSkipVerify,
 		}
 		agent, err = slowlog.New(params, l)

@@ -68,7 +68,7 @@ func (cc *ConnectionChecker) Check(ctx context.Context, msg *agentpb.CheckConnec
 
 	switch msg.Type {
 	case inventorypb.ServiceType_MYSQL_SERVICE:
-		return cc.checkMySQLConnection(ctx, msg.Dsn, msg.TextFiles, msg.Tls, msg.TlsSkipVerify, id)
+		return cc.checkMySQLConnection(ctx, msg.Dsn, msg.TextFiles, msg.TlsSkipVerify, id)
 	case inventorypb.ServiceType_MONGODB_SERVICE:
 		return cc.checkMongoDBConnection(ctx, msg.Dsn, msg.TextFiles, id)
 	case inventorypb.ServiceType_POSTGRESQL_SERVICE:
@@ -90,11 +90,11 @@ func (cc *ConnectionChecker) sqlPing(ctx context.Context, db *sql.DB) error {
 	return err
 }
 
-func (cc *ConnectionChecker) checkMySQLConnection(ctx context.Context, dsn string, files *agentpb.TextFiles, tls, tlsSkipVerify bool, id uint32) *agentpb.CheckConnectionResponse {
+func (cc *ConnectionChecker) checkMySQLConnection(ctx context.Context, dsn string, files *agentpb.TextFiles, tlsSkipVerify bool, id uint32) *agentpb.CheckConnectionResponse {
 	var res agentpb.CheckConnectionResponse
 	var err error
 
-	if tls {
+	if files.Files != nil {
 		err = tlshelpers.RegisterMySQLCerts(files.Files, tlsSkipVerify)
 		if err != nil {
 			cc.l.Debugf("checkMySQLConnection: failed to register cert: %s", err)
