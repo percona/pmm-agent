@@ -438,14 +438,14 @@ func (c *Client) handleStartJobRequest(p *agentpb.StartJobRequest) error {
 			return errors.Errorf("unknown location config: %T", j.MysqlBackup.LocationConfig)
 		}
 
-		dbConfig := jobs.DatabaseConfig{
+		cfg := jobs.DatabaseConfig{
 			User:     j.MysqlBackup.User,
 			Password: j.MysqlBackup.Password,
 			Address:  j.MysqlBackup.Address,
 			Port:     int(j.MysqlBackup.Port),
 			Socket:   j.MysqlBackup.Socket,
 		}
-		job = jobs.NewMySQLBackupJob(p.JobId, timeout, j.MysqlBackup.Name, dbConfig, locationConfig)
+		job = jobs.NewMySQLBackupJob(p.JobId, timeout, j.MysqlBackup.Name, cfg, locationConfig)
 	default:
 		return errors.Errorf("unknown job type: %T", j)
 	}
