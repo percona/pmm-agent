@@ -33,7 +33,7 @@ type mysqlShowCreateTableAction struct {
 // NewMySQLShowCreateTableAction creates MySQL SHOW CREATE TABLE Action.
 // This is an Action that can run `SHOW CREATE TABLE` command on MySQL service with given DSN.
 func NewMySQLShowCreateTableAction(id string, params *agentpb.StartActionRequest_MySQLShowCreateTableParams) Action {
-	if params.TlsFiles != nil {
+	if params.TlsFiles != nil && params.TlsFiles.Files != nil {
 		err := tlshelpers.RegisterMySQLCerts(params.TlsFiles.Files, params.TlsSkipVerify)
 		if err != nil {
 			log.Error(err)

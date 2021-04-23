@@ -94,7 +94,7 @@ func (cc *ConnectionChecker) checkMySQLConnection(ctx context.Context, dsn strin
 	var res agentpb.CheckConnectionResponse
 	var err error
 
-	if files != nil {
+	if files != nil && files.Files != nil {
 		err = tlshelpers.RegisterMySQLCerts(files.Files, tlsSkipVerify)
 		if err != nil {
 			cc.l.Debugf("checkMySQLConnection: failed to register cert: %s", err)
