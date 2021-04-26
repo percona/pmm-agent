@@ -270,6 +270,7 @@ func (c *Client) processSupervisorRequests() {
 func (c *Client) processChannelRequests(ctx context.Context) {
 	for req := range c.channel.Requests() {
 		var responsePayload agentpb.AgentResponsePayload
+	outerSwitch:
 		switch p := req.Payload.(type) {
 		case *agentpb.Ping:
 			responsePayload = &agentpb.Pong{
@@ -359,9 +360,9 @@ func (c *Client) processChannelRequests(ctx context.Context) {
 				action = actions.NewProcessAction(p.ActionId, c.cfg.Paths.PTMongoDBSummary, argListFromMongoDBParams(params.PtMongodbSummaryParams))
 
 			case nil:
-				// Requests() is not closed, so exit early to break channel
 				c.l.Errorf("Unhandled StartAction request: %v.", req)
-				return
+				responsePayload = new(agentpb.UnknownPayloadResponse)
+				break outerSwitch
 			}
 
 			c.actionsRunner.Start(action, c.getActionTimeout(p))
@@ -390,9 +391,8 @@ func (c *Client) processChannelRequests(ctx context.Context) {
 			responsePayload = &agentpb.JobStatusResponse{Alive: alive}
 
 		case nil:
-			// Requests() is not closed, so exit early to break channel
 			c.l.Errorf("Unhandled server request: %v.", req)
-			return
+			responsePayload = new(agentpb.UnknownPayloadResponse)
 		}
 
 		c.channel.Send(&channel.AgentResponse{
