@@ -59,7 +59,6 @@ func NewMySQLRestoreJob(id string, timeout time.Duration, name string, locationC
 		name:     name,
 		location: locationConfig,
 	}
-
 }
 
 // ID returns job id.
