@@ -32,10 +32,7 @@ import (
 )
 
 const (
-	xtrabackupBin       = "xtrabackup"
-	xbcloudBin          = "xbcloud"
 	xbstreamBin         = "xbstream"
-	qpressBin           = "qpress"
 	mySQLServiceName    = "mysql"
 	mySQLUserName       = "mysql"
 	mySQLGroupName      = "mysql"
@@ -51,20 +48,6 @@ type MySQLRestoreJob struct {
 	l        logrus.FieldLogger
 	name     string
 	location BackupLocationConfig
-}
-
-// S3LocationConfig contains required properties for accessing S3 Bucket.
-type S3LocationConfig struct {
-	Endpoint     string
-	AccessKey    string
-	SecretKey    string
-	BucketName   string
-	BucketRegion string
-}
-
-// BackupLocationConfig groups all backup locations configs.
-type BackupLocationConfig struct {
-	S3Config *S3LocationConfig
 }
 
 // NewMySQLRestoreJob constructs new Job for MySQL backup restore.
