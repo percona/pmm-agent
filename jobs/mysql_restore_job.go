@@ -153,7 +153,6 @@ func prepareRestoreCommands(
 	return xbcloudCmd, xbstreamCmd, nil
 }
 
-// stdout and stderr could be returned even if rerr is not nil
 func restoreMySQLFromS3(
 	ctx context.Context,
 	backupName string,
@@ -207,7 +206,8 @@ func mySQLActive() (bool, error) {
 		return true, nil
 	}
 
-	if errors.As(err, &exec.ExitError{}) {
+	var exitError *exec.ExitError
+	if errors.As(err, &exitError) {
 		return false, nil
 	}
 
@@ -261,13 +261,14 @@ func chownRecursive(path string, uid, gid int) error {
 	})
 }
 
-func mySQLUserAndGroupIDs() (uid, gid int, rerr error) {
+// mySQLUserAndGroupIDs returns uid, gid if error is nil.
+func mySQLUserAndGroupIDs() (int, int, error) {
 	u, err := user.Lookup(mySQLUserName)
 	if err != nil {
 		return 0, 0, errors.WithStack(err)
 	}
 
-	uid, err = strconv.Atoi(u.Uid)
+	uid, err := strconv.Atoi(u.Uid)
 	if err != nil {
 		return 0, 0, errors.WithStack(err)
 	}
@@ -277,7 +278,7 @@ func mySQLUserAndGroupIDs() (uid, gid int, rerr error) {
 		return 0, 0, errors.WithStack(err)
 	}
 
-	gid, err = strconv.Atoi(g.Gid)
+	gid, err := strconv.Atoi(g.Gid)
 	if err != nil {
 		return 0, 0, errors.WithStack(err)
 	}
@@ -307,9 +308,11 @@ func restoreBackup(ctx context.Context, backupDirectory, mySQLDirectory string) 
 		return errors.WithStack(err)
 	}
 
-	if exists, err := isPathExists(mySQLDirectory); err != nil {
+	exists, err := isPathExists(mySQLDirectory)
+	if err != nil {
 		return errors.WithStack(err)
-	} else if exists {
+	}
+	if exists {
 		postfix := ".old" + strconv.FormatInt(time.Now().Unix(), 10)
 		if err := os.Rename(mySQLDirectory, mySQLDirectory+postfix); err != nil {
 			return errors.WithStack(err)
@@ -336,6 +339,7 @@ func restoreBackup(ctx context.Context, backupDirectory, mySQLDirectory string) 
 	return nil
 }
 
+// Run executes backup restore steps.
 func (j *MySQLRestoreJob) Run(ctx context.Context, send Send) (rerr error) {
 	if j.location.S3Config == nil {
 		return errors.New("S3 config is not set")
