@@ -16,7 +16,6 @@
 package jobs
 
 import (
-	"bytes"
 	"context"
 	"net"
 	"net/url"
@@ -47,39 +46,38 @@ type MongoDBBackupJob struct {
 // NewMongoDBBackupJob creates new Job for MongoDB backup.
 func NewMongoDBBackupJob(id string, timeout time.Duration, name string, dbConfig DatabaseConfig, locationConfig BackupLocationConfig) *MongoDBBackupJob {
 	return &MongoDBBackupJob{
-		id:      id,
-		timeout: timeout,
-		l:       logrus.WithFields(logrus.Fields{"id": id, "type": "mongodb_backup", "name": name}),
-		name:    name,
-		dbURL: url.URL{
-			Scheme: "mongodb",
-			User:   url.UserPassword(dbConfig.User, dbConfig.Password),
-			Host:   net.JoinHostPort(dbConfig.Address, strconv.Itoa(dbConfig.Port)),
-		},
+		id:       id,
+		timeout:  timeout,
+		l:        logrus.WithFields(logrus.Fields{"id": id, "type": "mongodb_backup", "name": name}),
+		name:     name,
+		dbURL:    createDBURL(dbConfig),
 		location: locationConfig,
 	}
 }
 
-// DatabaseConfig contains required properties for connection to DB.
-type DatabaseConfig struct {
-	User     string
-	Password string
-	Address  string
-	Port     int
-}
+func createDBURL(dbConfig DatabaseConfig) url.URL {
+	var host string
+	switch {
+	case dbConfig.Address != "":
+		if dbConfig.Port > 0 {
+			host = net.JoinHostPort(dbConfig.Address, strconv.Itoa(dbConfig.Port))
+		} else {
+			host = dbConfig.Address
+		}
+	case dbConfig.Socket != "":
+		host = url.QueryEscape(dbConfig.Socket)
+	}
 
-// S3LocationConfig contains required properties for accessing S3 Bucket.
-type S3LocationConfig struct {
-	Endpoint     string
-	AccessKey    string
-	SecretKey    string
-	BucketName   string
-	BucketRegion string
-}
+	var user *url.Userinfo
+	if dbConfig.User != "" {
+		user = url.UserPassword(dbConfig.User, dbConfig.Password)
+	}
 
-// BackupLocationConfig groups all backup locations configs.
-type BackupLocationConfig struct {
-	S3Config *S3LocationConfig
+	return url.URL{
+		Scheme: "mongodb",
+		User:   user,
+		Host:   host,
+	}
 }
 
 func (j *MongoDBBackupJob) ID() string {
@@ -95,9 +93,6 @@ func (j *MongoDBBackupJob) Timeout() time.Duration {
 }
 
 func (j *MongoDBBackupJob) Run(ctx context.Context, send Send) error {
-	t := time.Now()
-	j.l.Info("MySQL backup started")
-
 	if _, err := exec.LookPath(pbmBin); err != nil {
 		return errors.Wrapf(err, "lookpath: %s", pbmBin)
 	}
@@ -126,6 +121,8 @@ func (j *MongoDBBackupJob) Run(ctx context.Context, send Send) error {
 			MongodbBackup: &agentpb.JobResult_MongoDBBackup{},
 		},
 	})
+
+	return nil
 }
 
 func (j *MongoDBBackupJob) startBackup(ctx context.Context) error {
@@ -145,44 +142,51 @@ func (j *MongoDBBackupJob) startBackup(ctx context.Context) error {
 
 func (j *MongoDBBackupJob) waitUntilBackupCompletion(ctx context.Context) error {
 	ticker := time.NewTicker(5 * time.Second)
+	defer ticker.Stop()
 
-	cmd := exec.CommandContext(
-		ctx,
-		pbmBin,
-		"status",
-		"--mongodb-uri="+j.dbURL.String(),
-	)
-
+loop:
 	for {
 		select {
 		case <-ticker.C:
-			output, err := cmd.CombinedOutput()
+			output, err := exec.CommandContext(
+				ctx,
+				pbmBin,
+				"status",
+				"--mongodb-uri="+j.dbURL.String(),
+			).CombinedOutput()
 			if err != nil {
 				return errors.Wrapf(err, "pbm status error: %s", string(output))
 			}
 
 			if backupStatusOutputR.Match(output) {
-				break
+				break loop
 			}
-
 		case <-ctx.Done():
 			return ctx.Err()
 		}
 	}
 
+	return nil
 }
 
 func (j *MongoDBBackupJob) setupS3(ctx context.Context) error {
-	return exec.CommandContext( //nolint:gosec
+	output, err := exec.CommandContext( //nolint:gosec
 		ctx,
 		pbmBin,
 		"config",
-		"--set.storage.type=s3",
+		"--mongodb-uri="+j.dbURL.String(),
+		"--set=storage.type=s3",
 		"--set=storage.s3.prefix="+j.name,
 		"--set=storage.s3.region="+j.location.S3Config.BucketRegion,
 		"--set=storage.s3.bucket="+j.location.S3Config.BucketName,
 		"--set=storage.s3.credentials.access-key-id="+j.location.S3Config.AccessKey,
 		"--set=storage.s3.credentials.secret-access-key="+j.location.S3Config.SecretKey,
 		"--set=storage.s3.endpointUrl="+j.location.S3Config.Endpoint,
-	).Run()
+	).CombinedOutput()
+
+	if err != nil {
+		return errors.Wrapf(err, "pbm config error: %s", string(output))
+	}
+
+	return nil
 }

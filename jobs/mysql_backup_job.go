@@ -53,20 +53,6 @@ type DatabaseConfig struct {
 	Socket   string
 }
 
-// S3LocationConfig contains required properties for accessing S3 Bucket.
-type S3LocationConfig struct {
-	Endpoint     string
-	AccessKey    string
-	SecretKey    string
-	BucketName   string
-	BucketRegion string
-}
-
-// BackupLocationConfig groups all backup locations configs.
-type BackupLocationConfig struct {
-	S3Config *S3LocationConfig
-}
-
 // NewMySQLBackupJob constructs new Job for MySQL backup.
 func NewMySQLBackupJob(id string, timeout time.Duration, name string, dbConfig DatabaseConfig, locationConfig BackupLocationConfig) *MySQLBackupJob {
 	return &MySQLBackupJob{
@@ -95,9 +81,6 @@ func (j *MySQLBackupJob) Timeout() time.Duration {
 }
 
 func (j *MySQLBackupJob) Run(ctx context.Context, send Send) (rerr error) {
-	t := time.Now()
-	j.l.Info("MySQL backup started")
-
 	if _, err := exec.LookPath(xtrabackupBin); err != nil {
 		return errors.Wrapf(err, "lookpath: %s", xtrabackupBin)
 	}
@@ -199,6 +182,5 @@ func (j *MySQLBackupJob) Run(ctx context.Context, send Send) (rerr error) {
 		},
 	})
 
-	j.l.WithField("duration", time.Since(t).String()).Info("MySQL backup finished")
 	return nil
 }
