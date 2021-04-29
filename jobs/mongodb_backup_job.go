@@ -37,7 +37,7 @@ const pbmBin = "pbm"
 const commandsTimeout = time.Minute
 
 // This regexp checks that there is no running backups.
-var backupStatusOutputR = regexp.MustCompile("Currently running:\\n=*\\n\\(none\\)")
+var backupStatusOutputR = regexp.MustCompile(`Currently running:\n=*\n\(none\)`)
 
 type MongoDBBackupJob struct {
 	id       string
@@ -141,7 +141,7 @@ func (j *MongoDBBackupJob) startBackup(ctx context.Context) error {
 		pbmBin,
 		"backup",
 		"--mongodb-uri="+j.dbURL.String(),
-	).CombinedOutput()
+	).CombinedOutput() // #nosec G204
 
 	if err != nil {
 		return errors.Wrapf(err, "pbm backup error: %s", string(output))
@@ -161,7 +161,7 @@ func (j *MongoDBBackupJob) checkBackupCompletion(ctx context.Context) (bool, err
 		pbmBin,
 		"status",
 		"--mongodb-uri="+j.dbURL.String(),
-	).CombinedOutput()
+	).CombinedOutput() // #nosec G204
 
 	if err != nil {
 		return false, errors.Wrapf(err, "pbm status error: %s", string(output))
@@ -223,7 +223,6 @@ func (j *MongoDBBackupJob) writePBMConfigFile() (string, error) {
 	if err != nil {
 		return "", errors.Wrap(err, "failed to create pbm configuration file")
 	}
-	defer tmp.Close() //nolint:errcheck
 
 	var conf s3ConfigFile
 	conf.Storage.Typ = "s3"
@@ -236,14 +235,16 @@ func (j *MongoDBBackupJob) writePBMConfigFile() (string, error) {
 
 	bytes, err := yaml.Marshal(&conf)
 	if err != nil {
+		tmp.Close() //nolint:errcheck
 		return "", errors.Wrap(err, "failed to marshall pbm configuration")
 	}
 
 	if _, err := tmp.Write(bytes); err != nil {
+		tmp.Close() //nolint:errcheck
 		return "", errors.Wrap(err, "failed to write pbm configuration file")
 	}
 
-	return tmp.Name(), nil
+	return tmp.Name(), tmp.Close()
 }
 
 type s3ConfigFile struct {
