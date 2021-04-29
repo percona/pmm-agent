@@ -17,8 +17,10 @@ package jobs
 
 import (
 	"context"
+	"io/ioutil"
 	"net"
 	"net/url"
+	"os"
 	"os/exec"
 	"regexp"
 	"strconv"
@@ -28,10 +30,13 @@ import (
 	"github.com/percona/pmm/api/agentpb"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
+	"gopkg.in/yaml.v3"
 )
 
 const pbmBin = "pbm"
+const commandsTimeout = time.Minute
 
+// This regexp checks that there is no running backups.
 var backupStatusOutputR = regexp.MustCompile("Currently running:\\n=*\\n\\(none\\)")
 
 type MongoDBBackupJob struct {
@@ -65,7 +70,7 @@ func createDBURL(dbConfig DatabaseConfig) url.URL {
 			host = dbConfig.Address
 		}
 	case dbConfig.Socket != "":
-		host = url.QueryEscape(dbConfig.Socket)
+		host = dbConfig.Socket
 	}
 
 	var user *url.Userinfo
@@ -126,8 +131,13 @@ func (j *MongoDBBackupJob) Run(ctx context.Context, send Send) error {
 }
 
 func (j *MongoDBBackupJob) startBackup(ctx context.Context) error {
+	j.l.Info("Starting backup.")
+
+	nCtx, cancel := context.WithTimeout(ctx, commandsTimeout)
+	defer cancel()
+
 	output, err := exec.CommandContext(
-		ctx,
+		nCtx,
 		pbmBin,
 		"backup",
 		"--mongodb-uri="+j.dbURL.String(),
@@ -140,48 +150,65 @@ func (j *MongoDBBackupJob) startBackup(ctx context.Context) error {
 	return nil
 }
 
+func (j *MongoDBBackupJob) checkBackupCompletion(ctx context.Context) (bool, error) {
+	j.l.Debug("Checking backup status.")
+
+	nCtx, cancel := context.WithTimeout(ctx, commandsTimeout)
+	defer cancel()
+
+	output, err := exec.CommandContext(
+		nCtx,
+		pbmBin,
+		"status",
+		"--mongodb-uri="+j.dbURL.String(),
+	).CombinedOutput()
+
+	if err != nil {
+		return false, errors.Wrapf(err, "pbm status error: %s", string(output))
+	}
+
+	return backupStatusOutputR.Match(output), nil
+}
+
 func (j *MongoDBBackupJob) waitUntilBackupCompletion(ctx context.Context) error {
+	j.l.Info("Waiting for backup completion.")
 	ticker := time.NewTicker(5 * time.Second)
 	defer ticker.Stop()
 
-loop:
 	for {
 		select {
 		case <-ticker.C:
-			output, err := exec.CommandContext(
-				ctx,
-				pbmBin,
-				"status",
-				"--mongodb-uri="+j.dbURL.String(),
-			).CombinedOutput()
+			done, err := j.checkBackupCompletion(ctx)
 			if err != nil {
-				return errors.Wrapf(err, "pbm status error: %s", string(output))
+				return errors.Wrapf(err, "failed to check backup completion")
 			}
 
-			if backupStatusOutputR.Match(output) {
-				break loop
+			if done {
+				return nil
 			}
 		case <-ctx.Done():
 			return ctx.Err()
 		}
 	}
-
-	return nil
 }
 
 func (j *MongoDBBackupJob) setupS3(ctx context.Context) error {
+	j.l.Info("Configuring S3 location.")
+	nCtx, cancel := context.WithTimeout(ctx, commandsTimeout)
+	defer cancel()
+
+	confFile, err := j.writePBMConfigFile()
+	if err != nil {
+		return errors.WithStack(err)
+	}
+	defer os.Remove(confFile) //nolint:errcheck
+
 	output, err := exec.CommandContext( //nolint:gosec
-		ctx,
+		nCtx,
 		pbmBin,
 		"config",
 		"--mongodb-uri="+j.dbURL.String(),
-		"--set=storage.type=s3",
-		"--set=storage.s3.prefix="+j.name,
-		"--set=storage.s3.region="+j.location.S3Config.BucketRegion,
-		"--set=storage.s3.bucket="+j.location.S3Config.BucketName,
-		"--set=storage.s3.credentials.access-key-id="+j.location.S3Config.AccessKey,
-		"--set=storage.s3.credentials.secret-access-key="+j.location.S3Config.SecretKey,
-		"--set=storage.s3.endpointUrl="+j.location.S3Config.Endpoint,
+		"--file="+confFile,
 	).CombinedOutput()
 
 	if err != nil {
@@ -189,4 +216,48 @@ func (j *MongoDBBackupJob) setupS3(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+func (j *MongoDBBackupJob) writePBMConfigFile() (string, error) {
+	tmp, err := ioutil.TempFile("", "pbm-config")
+	if err != nil {
+		return "", errors.Wrap(err, "failed to create pbm configuration file")
+	}
+	defer tmp.Close() //nolint:errcheck
+
+	var conf s3ConfigFile
+	conf.Storage.Typ = "s3"
+	conf.Storage.S3.EndpointURL = j.location.S3Config.Endpoint
+	conf.Storage.S3.Region = j.location.S3Config.BucketRegion
+	conf.Storage.S3.Bucket = j.location.S3Config.BucketName
+	conf.Storage.S3.Prefix = j.name
+	conf.Storage.S3.Credentials.AccessKeyID = j.location.S3Config.AccessKey
+	conf.Storage.S3.Credentials.SecretAccessKey = j.location.S3Config.SecretKey
+
+	bytes, err := yaml.Marshal(&conf)
+	if err != nil {
+		return "", errors.Wrap(err, "failed to marshall pbm configuration")
+	}
+
+	if _, err := tmp.Write(bytes); err != nil {
+		return "", errors.Wrap(err, "failed to write pbm configuration file")
+	}
+
+	return tmp.Name(), nil
+}
+
+type s3ConfigFile struct {
+	Storage struct {
+		Typ string `yaml:"type"`
+		S3  struct {
+			Region      string `yaml:"region"`
+			Bucket      string `yaml:"bucket"`
+			Prefix      string `yaml:"prefix"`
+			EndpointURL string `yaml:"endpointUrl"`
+			Credentials struct {
+				AccessKeyID     string `yaml:"access-key-id"`
+				SecretAccessKey string `yaml:"secret-access-key"`
+			}
+		} `yaml:"s3"`
+	} `yaml:"storage"`
 }
