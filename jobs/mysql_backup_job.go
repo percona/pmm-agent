@@ -65,21 +65,22 @@ func NewMySQLBackupJob(id string, timeout time.Duration, name string, dbConfig D
 	}
 }
 
-// ID returns job id.
+// ID returns Job id.
 func (j *MySQLBackupJob) ID() string {
 	return j.id
 }
 
-// Type returns job type.
+// Type returns Job type.
 func (j *MySQLBackupJob) Type() string {
 	return "mysql_backup"
 }
 
-// Timeout returns job timeout.
+// Timeout returns Job timeout.
 func (j *MySQLBackupJob) Timeout() time.Duration {
 	return j.timeout
 }
 
+// Run starts Job execution.
 func (j *MySQLBackupJob) Run(ctx context.Context, send Send) (rerr error) {
 	if _, err := exec.LookPath(xtrabackupBin); err != nil {
 		return errors.Wrapf(err, "lookpath: %s", xtrabackupBin)

@@ -33,12 +33,17 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-const pbmBin = "pbm"
-const commandsTimeout = time.Minute
+const (
+	pbmBin = "pbm"
+
+	cmdTimeout                = time.Minute
+	backupStatusCheckInterval = 5 * time.Second
+)
 
 // This regexp checks that there is no running backups.
 var backupStatusOutputR = regexp.MustCompile(`Currently running:\n=*\n\(none\)`)
 
+// MongoDBBackupJob implements Job form MongoDB backup.
 type MongoDBBackupJob struct {
 	id       string
 	timeout  time.Duration
@@ -85,18 +90,22 @@ func createDBURL(dbConfig DatabaseConfig) url.URL {
 	}
 }
 
+// ID returns Job id.
 func (j *MongoDBBackupJob) ID() string {
 	return j.id
 }
 
+// Type returns Job type.
 func (j *MongoDBBackupJob) Type() string {
 	return "mongodb_backup"
 }
 
+// Timeout returns Job timeout.
 func (j *MongoDBBackupJob) Timeout() time.Duration {
 	return j.timeout
 }
 
+// Run starts Job execution.
 func (j *MongoDBBackupJob) Run(ctx context.Context, send Send) error {
 	if _, err := exec.LookPath(pbmBin); err != nil {
 		return errors.Wrapf(err, "lookpath: %s", pbmBin)
@@ -133,15 +142,10 @@ func (j *MongoDBBackupJob) Run(ctx context.Context, send Send) error {
 func (j *MongoDBBackupJob) startBackup(ctx context.Context) error {
 	j.l.Info("Starting backup.")
 
-	nCtx, cancel := context.WithTimeout(ctx, commandsTimeout)
+	nCtx, cancel := context.WithTimeout(ctx, cmdTimeout)
 	defer cancel()
 
-	output, err := exec.CommandContext(
-		nCtx,
-		pbmBin,
-		"backup",
-		"--mongodb-uri="+j.dbURL.String(),
-	).CombinedOutput() // #nosec G204
+	output, err := exec.CommandContext(nCtx, pbmBin, "backup", "--mongodb-uri="+j.dbURL.String()).CombinedOutput() // #nosec G204
 
 	if err != nil {
 		return errors.Wrapf(err, "pbm backup error: %s", string(output))
@@ -153,16 +157,10 @@ func (j *MongoDBBackupJob) startBackup(ctx context.Context) error {
 func (j *MongoDBBackupJob) checkBackupCompletion(ctx context.Context) (bool, error) {
 	j.l.Debug("Checking backup status.")
 
-	nCtx, cancel := context.WithTimeout(ctx, commandsTimeout)
+	nCtx, cancel := context.WithTimeout(ctx, cmdTimeout)
 	defer cancel()
 
-	output, err := exec.CommandContext(
-		nCtx,
-		pbmBin,
-		"status",
-		"--mongodb-uri="+j.dbURL.String(),
-	).CombinedOutput() // #nosec G204
-
+	output, err := exec.CommandContext(nCtx, pbmBin, "status", "--mongodb-uri="+j.dbURL.String()).CombinedOutput() // #nosec G204
 	if err != nil {
 		return false, errors.Wrapf(err, "pbm status error: %s", string(output))
 	}
@@ -172,7 +170,7 @@ func (j *MongoDBBackupJob) checkBackupCompletion(ctx context.Context) (bool, err
 
 func (j *MongoDBBackupJob) waitUntilBackupCompletion(ctx context.Context) error {
 	j.l.Info("Waiting for backup completion.")
-	ticker := time.NewTicker(5 * time.Second)
+	ticker := time.NewTicker(backupStatusCheckInterval)
 	defer ticker.Stop()
 
 	for {
@@ -194,7 +192,7 @@ func (j *MongoDBBackupJob) waitUntilBackupCompletion(ctx context.Context) error 
 
 func (j *MongoDBBackupJob) setupS3(ctx context.Context) error {
 	j.l.Info("Configuring S3 location.")
-	nCtx, cancel := context.WithTimeout(ctx, commandsTimeout)
+	nCtx, cancel := context.WithTimeout(ctx, cmdTimeout)
 	defer cancel()
 
 	confFile, err := j.writePBMConfigFile()
@@ -219,7 +217,7 @@ func (j *MongoDBBackupJob) setupS3(ctx context.Context) error {
 }
 
 func (j *MongoDBBackupJob) writePBMConfigFile() (string, error) {
-	tmp, err := ioutil.TempFile("", "pbm-config")
+	tmp, err := ioutil.TempFile("", "pbm-config-*.yml")
 	if err != nil {
 		return "", errors.Wrap(err, "failed to create pbm configuration file")
 	}
