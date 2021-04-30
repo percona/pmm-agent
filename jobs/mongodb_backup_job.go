@@ -49,7 +49,7 @@ type MongoDBBackupJob struct {
 	timeout  time.Duration
 	l        logrus.FieldLogger
 	name     string
-	dbURL    url.URL
+	dbURL    *url.URL
 	location BackupLocationConfig
 }
 
@@ -62,31 +62,6 @@ func NewMongoDBBackupJob(id string, timeout time.Duration, name string, dbConfig
 		name:     name,
 		dbURL:    createDBURL(dbConfig),
 		location: locationConfig,
-	}
-}
-
-func createDBURL(dbConfig DatabaseConfig) url.URL {
-	var host string
-	switch {
-	case dbConfig.Address != "":
-		if dbConfig.Port > 0 {
-			host = net.JoinHostPort(dbConfig.Address, strconv.Itoa(dbConfig.Port))
-		} else {
-			host = dbConfig.Address
-		}
-	case dbConfig.Socket != "":
-		host = dbConfig.Socket
-	}
-
-	var user *url.Userinfo
-	if dbConfig.User != "" {
-		user = url.UserPassword(dbConfig.User, dbConfig.Password)
-	}
-
-	return url.URL{
-		Scheme: "mongodb",
-		User:   user,
-		Host:   host,
 	}
 }
 
@@ -137,6 +112,31 @@ func (j *MongoDBBackupJob) Run(ctx context.Context, send Send) error {
 	})
 
 	return nil
+}
+
+func createDBURL(dbConfig DatabaseConfig) *url.URL {
+	var host string
+	switch {
+	case dbConfig.Address != "":
+		if dbConfig.Port > 0 {
+			host = net.JoinHostPort(dbConfig.Address, strconv.Itoa(dbConfig.Port))
+		} else {
+			host = dbConfig.Address
+		}
+	case dbConfig.Socket != "":
+		host = dbConfig.Socket
+	}
+
+	var user *url.Userinfo
+	if dbConfig.User != "" {
+		user = url.UserPassword(dbConfig.User, dbConfig.Password)
+	}
+
+	return &url.URL{
+		Scheme: "mongodb",
+		User:   user,
+		Host:   host,
+	}
 }
 
 func (j *MongoDBBackupJob) startBackup(ctx context.Context) error {
@@ -222,7 +222,22 @@ func (j *MongoDBBackupJob) writePBMConfigFile() (string, error) {
 		return "", errors.Wrap(err, "failed to create pbm configuration file")
 	}
 
-	var conf s3ConfigFile
+	var conf struct {
+		Storage struct {
+			Typ string `yaml:"type"`
+			S3  struct {
+				Region      string `yaml:"region"`
+				Bucket      string `yaml:"bucket"`
+				Prefix      string `yaml:"prefix"`
+				EndpointURL string `yaml:"endpointUrl"`
+				Credentials struct {
+					AccessKeyID     string `yaml:"access-key-id"`
+					SecretAccessKey string `yaml:"secret-access-key"`
+				}
+			} `yaml:"s3"`
+		} `yaml:"storage"`
+	}
+
 	conf.Storage.Typ = "s3"
 	conf.Storage.S3.EndpointURL = j.location.S3Config.Endpoint
 	conf.Storage.S3.Region = j.location.S3Config.BucketRegion
@@ -243,20 +258,4 @@ func (j *MongoDBBackupJob) writePBMConfigFile() (string, error) {
 	}
 
 	return tmp.Name(), tmp.Close()
-}
-
-type s3ConfigFile struct {
-	Storage struct {
-		Typ string `yaml:"type"`
-		S3  struct {
-			Region      string `yaml:"region"`
-			Bucket      string `yaml:"bucket"`
-			Prefix      string `yaml:"prefix"`
-			EndpointURL string `yaml:"endpointUrl"`
-			Credentials struct {
-				AccessKeyID     string `yaml:"access-key-id"`
-				SecretAccessKey string `yaml:"secret-access-key"`
-			}
-		} `yaml:"s3"`
-	} `yaml:"storage"`
 }

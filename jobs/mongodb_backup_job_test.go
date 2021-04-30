@@ -15,8 +15,62 @@
 
 package jobs
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+)
 
 func TestCreateDBURL(t *testing.T) {
+	t.Parallel()
 
+	tests := []struct {
+		name     string
+		dbConfig DatabaseConfig
+		url      string
+	}{
+		{
+			name: "network",
+			dbConfig: DatabaseConfig{
+				User:     "user",
+				Password: "pass",
+				Address:  "localhost",
+				Port:     1234,
+			},
+			url: "mongodb://user:pass@localhost:1234",
+		},
+		{
+			name: "network without credentials",
+			dbConfig: DatabaseConfig{
+				Address: "localhost",
+				Port:    1234,
+			},
+			url: "mongodb://localhost:1234",
+		},
+		{
+			name: "socket",
+			dbConfig: DatabaseConfig{
+				User:     "user",
+				Password: "pass",
+				Socket:   "/tmp/mongo",
+			},
+			url: "mongodb://user:pass@%2Ftmp%2Fmongo",
+		},
+		{
+			name: "socket without credentials",
+			dbConfig: DatabaseConfig{
+				Socket: "/tmp/mongo",
+			},
+			url: "mongodb://%2Ftmp%2Fmongo",
+		},
+	}
+
+	for _, test := range tests {
+		test := test
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			assert.Equal(t, test.url, createDBURL(test.dbConfig).String())
+		})
+	}
 }
