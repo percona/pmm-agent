@@ -76,7 +76,11 @@ func TestPGStatStatementsQAN(t *testing.T) {
 
 	structs, err := db.SelectAllFrom(pgStatDatabaseView, "")
 	require.NoError(t, err)
-	rows, err := rowsByVersion(db.Querier, "")
+
+	columns, err := rowsByVersion(db.Querier)
+	require.NoError(t, err)
+
+	rows, err := db.Querier.Query(fmt.Sprintf("SELECT /* %s */ %s FROM %s %s", queryTag, columns, db.Querier.QualifiedView(pgStatStatementsView), ""))
 	require.NoError(t, err)
 
 	defer func() {

@@ -18,6 +18,8 @@ package pgstatstatements
 import (
 	"context"
 	"fmt"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -28,6 +30,7 @@ import (
 
 	"github.com/percona/pmm-agent/agents/postgres/parser"
 	"github.com/percona/pmm-agent/utils/truncate"
+	"github.com/percona/pmm-agent/utils/version"
 )
 
 // statStatementCacheStats contains statStatementCache statistics.
@@ -71,6 +74,31 @@ func newStatStatementCache(retain time.Duration, l *logrus.Entry) *statStatement
 	}
 }
 
+func getPGVersion(q *reform.Querier) (pgVersion float64, err error) {
+	var v string
+	err = q.QueryRow(fmt.Sprintf("SELECT /* %s */ version()", queryTag)).Scan(&v)
+	if err != nil {
+		return
+	}
+	v = version.ParsePostgreSQLVersion(v)
+	return strconv.ParseFloat(v, 64)
+}
+
+func rowsByVersion(q *reform.Querier) (string, error) {
+	pgVersion, err := getPGVersion(q)
+	if err != nil {
+		return "", err
+	}
+
+	columns := strings.Join(q.QualifiedColumns(pgStatStatementsView), ", ")
+	switch {
+	case pgVersion >= 13:
+		columns = strings.Replace(columns, `"total_time"`, `"total_exec_time"`, 1)
+	}
+
+	return columns, nil
+}
+
 // getStatStatementsExtended returns the current state of pg_stat_statements table with extended information (database, username, tables)
 // and the previous cashed state.
 func (ssc *statStatementCache) getStatStatementsExtended(ctx context.Context, q *reform.Querier) (current, prev map[int64]*pgStatStatementsExtended, err error) {
@@ -96,8 +124,13 @@ func (ssc *statStatementCache) getStatStatementsExtended(ctx context.Context, q 
 	// the same query can appear several times (with different database and/or username),
 	// so cache results of the current iteration too
 	tables := make(map[int64][]string)
+	columns, e := rowsByVersion(q)
+	if e != nil {
+		err = e
+		return
+	}
 
-	rows, e := rowsByVersion(q, "WHERE queryid IS NOT NULL AND query IS NOT NULL")
+	rows, e := q.Query(fmt.Sprintf("SELECT /* %s */ %s FROM %s %s", queryTag, columns, q.QualifiedView(pgStatStatementsView), "WHERE queryid IS NOT NULL AND query IS NOT NULL"))
 	if e != nil {
 		err = e
 		return

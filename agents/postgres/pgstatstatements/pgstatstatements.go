@@ -19,11 +19,9 @@ package pgstatstatements
 import (
 	"context"
 	"database/sql"
-	"fmt"
 	"io"
 	"math"
 	"strconv"
-	"strings"
 	"time"
 
 	_ "github.com/lib/pq" // register SQL driver
@@ -35,7 +33,6 @@ import (
 	"gopkg.in/reform.v1/dialects/postgresql"
 
 	"github.com/percona/pmm-agent/agents"
-	"github.com/percona/pmm-agent/utils/version"
 )
 
 const (
@@ -86,31 +83,6 @@ func newPgStatStatementsQAN(q *reform.Querier, dbCloser io.Closer, agentID strin
 		changes:        make(chan agents.Change, 10),
 		statementCache: newStatStatementCache(retainStatStatements, l),
 	}
-}
-
-func getPGVersion(q *reform.Querier) (pgVersion float64, err error) {
-	var v string
-	err = q.QueryRow(fmt.Sprintf("SELECT /* %s */ version()", queryTag)).Scan(&v)
-	if err != nil {
-		return
-	}
-	v = version.ParsePostgreSQLVersion(v)
-	return strconv.ParseFloat(v, 64)
-}
-
-func rowsByVersion(q *reform.Querier, tail string) (*sql.Rows, error) {
-	pgVersion, err := getPGVersion(q)
-	if err != nil {
-		return nil, err
-	}
-
-	columns := strings.Join(q.QualifiedColumns(pgStatStatementsView), ", ")
-	switch {
-	case pgVersion >= 13:
-		columns = strings.Replace(columns, `"total_time"`, `"total_exec_time"`, 1)
-	}
-
-	return q.Query(fmt.Sprintf("SELECT /* %s */ %s FROM %s %s", queryTag, columns, q.QualifiedView(pgStatStatementsView), tail))
 }
 
 // Run extracts stats data and sends it to the channel until ctx is canceled.
