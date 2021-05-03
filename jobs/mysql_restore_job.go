@@ -34,12 +34,12 @@ import (
 )
 
 const (
-	xbstreamBin         = "xbstream"
-	mySQLServiceName    = "mysql"
-	mySQLUserName       = "mysql"
-	mySQLGroupName      = "mysql"
-	mySQLDirectory      = "/var/lib/mysql"
-	systemctlTimeout    = 10 * time.Second
+	xbstreamBin      = "xbstream"
+	mySQLServiceName = "mysql"
+	mySQLUserName    = "mysql"
+	mySQLGroupName   = "mysql"
+	mySQLDirectory   = "/var/lib/mysql"
+	systemctlTimeout = 10 * time.Second
 )
 
 // MySQLRestoreJob implements Job for MySQL backup restore.
@@ -194,13 +194,17 @@ func restoreMySQLFromS3(
 	return nil
 }
 
-func mySQLActive() (bool, error) {
-	// systemctl is-active returns an exit code 0 if service is active, or non-zero otherwise
-	_, err := exec.Command("systemctl", "is-active", "--quiet", mySQLServiceName).Output()
-	if err == nil {
-		return true, nil
+func mySQLActive(ctx context.Context) (bool, error) {
+	ctx, cancel := context.WithTimeout(ctx, systemctlTimeout)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, "systemctl", "is-active", "--quiet", mySQLServiceName)
+	if err := cmd.Start(); err != nil {
+		return false, errors.Wrap(err, "starting systemctl is-active command failed")
 	}
 
+	// systemctl is-active returns an exit code 0 if service is active, or non-zero otherwise
+	err := cmd.Wait()
 	var exitError *exec.ExitError
 	if errors.As(err, &exitError) {
 		return false, nil
@@ -351,8 +355,7 @@ func (j *MySQLRestoreJob) Run(ctx context.Context, send Send) (rerr error) {
 		return errors.Wrap(err, "cannot create temporary directory")
 	}
 	defer func() {
-		err := os.RemoveAll(tmpDir)
-		if err != nil {
+		if err := os.RemoveAll(tmpDir); err != nil {
 			j.l.WithError(err).Error("failed to remove temporary directory")
 		}
 	}()
@@ -361,7 +364,7 @@ func (j *MySQLRestoreJob) Run(ctx context.Context, send Send) (rerr error) {
 		return errors.WithStack(err)
 	}
 
-	active, err := mySQLActive()
+	active, err := mySQLActive(ctx)
 	if err != nil {
 		return errors.WithStack(err)
 	}
