@@ -241,12 +241,8 @@ github.com/percona/go-mysql v0.0.0-20200630114833-b77f37c0bfa2 h1:0tQBti5FIrKfH3
 github.com/percona/go-mysql v0.0.0-20200630114833-b77f37c0bfa2/go.mod h1:/SGLf9OMxlnK6jq4mkFiImBcJXXk5jwD+lDrwDaGXcw=
 github.com/percona/percona-toolkit v3.2.1+incompatible h1:5jLvtZKcu9fDmaLRB8qA4bLR727t5iYyguHJJQTk9w0=
 github.com/percona/percona-toolkit v3.2.1+incompatible/go.mod h1:netQWdWMaF1cnmwiIS+i5uyaqNXz46yNeM6HKkR6yeI=
-github.com/percona/pmm v2.15.2-0.20210406103813-62d781b7a485+incompatible h1:wehKWcPIJd5Z5e1zAgm334XJMl/OIXqRWULHtb+N/x4=
-github.com/percona/pmm v2.15.2-0.20210406103813-62d781b7a485+incompatible/go.mod h1:nN14kK4Dfl2Ub1k05aOnAHv7SmLEQtCsYX+DEfLgrkU=
-github.com/percona/pmm v2.15.2-0.20210416081022-46fdbf43f312+incompatible h1:OJg3FxPSIpIfLeFHh/mAjdeVF7UJWv1MnIrZrexHTRE=
-github.com/percona/pmm v2.15.2-0.20210416081022-46fdbf43f312+incompatible/go.mod h1:nN14kK4Dfl2Ub1k05aOnAHv7SmLEQtCsYX+DEfLgrkU=
-github.com/percona/pmm v2.16.1-0.20210422091105-40d570e7d167+incompatible h1:2d4SWfXCg4lIt1WMEuMwlf7SkRcOvSrGjJ82wMDEfkg=
-github.com/percona/pmm v2.16.1-0.20210422091105-40d570e7d167+incompatible/go.mod h1:nN14kK4Dfl2Ub1k05aOnAHv7SmLEQtCsYX+DEfLgrkU=
+github.com/percona/pmm v2.16.1-0.20210425121216-4a5389a562eb+incompatible h1:eo6wLhqCDBlily0aQDYo9CVx65VO+faIBiwoaBLj6LU=
+github.com/percona/pmm v2.16.1-0.20210425121216-4a5389a562eb+incompatible/go.mod h1:nN14kK4Dfl2Ub1k05aOnAHv7SmLEQtCsYX+DEfLgrkU=
 github.com/pkg/errors v0.8.0/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
 github.com/pkg/errors v0.8.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
 github.com/pkg/errors v0.9.1 h1:FEBLx1zS214owpjy7qsBeixbURkuhQAwrK5UwLGTwt4=
