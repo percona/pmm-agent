@@ -18,11 +18,9 @@ package actions
 import (
 	"context"
 
+	"github.com/percona/pmm-agent/tlshelpers"
 	"github.com/percona/pmm/api/agentpb"
 	"github.com/pkg/errors"
-	"github.com/prometheus/common/log"
-
-	"github.com/percona/pmm-agent/tlshelpers"
 )
 
 type mysqlQuerySelectAction struct {
@@ -32,13 +30,6 @@ type mysqlQuerySelectAction struct {
 
 // NewMySQLQuerySelectAction creates MySQL SELECT query Action.
 func NewMySQLQuerySelectAction(id string, params *agentpb.StartActionRequest_MySQLQuerySelectParams) Action {
-	if params.TlsFiles != nil && params.TlsFiles.Files != nil {
-		err := tlshelpers.RegisterMySQLCerts(params.TlsFiles.Files, params.TlsSkipVerify)
-		if err != nil {
-			log.Error(err)
-		}
-	}
-
 	return &mysqlQuerySelectAction{
 		id:     id,
 		params: params,
@@ -57,11 +48,12 @@ func (a *mysqlQuerySelectAction) Type() string {
 
 // Run runs an Action and returns output and error.
 func (a *mysqlQuerySelectAction) Run(ctx context.Context) ([]byte, error) {
-	db, err := mysqlOpen(a.params.Dsn)
+	db, err := mysqlOpen(a.params.Dsn, a.params.TlsFiles, a.params.TlsSkipVerify)
 	if err != nil {
 		return nil, err
 	}
 	defer db.Close() //nolint:errcheck
+	defer tlshelpers.DeregisterMySQLCerts()
 
 	// use prepared statement to force binary protocol usage that returns correct types
 	stmt, err := db.PrepareContext(ctx, "SELECT /* pmm-agent */ "+a.params.Query) //nolint:gosec

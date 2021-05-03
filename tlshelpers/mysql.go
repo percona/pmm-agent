@@ -50,3 +50,8 @@ func RegisterMySQLCerts(files map[string]string, tlsSkipVerify bool) error {
 
 	return nil
 }
+
+// DeregisterMySQLCerts is used for deregister TLS config.
+func DeregisterMySQLCerts() {
+	mysql.DeregisterTLSConfig("custom")
+}

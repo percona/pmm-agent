@@ -24,11 +24,9 @@ import (
 	"strings"
 	"text/tabwriter"
 
+	"github.com/percona/pmm-agent/tlshelpers"
 	"github.com/percona/pmm/api/agentpb"
 	"github.com/pkg/errors"
-	"github.com/prometheus/common/log"
-
-	"github.com/percona/pmm-agent/tlshelpers"
 )
 
 type mysqlExplainAction struct {
@@ -39,13 +37,6 @@ type mysqlExplainAction struct {
 // NewMySQLExplainAction creates MySQL Explain Action.
 // This is an Action that can run `EXPLAIN` command on MySQL service with given DSN.
 func NewMySQLExplainAction(id string, params *agentpb.StartActionRequest_MySQLExplainParams) Action {
-	if params.TlsFiles != nil && params.TlsFiles.Files != nil {
-		err := tlshelpers.RegisterMySQLCerts(params.TlsFiles.Files, params.TlsSkipVerify)
-		if err != nil {
-			log.Error(err)
-		}
-	}
-
 	return &mysqlExplainAction{
 		id:     id,
 		params: params,
@@ -64,11 +55,12 @@ func (a *mysqlExplainAction) Type() string {
 
 // Run runs an Action and returns output and error.
 func (a *mysqlExplainAction) Run(ctx context.Context) ([]byte, error) {
-	db, err := mysqlOpen(a.params.Dsn)
+	db, err := mysqlOpen(a.params.Dsn, a.params.TlsFiles, a.params.TlsSkipVerify)
 	if err != nil {
 		return nil, err
 	}
 	defer db.Close() //nolint:errcheck
+	defer tlshelpers.DeregisterMySQLCerts()
 
 	// Create a transaction to explain a query in to be able to rollback any
 	// harm done by stored functions/procedures.
