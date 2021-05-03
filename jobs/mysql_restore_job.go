@@ -16,7 +16,9 @@
 package jobs
 
 import (
+	"bytes"
 	"context"
+	"io"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -37,8 +39,7 @@ const (
 	mySQLUserName       = "mysql"
 	mySQLGroupName      = "mysql"
 	mySQLDirectory      = "/var/lib/mysql"
-	stopTimeout         = 5 * time.Second
-	activeCheckInterval = time.Second
+	systemctlTimeout    = 10 * time.Second
 )
 
 // MySQLRestoreJob implements Job for MySQL backup restore.
@@ -101,6 +102,8 @@ func prepareRestoreCommands(
 	backupName string,
 	config *BackupLocationConfig,
 	targetDirectory string,
+	stderr io.Writer,
+	stdout io.Writer,
 ) (xbcloud, xbstream *exec.Cmd, _ error) {
 	xbcloudCmd := exec.CommandContext( //nolint:gosec
 		ctx,
@@ -115,6 +118,7 @@ func prepareRestoreCommands(
 		"--parallel=10",
 		backupName,
 	)
+	xbcloudCmd.Stderr = stderr
 
 	xbcloudStdout, err := xbcloudCmd.StdoutPipe()
 	if err != nil {
@@ -131,6 +135,8 @@ func prepareRestoreCommands(
 		"--decompress",
 	)
 	xbstreamCmd.Stdin = xbcloudStdout
+	xbstreamCmd.Stderr = stderr
+	xbstreamCmd.Stdout = stdout
 
 	return xbcloudCmd, xbstreamCmd, nil
 }
@@ -144,18 +150,25 @@ func restoreMySQLFromS3(
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
+	var stderr, stdout bytes.Buffer
 	xbcloudCmd, xbstreamCmd, err := prepareRestoreCommands(
 		ctx,
 		backupName,
 		config,
 		targetDirectory,
+		&stderr,
+		&stdout,
 	)
 	if err != nil {
 		return err
 	}
 
+	wrapError := func(err error) error {
+		return errors.Wrapf(err, "stderr: %s\n stdout: %s\n", stderr.String(), stdout.String())
+	}
+
 	if err := xbcloudCmd.Start(); err != nil {
-		return errors.Wrap(err, "xbcloud start failed")
+		return errors.Wrap(wrapError(err), "xbcloud start failed")
 	}
 	defer func() {
 		err := xbcloudCmd.Wait()
@@ -166,16 +179,16 @@ func restoreMySQLFromS3(
 		if rerr != nil {
 			rerr = errors.Wrapf(rerr, "xbcloud wait error: %s", err)
 		} else {
-			rerr = errors.Wrap(err, "xbcloud wait failed")
+			rerr = errors.Wrap(wrapError(err), "xbcloud wait failed")
 		}
 	}()
 
 	if err := xbstreamCmd.Start(); err != nil {
-		return errors.Wrap(err, "xbstream start failed")
+		return errors.Wrap(wrapError(err), "xbstream start failed")
 	}
 
 	if err := xbstreamCmd.Wait(); err != nil {
-		return errors.Wrap(err, "xbstream wait failed")
+		return errors.Wrap(wrapError(err), "xbstream wait failed")
 	}
 
 	return nil
@@ -196,41 +209,28 @@ func mySQLActive() (bool, error) {
 	return false, err
 }
 
-func waitForMySQL(expectedActiveStatus bool) error {
-	timeout := time.After(stopTimeout)
-	ticker := time.NewTicker(activeCheckInterval)
-	defer ticker.Stop()
+func stopMySQL(ctx context.Context) error {
+	ctx, cancel := context.WithTimeout(ctx, systemctlTimeout)
+	defer cancel()
 
-	for {
-		select {
-		case <-ticker.C:
-			active, err := mySQLActive()
-			if err != nil {
-				return errors.Wrap(err, "couldn't get MySQL status")
-			}
-			if active == expectedActiveStatus {
-				return nil
-			}
-		case <-timeout:
-			return errors.New("couldn't wait for MySQL status: timeout")
-		}
+	cmd := exec.CommandContext(ctx, "systemctl", "stop", mySQLServiceName)
+	if err := cmd.Start(); err != nil {
+		return errors.Wrap(err, "starting systemctl stop command failed")
 	}
+
+	return errors.Wrap(cmd.Wait(), "waiting systemctl stop command failed")
 }
 
-func stopMySQL() error {
-	if _, err := exec.Command("systemctl", "stop", mySQLServiceName).Output(); err != nil {
-		return errors.Wrap(err, "systemctl stop failed")
+func startMySQL(ctx context.Context) error {
+	ctx, cancel := context.WithTimeout(ctx, systemctlTimeout)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, "systemctl", "start", mySQLServiceName)
+	if err := cmd.Start(); err != nil {
+		return errors.Wrap(err, "starting systemctl start command failed")
 	}
 
-	return errors.WithStack(waitForMySQL(false))
-}
-
-func startMySQL() error {
-	if _, err := exec.Command("systemctl", "start", mySQLServiceName).Output(); err != nil {
-		return errors.Wrap(err, "systemctl start failed")
-	}
-
-	return errors.WithStack(waitForMySQL(true))
+	return errors.Wrap(cmd.Wait(), "waiting systemctl start command failed")
 }
 
 func chownRecursive(path string, uid, gid int) error {
@@ -281,13 +281,13 @@ func isPathExists(path string) (bool, error) {
 }
 
 func restoreBackup(ctx context.Context, backupDirectory, mySQLDirectory string) error {
-	if _, err := exec.CommandContext( //nolint:gosec
+	if output, err := exec.CommandContext( //nolint:gosec
 		ctx,
 		xtrabackupBin,
 		"--prepare",
 		"--target-dir="+backupDirectory,
-	).Output(); err != nil {
-		return errors.WithStack(err)
+	).CombinedOutput(); err != nil {
+		return errors.Wrapf(err, "failed to prepare, output: %s", string(output))
 	}
 
 	exists, err := isPathExists(mySQLDirectory)
@@ -301,13 +301,13 @@ func restoreBackup(ctx context.Context, backupDirectory, mySQLDirectory string) 
 		}
 	}
 
-	if _, err := exec.CommandContext( //nolint:gosec
+	if output, err := exec.CommandContext( //nolint:gosec
 		ctx,
 		xtrabackupBin,
 		"--copy-back",
 		"--datadir="+mySQLDirectory,
-		"--target-dir="+backupDirectory).Output(); err != nil {
-		return errors.WithStack(err)
+		"--target-dir="+backupDirectory).CombinedOutput(); err != nil {
+		return errors.Wrapf(err, "failed to copy back, output: %s", string(output))
 	}
 
 	uid, gid, err := mySQLUserAndGroupIDs()
@@ -323,6 +323,17 @@ func restoreBackup(ctx context.Context, backupDirectory, mySQLDirectory string) 
 
 // Run executes backup restore steps.
 func (j *MySQLRestoreJob) Run(ctx context.Context, send Send) (rerr error) {
+	j.l.Info("MySQL restore started")
+	defer func(start time.Time) {
+		entry := j.l.WithField("duration", time.Since(start).String())
+
+		if rerr != nil {
+			entry.Error("MySQL restore finished with error")
+		} else {
+			entry.Info("MySQL restore finished")
+		}
+	}(time.Now())
+
 	if j.location.S3Config == nil {
 		return errors.New("S3 config is not set")
 	}
@@ -341,14 +352,8 @@ func (j *MySQLRestoreJob) Run(ctx context.Context, send Send) (rerr error) {
 	}
 	defer func() {
 		err := os.RemoveAll(tmpDir)
-		if err == nil {
-			return
-		}
-
-		if rerr != nil {
-			rerr = errors.Wrapf(rerr, "removing temporary directory error: %s", err)
-		} else {
-			rerr = errors.WithStack(err)
+		if err != nil {
+			j.l.WithError(err).Error("failed to remove temporary directory")
 		}
 	}()
 
@@ -361,7 +366,7 @@ func (j *MySQLRestoreJob) Run(ctx context.Context, send Send) (rerr error) {
 		return errors.WithStack(err)
 	}
 	if active {
-		if err := stopMySQL(); err != nil {
+		if err := stopMySQL(ctx); err != nil {
 			return errors.WithStack(err)
 		}
 	}
@@ -370,7 +375,7 @@ func (j *MySQLRestoreJob) Run(ctx context.Context, send Send) (rerr error) {
 		return errors.WithStack(err)
 	}
 
-	if err := startMySQL(); err != nil {
+	if err := startMySQL(ctx); err != nil {
 		return errors.WithStack(err)
 	}
 
