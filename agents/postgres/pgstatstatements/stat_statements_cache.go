@@ -93,7 +93,7 @@ func (ssc *statStatementCache) getStatStatementsExtended(ctx context.Context, q 
 	databases := queryDatabases(q)
 	usernames := queryUsernames(q)
 
-	rows, e := rowsByVersion(q, "WHERE queryid IS NOT NULL AND query IS NOT NULL LIMIT 100, 100")
+	rows, e := rowsByVersion(q, "WHERE queryid IS NOT NULL AND query IS NOT NULL")
 	if e != nil {
 		err = e
 		return
