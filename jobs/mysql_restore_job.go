@@ -204,13 +204,16 @@ func mySQLActive(ctx context.Context) (bool, error) {
 	}
 
 	// systemctl is-active returns an exit code 0 if service is active, or non-zero otherwise
-	err := cmd.Wait()
 	var exitError *exec.ExitError
-	if errors.As(err, &exitError) {
+	err := cmd.Wait()
+	switch {
+	case err == nil:
+		return true, nil
+	case errors.As(err, &exitError):
 		return false, nil
+	default:
+		return false, err
 	}
-
-	return false, err
 }
 
 func stopMySQL(ctx context.Context) error {
