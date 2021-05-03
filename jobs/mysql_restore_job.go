@@ -212,7 +212,7 @@ func mySQLActive(ctx context.Context) (bool, error) {
 	case errors.As(err, &exitError):
 		return false, nil
 	default:
-		return false, err
+		return false, errors.WithStack(err)
 	}
 }
 
