@@ -446,10 +446,10 @@ func (c *Client) handleStartJobRequest(p *agentpb.StartJobRequest) error {
 			Socket:   j.MysqlBackup.Socket,
 		}
 		job = jobs.NewMySQLBackupJob(p.JobId, timeout, j.MysqlBackup.Name, cfg, locationConfig)
-	case *agentpb.StartJobRequest_MysqlBackupRestore:
+	case *agentpb.StartJobRequest_MysqlRestoreBackup:
 		var locationConfig jobs.BackupLocationConfig
-		switch cfg := j.MysqlBackupRestore.LocationConfig.(type) {
-		case *agentpb.StartJobRequest_MySQLBackupRestore_S3Config:
+		switch cfg := j.MysqlRestoreBackup.LocationConfig.(type) {
+		case *agentpb.StartJobRequest_MySQLRestoreBackup_S3Config:
 			locationConfig.S3Config = &jobs.S3LocationConfig{
 				Endpoint:     cfg.S3Config.Endpoint,
 				AccessKey:    cfg.S3Config.AccessKey,
@@ -458,9 +458,9 @@ func (c *Client) handleStartJobRequest(p *agentpb.StartJobRequest) error {
 				BucketRegion: cfg.S3Config.BucketRegion,
 			}
 		default:
-			return errors.Errorf("unknown location config: %T", j.MysqlBackupRestore.LocationConfig)
+			return errors.Errorf("unknown location config: %T", j.MysqlRestoreBackup.LocationConfig)
 		}
-		job = jobs.NewMySQLRestoreJob(p.JobId, timeout, j.MysqlBackupRestore.Name, locationConfig)
+		job = jobs.NewMySQLRestoreJob(p.JobId, timeout, j.MysqlRestoreBackup.Name, locationConfig)
 	default:
 		return errors.Errorf("unknown job type: %T", j)
 	}

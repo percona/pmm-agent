@@ -388,8 +388,8 @@ func (j *MySQLRestoreJob) Run(ctx context.Context, send Send) (rerr error) {
 	send(&agentpb.JobResult{
 		JobId:     j.id,
 		Timestamp: ptypes.TimestampNow(),
-		Result: &agentpb.JobResult_MysqlBackupRestore{
-			MysqlBackupRestore: &agentpb.JobResult_MySQLBackupRestore{},
+		Result: &agentpb.JobResult_MysqlRestoreBackup{
+			MysqlRestoreBackup: &agentpb.JobResult_MySQLRestoreBackup{},
 		},
 	})
 
