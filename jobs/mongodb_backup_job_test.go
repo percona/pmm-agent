@@ -26,12 +26,12 @@ func TestCreateDBURL(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		dbConfig DatabaseConfig
+		dbConfig DBConnConfig
 		url      string
 	}{
 		{
 			name: "network",
-			dbConfig: DatabaseConfig{
+			dbConfig: DBConnConfig{
 				User:     "user",
 				Password: "pass",
 				Address:  "localhost",
@@ -41,7 +41,7 @@ func TestCreateDBURL(t *testing.T) {
 		},
 		{
 			name: "network without credentials",
-			dbConfig: DatabaseConfig{
+			dbConfig: DBConnConfig{
 				Address: "localhost",
 				Port:    1234,
 			},
@@ -49,7 +49,7 @@ func TestCreateDBURL(t *testing.T) {
 		},
 		{
 			name: "socket",
-			dbConfig: DatabaseConfig{
+			dbConfig: DBConnConfig{
 				User:     "user",
 				Password: "pass",
 				Socket:   "/tmp/mongo",
@@ -58,7 +58,7 @@ func TestCreateDBURL(t *testing.T) {
 		},
 		{
 			name: "socket without credentials",
-			dbConfig: DatabaseConfig{
+			dbConfig: DBConnConfig{
 				Socket: "/tmp/mongo",
 			},
 			url: "mongodb://%2Ftmp%2Fmongo",

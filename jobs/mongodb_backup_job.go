@@ -54,7 +54,7 @@ type MongoDBBackupJob struct {
 }
 
 // NewMongoDBBackupJob creates new Job for MongoDB backup.
-func NewMongoDBBackupJob(id string, timeout time.Duration, name string, dbConfig DatabaseConfig, locationConfig BackupLocationConfig) *MongoDBBackupJob {
+func NewMongoDBBackupJob(id string, timeout time.Duration, name string, dbConfig DBConnConfig, locationConfig BackupLocationConfig) *MongoDBBackupJob {
 	return &MongoDBBackupJob{
 		id:       id,
 		timeout:  timeout,
@@ -114,7 +114,7 @@ func (j *MongoDBBackupJob) Run(ctx context.Context, send Send) error {
 	return nil
 }
 
-func createDBURL(dbConfig DatabaseConfig) *url.URL {
+func createDBURL(dbConfig DBConnConfig) *url.URL {
 	var host string
 	switch {
 	case dbConfig.Address != "":

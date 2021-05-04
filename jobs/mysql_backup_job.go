@@ -40,12 +40,12 @@ type MySQLBackupJob struct {
 	timeout  time.Duration
 	l        logrus.FieldLogger
 	name     string
-	db       DatabaseConfig
+	connConf DBConnConfig
 	location BackupLocationConfig
 }
 
-// DatabaseConfig contains required properties for connection to DB.
-type DatabaseConfig struct {
+// DBConnConfig contains required properties for connection to DB.
+type DBConnConfig struct {
 	User     string
 	Password string
 	Address  string
@@ -54,13 +54,13 @@ type DatabaseConfig struct {
 }
 
 // NewMySQLBackupJob constructs new Job for MySQL backup.
-func NewMySQLBackupJob(id string, timeout time.Duration, name string, dbConfig DatabaseConfig, locationConfig BackupLocationConfig) *MySQLBackupJob {
+func NewMySQLBackupJob(id string, timeout time.Duration, name string, connConf DBConnConfig, locationConfig BackupLocationConfig) *MySQLBackupJob {
 	return &MySQLBackupJob{
 		id:       id,
 		timeout:  timeout,
 		l:        logrus.WithFields(logrus.Fields{"id": id, "type": "mysql_backup", "name": name}),
 		name:     name,
-		db:       dbConfig,
+		connConf: connConf,
 		location: locationConfig,
 	}
 }
@@ -97,19 +97,19 @@ func (j *MySQLBackupJob) Run(ctx context.Context, send Send) (rerr error) {
 	}
 
 	xtrabackupCmd := exec.CommandContext(ctx, xtrabackupBin,
-		"--user="+j.db.User,
-		"--password="+j.db.Password,
+		"--user="+j.connConf.User,
+		"--password="+j.connConf.Password,
 		"--compress",
 		"--backup") // #nosec G204
 
 	switch {
-	case j.db.Address != "":
-		xtrabackupCmd.Args = append(xtrabackupCmd.Args, "--host="+j.db.Address)
-		if j.db.Port > 0 {
-			xtrabackupCmd.Args = append(xtrabackupCmd.Args, "--port="+strconv.Itoa(j.db.Port))
+	case j.connConf.Address != "":
+		xtrabackupCmd.Args = append(xtrabackupCmd.Args, "--host="+j.connConf.Address)
+		if j.connConf.Port > 0 {
+			xtrabackupCmd.Args = append(xtrabackupCmd.Args, "--port="+strconv.Itoa(j.connConf.Port))
 		}
-	case j.db.Socket != "":
-		xtrabackupCmd.Args = append(xtrabackupCmd.Args, "--socket="+j.db.Socket)
+	case j.connConf.Socket != "":
+		xtrabackupCmd.Args = append(xtrabackupCmd.Args, "--socket="+j.connConf.Socket)
 	}
 
 	var xbcloudCmd *exec.Cmd

@@ -438,7 +438,7 @@ func (c *Client) handleStartJobRequest(p *agentpb.StartJobRequest) error {
 			return errors.Errorf("unknown location config: %T", j.MysqlBackup.LocationConfig)
 		}
 
-		cfg := jobs.DatabaseConfig{
+		cfg := jobs.DBConnConfig{
 			User:     j.MysqlBackup.User,
 			Password: j.MysqlBackup.Password,
 			Address:  j.MysqlBackup.Address,
@@ -462,7 +462,7 @@ func (c *Client) handleStartJobRequest(p *agentpb.StartJobRequest) error {
 			return errors.Errorf("unknown location config: %T", j.MongodbBackup.LocationConfig)
 		}
 
-		cfg := jobs.DatabaseConfig{
+		cfg := jobs.DBConnConfig{
 			User:     j.MongodbBackup.User,
 			Password: j.MongodbBackup.Password,
 			Address:  j.MongodbBackup.Address,
