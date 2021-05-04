@@ -43,7 +43,7 @@ const (
 // This regexp checks that there is no running backups.
 var backupStatusOutputR = regexp.MustCompile(`Currently running:\n=*\n\(none\)`)
 
-// MongoDBBackupJob implements Job form MongoDB backup.
+// MongoDBBackupJob implements Job from MongoDB backup.
 type MongoDBBackupJob struct {
 	id       string
 	timeout  time.Duration
@@ -224,8 +224,8 @@ func (j *MongoDBBackupJob) writePBMConfigFile() (string, error) {
 
 	var conf struct {
 		Storage struct {
-			Typ string `yaml:"type"`
-			S3  struct {
+			Type string `yaml:"type"`
+			S3   struct {
 				Region      string `yaml:"region"`
 				Bucket      string `yaml:"bucket"`
 				Prefix      string `yaml:"prefix"`
@@ -238,7 +238,7 @@ func (j *MongoDBBackupJob) writePBMConfigFile() (string, error) {
 		} `yaml:"storage"`
 	}
 
-	conf.Storage.Typ = "s3"
+	conf.Storage.Type = "s3"
 	conf.Storage.S3.EndpointURL = j.location.S3Config.Endpoint
 	conf.Storage.S3.Region = j.location.S3Config.BucketRegion
 	conf.Storage.S3.Bucket = j.location.S3Config.BucketName
