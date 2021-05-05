@@ -364,6 +364,7 @@ func TestUnexpectedResponseIDFromServer(t *testing.T) {
 
 	// after receiving unexpected response, channel is closed
 	resp, err := channel.SendAndWaitResponse(new(agentpb.QANCollectRequest))
+	require.NoError(t, err)
 	assert.Nil(t, resp)
 	msg := <-channel.Requests()
 	assert.Nil(t, msg)
@@ -386,14 +387,16 @@ func TestUnexpectedResponsePayloadFromServer(t *testing.T) {
 		})
 		assert.NoError(t, err)
 		_, _ = stream.Recv()
+
 		// test unexpected payload
 		err = stream.Send(&agentpb.ServerMessage{
 			Id: 4242,
 		})
+		require.NoError(t, err)
+
 		msg, err := stream.Recv()
 		assert.NoError(t, err)
 		assert.Equal(t, int32(codes.Unimplemented), msg.GetStatus().GetCode())
-		assert.NoError(t, err)
 		close(stop)
 		return nil
 	}

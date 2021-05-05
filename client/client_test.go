@@ -246,6 +246,8 @@ func TestUnexpectedActionType(t *testing.T) {
 				StartAction: &agentpb.StartActionRequest{},
 			},
 		})
+		assert.NoError(t, err)
+
 		msg, err = stream.Recv()
 		assert.NoError(t, err)
 		assert.Equal(t, int32(codes.Unimplemented), msg.GetStatus().GetCode())
