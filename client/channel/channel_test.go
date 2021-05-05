@@ -397,7 +397,8 @@ func TestUnexpectedResponsePayloadFromServer(t *testing.T) {
 		close(stop)
 		return nil
 	}
-	channel, _, teardown := setup(t, connect, status.Error(codes.Canceled, context.Canceled.Error()))
+	err := status.Error(codes.Canceled, "test done")
+	channel, _, teardown := setup(t, connect, err)
 	defer teardown()
 	req := <-channel.Requests()
 	channel.Send(&AgentResponse{
@@ -407,5 +408,5 @@ func TestUnexpectedResponsePayloadFromServer(t *testing.T) {
 		},
 	})
 	<-stop
-	channel.close(status.Error(codes.Canceled, context.Canceled.Error()))
+	channel.close(err)
 }
