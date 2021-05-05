@@ -377,16 +377,35 @@ func TestUnexpectedResponseIDFromServer(t *testing.T) {
 }
 
 func TestUnexpectedResponsePayloadFromServer(t *testing.T) {
+	stop := make(chan struct{})
 	connect := func(stream agentpb.Agent_ConnectServer) error {
+		// establish the connection
 		err := stream.Send(&agentpb.ServerMessage{
+			Id:      1,
+			Payload: new(agentpb.Ping).ServerMessageRequestPayload(),
+		})
+		assert.NoError(t, err)
+		_, _ = stream.Recv()
+		// test unexpected payload
+		err = stream.Send(&agentpb.ServerMessage{
 			Id: 4242,
 		})
 		msg, err := stream.Recv()
 		assert.NoError(t, err)
 		assert.Equal(t, int32(codes.Unimplemented), msg.GetStatus().GetCode())
 		assert.NoError(t, err)
+		close(stop)
 		return nil
 	}
-	_, _, teardown := setup(t, connect, status.Error(codes.Canceled, context.Canceled.Error()))
+	channel, _, teardown := setup(t, connect, status.Error(codes.Canceled, context.Canceled.Error()))
 	defer teardown()
+	req := <-channel.Requests()
+	channel.Send(&AgentResponse{
+		ID: req.ID,
+		Payload: &agentpb.Pong{
+			CurrentTime: ptypes.TimestampNow(),
+		},
+	})
+	<-stop
+	channel.close(status.Error(codes.Canceled, context.Canceled.Error()))
 }
