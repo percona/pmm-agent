@@ -124,7 +124,8 @@ func TestAgentRequestWithTruncatedInvalidUTF8(t *testing.T) {
 		},
 		Mysql: &agentpb.MetricsBucket_MySQL{},
 	}}
-	resp := channel.SendAndWaitResponse(rq)
+	resp, err := channel.SendAndWaitResponse(rq)
+	require.NoError(t, err)
 	assert.NotNil(t, resp)
 
 	// Testing that it was failing with invalid query
@@ -135,7 +136,8 @@ func TestAgentRequestWithTruncatedInvalidUTF8(t *testing.T) {
 		},
 		Mysql: &agentpb.MetricsBucket_MySQL{},
 	}}
-	resp = channel.SendAndWaitResponse(rq)
+	resp, err = channel.SendAndWaitResponse(rq)
+	require.NoError(t, err)
 	assert.Nil(t, resp)
 }
 
@@ -164,7 +166,8 @@ func TestAgentRequest(t *testing.T) {
 	defer teardown()
 
 	for i := uint32(1); i <= count; i++ {
-		resp := channel.SendAndWaitResponse(new(agentpb.QANCollectRequest))
+		resp, err := channel.SendAndWaitResponse(new(agentpb.QANCollectRequest))
+		require.NoError(t, err)
 		assert.NotNil(t, resp)
 	}
 
@@ -258,7 +261,8 @@ func TestServerExitsWithGRPCError(t *testing.T) {
 	channel, _, teardown := setup(t, connect, errUnimplemented)
 	defer teardown()
 
-	resp := channel.SendAndWaitResponse(new(agentpb.QANCollectRequest))
+	resp, err := channel.SendAndWaitResponse(new(agentpb.QANCollectRequest))
+	require.NoError(t, err)
 	assert.Nil(t, resp)
 }
 
@@ -275,7 +279,8 @@ func TestServerExitsWithUnknownError(t *testing.T) {
 	channel, _, teardown := setup(t, connect, status.Error(codes.Unknown, "EOF"))
 	defer teardown()
 
-	resp := channel.SendAndWaitResponse(new(agentpb.QANCollectRequest))
+	resp, err := channel.SendAndWaitResponse(new(agentpb.QANCollectRequest))
+	require.NoError(t, err)
 	assert.Nil(t, resp)
 }
 
@@ -334,7 +339,7 @@ func TestAgentClosesConnection(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestUnexpectedResponseFromServer(t *testing.T) {
+func TestUnexpectedResponseIDFromServer(t *testing.T) {
 	connect := func(stream agentpb.Agent_ConnectServer) error { //nolint:unparam
 		// this message triggers "no subscriber for ID" error
 		err := stream.Send(&agentpb.ServerMessage{
@@ -358,14 +363,30 @@ func TestUnexpectedResponseFromServer(t *testing.T) {
 	defer teardown()
 
 	// after receiving unexpected response, channel is closed
-	resp := channel.SendAndWaitResponse(new(agentpb.QANCollectRequest))
+	resp, err := channel.SendAndWaitResponse(new(agentpb.QANCollectRequest))
 	assert.Nil(t, resp)
 	msg := <-channel.Requests()
 	assert.Nil(t, msg)
 
 	// future requests are ignored
-	resp = channel.SendAndWaitResponse(new(agentpb.QANCollectRequest))
+	resp, err = channel.SendAndWaitResponse(new(agentpb.QANCollectRequest))
+	require.NoError(t, err)
 	assert.Nil(t, resp)
 	msg = <-channel.Requests()
 	assert.Nil(t, msg)
+}
+
+func TestUnexpectedResponsePayloadFromServer(t *testing.T) {
+	connect := func(stream agentpb.Agent_ConnectServer) error {
+		err := stream.Send(&agentpb.ServerMessage{
+			Id: 4242,
+		})
+		msg, err := stream.Recv()
+		assert.NoError(t, err)
+		assert.Equal(t, int32(codes.Unimplemented), msg.GetStatus().GetCode())
+		assert.NoError(t, err)
+		return nil
+	}
+	_, _, teardown := setup(t, connect, status.Error(codes.Canceled, context.Canceled.Error()))
+	defer teardown()
 }
