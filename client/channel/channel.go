@@ -56,7 +56,7 @@ type AgentResponse struct {
 	Payload agentpb.AgentResponsePayload
 }
 
-//  Response is a type used to pass response from pmm-server to the subscriber.
+// Response is a type used to pass response from pmm-server to the subscriber.
 type Response struct {
 	Payload agentpb.ServerResponsePayload
 	Error   error
