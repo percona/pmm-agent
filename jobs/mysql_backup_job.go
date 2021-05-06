@@ -96,11 +96,12 @@ func (j *MySQLBackupJob) Run(ctx context.Context, send Send) (rerr error) {
 		}
 	}
 
-	xtrabackupCmd := exec.CommandContext(ctx, xtrabackupBin,
-		"--user="+j.connConf.User,
-		"--password="+j.connConf.Password,
-		"--compress",
-		"--backup") // #nosec G204
+	xtrabackupCmd := exec.CommandContext(ctx, xtrabackupBin, "--compress", "--backup") // #nosec G204
+
+	if j.connConf.User != "" {
+		xtrabackupCmd.Args = append(xtrabackupCmd.Args, "--user="+j.connConf.User)
+		xtrabackupCmd.Args = append(xtrabackupCmd.Args, "--password="+j.connConf.Password)
+	}
 
 	switch {
 	case j.connConf.Address != "":
