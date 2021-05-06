@@ -26,7 +26,7 @@ require (
 	github.com/percona/exporter_shared v0.7.2
 	github.com/percona/go-mysql v0.0.0-20200630114833-b77f37c0bfa2
 	github.com/percona/percona-toolkit v3.2.1+incompatible
-	github.com/percona/pmm v2.16.1-0.20210504195709-79b5e58eba2a+incompatible
+	github.com/percona/pmm v2.16.1-0.20210506141539-44d6192d9001+incompatible
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.5.1
 	github.com/prometheus/common v0.10.0
