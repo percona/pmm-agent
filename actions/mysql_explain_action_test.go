@@ -71,7 +71,12 @@ id |select_type |table |partitions |type |possible_keys |key  |key_len |ref  |ro
 1  |SIMPLE      |city  |NULL       |ALL  |NULL          |NULL |NULL    |NULL |4188 |100.00   |Using filesort
 			`)
 		}
-		actual := strings.TrimSpace(string(b))
+
+		var er explainResponse
+		err = json.Unmarshal(b, &er)
+		assert.NoError(t, err)
+
+		actual := strings.TrimSpace(string(er.ExplainResult))
 		assert.Equal(t, expected, actual)
 	})
 
@@ -88,7 +93,12 @@ id |select_type |table |partitions |type |possible_keys |key  |key_len |ref  |ro
 		b, err := a.Run(ctx)
 		require.NoError(t, err)
 		t.Logf("Full JSON:\n%s", b)
-		m, err := objx.FromJSON(string(b))
+
+		var er explainResponse
+		err = json.Unmarshal(b, &er)
+		assert.NoError(t, err)
+
+		m, err := objx.FromJSON(string(er.ExplainResult))
 		require.NoError(t, err)
 
 		assert.Equal(t, 1, m.Get("query_block.select_id").Int())
@@ -129,8 +139,12 @@ id |select_type |table |partitions |type |possible_keys |key  |key_len |ref  |ro
 		require.NoError(t, err)
 		t.Logf("Full JSON:\n%s", b)
 
+		var er explainResponse
+		err = json.Unmarshal(b, &er)
+		assert.NoError(t, err)
+
 		var actual [][]interface{}
-		err = json.Unmarshal(b, &actual)
+		err = json.Unmarshal(er.ExplainResult, &actual)
 		require.NoError(t, err)
 		require.Len(t, actual, 2)
 
