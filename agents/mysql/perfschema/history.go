@@ -44,6 +44,27 @@ func getHistory(q *reform.Querier) (map[string]*eventsStatementsHistory, error) 
 	return res, nil
 }
 
+func getHistory80(q *reform.Querier) (map[string]*eventsStatementsHistory, error) {
+	rows, err := q.SelectRows(eventsStatementsHistoryView, "WHERE DIGEST IS NOT NULL AND QUERY_SAMPLE_TEXT IS NOT NULL")
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to query events_statements_summary_by_digest")
+	}
+	defer rows.Close() //nolint:errcheck
+
+	res := make(map[string]*eventsStatementsHistory)
+	for {
+		var esh eventsStatementsHistory
+		if err = q.NextRow(&esh, rows); err != nil {
+			break
+		}
+		res[*esh.Digest] = &esh
+	}
+	if err != reform.ErrNoRows {
+		return nil, errors.Wrap(err, "failed to fetch events_statements_summary_by_digest")
+	}
+	return res, nil
+}
+
 // historyCache provides cached access to performance_schema.events_statements_history.
 // It retains data longer than this table.
 type historyCache struct {
