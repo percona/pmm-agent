@@ -207,7 +207,7 @@ func (m *PerfSchema) runHistoryCacheRefresher(ctx context.Context) {
 }
 
 func (m *PerfSchema) refreshHistoryCache() error {
-	current, err := getHistory(m.q)
+	current, err := getHistory80(m.q)
 	if err != nil {
 		return err
 	}

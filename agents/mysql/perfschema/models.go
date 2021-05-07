@@ -57,7 +57,7 @@ type eventsStatementsSummaryByDigest struct {
 type eventsStatementsSummaryByDigestExamples struct {
 	SQLText       *string `reform:"QUERY_SAMPLE_TEXT"`
 	Digest        *string `reform:"DIGEST"`
-	CurrentSchema *string `reform:"CURRENT_SCHEMA"`
+	CurrentSchema *string `reform:"SCHEMA_NAME"`
 }
 
 // eventsStatementsHistory represents a row in performance_schema.events_statements_history table.

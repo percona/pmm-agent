@@ -236,7 +236,7 @@ func (v *eventsStatementsSummaryByDigestExamplesViewType) Columns() []string {
 	return []string{
 		"QUERY_SAMPLE_TEXT",
 		"DIGEST",
-		"CURRENT_SCHEMA",
+		"SCHEMA_NAME",
 	}
 }
 
@@ -254,7 +254,7 @@ var eventsStatementsSummaryByDigestExamplesView = &eventsStatementsSummaryByDige
 		Fields: []parse.FieldInfo{
 			{Name: "SQLText", Type: "*string", Column: "QUERY_SAMPLE_TEXT"},
 			{Name: "Digest", Type: "*string", Column: "DIGEST"},
-			{Name: "CurrentSchema", Type: "*string", Column: "CURRENT_SCHEMA"},
+			{Name: "CurrentSchema", Type: "*string", Column: "SCHEMA_NAME"},
 		},
 		PKFieldIndex: -1,
 	},

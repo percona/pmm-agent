@@ -45,7 +45,7 @@ func getHistory(q *reform.Querier) (map[string]*eventsStatementsHistory, error) 
 }
 
 func getHistory80(q *reform.Querier) (map[string]*eventsStatementsHistory, error) {
-	rows, err := q.SelectRows(eventsStatementsHistoryView, "WHERE DIGEST IS NOT NULL AND QUERY_SAMPLE_TEXT IS NOT NULL")
+	rows, err := q.SelectRows(eventsStatementsSummaryByDigestExamplesView, "WHERE DIGEST IS NOT NULL AND QUERY_SAMPLE_TEXT IS NOT NULL")
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to query events_statements_summary_by_digest")
 	}
