@@ -36,12 +36,13 @@ import (
 const (
 	pbmBin = "pbm"
 
-	cmdTimeout                = time.Minute
-	backupStatusCheckInterval = 5 * time.Second
+	cmdTimeout          = time.Minute
+	resyncTimeout       = 5 * time.Minute
+	statusCheckInterval = 5 * time.Second
 )
 
-// This regexp checks that there is no running backups.
-var backupStatusOutputR = regexp.MustCompile(`Currently running:\n=*\n\(none\)`)
+// This regexp checks that there is no running pbm operations.
+var noRunningOperationsR = regexp.MustCompile(`Currently running:\n=*\n\(none\)`)
 
 // MongoDBBackupJob implements Job from MongoDB backup.
 type MongoDBBackupJob struct {
@@ -95,11 +96,18 @@ func (j *MongoDBBackupJob) Run(ctx context.Context, send Send) error {
 		return errors.New("unknown location config")
 	}
 
+	rCtx, cancel := context.WithTimeout(ctx, resyncTimeout)
+	if err := j.waitForNoRunningOperations(rCtx); err != nil {
+		cancel()
+		return errors.Wrap(err, "failed to wait pbm resync completion")
+	}
+	cancel()
+
 	if err := j.startBackup(ctx); err != nil {
 		return errors.Wrap(err, "failed to start backup")
 	}
 
-	if err := j.waitUntilBackupCompletion(ctx); err != nil {
+	if err := j.waitForNoRunningOperations(ctx); err != nil {
 		return errors.Wrap(err, "failed to wait backup completion")
 	}
 
@@ -165,12 +173,12 @@ func (j *MongoDBBackupJob) checkBackupCompletion(ctx context.Context) (bool, err
 		return false, errors.Wrapf(err, "pbm status error: %s", string(output))
 	}
 
-	return backupStatusOutputR.Match(output), nil
+	return noRunningOperationsR.Match(output), nil
 }
 
-func (j *MongoDBBackupJob) waitUntilBackupCompletion(ctx context.Context) error {
-	j.l.Info("Waiting for backup completion.")
-	ticker := time.NewTicker(backupStatusCheckInterval)
+func (j *MongoDBBackupJob) waitForNoRunningOperations(ctx context.Context) error {
+	j.l.Info("Waiting for operations completion.")
+	ticker := time.NewTicker(statusCheckInterval)
 	defer ticker.Stop()
 
 	for {
@@ -207,6 +215,7 @@ func (j *MongoDBBackupJob) setupS3(ctx context.Context) error {
 		"config",
 		"--mongodb-uri="+j.dbURL.String(),
 		"--file="+confFile,
+		"--force-resync",
 	).CombinedOutput()
 
 	if err != nil {
