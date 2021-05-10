@@ -62,11 +62,12 @@ func Setup() {
 		os.Exit(1)
 	}
 
+	if err := config.IsWritable(configFilepath); err != nil {
+		fmt.Printf("Config file %s is not writable: %s.\n", configFilepath, err)
+		os.Exit(1)
+	}
+
 	if !cfg.Setup.SkipRegistration {
-		if err := config.IsWritable(configFilepath); err != nil {
-			fmt.Printf("Config file %s is not writable: %s.\n", configFilepath, err.Error())
-			os.Exit(1)
-		}
 		register(cfg, l)
 	}
 
