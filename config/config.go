@@ -26,11 +26,10 @@ import (
 	"strconv"
 	"strings"
 
-	"golang.org/x/sys/unix"
-
 	"github.com/percona/pmm/utils/nodeinfo"
 	"github.com/percona/pmm/version"
 	"github.com/sirupsen/logrus"
+	"golang.org/x/sys/unix"
 	"gopkg.in/alecthomas/kingpin.v2"
 	"gopkg.in/yaml.v3"
 )
