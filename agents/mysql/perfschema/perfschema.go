@@ -208,26 +208,33 @@ func (m *PerfSchema) runHistoryCacheRefresher(ctx context.Context) {
 	}
 }
 
-func getMySQLVersion(q *reform.Querier) (mysqlVersion float64, err error) {
-	var n, v string
-	err = q.QueryRow(`SHOW /* pmm-agent-tests:MySQLVersion */ GLOBAL VARIABLES WHERE Variable_name = 'version'`).Scan(&n, &v)
+func getMySQLVersion(q *reform.Querier) (mysqlVersion float64, vendor string, err error) {
+	var name, ver string
+	err = q.QueryRow(`SHOW /* pmm-agent-tests:MySQLVersion */ GLOBAL VARIABLES WHERE Variable_name = 'version'`).Scan(&name, &ver)
 	if err != nil {
 		return
 	}
 
-	v = version.ParseMySQLVersion(v)
-	return strconv.ParseFloat(v, 64)
+	var ven string
+	err = q.QueryRow(`SHOW /* pmm-agent-tests:MySQLVersion */ GLOBAL VARIABLES WHERE Variable_name = 'version_comment'`).Scan(&name, &ven)
+	if err != nil {
+		return
+	}
+
+	ver, vendor = version.ParseMySQLVersion(ver, ven)
+	mysqlVersion, err = strconv.ParseFloat(ver, 64)
+	return
 }
 
 func (m *PerfSchema) refreshHistoryCache() error {
-	mysqlVersion, err := getMySQLVersion(m.q)
+	mysqlVersion, vendor, err := getMySQLVersion(m.q)
 	if err != nil {
 		return err
 	}
 
 	var current map[string]*eventsStatementsHistory
 	switch {
-	case mysqlVersion >= 8:
+	case mysqlVersion >= 8 && vendor == "oracle":
 		current, err = getHistory80(m.q)
 	default:
 		current, err = getHistory(m.q)

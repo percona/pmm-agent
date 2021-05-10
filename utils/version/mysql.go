@@ -26,17 +26,28 @@ var (
 )
 
 // ParseMySQLVersion return parsed version of MySQL.
-func ParseMySQLVersion(v string) string {
+func ParseMySQLVersion(v, c string) (string, string) {
 	m := mysqlDBRegexp.FindString(v)
 	parts := strings.Split(m, ".")
+	var version string
 	switch len(parts) {
 	case 1: // major only
-		return parts[0]
+		version = parts[0]
 	case 2: // major and patch
-		return parts[0]
+		version = parts[0]
 	case 3: // major, minor, and patch
-		return parts[0] + "." + parts[1]
-	default:
-		return ""
+		version = parts[0] + "." + parts[1]
 	}
+
+	var vendor string
+	switch {
+	case strings.Contains(strings.ToLower(c), "percona"):
+		vendor = "percona"
+	case strings.Contains(strings.ToLower(c), "mariadb"):
+		vendor = "mariadb"
+	default:
+		vendor = "oracle"
+	}
+
+	return version, vendor
 }
