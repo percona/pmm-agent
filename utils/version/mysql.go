@@ -20,11 +20,12 @@ import (
 	"strings"
 )
 
-// regexps to extract version numbers from the `SHOW GLOBAL VARIABLES WHERE Variable_name = 'version'` output
+// regexps to extract version numbers from the `SHOW GLOBAL VARIABLES WHERE Variable_name = 'version'` output.
 var (
 	mysqlDBRegexp = regexp.MustCompile(`^\d+\.\d+`)
 )
 
+// ParseMySQLVersion return parsed version of MySQL.
 func ParseMySQLVersion(v string) string {
 	m := mysqlDBRegexp.FindString(v)
 	parts := strings.Split(m, ".")
