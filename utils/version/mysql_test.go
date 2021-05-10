@@ -22,13 +22,31 @@ import (
 )
 
 func TestParseMySQLVersion(t *testing.T) {
-	for v, expected := range map[string]string{
-		"8.0.24": "8",
-		"5.0":    "5",
+	type version struct {
+		Version         string
+		Vendor          string
+		ExpectedVersion string
+		ExpectedVendor  string
+	}
+
+	for _, v := range []version{
+		{
+			Version:         "8.0",
+			Vendor:          "oracle",
+			ExpectedVersion: "8",
+			ExpectedVendor:  "oracle",
+		},
+		{
+			Version:         "5.7",
+			Vendor:          "percona",
+			ExpectedVersion: "5",
+			ExpectedVendor:  "percona",
+		},
 	} {
-		t.Run(v, func(t *testing.T) {
-			actual := ParseMySQLVersion(v)
-			assert.Equal(t, expected, actual, "%s", v)
+		t.Run(v.Version, func(t *testing.T) {
+			version, vendor := ParseMySQLVersion(v.Version, v.Vendor)
+			assert.Equal(t, v.ExpectedVersion, version, "%s", v)
+			assert.Equal(t, v.ExpectedVendor, vendor, "%s", v)
 		})
 	}
 }
