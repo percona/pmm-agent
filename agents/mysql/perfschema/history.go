@@ -16,6 +16,7 @@
 package perfschema
 
 import (
+	"database/sql"
 	"sync"
 	"time"
 
@@ -30,6 +31,21 @@ func getHistory(q *reform.Querier) (map[string]*eventsStatementsHistory, error) 
 	}
 	defer rows.Close() //nolint:errcheck
 
+	return getHistoryRows(rows, q)
+}
+
+func getHistory80(q *reform.Querier) (map[string]*eventsStatementsHistory, error) {
+	rows, err := q.SelectRows(eventsStatementsSummaryByDigestExamplesView, "WHERE DIGEST IS NOT NULL AND QUERY_SAMPLE_TEXT IS NOT NULL")
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to query events_statements_summary_by_digest")
+	}
+	defer rows.Close() //nolint:errcheck
+
+	return getHistoryRows(rows, q)
+}
+
+func getHistoryRows(rows *sql.Rows, q *reform.Querier) (map[string]*eventsStatementsHistory, error) {
+	var err error
 	res := make(map[string]*eventsStatementsHistory)
 	for {
 		var esh eventsStatementsHistory
@@ -40,27 +56,6 @@ func getHistory(q *reform.Querier) (map[string]*eventsStatementsHistory, error) 
 	}
 	if err != reform.ErrNoRows {
 		return nil, errors.Wrap(err, "failed to fetch events_statements_history")
-	}
-	return res, nil
-}
-
-func getHistory80(q *reform.Querier) (map[string]*eventsStatementsHistory, error) {
-	rows, err := q.SelectRows(eventsStatementsSummaryByDigestExamplesView, "WHERE DIGEST IS NOT NULL AND QUERY_SAMPLE_TEXT IS NOT NULL")
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to query events_statements_summary_by_digest")
-	}
-	defer rows.Close() //nolint:errcheck
-
-	res := make(map[string]*eventsStatementsHistory)
-	for {
-		var esh eventsStatementsHistory
-		if err = q.NextRow(&esh, rows); err != nil {
-			break
-		}
-		res[*esh.Digest] = &esh
-	}
-	if err != reform.ErrNoRows {
-		return nil, errors.Wrap(err, "failed to fetch events_statements_summary_by_digest")
 	}
 	return res, nil
 }

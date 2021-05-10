@@ -21,6 +21,7 @@ import (
 	"database/sql"
 	"io"
 	"math"
+	"strconv"
 	"time"
 
 	"github.com/AlekSi/pointer"
@@ -35,6 +36,7 @@ import (
 	"github.com/percona/pmm-agent/agents"
 	"github.com/percona/pmm-agent/tlshelpers"
 	"github.com/percona/pmm-agent/utils/truncate"
+	"github.com/percona/pmm-agent/utils/version"
 )
 
 const (
@@ -206,8 +208,31 @@ func (m *PerfSchema) runHistoryCacheRefresher(ctx context.Context) {
 	}
 }
 
+func getMySQLVersion(q *reform.Querier) (mysqlVersion float64, err error) {
+	var n, v string
+	err = q.QueryRow(`SHOW /* pmm-agent-tests:MySQLVersion */ GLOBAL VARIABLES WHERE Variable_name = 'version'`).Scan(&n, &v)
+	if err != nil {
+		return
+	}
+
+	v = version.ParseMySQLVersion(v)
+	return strconv.ParseFloat(v, 64)
+}
+
 func (m *PerfSchema) refreshHistoryCache() error {
-	current, err := getHistory80(m.q)
+	mysqlVersion, err := getMySQLVersion(m.q)
+	if err != nil {
+		return err
+	}
+
+	var current map[string]*eventsStatementsHistory
+	switch {
+	case mysqlVersion >= 8:
+		current, err = getHistory80(m.q)
+	default:
+		current, err = getHistory(m.q)
+	}
+
 	if err != nil {
 		return err
 	}
