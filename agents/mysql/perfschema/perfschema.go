@@ -23,6 +23,7 @@ import (
 	"io"
 	"math"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/AlekSi/pointer"
@@ -38,6 +39,16 @@ import (
 	"github.com/percona/pmm-agent/tlshelpers"
 	"github.com/percona/pmm-agent/utils/truncate"
 	"github.com/percona/pmm-agent/utils/version"
+)
+
+type ver struct {
+	Version float64
+	Vendor  string
+}
+
+var (
+	versions map[string]ver = make(map[string]ver)
+	mutexRW  sync.RWMutex
 )
 
 const (
@@ -228,9 +239,28 @@ func getMySQLVersion(q *reform.Querier) (mysqlVersion float64, vendor string, er
 }
 
 func (m *PerfSchema) refreshHistoryCache() error {
-	mysqlVersion, vendor, err := getMySQLVersion(m.q)
-	if err != nil {
-		return err
+	var mysqlVersion float64
+	var vendor string
+	mutexRW.RLock()
+	if v, ok := versions[m.agentID]; !ok {
+		mysqlVersion = v.Version
+		vendor = v.Vendor
+	}
+	mutexRW.RUnlock()
+
+	var err error
+	if mysqlVersion == 0 || vendor == "" {
+		mysqlVersion, vendor, err = getMySQLVersion(m.q)
+		if err != nil {
+			return err
+		}
+
+		mutexRW.Lock()
+		versions[m.agentID] = ver{
+			Version: mysqlVersion,
+			Vendor:  vendor,
+		}
+		mutexRW.Unlock()
 	}
 
 	var current map[string]*eventsStatementsHistory
