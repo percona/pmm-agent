@@ -47,7 +47,7 @@ type explainResponse struct {
 }
 
 // ErrCannotEncodeExplainResponse cannot JSON encode the explain response.
-var ErrCannotEncodeExplainResponse = errors.New("cannot JSON encode the explain response")
+var errCannotEncodeExplainResponse = errors.New("cannot JSON encode the explain response")
 
 // NewMySQLExplainAction creates MySQL Explain Action.
 // This is an Action that can run `EXPLAIN` command on MySQL service with given DSN.
@@ -121,7 +121,7 @@ func (a *mysqlExplainAction) Run(ctx context.Context) ([]byte, error) {
 
 	b, err := json.Marshal(response)
 	if err != nil {
-		return nil, ErrCannotEncodeExplainResponse
+		return nil, errCannotEncodeExplainResponse
 	}
 
 	return b, nil
