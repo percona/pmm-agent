@@ -19,6 +19,7 @@ package perfschema
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"io"
 	"math"
 	"strconv"
@@ -210,13 +211,13 @@ func (m *PerfSchema) runHistoryCacheRefresher(ctx context.Context) {
 
 func getMySQLVersion(q *reform.Querier) (mysqlVersion float64, vendor string, err error) {
 	var name, ver string
-	err = q.QueryRow(`SHOW /* %s */ GLOBAL VARIABLES WHERE Variable_name = 'version'`, queryTag).Scan(&name, &ver)
+	err = q.QueryRow(fmt.Sprintf(`SHOW /* %s */ GLOBAL VARIABLES WHERE Variable_name = 'version'`, queryTag)).Scan(&name, &ver)
 	if err != nil {
 		return
 	}
 
 	var ven string
-	err = q.QueryRow(`SHOW /* %s */ GLOBAL VARIABLES WHERE Variable_name = 'version_comment'`, queryTag).Scan(&name, &ven)
+	err = q.QueryRow(fmt.Sprintf(`SHOW /* %s */ GLOBAL VARIABLES WHERE Variable_name = 'version_comment'`, queryTag)).Scan(&name, &ven)
 	if err != nil {
 		return
 	}
