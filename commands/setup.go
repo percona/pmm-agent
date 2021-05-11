@@ -63,7 +63,7 @@ func Setup() {
 	}
 
 	if err := config.IsWritable(configFilepath); err != nil {
-		fmt.Printf("Config file %s is not writable: %s.\n", configFilepath, err)
+		fmt.Printf("Config file %s is not writable: %v.\n", configFilepath, err)
 		os.Exit(1)
 	}
 
