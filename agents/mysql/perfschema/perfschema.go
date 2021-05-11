@@ -242,7 +242,7 @@ func (m *PerfSchema) refreshHistoryCache() error {
 	var mysqlVersion float64
 	var vendor string
 	mutexRW.RLock()
-	if v, ok := versions[m.agentID]; !ok {
+	if v, ok := versions[m.agentID]; ok {
 		mysqlVersion = v.Version
 		vendor = v.Vendor
 	}
