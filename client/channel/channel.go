@@ -17,7 +17,6 @@
 package channel
 
 import (
-	"fmt"
 	"sync"
 	"sync/atomic"
 
@@ -288,6 +287,28 @@ func (c *Channel) runReceiver() {
 	}
 }
 
+func (c *Channel) removeResponseChannel(id uint32) chan Response {
+	c.m.Lock()
+	defer c.m.Unlock()
+	if c.responses == nil { // Channel is closed
+		return nil
+	}
+
+	ch := c.responses[id]
+	if ch == nil {
+		return nil
+	}
+	delete(c.responses, id)
+	return ch
+}
+
+// cancel sends an error to the subscriber.
+func (c *Channel) cancel(id uint32, err error) {
+	if ch := c.removeResponseChannel(id); ch != nil {
+		ch <- Response{Error: err}
+	}
+}
+
 func (c *Channel) subscribe(id uint32) chan Response {
 	ch := make(chan Response, 1)
 
@@ -309,43 +330,14 @@ func (c *Channel) subscribe(id uint32) chan Response {
 	return ch
 }
 
-func (c *Channel) removeResponseChannel(id uint32) (chan Response, error) {
-	c.m.Lock()
-	if c.responses == nil { // Channel is closed
-		c.m.Unlock()
-		return nil, nil
-	}
-
-	ch := c.responses[id]
-	c.m.Unlock()
-	if ch == nil {
-		return nil, errors.WithStack(fmt.Errorf("no subscriber for ID %d", id))
-	}
-	c.m.Lock()
-	delete(c.responses, id)
-	c.m.Unlock()
-	return ch, nil
-}
-
-// cancel sends an error to the subscriber.
-func (c *Channel) cancel(id uint32, err error) {
-	if ch, _ := c.removeResponseChannel(id); ch != nil {
-		ch <- Response{Error: err}
-	}
-}
-
 func (c *Channel) publish(id uint32, status *protostatus.Status, resp agentpb.ServerResponsePayload) {
-	if status != nil {
+	if status != nil && status.Code != int32(codes.OK) {
 		c.l.Errorf("got response %v with status %v", resp, status)
 		c.cancel(id, grpcstatus.FromProto(status).Err())
 		return
 	}
-	ch, err := c.removeResponseChannel(id)
-	if err != nil {
-		c.close(err)
-		return
-	}
-	if ch != nil {
+
+	if ch := c.removeResponseChannel(id); ch != nil {
 		ch <- Response{Payload: resp}
 	}
 }

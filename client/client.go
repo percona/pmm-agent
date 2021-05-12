@@ -406,10 +406,7 @@ func (c *Client) processChannelRequests(ctx context.Context) {
 			responsePayload = &agentpb.JobStatusResponse{Alive: alive}
 
 		case nil:
-			// This case should be handled by channel package but to avoid bugs during development, we should leave this case here.
-			// Requests() is not closed, so exit early to break channel
 			c.l.Errorf("Unhandled server request: %v.", req)
-			return
 		}
 		response := &channel.AgentResponse{
 			ID:      req.ID,

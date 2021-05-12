@@ -17,7 +17,6 @@ package channel
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"net"
 	"strings"
@@ -340,45 +339,40 @@ func TestAgentClosesConnection(t *testing.T) {
 }
 
 func TestUnexpectedResponseIDFromServer(t *testing.T) {
+	unexpectedIDSent := make(chan struct{})
 	connect := func(stream agentpb.Agent_ConnectServer) error { //nolint:unparam
-		// this message triggers "no subscriber for ID" error
+		// This message triggers no error, we ignore message ids that have no subscriber.
 		err := stream.Send(&agentpb.ServerMessage{
 			Id:      111,
 			Payload: new(agentpb.QANCollectResponse).ServerMessageResponsePayload(),
 		})
 		assert.NoError(t, err)
+		close(unexpectedIDSent)
 
-		// this message should not trigger new error
+		// Check that channel is still open.
 		err = stream.Send(&agentpb.ServerMessage{
-			Id:      222,
-			Payload: new(agentpb.QANCollectResponse).ServerMessageResponsePayload(),
+			Id:      1,
+			Payload: new(agentpb.Ping).ServerMessageRequestPayload(),
 		})
+		pong, err := stream.Recv()
 		assert.NoError(t, err)
-
+		assert.NotNil(t, pong)
 		return nil
 	}
-
-	// TODO https://jira.percona.com/browse/PMM-3825
-	channel, _, teardown := setup(t, connect, fmt.Errorf("no subscriber for ID 111"), io.EOF)
+	channel, _, teardown := setup(t, connect, io.EOF)
 	defer teardown()
 
-	// after receiving unexpected response, channel is closed
-	resp, err := channel.SendAndWaitResponse(new(agentpb.QANCollectRequest))
-	require.NoError(t, err)
-	assert.Nil(t, resp)
+	<-unexpectedIDSent
+	// Get the ping message and send pong response, channel stays open after message with unexpected id.
 	msg := <-channel.Requests()
-	assert.Nil(t, msg)
-
-	// future requests are ignored
-	resp, err = channel.SendAndWaitResponse(new(agentpb.QANCollectRequest))
-	require.NoError(t, err)
-	assert.Nil(t, resp)
-	msg = <-channel.Requests()
-	assert.Nil(t, msg)
+	assert.NotNil(t, msg)
+	channel.send(&agentpb.AgentMessage{
+		Id:      1,
+		Payload: new(agentpb.Pong).AgentMessageResponsePayload(),
+	})
 }
 
 func TestUnexpectedResponsePayloadFromServer(t *testing.T) {
-	stop := make(chan struct{})
 	connect := func(stream agentpb.Agent_ConnectServer) error {
 		// establish the connection
 		err := stream.Send(&agentpb.ServerMessage{
@@ -397,11 +391,9 @@ func TestUnexpectedResponsePayloadFromServer(t *testing.T) {
 		msg, err := stream.Recv()
 		assert.NoError(t, err)
 		assert.Equal(t, int32(codes.Unimplemented), msg.GetStatus().GetCode())
-		close(stop)
 		return nil
 	}
-	err := status.Error(codes.Canceled, "test done")
-	channel, _, teardown := setup(t, connect, err)
+	channel, _, teardown := setup(t, connect, io.EOF)
 	defer teardown()
 	req := <-channel.Requests()
 	channel.Send(&AgentResponse{
@@ -410,6 +402,4 @@ func TestUnexpectedResponsePayloadFromServer(t *testing.T) {
 			CurrentTime: ptypes.TimestampNow(),
 		},
 	})
-	<-stop
-	channel.close(err)
 }
