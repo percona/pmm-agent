@@ -34,7 +34,6 @@ import (
 	"gopkg.in/reform.v1/dialects/postgresql"
 
 	"github.com/percona/pmm-agent/agents"
-	"github.com/percona/pmm-agent/utils/truncate"
 )
 
 const defaultWaitTime = 60 * time.Second
@@ -248,11 +247,10 @@ func (m *PGStatMonitorQAN) makeBuckets(current, cache map[time.Time]map[string]*
 				m.l.Debugf("Normal query: %s.", currentPSM)
 			}
 
-			fingerprint, _ := truncate.Query(currentPSM.Fingerprint)
 			mb := &agentpb.MetricsBucket{
 				Common: &agentpb.MetricsBucket_Common{
 					IsTruncated:         currentPSM.IsQueryTruncated,
-					Fingerprint:         fingerprint,
+					Fingerprint:         currentPSM.Fingerprint,
 					Database:            currentPSM.Database,
 					Tables:              currentPSM.Relations,
 					Username:            currentPSM.Username,
