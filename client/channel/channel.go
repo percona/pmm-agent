@@ -21,14 +21,13 @@ import (
 	"sync/atomic"
 
 	"github.com/golang/protobuf/proto" //nolint:staticcheck
+	"github.com/percona/pmm/api/agentpb"
 	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sirupsen/logrus"
 	protostatus "google.golang.org/genproto/googleapis/rpc/status"
 	"google.golang.org/grpc/codes"
 	grpcstatus "google.golang.org/grpc/status"
-
-	"github.com/percona/pmm/api/agentpb"
 )
 
 const (
