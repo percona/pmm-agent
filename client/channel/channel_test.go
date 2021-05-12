@@ -354,6 +354,7 @@ func TestUnexpectedResponseIDFromServer(t *testing.T) {
 			Id:      1,
 			Payload: new(agentpb.Ping).ServerMessageRequestPayload(),
 		})
+		assert.NoError(t, err)
 		pong, err := stream.Recv()
 		assert.NoError(t, err)
 		assert.NotNil(t, pong)
