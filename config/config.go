@@ -124,6 +124,7 @@ type Setup struct {
 	Address           string
 	MetricsMode       string
 	DisableCollectors string
+	CustomLabels      string
 
 	Force            bool
 	SkipRegistration bool
@@ -386,6 +387,9 @@ func Application(cfg *Config) (*kingpin.Application, *string) {
 	nodeNameHelp := fmt.Sprintf("Node name (autodetected default: %s) [PMM_AGENT_SETUP_NODE_NAME]", hostname)
 	setupCmd.Arg("node-name", nodeNameHelp).Default(hostname).
 		Envar("PMM_AGENT_SETUP_NODE_NAME").StringVar(&cfg.Setup.NodeName)
+
+	setupCmd.Arg("custom-labels", "Custom labels [PMM_AGENT_SETUP_CUSTOM_LABELS]").
+		Envar("PMM_AGENT_SETUP_CUSTOM_LABELS").StringVar(&cfg.Setup.CustomLabels)
 
 	var defaultMachineID string
 	if nodeinfo.MachineID != "" {
