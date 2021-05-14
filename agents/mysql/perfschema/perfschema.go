@@ -19,7 +19,6 @@ package perfschema
 import (
 	"context"
 	"database/sql"
-	"fmt"
 	"io"
 	"math"
 	"strconv"
@@ -41,15 +40,37 @@ import (
 	"github.com/percona/pmm-agent/utils/version"
 )
 
-type ver struct {
-	Version float64
-	Vendor  string
+// mySQLVersion contains
+type mySQLVersion struct {
+	version float64
+	vendor  string
 }
 
-var (
-	versions map[string]ver = make(map[string]ver)
-	mutexRW  sync.RWMutex
-)
+// versionsCache provides cached access to MySQL version.
+type versionsCache struct {
+	rw    sync.RWMutex
+	items map[string]*mySQLVersion
+}
+
+func (m *PerfSchema) mySQLVersionForAgentID() *mySQLVersion {
+	m.versionsCache.rw.RLock()
+	defer m.versionsCache.rw.RUnlock()
+
+	item := m.versionsCache.items[m.agentID]
+	if item == nil {
+		ver, ven := version.GetMySQLVersion(m.q)
+		mysqlVer, err := strconv.ParseFloat(ver, 64)
+		if err != nil {
+			return &mySQLVersion{}
+		}
+		item = &mySQLVersion{
+			version: mysqlVer,
+			vendor:  ven,
+		}
+	}
+
+	return &mySQLVersion{}
+}
 
 const (
 	retainHistory  = 5 * time.Minute
@@ -69,6 +90,7 @@ type PerfSchema struct {
 	changes              chan agents.Change
 	historyCache         *historyCache
 	summaryCache         *summaryCache
+	versionsCache        *versionsCache
 }
 
 // Params represent Agent parameters.
@@ -132,6 +154,7 @@ func newPerfSchema(params *newPerfSchemaParams) *PerfSchema {
 		changes:              make(chan agents.Change, 10),
 		historyCache:         newHistoryCache(retainHistory),
 		summaryCache:         newSummaryCache(retainSummaries),
+		versionsCache:        &versionsCache{},
 	}
 }
 
@@ -220,52 +243,13 @@ func (m *PerfSchema) runHistoryCacheRefresher(ctx context.Context) {
 	}
 }
 
-func getMySQLVersion(q *reform.Querier) (mysqlVersion float64, vendor string, err error) {
-	var name, ver string
-	err = q.QueryRow(fmt.Sprintf(`SHOW /* %s */ GLOBAL VARIABLES WHERE Variable_name = 'version'`, queryTag)).Scan(&name, &ver)
-	if err != nil {
-		return
-	}
-
-	var ven string
-	err = q.QueryRow(fmt.Sprintf(`SHOW /* %s */ GLOBAL VARIABLES WHERE Variable_name = 'version_comment'`, queryTag)).Scan(&name, &ven)
-	if err != nil {
-		return
-	}
-
-	ver, vendor = version.ParseMySQLVersion(ver, ven)
-	mysqlVersion, err = strconv.ParseFloat(ver, 64)
-	return
-}
-
 func (m *PerfSchema) refreshHistoryCache() error {
-	var mysqlVersion float64
-	var vendor string
-	mutexRW.RLock()
-	if v, ok := versions[m.agentID]; ok {
-		mysqlVersion = v.Version
-		vendor = v.Vendor
-	}
-	mutexRW.RUnlock()
+	mysqlVer := m.mySQLVersionForAgentID()
 
 	var err error
-	if mysqlVersion == 0 || vendor == "" {
-		mysqlVersion, vendor, err = getMySQLVersion(m.q)
-		if err != nil {
-			return err
-		}
-
-		mutexRW.Lock()
-		versions[m.agentID] = ver{
-			Version: mysqlVersion,
-			Vendor:  vendor,
-		}
-		mutexRW.Unlock()
-	}
-
 	var current map[string]*eventsStatementsHistory
 	switch {
-	case mysqlVersion >= 8 && vendor == "oracle":
+	case mysqlVer.version >= 8 && mysqlVer.vendor == "oracle":
 		current, err = getHistory80(m.q)
 	default:
 		current, err = getHistory(m.q)

@@ -16,8 +16,11 @@
 package version
 
 import (
+	"fmt"
 	"regexp"
 	"strings"
+
+	"gopkg.in/reform.v1"
 )
 
 // regexps to extract version numbers from the `SHOW GLOBAL VARIABLES WHERE Variable_name = 'version'` output.
@@ -25,25 +28,29 @@ var (
 	mysqlDBRegexp = regexp.MustCompile(`^\d+\.\d+`)
 )
 
-// ParseMySQLVersion return parsed version of MySQL.
-func ParseMySQLVersion(v, c string) (string, string) {
-	m := mysqlDBRegexp.FindString(v)
-	parts := strings.Split(m, ".")
-	var version string
-	switch len(parts) {
-	case 1: // major only
-		version = parts[0]
-	case 2: // major and patch
-		version = parts[0]
-	case 3: // major, minor, and patch
-		version = parts[0] + "." + parts[1]
+const queryTag = "pmm-agent:mysqlversion"
+
+// GetMySQLVersion return parsed version of MySQL and vendor.
+func GetMySQLVersion(q *reform.Querier) (string, string) {
+	var name, ver string
+	err := q.QueryRow(fmt.Sprintf(`SHOW /* %s */ GLOBAL VARIABLES WHERE rtx Variable_name = 'version'`, queryTag)).Scan(&name, &ver)
+	if err != nil {
+		return "", ""
 	}
+
+	var ven string
+	err = q.QueryRow(fmt.Sprintf(`SHOW /* %s */ GLOBAL VARIABLES WHERE Variable_name = 'version_comment'`, queryTag)).Scan(&name, &ven)
+	if err != nil {
+		return "", ""
+	}
+
+	version := mysqlDBRegexp.FindString(ver)
 
 	var vendor string
 	switch {
-	case strings.Contains(strings.ToLower(c), "percona"):
+	case strings.Contains(strings.ToLower(name), "percona"):
 		vendor = "percona"
-	case strings.Contains(strings.ToLower(c), "mariadb"):
+	case strings.Contains(strings.ToLower(name), "mariadb"):
 		vendor = "mariadb"
 	default:
 		vendor = "oracle"
