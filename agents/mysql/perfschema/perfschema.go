@@ -69,7 +69,7 @@ func (m *PerfSchema) mySQLVersionForAgentID() *mySQLVersion {
 		}
 	}
 
-	return &mySQLVersion{}
+	return item
 }
 
 const (
