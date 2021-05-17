@@ -34,7 +34,6 @@ func GetMySQLVersion(q *reform.Querier) (string, string, error) {
 	if err != nil {
 		return "", "", err
 	}
-
 	var ven string
 	err = q.QueryRow(`SHOW /* pmm-agent:mysqlversion */ GLOBAL VARIABLES WHERE Variable_name = 'version_comment'`).Scan(&name, &ven)
 	if err != nil {
@@ -42,7 +41,6 @@ func GetMySQLVersion(q *reform.Querier) (string, string, error) {
 	}
 
 	version := mysqlDBRegexp.FindString(ver)
-
 	var vendor string
 	switch {
 	case strings.Contains(strings.ToLower(name), "percona"):

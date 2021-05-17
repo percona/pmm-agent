@@ -19,6 +19,7 @@ package perfschema
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"io"
 	"math"
 	"strconv"
@@ -52,11 +53,16 @@ type versionsCache struct {
 	items map[string]*mySQLVersion
 }
 
-func (m *PerfSchema) mySQLVersion() *mySQLVersion {
+func (m *PerfSchema) mySQLVersion() (*mySQLVersion, error) {
 	m.versionsCache.rw.RLock()
 	defer m.versionsCache.rw.RUnlock()
 
-	return m.versionsCache.items[m.agentID]
+	res := m.versionsCache.items[m.agentID]
+	if res == nil {
+		return nil, fmt.Errorf("cannot get MySQL version for agent ID %s", m.agentID)
+	}
+
+	return res, nil
 }
 
 const (
@@ -245,9 +251,11 @@ func (m *PerfSchema) runHistoryCacheRefresher(ctx context.Context) {
 }
 
 func (m *PerfSchema) refreshHistoryCache() error {
-	mysqlVer := m.mySQLVersion()
+	mysqlVer, err := m.mySQLVersion()
+	if err != nil {
+		return err
+	}
 
-	var err error
 	var current map[string]*eventsStatementsHistory
 	switch {
 	case mysqlVer.version >= 8 && mysqlVer.vendor == "oracle":
@@ -258,7 +266,6 @@ func (m *PerfSchema) refreshHistoryCache() error {
 	if err != nil {
 		return err
 	}
-
 	m.historyCache.refresh(current)
 	return nil
 }
