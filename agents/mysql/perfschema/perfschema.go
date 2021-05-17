@@ -56,25 +56,7 @@ func (m *PerfSchema) mySQLVersion() (*mySQLVersion, error) {
 	m.versionsCache.rw.RLock()
 	defer m.versionsCache.rw.RUnlock()
 
-	item := m.versionsCache.items[m.agentID]
-	if item == nil {
-		ver, ven, err := version.GetMySQLVersion(m.q)
-		if err != nil {
-			return nil, err
-		}
-		mysqlVer, err := strconv.ParseFloat(ver, 64)
-		if err != nil {
-			return nil, err
-		}
-		item = &mySQLVersion{
-			version: mysqlVer,
-			vendor:  ven,
-		}
-
-		m.versionsCache.items[m.agentID] = item
-	}
-
-	return item, nil
+	return m.versionsCache.items[m.agentID], nil
 }
 
 const (
@@ -182,6 +164,20 @@ func (m *PerfSchema) Run(ctx context.Context) {
 	} else {
 		m.l.Error(err)
 		m.changes <- agents.Change{Status: inventorypb.AgentStatus_WAITING}
+	}
+
+	// cache MySQL version
+	ver, ven, err := version.GetMySQLVersion(m.q)
+	if err != nil {
+		m.l.Error(err)
+	}
+	mysqlVer, err := strconv.ParseFloat(ver, 64)
+	if err != nil {
+		m.l.Error(err)
+	}
+	m.versionsCache.items[m.agentID] = &mySQLVersion{
+		version: mysqlVer,
+		vendor:  ven,
 	}
 
 	go m.runHistoryCacheRefresher(ctx)
