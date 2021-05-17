@@ -16,7 +16,6 @@
 package version
 
 import (
-	"fmt"
 	"regexp"
 	"strings"
 
@@ -28,20 +27,18 @@ var (
 	mysqlDBRegexp = regexp.MustCompile(`^\d+\.\d+`)
 )
 
-const queryTag = "pmm-agent:mysqlversion"
-
 // GetMySQLVersion return parsed version of MySQL and vendor.
-func GetMySQLVersion(q *reform.Querier) (string, string) {
+func GetMySQLVersion(q *reform.Querier) (string, string, error) {
 	var name, ver string
-	err := q.QueryRow(fmt.Sprintf(`SHOW /* %s */ GLOBAL VARIABLES WHERE rtx Variable_name = 'version'`, queryTag)).Scan(&name, &ver)
+	err := q.QueryRow(`SHOW /* pmm-agent:mysqlversion */ GLOBAL VARIABLES WHERE Variable_name = 'version'`).Scan(&name, &ver)
 	if err != nil {
-		return "", ""
+		return "", "", err
 	}
 
 	var ven string
-	err = q.QueryRow(fmt.Sprintf(`SHOW /* %s */ GLOBAL VARIABLES WHERE Variable_name = 'version_comment'`, queryTag)).Scan(&name, &ven)
+	err = q.QueryRow(`SHOW /* pmm-agent:mysqlversion */ GLOBAL VARIABLES WHERE Variable_name = 'version_comment'`).Scan(&name, &ven)
 	if err != nil {
-		return "", ""
+		return "", "", err
 	}
 
 	version := mysqlDBRegexp.FindString(ver)
@@ -56,5 +53,5 @@ func GetMySQLVersion(q *reform.Querier) (string, string) {
 		vendor = "oracle"
 	}
 
-	return version, vendor
+	return version, vendor, nil
 }

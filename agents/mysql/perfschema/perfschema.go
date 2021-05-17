@@ -52,24 +52,29 @@ type versionsCache struct {
 	items map[string]*mySQLVersion
 }
 
-func (m *PerfSchema) mySQLVersionForAgentID() *mySQLVersion {
+func (m *PerfSchema) mySQLVersion() (*mySQLVersion, error) {
 	m.versionsCache.rw.RLock()
 	defer m.versionsCache.rw.RUnlock()
 
 	item := m.versionsCache.items[m.agentID]
 	if item == nil {
-		ver, ven := version.GetMySQLVersion(m.q)
+		ver, ven, err := version.GetMySQLVersion(m.q)
+		if err != nil {
+			return nil, err
+		}
 		mysqlVer, err := strconv.ParseFloat(ver, 64)
 		if err != nil {
-			return &mySQLVersion{}
+			return nil, err
 		}
 		item = &mySQLVersion{
 			version: mysqlVer,
 			vendor:  ven,
 		}
+
+		m.versionsCache.items[m.agentID] = item
 	}
 
-	return item
+	return item, nil
 }
 
 const (
@@ -154,7 +159,7 @@ func newPerfSchema(params *newPerfSchemaParams) *PerfSchema {
 		changes:              make(chan agents.Change, 10),
 		historyCache:         newHistoryCache(retainHistory),
 		summaryCache:         newSummaryCache(retainSummaries),
-		versionsCache:        &versionsCache{},
+		versionsCache:        &versionsCache{items: make(map[string]*mySQLVersion)},
 	}
 }
 
@@ -244,9 +249,11 @@ func (m *PerfSchema) runHistoryCacheRefresher(ctx context.Context) {
 }
 
 func (m *PerfSchema) refreshHistoryCache() error {
-	mysqlVer := m.mySQLVersionForAgentID()
+	mysqlVer, err := m.mySQLVersion()
+	if err != nil {
+		return err
+	}
 
-	var err error
 	var current map[string]*eventsStatementsHistory
 	switch {
 	case mysqlVer.version >= 8 && mysqlVer.vendor == "oracle":
@@ -254,10 +261,10 @@ func (m *PerfSchema) refreshHistoryCache() error {
 	default:
 		current, err = getHistory(m.q)
 	}
-
 	if err != nil {
 		return err
 	}
+
 	m.historyCache.refresh(current)
 	return nil
 }
