@@ -26,7 +26,6 @@ import (
 	"time"
 
 	_ "github.com/lib/pq"
-	"github.com/percona/pmm-agent/utils/tests"
 	"github.com/percona/pmm/api/agentpb"
 	"github.com/percona/pmm/api/inventorypb"
 	"github.com/sirupsen/logrus"
@@ -34,6 +33,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"gopkg.in/reform.v1"
 	"gopkg.in/reform.v1/dialects/postgresql"
+
+	"github.com/percona/pmm-agent/utils/tests"
 )
 
 func setup(t *testing.T, db *reform.DB, disableQueryExamples bool) *PGStatMonitorQAN {
