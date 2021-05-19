@@ -116,14 +116,28 @@ func newPgStatMonitorQAN(q *reform.Querier, dbCloser io.Closer, agentID string, 
 	}, nil
 }
 
-func getPGMonitorVersion(q *reform.Querier) (pgMonitorVersion float64, err error) {
+func getPGMonitorVersion(q *reform.Querier) (float64, error) {
 	var v string
-	err = q.QueryRow(fmt.Sprintf("SELECT /* %s */ pg_stat_monitor_version()", queryTag)).Scan(&v)
+	err := q.QueryRow(fmt.Sprintf("SELECT /* %s */ pg_stat_monitor_version()", queryTag)).Scan(&v)
 	if err != nil {
-		return
+		return 0, err
 	}
-	split := strings.Split(v, ".")
-	return strconv.ParseFloat(fmt.Sprintf("%s.%s%s", split[0], split[1], split[2]), 64)
+
+	return parsePGMonitorVersion(v)
+}
+
+func parsePGMonitorVersion(version string) (float64, error) {
+	split := strings.Split(version, ".")
+	switch len(split) {
+	case 1:
+		return strconv.ParseFloat(split[0], 64)
+	case 2:
+		return strconv.ParseFloat(fmt.Sprintf("%s.%s", split[0], split[1]), 64)
+	case 3:
+		return strconv.ParseFloat(fmt.Sprintf("%s.%s%s", split[0], split[1], split[2]), 64)
+	default:
+		return 0, fmt.Errorf("unknown pg_stat_monitor version detected")
+	}
 }
 
 // Run extracts stats data and sends it to the channel until ctx is canceled.
