@@ -493,6 +493,10 @@ func TestParsePGMonitorVersion(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, float64(1), ver)
 
+	ver, err = parsePGMonitorVersion("1")
+	assert.NoError(t, err)
+	assert.Equal(t, float64(1), ver)
+
 	_, err = parsePGMonitorVersion("0.8.1-devel")
 	assert.Error(t, err)
 
