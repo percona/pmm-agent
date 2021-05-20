@@ -19,7 +19,6 @@ require (
 	github.com/google/uuid v1.1.2 // indirect
 	github.com/grpc-ecosystem/grpc-gateway v1.15.1
 	github.com/konsorten/go-windows-terminal-sequences v1.0.3 // indirect
-	github.com/kr/pretty v0.1.0 // indirect
 	github.com/lfittl/pg_query_go v1.0.2
 	github.com/lib/pq v1.10.0
 	github.com/mattn/go-sqlite3 v1.13.0 // indirect
@@ -27,7 +26,7 @@ require (
 	github.com/percona/exporter_shared v0.7.2
 	github.com/percona/go-mysql v0.0.0-20200630114833-b77f37c0bfa2
 	github.com/percona/percona-toolkit v3.2.1+incompatible
-	github.com/percona/pmm v2.16.1-0.20210503100435-b69e3ee98ac5+incompatible
+	github.com/percona/pmm v2.17.1-0.20210517140246-0c5987831641+incompatible
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.5.1
 	github.com/prometheus/common v0.10.0
@@ -41,6 +40,7 @@ require (
 	golang.org/x/sys v0.0.0-20200323222414-85ca7c5b95cd
 	golang.org/x/text v0.3.4 // indirect
 	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
+	google.golang.org/genproto v0.0.0-20200513103714-09dca8ec2884
 	google.golang.org/grpc v1.32.0
 	gopkg.in/alecthomas/kingpin.v2 v2.2.6
 	gopkg.in/reform.v1 v1.3.4

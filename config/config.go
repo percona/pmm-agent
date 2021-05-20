@@ -29,6 +29,7 @@ import (
 	"github.com/percona/pmm/utils/nodeinfo"
 	"github.com/percona/pmm/version"
 	"github.com/sirupsen/logrus"
+	"golang.org/x/sys/unix"
 	"gopkg.in/alecthomas/kingpin.v2"
 	"gopkg.in/yaml.v3"
 )
@@ -123,6 +124,7 @@ type Setup struct {
 	Address           string
 	MetricsMode       string
 	DisableCollectors string
+	CustomLabels      string
 
 	Force            bool
 	SkipRegistration bool
@@ -280,7 +282,6 @@ func get(args []string, l *logrus.Entry) (cfg *Config, configFileF string, err e
 func Application(cfg *Config) (*kingpin.Application, *string) {
 	app := kingpin.New("pmm-agent", fmt.Sprintf("Version %s", version.Version))
 	app.HelpFlag.Short('h')
-	app.Version(version.FullInfo())
 
 	app.Command("run", "Run pmm-agent (default command)").Default()
 
@@ -344,6 +345,21 @@ func Application(cfg *Config) (*kingpin.Application, *string) {
 		Envar("PMM_AGENT_DEBUG").BoolVar(&cfg.Debug)
 	app.Flag("trace", "Enable trace output (implies debug) [PMM_AGENT_TRACE]").
 		Envar("PMM_AGENT_TRACE").BoolVar(&cfg.Trace)
+	jsonF := app.Flag("json", "Enable JSON output").Action(func(*kingpin.ParseContext) error {
+		logrus.SetFormatter(&logrus.JSONFormatter{}) // with levels and timestamps always present
+		return nil
+	}).Bool()
+
+	app.Flag("version", "Show application version").Short('v').Action(func(*kingpin.ParseContext) error {
+		if *jsonF {
+			fmt.Println(version.FullInfoJson())
+		} else {
+			fmt.Println(version.FullInfo())
+		}
+		os.Exit(0)
+
+		return nil
+	}).Bool()
 
 	setupCmd := app.Command("setup", "Configure local pmm-agent")
 	nodeinfo := nodeinfo.Get()
@@ -400,6 +416,8 @@ func Application(cfg *Config) (*kingpin.Application, *string) {
 		Envar("PMM_AGENT_SETUP_METRICS_MODE").Default("auto").EnumVar(&cfg.Setup.MetricsMode, "auto", "push", "pull")
 	setupCmd.Flag("disable-collectors", "Comma-separated list of collector names to exclude from exporter. [PMM_AGENT_SETUP_METRICS_MODE]").
 		Envar("PMM_AGENT_SETUP_DISABLE_COLLECTORS").Default("").StringVar(&cfg.Setup.DisableCollectors)
+	setupCmd.Flag("custom-labels", "Custom labels [PMM_AGENT_SETUP_CUSTOM_LABELS]").
+		Envar("PMM_AGENT_SETUP_CUSTOM_LABELS").StringVar(&cfg.Setup.CustomLabels)
 
 	return app, configFileF
 }
@@ -439,4 +457,17 @@ func SaveToFile(path string, cfg *Config, comment string) error {
 	res = append(res, "---\n"...)
 	res = append(res, b...)
 	return ioutil.WriteFile(path, res, 0640)
+}
+
+// IsWritable checks if specified path is writable.
+func IsWritable(path string) error {
+	_, err := os.Stat(path)
+	if err != nil {
+		// File doesn't exists, check if folder is writable.
+		if os.IsNotExist(err) {
+			return unix.Access(filepath.Dir(path), unix.W_OK)
+		}
+		return err
+	}
+	return unix.Access(path, unix.W_OK)
 }
