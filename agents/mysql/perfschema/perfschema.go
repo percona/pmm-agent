@@ -33,7 +33,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"gopkg.in/reform.v1"
-	"gopkg.in/reform.v1/dialects/mysql"
+	mysqlDialects "gopkg.in/reform.v1/dialects/mysql"
 
 	"github.com/percona/pmm-agent/agents"
 	"github.com/percona/pmm-agent/tlshelpers"
@@ -129,7 +129,7 @@ func New(params *Params, l *logrus.Entry) (*PerfSchema, error) {
 	sqlDB.SetConnMaxLifetime(0)
 	reformL := sqlmetrics.NewReform("mysql", params.AgentID, l.Tracef)
 	// TODO register reformL metrics https://jira.percona.com/browse/PMM-4087
-	q := reform.NewDB(sqlDB, mysql.Dialect, reformL).WithTag(queryTag)
+	q := reform.NewDB(sqlDB, mysqlDialects.Dialect, reformL).WithTag(queryTag)
 
 	newParams := &newPerfSchemaParams{
 		Querier:              q,
