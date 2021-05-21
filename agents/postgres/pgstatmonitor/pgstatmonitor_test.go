@@ -480,15 +480,23 @@ func TestPGStatMonitorSchema(t *testing.T) {
 func TestParsePGMonitorVersion(t *testing.T) {
 	ver, err := parsePGMonitorVersion("0.6")
 	assert.NoError(t, err)
-	assert.Equal(t, 0.6, ver)
+	assert.Equal(t, 0.06, ver)
+
+	ver, err = parsePGMonitorVersion("0.60")
+	assert.NoError(t, err)
+	assert.Equal(t, 0.60, ver)
 
 	ver, err = parsePGMonitorVersion("0.7.1")
 	assert.NoError(t, err)
-	assert.Equal(t, 0.71, ver)
+	assert.Equal(t, 0.0701, ver)
+
+	ver, err = parsePGMonitorVersion("0.70.15")
+	assert.NoError(t, err)
+	assert.Equal(t, 0.7015, ver)
 
 	ver, err = parsePGMonitorVersion("0.9.2")
 	assert.NoError(t, err)
-	assert.Equal(t, 0.92, ver)
+	assert.Equal(t, 0.0902, ver)
 
 	ver, err = parsePGMonitorVersion("1.0.0")
 	assert.NoError(t, err)

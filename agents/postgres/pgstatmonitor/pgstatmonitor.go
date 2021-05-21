@@ -132,8 +132,17 @@ func parsePGMonitorVersion(version string) (float64, error) {
 	case 1:
 		return strconv.ParseFloat(split[0], 64)
 	case 2:
+		if len(split[1]) == 1 {
+			split[1] = "0" + split[1]
+		}
 		return strconv.ParseFloat(fmt.Sprintf("%s.%s", split[0], split[1]), 64)
 	case 3:
+		if len(split[1]) == 1 {
+			split[1] = "0" + split[1]
+		}
+		if len(split[2]) == 1 {
+			split[2] = "0" + split[2]
+		}
 		return strconv.ParseFloat(fmt.Sprintf("%s.%s%s", split[0], split[1], split[2]), 64)
 	default:
 		return 0, fmt.Errorf("unknown pg_stat_monitor version detected")
