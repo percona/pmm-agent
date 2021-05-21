@@ -106,6 +106,7 @@ type newPerfSchemaParams struct {
 
 const queryTag = "pmm-agent:perfschema"
 
+//
 // New creates new PerfSchema QAN service.
 func New(params *Params, l *logrus.Entry) (*PerfSchema, error) {
 	cfg, err := mysql.ParseDSN(params.DSN)
