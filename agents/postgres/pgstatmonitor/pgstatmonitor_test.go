@@ -474,4 +474,4 @@ func TestPGStatMonitorSchema(t *testing.T) {
 		assert.LessOrEqual(t, actual.Postgresql.MBlkReadTimeSum, actual.Common.MQueryTimeSum)
 		assert.Regexp(t, `\d{1,3}.\d{1,3}.\d{1,3}.\d{1,3}`, actual.Common.ClientHost)
 	})
-}
+//}
