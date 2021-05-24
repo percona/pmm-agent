@@ -43,13 +43,10 @@ func isDMLQuery(query string) bool {
 
 /*
   MySQL version prior 5.6.3 cannot run explain on DML commands.
-  From the doc: http://dev.mysql.com/doc/refman/5.6/en/explain.html
-  "As of MySQL 5.6.3, permitted explainable statements for EXPLAIN are
-  SELECT, DELETE, INSERT, REPLACE, and UPDATE.
-  Before MySQL 5.6.3, SELECT is the only explainable statement."
-
+  Newer MySQL versions can run explain on DML queries but higher persmissions
+  are needed and the pmm user is a not privileged user.
   This function converts DML queries to the equivalent SELECT to make
-  it able to explain DML queries on older MySQL versions
+  it able to explain DML queries on older MySQL versions and for unprivileged users.
 */
 func dmlToSelect(query string) string {
 	m := updateRe.FindStringSubmatch(query)
