@@ -23,7 +23,7 @@ require (
 	github.com/lib/pq v1.10.0
 	github.com/mattn/go-sqlite3 v1.13.0 // indirect
 	github.com/mwitkow/go-proto-validators v0.3.2 // indirect
-	github.com/percona/exporter_shared v0.7.2
+	github.com/percona/exporter_shared v0.7.3-0.20210520131742-cbaae0cfa2ad
 	github.com/percona/go-mysql v0.0.0-20200630114833-b77f37c0bfa2
 	github.com/percona/percona-toolkit v3.2.1+incompatible
 	github.com/percona/pmm v2.17.1-0.20210517140246-0c5987831641+incompatible
