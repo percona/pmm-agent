@@ -476,39 +476,3 @@ func TestPGStatMonitorSchema(t *testing.T) {
 		assert.Regexp(t, `\d{1,3}.\d{1,3}.\d{1,3}.\d{1,3}`, actual.Common.ClientHost)
 	})
 }
-
-func TestParsePGMonitorVersion(t *testing.T) {
-	ver, err := parsePGMonitorVersion("0.6")
-	assert.NoError(t, err)
-	assert.Equal(t, 0.06, ver)
-
-	ver, err = parsePGMonitorVersion("0.60")
-	assert.NoError(t, err)
-	assert.Equal(t, 0.60, ver)
-
-	ver, err = parsePGMonitorVersion("0.7.1")
-	assert.NoError(t, err)
-	assert.Equal(t, 0.0701, ver)
-
-	ver, err = parsePGMonitorVersion("0.70.15")
-	assert.NoError(t, err)
-	assert.Equal(t, 0.7015, ver)
-
-	ver, err = parsePGMonitorVersion("0.9.2")
-	assert.NoError(t, err)
-	assert.Equal(t, 0.0902, ver)
-
-	ver, err = parsePGMonitorVersion("1.0.0")
-	assert.NoError(t, err)
-	assert.Equal(t, float64(1), ver)
-
-	ver, err = parsePGMonitorVersion("1")
-	assert.NoError(t, err)
-	assert.Equal(t, float64(1), ver)
-
-	_, err = parsePGMonitorVersion("0.8.1-devel")
-	assert.Error(t, err)
-
-	_, err = parsePGMonitorVersion("devel")
-	assert.Error(t, err)
-}

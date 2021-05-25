@@ -27,6 +27,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"gopkg.in/reform.v1"
 
+	ver "github.com/hashicorp/go-version"
 	"github.com/percona/pmm-agent/utils/truncate"
 )
 
@@ -83,19 +84,36 @@ func (ssc *statMonitorCache) getStatMonitorExtended(ctx context.Context, q *refo
 	databases := queryDatabases(q)
 	usernames := queryUsernames(q)
 
+	failed := "failed to get pg_stat_monitor version"
 	pgMonitorVersion, e := getPGMonitorVersion(q)
 	if e != nil {
-		err = errors.Wrap(e, "failed to get pg_stat_monitor version")
+		err = errors.Wrap(e, failed)
+		return
+	}
+
+	v, err := ver.NewVersion(pgMonitorVersion)
+	if err != nil {
+		err = errors.Wrap(e, failed)
+		return
+	}
+	v09, err := ver.NewVersion("0.9")
+	if err != nil {
+		err = errors.Wrap(e, failed)
+		return
+	}
+	v08, err := ver.NewVersion("0.8")
+	if err != nil {
+		err = errors.Wrap(e, failed)
 		return
 	}
 
 	var view reform.View
 	var row reform.Struct
 	switch {
-	case pgMonitorVersion >= 0.9:
+	case v.GreaterThanOrEqual(v09):
 		view = pgStatMonitor09View
 		row = &pgStatMonitor09{}
-	case pgMonitorVersion >= 0.8:
+	case v.GreaterThanOrEqual(v08):
 		view = pgStatMonitor08View
 		row = &pgStatMonitor08{}
 	default:
