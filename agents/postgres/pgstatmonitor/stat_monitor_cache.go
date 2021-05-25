@@ -28,6 +28,7 @@ import (
 	"gopkg.in/reform.v1"
 
 	ver "github.com/hashicorp/go-version"
+
 	"github.com/percona/pmm-agent/utils/truncate"
 )
 
