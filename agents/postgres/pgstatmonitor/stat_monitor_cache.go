@@ -85,6 +85,7 @@ func (ssc *statMonitorCache) getStatMonitorExtended(ctx context.Context, q *refo
 	databases := queryDatabases(q)
 	usernames := queryUsernames(q)
 
+	//
 	failed := "failed to get pg_stat_monitor version"
 	pgMonitorVersion, e := getPGMonitorVersion(q)
 	if e != nil {
