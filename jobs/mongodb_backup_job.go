@@ -215,7 +215,6 @@ func (j *MongoDBBackupJob) setupS3(ctx context.Context) error {
 		"config",
 		"--mongodb-uri="+j.dbURL.String(),
 		"--file="+confFile,
-		"--force-resync",
 	).CombinedOutput()
 
 	if err != nil {
