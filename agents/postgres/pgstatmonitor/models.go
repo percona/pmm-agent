@@ -259,28 +259,7 @@ func (m pgStatMonitor09) ToPgStatMonitor() (pgStatMonitor, error) {
 		CPUUserTime:       m.CPUUserTime,
 		CPUSysTime:        m.CPUSysTime,
 		Relations:         m.Relations,
-		ApplicationName:   m.ApplicationName,
-		CmdType:           m.CmdType,
-		CmdTypeText:       m.CmdTypeText,
-		Elevel:            m.Elevel,
-		MaxTime:           m.MaxTime,
-		MeanTime:          m.MeanTime,
-		Message:           m.Message,
-		MinTime:           m.MinTime,
-		PlanMaxTime:       m.PlanMaxTime,
-		PlanMeanTime:      m.PlanMeanTime,
-		PlanMinTime:       m.PlanMinTime,
-		PlanTotalTime:     m.PlanTotalTime,
-		PlanID:            m.Planid,
 		PlansCalls:        m.PlansCalls,
-		QueryPlan:         m.QueryPlan,
-		SQLCode:           m.Sqlcode,
-		State:             m.State,
-		StateCode:         m.StateCode,
-		StddevTime:        m.StddevTime,
-		TopQuery:          m.TopQuery,
-		TopQueryID:        m.TopQueryid,
-		WalBytes:          m.WalBytes,
 		WalFpi:            m.WalFpi,
 		WalRecords:        m.WalRecords,
 	}, nil
@@ -316,28 +295,7 @@ type pgStatMonitor struct {
 	CPUUserTime       float64
 	CPUSysTime        float64
 	Relations         pq.StringArray
-	ApplicationName   *string
-	CmdType           int32
-	CmdTypeText       string
-	Elevel            int32
-	MaxTime           float64
-	MeanTime          float64
-	Message           *string
-	MinTime           float64
-	PlanMaxTime       float64
-	PlanMeanTime      float64
-	PlanMinTime       float64
-	PlanTotalTime     float64
-	PlanID            *string
 	PlansCalls        int64
-	QueryPlan         *string
-	SQLCode           *string
-	State             string
-	StateCode         int64
-	StddevTime        float64
-	TopQuery          *string
-	TopQueryID        *string
-	WalBytes          string
 	WalFpi            int64
 	WalRecords        int64
 }
