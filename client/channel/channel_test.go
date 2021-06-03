@@ -82,7 +82,16 @@ func setup(t *testing.T, connect func(agentpb.Agent_ConnectServer) error, expect
 
 	teardown = func() {
 		err := channel.Wait()
-		assert.Contains(t, expected, errors.Cause(err), "%+v", err)
+
+		assert.Conditionf(t, func() (success bool) {
+			for _, e := range expected {
+				if errors.Is(err, e) {
+					return true
+				}
+			}
+			return false
+		}, "%+v", err)
+		//assert.Contains(t, expected, errors.Cause(err), "%+v", err)
 
 		server.GracefulStop()
 		cancel()
