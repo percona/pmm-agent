@@ -93,7 +93,7 @@ func setup(t *testing.T, connect func(agentpb.Agent_ConnectServer) error, expect
 		}, "%+v", err)
 		//assert.Contains(t, expected, errors.Cause(err), "%+v", err)
 
-		server.GracefulStop()
+		server.Stop()
 		cancel()
 		require.NoError(t, <-serveError)
 	}
