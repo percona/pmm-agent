@@ -22,12 +22,11 @@ import (
 	"time"
 
 	"github.com/AlekSi/pointer"
+	ver "github.com/hashicorp/go-version"
 	pgquery "github.com/lfittl/pg_query_go"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"gopkg.in/reform.v1"
-
-	ver "github.com/hashicorp/go-version"
 
 	"github.com/percona/pmm-agent/utils/truncate"
 )
