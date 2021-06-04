@@ -97,6 +97,7 @@ func (ssc *statMonitorCache) getStatMonitorExtended(ctx context.Context, q *refo
 	}
 	defer rows.Close() //nolint:errcheck
 
+	//
 	for ctx.Err() == nil {
 		if err = q.NextRow(row, rows); err != nil {
 			if errors.Is(err, reform.ErrNoRows) {
