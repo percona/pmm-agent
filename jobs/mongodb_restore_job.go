@@ -96,11 +96,11 @@ func (j *MongoDBRestoreJob) Run(ctx context.Context, send Send) error {
 	}
 
 	if err := j.startRestore(ctx, backupName); err != nil {
-		return errors.Wrap(err, "failed to start backup")
+		return errors.Wrap(err, "failed to start backup restore")
 	}
 
 	if err := waitForNoRunningPBMOperations(ctx, j.l, j.dbURL); err != nil {
-		return errors.Wrap(err, "failed to wait backup completion")
+		return errors.Wrap(err, "failed to wait backup restore completion")
 	}
 
 	send(&agentpb.JobResult{
