@@ -29,7 +29,7 @@ import (
 )
 
 // This regexp matches backup entity name.
-var lastBackupR = regexp.MustCompile(`^Backup snapshots:\n(  (\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z).*)`)
+var lastBackupRE = regexp.MustCompile(`^Backup snapshots:\n(  (\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z).*)`)
 
 // MongoDBRestoreJob implements Job for MongoDB restore.
 type MongoDBRestoreJob struct {
@@ -124,12 +124,12 @@ func (j *MongoDBRestoreJob) findBackupEntityName(ctx context.Context) (string, e
 		return "", errors.Wrapf(err, "pbm list error: %s", string(output))
 	}
 
-	res := lastBackupR.FindAllSubmatch(output, -1)
+	res := lastBackupRE.FindAllSubmatch(output, -1)
 	if len(res) == 0 {
 		return "", errors.New("failed to find backup entity")
 	}
 
-	// Return backup entity name, see lastBackupR regexp.
+	// Return backup entity name, see lastBackupRE regexp.
 	return string(res[0][2]), nil
 }
 

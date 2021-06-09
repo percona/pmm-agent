@@ -42,7 +42,7 @@ const (
 )
 
 // This regexp checks that there is no running pbm operations.
-var noRunningPBMOperationsR = regexp.MustCompile(`Currently running:\n=*\n\(none\)`)
+var noRunningPBMOperationsRE = regexp.MustCompile(`Currently running:\n=*\n\(none\)`)
 
 // MongoDBBackupJob implements Job from MongoDB backup.
 type MongoDBBackupJob struct {
@@ -173,7 +173,7 @@ func checkRunningPBMOperations(ctx context.Context, l logrus.FieldLogger, dbURL 
 		return false, errors.Wrapf(err, "pbm status error: %s", string(output))
 	}
 
-	return noRunningPBMOperationsR.Match(output), nil
+	return noRunningPBMOperationsRE.Match(output), nil
 }
 
 func waitForNoRunningPBMOperations(ctx context.Context, l logrus.FieldLogger, dbURL *url.URL) error {
