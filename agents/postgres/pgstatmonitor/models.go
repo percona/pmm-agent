@@ -262,6 +262,10 @@ func (m pgStatMonitor09) ToPgStatMonitor() (pgStatMonitor, error) {
 		PlansCalls:        m.PlansCalls,
 		WalFpi:            m.WalFpi,
 		WalRecords:        m.WalRecords,
+		PlanTotalTime:     m.PlanTotalTime,
+		PlanMinTime:       m.PlanMinTime,
+		PlanMaxTime:       m.PlanMaxTime,
+		PlanMeanTime:      m.PlanMeanTime,
 	}, nil
 }
 
@@ -298,6 +302,11 @@ type pgStatMonitor struct {
 	PlansCalls        int64
 	WalFpi            int64
 	WalRecords        int64
+	WalBytes          string
+	PlanTotalTime     float64
+	PlanMinTime       float64
+	PlanMaxTime       float64
+	PlanMeanTime      float64
 }
 
 // pgStatMonitorSettings represents a row in pg_stat_monitor_settings view.
