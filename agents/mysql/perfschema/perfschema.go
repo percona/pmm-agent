@@ -25,12 +25,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/AlekSi/pointer"
-	"github.com/go-sql-driver/mysql" // register SQL driver
+	"github.com/AlekSi/pointer" // register SQL driver
 	"github.com/percona/pmm/api/agentpb"
 	"github.com/percona/pmm/api/inventorypb"
 	"github.com/percona/pmm/utils/sqlmetrics"
-	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"gopkg.in/reform.v1"
 	mysqlDialects "gopkg.in/reform.v1/dialects/mysql"
@@ -108,12 +106,7 @@ const queryTag = "pmm-agent:perfschema"
 
 // New creates new PerfSchema QAN service.
 func New(params *Params, l *logrus.Entry) (*PerfSchema, error) {
-	cfg, err := mysql.ParseDSN(params.DSN)
-	if err != nil {
-		return nil, errors.WithStack(err)
-	}
-
-	if cfg.TLSConfig == "custom" && params.TextFiles != nil {
+	if params.TextFiles != nil {
 		err := tlshelpers.RegisterMySQLCerts(params.TextFiles.Files)
 		if err != nil {
 			return nil, err

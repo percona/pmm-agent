@@ -109,16 +109,16 @@ func jsonRows(columns []string, dataRows [][]interface{}) ([]byte, error) {
 
 // mysqlOpen returns *sql.DB for given MySQL DSN.
 func mysqlOpen(dsn string, tlsFiles *agentpb.TextFiles) (*sql.DB, error) {
-	cfg, err := mysql.ParseDSN(dsn)
-	if err != nil {
-		return nil, errors.WithStack(err)
-	}
-
-	if cfg.TLSConfig == "custom" && tlsFiles != nil {
+	if tlsFiles != nil {
 		err := tlshelpers.RegisterMySQLCerts(tlsFiles.Files)
 		if err != nil {
 			return nil, err
 		}
+	}
+
+	cfg, err := mysql.ParseDSN(dsn)
+	if err != nil {
+		return nil, errors.WithStack(err)
 	}
 
 	connector, err := mysql.NewConnector(cfg)

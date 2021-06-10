@@ -19,7 +19,6 @@ package tlshelpers
 import (
 	"crypto/tls"
 	"crypto/x509"
-	"fmt"
 
 	"github.com/go-sql-driver/mysql"
 	"github.com/pkg/errors"
@@ -28,7 +27,7 @@ import (
 // RegisterMySQLCerts is used for register TLS config before sql.Open is called.
 func RegisterMySQLCerts(files map[string]string) error {
 	if files == nil {
-		return fmt.Errorf("RegisterMySQLCerts: nothing to register")
+		return nil
 	}
 
 	ca := x509.NewCertPool()

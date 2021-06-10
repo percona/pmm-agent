@@ -27,7 +27,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/go-sql-driver/mysql"
 	_ "github.com/go-sql-driver/mysql" // register SQL driver
 	"github.com/percona/go-mysql/event"
 	"github.com/percona/go-mysql/log"
@@ -79,12 +78,7 @@ type slowLogInfo struct {
 
 // New creates new SlowLog QAN service.
 func New(params *Params, l *logrus.Entry) (*SlowLog, error) {
-	cfg, err := mysql.ParseDSN(params.DSN)
-	if err != nil {
-		return nil, errors.WithStack(err)
-	}
-
-	if cfg.TLSConfig == "custom" && params.TextFiles != nil {
+	if params.TextFiles != nil {
 		err := tlshelpers.RegisterMySQLCerts(params.TextFiles.Files)
 		if err != nil {
 			return nil, err
