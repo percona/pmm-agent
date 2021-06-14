@@ -24,7 +24,7 @@ const (
 )
 
 var (
-	mysqlVersionRegexp = regexp.MustCompile("^.*Ver ([!-~]*).*$")
+	mysqlVersionRegexp      = regexp.MustCompile("^.*Ver ([!-~]*).*$")
 	xtrabackupVersionRegexp = regexp.MustCompile("^xtrabackup version ([!-~]*).*$")
 )
 
