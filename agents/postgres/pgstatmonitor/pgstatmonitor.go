@@ -299,6 +299,11 @@ func (m *PGStatMonitorQAN) makeBuckets(current, cache map[time.Time]map[string]*
 				// convert microseconds to seconds
 				{float32(currentPSM.CPUSysTime-prevPSM.CPUSysTime) / 1000000, &mb.Postgresql.MCpuSysTimeSum, &mb.Postgresql.MCpuSysTimeCnt},
 				{float32(currentPSM.CPUUserTime-prevPSM.CPUUserTime) / 1000000, &mb.Postgresql.MCpuUserTimeSum, &mb.Postgresql.MCpuUserTimeCnt},
+
+				{float32(currentPSM.WalBytes - prevPSM.WalBytes), &mb.Postgresql.MWalBytesSum, &mb.Postgresql.MWalBytesCnt},
+				{float32(currentPSM.PlanTotalTime-prevPSM.PlanTotalTime) / 1000, &mb.Postgresql.MPlanTimeSum, &mb.Common.MQueryTimeCnt},
+				{float32(currentPSM.PlanMinTime-prevPSM.PlanMinTime) / 1000, &mb.Common.MQueryTimeSum, &mb.Common.MQueryTimeCnt},
+				{float32(currentPSM.PlanMaxTime-prevPSM.PlanMaxTime) / 1000, &mb.Common.MQueryTimeSum, &mb.Common.MQueryTimeCnt},
 			} {
 				if p.value != 0 {
 					*p.sum = p.value
