@@ -260,6 +260,11 @@ func (m *PGStatMonitorQAN) makeBuckets(current, cache map[time.Time]map[string]*
 				},
 				Postgresql: new(agentpb.MetricsBucket_PostgreSQL),
 			}
+			if (currentPSM.PlanTotalTime - prevPSM.PlanTotalTime) != 0 {
+				mb.Postgresql.MPlanTimeSum = float32(currentPSM.PlanTotalTime-prevPSM.PlanTotalTime) / 1000
+				mb.Postgresql.MPlanTimeMin = float32(currentPSM.PlanMinTime) / 1000
+				mb.Postgresql.MPlanTimeMax = float32(currentPSM.PlanMaxTime) / 1000
+			}
 
 			if !m.disableQueryExamples && currentPSM.Example != "" {
 				mb.Common.Example = currentPSM.Example
@@ -301,9 +306,6 @@ func (m *PGStatMonitorQAN) makeBuckets(current, cache map[time.Time]map[string]*
 				{float32(currentPSM.CPUUserTime-prevPSM.CPUUserTime) / 1000000, &mb.Postgresql.MCpuUserTimeSum, &mb.Postgresql.MCpuUserTimeCnt},
 
 				{float32(currentPSM.WalBytes - prevPSM.WalBytes), &mb.Postgresql.MWalBytesSum, &mb.Postgresql.MWalBytesCnt},
-				{float32(currentPSM.PlanTotalTime-prevPSM.PlanTotalTime) / 1000, &mb.Postgresql.MPlanTimeSum, &mb.Common.MQueryTimeCnt},
-				{float32(currentPSM.PlanMinTime-prevPSM.PlanMinTime) / 1000, &mb.Common.MQueryTimeSum, &mb.Common.MQueryTimeCnt},
-				{float32(currentPSM.PlanMaxTime-prevPSM.PlanMaxTime) / 1000, &mb.Common.MQueryTimeSum, &mb.Common.MQueryTimeCnt},
 			} {
 				if p.value != 0 {
 					*p.sum = p.value
