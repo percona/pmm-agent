@@ -264,6 +264,7 @@ func (m *PGStatMonitorQAN) makeBuckets(current, cache map[time.Time]map[string]*
 				mb.Postgresql.MPlanTimeSum = float32(currentPSM.PlanTotalTime-prevPSM.PlanTotalTime) / 1000
 				mb.Postgresql.MPlanTimeMin = float32(currentPSM.PlanMinTime) / 1000
 				mb.Postgresql.MPlanTimeMax = float32(currentPSM.PlanMaxTime) / 1000
+				mb.Postgresql.MPlanTimeSum = count
 			}
 
 			if !m.disableQueryExamples && currentPSM.Example != "" {
