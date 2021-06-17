@@ -18,8 +18,12 @@ package actions
 import (
 	"context"
 	"database/sql"
+	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/lib/pq"
+	"github.com/percona/pmm-agent/utils/templates"
 	"github.com/percona/pmm/api/agentpb"
 	"github.com/pkg/errors"
 )
@@ -49,7 +53,18 @@ func (a *postgresqlQueryShowAction) Type() string {
 
 // Run runs an Action and returns output and error.
 func (a *postgresqlQueryShowAction) Run(ctx context.Context) ([]byte, error) {
-	connector, err := pq.NewConnector(a.params.Dsn)
+	tmpDir, err := os.MkdirTemp("", "pg_action_")
+	if err != nil {
+		return nil, errors.Wrap(err, "cannot create a temporary directory to run the PG action")
+	}
+	defer os.RemoveAll(tmpDir) //nolint:errcheck
+
+	dsn, err := templates.RenderDSN(a.params.Dsn, a.params.TlsFiles, filepath.Join(tmpDir, strings.ToLower(a.Type()), a.id))
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+	connector, err := pq.NewConnector(dsn)
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
