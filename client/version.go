@@ -18,14 +18,10 @@ package client
 
 import (
 	"context"
-	"database/sql"
-	"net"
 	"os/exec"
 	"regexp"
-	"strconv"
 	"time"
 
-	"github.com/go-sql-driver/mysql"
 	"github.com/pkg/errors"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -43,54 +39,6 @@ var (
 	mysqlVersionRegexp      = regexp.MustCompile("^.*Ver ([!-~]*).*$")
 	xtrabackupVersionRegexp = regexp.MustCompile("^xtrabackup version ([!-~]*).*$")
 )
-
-func (c *Client) remoteMySQLVersion(s *agentpb.GetVersionRequest_RemoteMysql) (string, error) {
-	remoteMySQL := s.RemoteMysql
-
-	if ((remoteMySQL.GetAddress() != "" || remoteMySQL.GetPort() != 0) && remoteMySQL.GetSocket() != "") ||
-		((remoteMySQL.GetAddress() == "" || remoteMySQL.GetPort() == 0) && remoteMySQL.GetSocket() == "") {
-		return "", errors.Errorf(
-			"either address with port or socket should be set: address: %q, port: %d, socket: %q",
-			remoteMySQL.GetAddress(),
-			remoteMySQL.GetPort(),
-			remoteMySQL.GetSocket(),
-		)
-	}
-
-	cfg := mysql.NewConfig()
-	cfg.User = remoteMySQL.GetUser()
-	cfg.Passwd = remoteMySQL.GetPassword()
-
-	if remoteMySQL.GetAddress() != "" {
-		cfg.Net = "tcp"
-		cfg.Addr = net.JoinHostPort(remoteMySQL.GetAddress(), strconv.Itoa(int(remoteMySQL.GetPort())))
-	} else {
-		cfg.Net = "unix"
-		cfg.Addr = remoteMySQL.GetSocket()
-	}
-
-	connector, err := mysql.NewConnector(cfg)
-	if err != nil {
-		return "", errors.WithStack(err)
-	}
-
-	db := sql.OpenDB(connector)
-	defer func() {
-		if err := db.Close(); err != nil {
-			c.l.WithError(err).Error("failed to close mysql connection")
-		}
-	}()
-
-	ctx, cancel := context.WithTimeout(context.Background(), versionCheckTimeout)
-	defer cancel()
-
-	var version string
-	if err := db.QueryRowContext(ctx, "SELECT VERSION();").Scan(&version); err != nil {
-		return "", errors.WithStack(err)
-	}
-
-	return version, nil
-}
 
 func (c *Client) localMySQLVersion() (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), versionCheckTimeout)
@@ -137,9 +85,7 @@ func (c *Client) xtrabackupVersion() (string, error) {
 func (c *Client) handleVersionRequest(r *agentpb.GetVersionRequest) (string, *status.Status) {
 	var version string
 	var err error
-	switch s := r.Software.(type) {
-	case *agentpb.GetVersionRequest_RemoteMysql:
-		version, err = c.remoteMySQLVersion(s)
+	switch r.Software.(type) {
 	case *agentpb.GetVersionRequest_LocalMysql:
 		version, err = c.localMySQLVersion()
 	case *agentpb.GetVersionRequest_Xtrabackup:
