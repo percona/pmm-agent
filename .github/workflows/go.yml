@@ -15,9 +15,11 @@ jobs:
     strategy:
       matrix:
         go:
+          - version: 1.15.x
+            may-fail: false
           - version: 1.16.x
             may-fail: false
-# TODO: Enable this
+          # TODO enable when 1.15.x is removed
 #          - version: tip
 #            may-fail: true
 
@@ -103,8 +105,10 @@ jobs:
     strategy:
       matrix:
         go:
-          - version: 1.16.x
+          - version: 1.15.x
             may-fail: false
+          - version: 1.16.x
+            may-fail: true
           # TODO enable when 1.15.x is removed
 #          - version: tip
 #            may-fail: true
