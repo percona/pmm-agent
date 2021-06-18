@@ -23,9 +23,10 @@ import (
 	"strings"
 
 	"github.com/lib/pq"
-	"github.com/percona/pmm-agent/utils/templates"
 	"github.com/percona/pmm/api/agentpb"
 	"github.com/pkg/errors"
+
+	"github.com/percona/pmm-agent/utils/templates"
 )
 
 type postgresqlQueryShowAction struct {
