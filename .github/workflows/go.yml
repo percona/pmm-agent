@@ -17,8 +17,9 @@ jobs:
         go:
           - version: 1.16.x
             may-fail: false
-          - version: tip
-            may-fail: true
+# TODO: Enable this
+#          - version: tip
+#            may-fail: true
 
     continue-on-error: ${{ matrix.go.may-fail }}
 
@@ -104,8 +105,9 @@ jobs:
         go:
           - version: 1.16.x
             may-fail: false
-          - version: tip
-            may-fail: true
+          # TODO enable when 1.15.x is removed
+#          - version: tip
+#            may-fail: true
         images:
           - { mysql: 'mysql:5.6', mongo: 'mongo:3.6', postgres: 'postgres:10', pmm_server: 'percona/pmm-server:2.0.0' }
           - { mysql: 'mysql:5.7', mongo: 'mongo:4.0', postgres: 'postgres:11', pmm_server: 'percona/pmm-server:2.0.1' }
