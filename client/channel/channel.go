@@ -201,7 +201,7 @@ func (c *Channel) send(msg *agentpb.AgentMessage) {
 	c.mSend.Inc()
 }
 
-// runReader receives messages from server
+// RunReceiver receives messages from server
 func (c *Channel) RunReceiver() {
 	defer func() {
 		close(c.requests)
