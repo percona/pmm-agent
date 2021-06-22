@@ -60,4 +60,16 @@ func TestDMLToSelect(t *testing.T) {
 
 	q = dmlToSelect("insert into `tabla-1` values(12)")
 	assert.Equal(t, "SELECT * FROM `tabla-1` LIMIT 1", q)
+
+	q = dmlToSelect(`UPDATE
+  employees2
+SET
+  first_name = 'Joe',
+  emp_no = 10
+WHERE
+  emp_no = 3`)
+	assert.Equal(t, "SELECT first_name = 'Joe',   emp_no = 10 FROM employees2 WHERE emp_no = 3", q)
+
+	q = dmlToSelect(`UPDATE employees2 SET first_name = 'Joe', emp_no = 10 WHERE emp_no = 3`)
+	assert.Equal(t, "SELECT first_name = 'Joe', emp_no = 10 FROM employees2 WHERE emp_no = 3", q)
 }

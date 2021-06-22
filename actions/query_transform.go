@@ -49,6 +49,8 @@ func isDMLQuery(query string) bool {
   it able to explain DML queries on older MySQL versions and for unprivileged users.
 */
 func dmlToSelect(query string) string {
+	query = strings.ReplaceAll(query, "\n", " ")
+
 	m := updateRe.FindStringSubmatch(query)
 	// > 2 because we need at least a table name and a list of fields
 	if len(m) > 2 {
