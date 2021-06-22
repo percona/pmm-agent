@@ -88,6 +88,28 @@ func New(cfg *config.Config, supervisor supervisor, connectionChecker connection
 	}
 }
 
+func (c *Client) getConnection(ctx context.Context) (*dialResult, error) {
+	for {
+		dialCtx, dialCancel := context.WithTimeout(ctx, c.dialTimeout)
+		dialResult, dialErr := dial(dialCtx, c.cfg, c.l)
+		dialCancel()
+		if dialResult != nil {
+			return dialResult, nil
+		}
+
+		c.l.Errorf("Connection will be reestablished in %v !!!", c.backoff.Delay())
+		retryCtx, retryCancel := context.WithTimeout(ctx, c.backoff.Delay())
+		<-retryCtx.Done()
+		retryCancel()
+		if ctx.Err() != nil {
+			if dialErr != nil {
+				return nil, dialErr
+			}
+			return nil, ctx.Err()
+		}
+	}
+}
+
 // Run connects to the server, processes requests and sends responses.
 //
 // Once Run exits, connection is closed, and caller should cancel supervisor's context.
@@ -118,29 +140,6 @@ func (c *Client) Run(ctx context.Context) error {
 
 	// try to connect until success, or until ctx is canceled
 	var dialResult *dialResult
-	var dialErr error
-	for {
-		dialCtx, dialCancel := context.WithTimeout(ctx, c.dialTimeout)
-		dialResult, dialErr = dial(dialCtx, c.cfg, c.l)
-		dialCancel()
-		if dialResult != nil {
-			break
-		}
-
-		retryCtx, retryCancel := context.WithTimeout(ctx, c.backoff.Delay())
-		<-retryCtx.Done()
-		retryCancel()
-		if ctx.Err() != nil {
-			break
-		}
-	}
-	if ctx.Err() != nil {
-		close(c.done)
-		if dialErr != nil {
-			return dialErr
-		}
-		return ctx.Err()
-	}
 
 	defer func() {
 		if err := dialResult.conn.Close(); err != nil {
@@ -149,11 +148,6 @@ func (c *Client) Run(ctx context.Context) error {
 		}
 		c.l.Info("Connection closed.")
 	}()
-
-	c.rw.Lock()
-	c.md = dialResult.md
-	c.channel = dialResult.channel
-	c.rw.Unlock()
 
 	// Once the client is connected, ctx cancellation is ignored by it.
 	//
@@ -176,37 +170,84 @@ func (c *Client) Run(ctx context.Context) error {
 	// https://jira.percona.com/browse/PMM-4245
 
 	oneDone := make(chan struct{}, 5)
-	go func() {
-		c.jobsRunner.Run(ctx)
-		oneDone <- struct{}{}
-	}()
-	go func() {
-		c.processActionResults()
-		oneDone <- struct{}{}
-	}()
-	go func() {
-		c.processJobsResults()
-		oneDone <- struct{}{}
-	}()
-	go func() {
-		c.processSupervisorRequests()
-		oneDone <- struct{}{}
-	}()
-	go func() {
-		c.processChannelRequests(ctx)
-		oneDone <- struct{}{}
-	}()
 
-	<-oneDone
-	go func() {
-		<-oneDone
-		<-oneDone
-		<-oneDone
-		<-oneDone
-		c.l.Info("Done.")
-		close(c.done)
-	}()
-	return nil
+	isConnected := make(chan bool)
+	isDisconnected := make(chan bool)
+
+	isDisconnected <- true
+	var err error
+	for {
+		select {
+		case <-isDisconnected:
+			c.l.Infoln("Connecting to pmm-server...")
+			go func() {
+				dialResult, err = c.getConnection(ctx)
+				if err != nil {
+					c.l.Errorf("Cannot connect to server: %v", err)
+				}
+
+				dialResult, err = getChannel(dialResult.conn, c.cfg, dialResult.deadline, c.l)
+				if err != nil {
+					c.l.Errorf("Cannot get channel: %v", err)
+					return
+				}
+
+				c.rw.Lock()
+				c.md = dialResult.md
+				c.channel = dialResult.channel
+				c.rw.Unlock()
+				isConnected <- true
+			}()
+		case <-isConnected:
+			c.l.Infoln("Connected to pmm-server")
+			go func() {
+				c.channel.RunReceiver()
+				isDisconnected <- true
+			}()
+
+			go func() {
+				dialResult, err = getNetworkDrift(dialResult, c.l)
+				if err != nil {
+					c.l.Errorf("Cannot get metadata: %v", err)
+				}
+				c.rw.Lock()
+				c.md = dialResult.md
+				c.channel = dialResult.channel
+				c.rw.Unlock()
+			}()
+
+			go func() {
+				c.jobsRunner.Run(ctx)
+				oneDone <- struct{}{}
+			}()
+			go func() {
+				c.processActionResults()
+				oneDone <- struct{}{}
+			}()
+			go func() {
+				c.processJobsResults()
+				oneDone <- struct{}{}
+			}()
+			go func() {
+				c.processSupervisorRequests()
+				oneDone <- struct{}{}
+			}()
+			go func() {
+				c.processChannelRequests(ctx)
+				oneDone <- struct{}{}
+			}()
+
+			<-oneDone
+			go func() {
+				<-oneDone
+				<-oneDone
+				<-oneDone
+				<-oneDone
+				c.l.Info("Done.")
+				close(c.done)
+			}()
+		}
+	}
 }
 
 // Done is closed when all supervisors's requests are sent (if possible) and connection is closed.
@@ -504,6 +545,7 @@ type dialResult struct {
 	streamCancel context.CancelFunc
 	channel      *channel.Channel
 	md           *agentpb.ServerConnectMetadata
+	deadline     time.Time
 }
 
 // dial tries to connect to the server once.
@@ -544,7 +586,18 @@ func dial(dialCtx context.Context, cfg *config.Config, l *logrus.Entry) (*dialRe
 		return nil, errors.Wrap(err, "failed to dial")
 	}
 	l.Infof("Connected to %s.", cfg.Server.Address)
+	d, ok := dialCtx.Deadline()
+	if !ok {
+		panic("no deadline in dialCtx")
+	}
 
+	return &dialResult{
+		conn:     conn,
+		deadline: d,
+	}, nil
+}
+
+func getChannel(conn *grpc.ClientConn, cfg *config.Config, deadline time.Time, l *logrus.Entry) (*dialResult, error) {
 	// gRPC stream is created without lifetime timeout.
 	// However, we need to cancel it if two-way communication channel can't be established
 	// when pmm-managed is down. A separate timer is used for that.
@@ -557,15 +610,11 @@ func dial(dialCtx context.Context, cfg *config.Config, l *logrus.Entry) (*dialRe
 		}
 		l.Debugf("Connection closed.")
 	}
-	d, ok := dialCtx.Deadline()
-	if !ok {
-		panic("no deadline in dialCtx")
-	}
-	streamCancelT := time.AfterFunc(time.Until(d), streamCancel)
+
+	streamCancelT := time.AfterFunc(time.Until(deadline), streamCancel)
 	defer streamCancelT.Stop()
 
 	l.Info("Establishing two-way communication channel ...")
-	start := time.Now()
 	streamCtx = agentpb.AddAgentConnectMetadata(streamCtx, &agentpb.AgentConnectMetadata{
 		ID:      cfg.ID,
 		Version: version.Version,
@@ -575,25 +624,6 @@ func dial(dialCtx context.Context, cfg *config.Config, l *logrus.Entry) (*dialRe
 		l.Errorf("Failed to establish two-way communication channel: %s.", err)
 		teardown()
 		return nil, errors.Wrap(err, "failed to connect")
-	}
-
-	// So far, nginx can handle all that itself without pmm-managed.
-	// We need to exchange one pair of messages (ping/pong) for metadata headers to reach pmm-managed
-	// to ensure that pmm-managed is alive and that Agent ID is valid.
-
-	channel := channel.New(stream)
-	_, clockDrift, err := getNetworkInformation(channel) // ping/pong
-	if err != nil {
-		msg := err.Error()
-
-		// improve error message
-		if s, ok := grpcstatus.FromError(errors.Cause(err)); ok {
-			msg = strings.TrimSuffix(s.Message(), ".")
-		}
-
-		l.Errorf("Failed to establish two-way communication channel: %s.", msg)
-		teardown()
-		return nil, err
 	}
 
 	// read metadata header after receiving pong
@@ -610,18 +640,51 @@ func dial(dialCtx context.Context, cfg *config.Config, l *logrus.Entry) (*dialRe
 		return nil, errors.New("empty server version in metadata")
 	}
 
-	level := logrus.InfoLevel
-	if clockDrift > clockDriftWarning || -clockDrift > clockDriftWarning {
-		level = logrus.WarnLevel
-	}
-	l.Logf(level, "Two-way communication channel established in %s. Estimated clock drift: %s.",
-		time.Since(start), clockDrift)
+	// So far, nginx can handle all that itself without pmm-managed.
+	// We need to exchange one pair of messages (ping/pong) for metadata headers to reach pmm-managed
+	// to ensure that pmm-managed is alive and that Agent ID is valid.
+
+	channel := channel.New(stream)
 
 	return &dialResult{
 		conn:         conn,
 		streamCancel: streamCancel,
 		channel:      channel,
-		md:           md}, nil
+	}, nil
+}
+
+func getNetworkDrift(dResult *dialResult, l *logrus.Entry) (*dialResult, error) {
+	start := time.Now()
+	_, clockDrift, err := getNetworkInformation(dResult.channel) // ping/pong
+	if err != nil {
+		msg := err.Error()
+
+		// improve error message
+		if s, ok := grpcstatus.FromError(errors.Cause(err)); ok {
+			msg = strings.TrimSuffix(s.Message(), ".")
+		}
+
+		l.Errorf("Failed to establish two-way communication channel: %s.", msg)
+		dResult.streamCancel()
+		if err := dResult.conn.Close(); err != nil {
+			l.Debugf("Connection closed: %s.", err)
+			return nil, err
+		}
+		l.Debugf("Connection closed.")
+		return nil, err
+	}
+
+	level := logrus.InfoLevel
+	if clockDrift > clockDriftWarning || -clockDrift > clockDriftWarning {
+		level = logrus.WarnLevel
+	}
+	l.Logf(level, "Two-way communication channel established in %s. Estimated clock drift: %s.", time.Since(start), clockDrift)
+	return &dialResult{
+		conn:         dResult.conn,
+		streamCancel: dResult.streamCancel,
+		channel:      dResult.channel,
+		md:           dResult.md,
+	}, nil
 }
 
 func getNetworkInformation(channel *channel.Channel) (latency, clockDrift time.Duration, err error) {

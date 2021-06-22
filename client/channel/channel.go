@@ -109,7 +109,6 @@ func New(stream agentpb.Agent_ConnectClient) *Channel {
 		closeWait: make(chan struct{}),
 	}
 
-	go s.runReceiver()
 	return s
 }
 
@@ -203,7 +202,7 @@ func (c *Channel) send(msg *agentpb.AgentMessage) {
 }
 
 // runReader receives messages from server
-func (c *Channel) runReceiver() {
+func (c *Channel) RunReceiver() {
 	defer func() {
 		close(c.requests)
 		c.l.Debug("Exiting receiver goroutine.")
