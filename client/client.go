@@ -171,35 +171,32 @@ func (c *Client) Run(ctx context.Context) error {
 
 	oneDone := make(chan struct{}, 5)
 
-	isConnected := make(chan bool)
-	isDisconnected := make(chan bool)
-
+	isDisconnected := make(chan bool, 1)
 	isDisconnected <- true
 	var err error
+
 	for {
 		select {
 		case <-isDisconnected:
-			c.l.Infoln("Connecting to pmm-server...")
-			go func() {
-				dialResult, err = c.getConnection(ctx)
-				if err != nil {
-					c.l.Errorf("Cannot connect to server: %v", err)
-				}
+			dialResult, err = c.getConnection(ctx)
+			if err != nil {
+				c.l.Errorf("Cannot connect to server: %v", err)
+			}
 
-				dialResult, err = getChannel(dialResult.conn, c.cfg, dialResult.deadline, c.l)
-				if err != nil {
-					c.l.Errorf("Cannot get channel: %v", err)
-					return
-				}
+			dialResult, err = getChannel(dialResult.conn, c.cfg, dialResult.deadline, c.l)
+			if err != nil {
+				c.l.Errorf("Cannot get channel: %v", err)
+				continue
+			}
 
-				c.rw.Lock()
-				c.md = dialResult.md
-				c.channel = dialResult.channel
-				c.rw.Unlock()
-				isConnected <- true
-			}()
-		case <-isConnected:
-			c.l.Infoln("Connected to pmm-server")
+			c.rw.Lock()
+			c.md = dialResult.md
+			c.channel = dialResult.channel
+			c.rw.Unlock()
+		case <-ctx.Done():
+			close(c.done)
+			return nil
+		default:
 			go func() {
 				c.channel.RunReceiver()
 				isDisconnected <- true
