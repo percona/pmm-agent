@@ -405,6 +405,13 @@ func (c *Client) processChannelRequests(ctx context.Context) {
 			alive := c.jobsRunner.IsRunning(p.JobId)
 			responsePayload = &agentpb.JobStatusResponse{Alive: alive}
 
+		case *agentpb.GetVersionRequest:
+			if ver, requestStatus := c.handleVersionRequest(p); requestStatus != nil {
+				status = requestStatus
+			} else {
+				responsePayload = &agentpb.GetVersionResponse{Version: ver}
+			}
+
 		case nil:
 			c.l.Errorf("Unhandled server request: %v.", req)
 		}
