@@ -24,6 +24,7 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	_ "github.com/go-sql-driver/mysql" // register SQL driver
@@ -77,8 +78,8 @@ type slowLogInfo struct {
 
 // New creates new SlowLog QAN service.
 func New(params *Params, l *logrus.Entry) (*SlowLog, error) {
-	if params.TextFiles != nil && params.TextFiles.Files != nil {
-		err := tlshelpers.RegisterMySQLCerts(params.TextFiles.Files, params.TLSSkipVerify)
+	if params.TextFiles != nil {
+		err := tlshelpers.RegisterMySQLCerts(params.TextFiles.Files)
 		if err != nil {
 			return nil, err
 		}
@@ -163,7 +164,25 @@ func (s *SlowLog) Run(ctx context.Context) {
 
 // recheck returns new slowlog information, and rotates slowlog file if needed.
 func (s *SlowLog) recheck(ctx context.Context) (newInfo *slowLogInfo) {
-	var err error
+	db, err := sql.Open("mysql", s.params.DSN)
+	if err != nil {
+		s.l.Errorf("Cannot open database connection: %s", err)
+		return
+	}
+	defer db.Close() //nolint:errcheck
+
+	var grants string
+	row := db.QueryRowContext(ctx, "SHOW GRANTS")
+	if err := row.Scan(&grants); err != nil {
+		s.l.Errorf("Cannot scan db user privileges: %s", err)
+		return
+	}
+
+	if !strings.Contains(grants, "RELOAD") && !strings.Contains(grants, "ALL PRIVILEGES") {
+		s.l.Error("RELOAD grant not enabled, cannot rotate slowlog")
+		return
+	}
+
 	if newInfo, err = s.getSlowLogInfo(ctx); err != nil {
 		s.l.Error(err)
 		return
@@ -375,10 +394,12 @@ func makeBuckets(agentID string, res event.Result, periodStart time.Time, period
 			continue
 		}
 
+		fingerprint, isTruncated := truncate.Query(v.Fingerprint)
 		mb := &agentpb.MetricsBucket{
 			Common: &agentpb.MetricsBucket_Common{
 				Queryid:              v.Id,
-				Fingerprint:          v.Fingerprint,
+				Fingerprint:          fingerprint,
+				IsTruncated:          isTruncated,
 				Database:             "",
 				Schema:               v.Db,
 				Username:             v.User,
