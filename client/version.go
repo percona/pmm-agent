@@ -36,8 +36,8 @@ const (
 )
 
 var (
-	mysqlVersionRegexp      = regexp.MustCompile("^.*Ver ([!-~]*).*$")
-	xtrabackupVersionRegexp = regexp.MustCompile("^xtrabackup version ([!-~]*).*$")
+	mysqlVersionRegexp      = regexp.MustCompile("^.*Ver ([!-~]*).*")
+	xtrabackupVersionRegexp = regexp.MustCompile("^xtrabackup version ([!-~]*).*")
 )
 
 func (c *Client) localMySQLVersion() (string, error) {
