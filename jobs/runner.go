@@ -100,7 +100,6 @@ func (r *Runner) Run(ctx context.Context) {
 			go pprof.Do(nCtx, pprof.Labels("jobID", jobID, "type", jobType), run)
 		case <-ctx.Done():
 			r.runningJobs.Wait() // wait for all jobs termination
-			close(r.messages)
 			return
 		}
 	}

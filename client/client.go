@@ -97,7 +97,7 @@ func (c *Client) getConnection(ctx context.Context) (*dialResult, error) {
 			return dialResult, nil
 		}
 
-		c.l.Errorf("Connection will be reestablished in %v !!!", c.backoff.Delay())
+		c.l.Errorf("The connection will be reestablished in %v", c.backoff.Delay())
 		retryCtx, retryCancel := context.WithTimeout(ctx, c.backoff.Delay())
 		<-retryCtx.Done()
 		retryCancel()
@@ -180,7 +180,7 @@ func (c *Client) Run(ctx context.Context) error {
 		case <-isDisconnected:
 			dialResult, err = c.getConnection(ctx)
 			if err != nil {
-				c.l.Errorf("Cannot connect to server: %v", err)
+				c.l.Errorf("Cannot connect to server for: %v", err)
 			}
 
 			dialResult, err = getChannel(dialResult.conn, c.cfg, dialResult.deadline, c.l)
@@ -203,14 +203,11 @@ func (c *Client) Run(ctx context.Context) error {
 			}()
 
 			go func() {
-				dialResult, err = getNetworkDrift(dialResult, c.l)
+				err = getNetworkDrift(dialResult, c.l)
 				if err != nil {
-					c.l.Errorf("Cannot get metadata: %v", err)
+					c.l.Errorf("Ping/pong failed: %v", err)
+					isDisconnected <- true
 				}
-				c.rw.Lock()
-				c.md = dialResult.md
-				c.channel = dialResult.channel
-				c.rw.Unlock()
 			}()
 
 			go func() {
@@ -697,10 +694,11 @@ func getChannel(conn *grpc.ClientConn, cfg *config.Config, deadline time.Time, l
 		conn:         conn,
 		streamCancel: streamCancel,
 		channel:      channel,
+		md:           md,
 	}, nil
 }
 
-func getNetworkDrift(dResult *dialResult, l *logrus.Entry) (*dialResult, error) {
+func getNetworkDrift(dResult *dialResult, l *logrus.Entry) error {
 	start := time.Now()
 	_, clockDrift, err := getNetworkInformation(dResult.channel) // ping/pong
 	if err != nil {
@@ -715,10 +713,10 @@ func getNetworkDrift(dResult *dialResult, l *logrus.Entry) (*dialResult, error) 
 		dResult.streamCancel()
 		if err := dResult.conn.Close(); err != nil {
 			l.Debugf("Connection closed: %s.", err)
-			return nil, err
+			return err
 		}
 		l.Debugf("Connection closed.")
-		return nil, err
+		return err
 	}
 
 	level := logrus.InfoLevel
@@ -726,12 +724,7 @@ func getNetworkDrift(dResult *dialResult, l *logrus.Entry) (*dialResult, error) 
 		level = logrus.WarnLevel
 	}
 	l.Logf(level, "Two-way communication channel established in %s. Estimated clock drift: %s.", time.Since(start), clockDrift)
-	return &dialResult{
-		conn:         dResult.conn,
-		streamCancel: dResult.streamCancel,
-		channel:      dResult.channel,
-		md:           dResult.md,
-	}, nil
+	return nil
 }
 
 func getNetworkInformation(channel *channel.Channel) (latency, clockDrift time.Duration, err error) {
