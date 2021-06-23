@@ -22,6 +22,7 @@ import (
 	"database/sql"
 	"fmt"
 	"io"
+	"math/rand"
 	"os"
 	"path/filepath"
 	"strings"
@@ -89,8 +90,8 @@ func (a *postgresqlShowCreateTableAction) Type() string {
 
 // Run runs an Action and returns output and error.
 func (a *postgresqlShowCreateTableAction) Run(ctx context.Context) ([]byte, error) {
-	tmpDir, err := os.MkdirTemp("", "pg_action_")
-	if err != nil {
+	tmpDir := filepath.Join(os.TempDir(), fmt.Sprintf("pg_action_%05d", rand.Int63n(99999)))
+	if err := os.MkdirAll(tmpDir, os.ModePerm); err != nil {
 		return nil, errors.Wrap(err, "cannot create a temporary directory to run the PG action")
 	}
 	defer os.RemoveAll(tmpDir) //nolint:errcheck
