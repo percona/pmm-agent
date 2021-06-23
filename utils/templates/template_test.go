@@ -17,7 +17,9 @@
 package templates
 
 import (
+	"fmt"
 	"io/ioutil"
+	"math/rand"
 	"os"
 	"path/filepath"
 	"testing"
@@ -33,7 +35,8 @@ const (
 )
 
 func TestRenderDSN(t *testing.T) {
-	dir, err := os.MkdirTemp("", "test_render_")
+	dir := filepath.Join(os.TempDir(), fmt.Sprintf("pg_action_%05d", rand.Int63n(99999))) //nolint:gosec
+	err := os.MkdirAll(dir, os.ModePerm)
 	assert.NoError(t, err)
 
 	inDSN := "postgres://username:s3cur3%20p%40$$w0r4.@1.2.3.4:12345/database" +

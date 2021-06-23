@@ -57,7 +57,7 @@ func (a *postgresqlShowIndexAction) Type() string {
 
 // Run runs an Action and returns output and error.
 func (a *postgresqlShowIndexAction) Run(ctx context.Context) ([]byte, error) {
-	tmpDir := filepath.Join(os.TempDir(), fmt.Sprintf("pg_action_%05d", rand.Int63n(99999)))
+	tmpDir := filepath.Join(os.TempDir(), fmt.Sprintf("pg_action_%05d", rand.Int63n(99999))) //nolint:gosec
 	if err := os.MkdirAll(tmpDir, os.ModePerm); err != nil {
 		return nil, errors.Wrap(err, "cannot create a temporary directory to run the PG action")
 	}
