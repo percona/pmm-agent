@@ -68,9 +68,10 @@ type Client struct {
 	actionsRunner *actions.ConcurrentRunner
 	jobsRunner    *jobs.Runner
 
-	rw      sync.RWMutex
-	md      *agentpb.ServerConnectMetadata
-	channel *channel.Channel
+	rw           sync.RWMutex
+	md           *agentpb.ServerConnectMetadata
+	channel      *channel.Channel
+	streamCancel context.CancelFunc
 }
 
 // New creates new client.
@@ -199,6 +200,7 @@ func (c *Client) Run(ctx context.Context) error {
 			c.rw.Lock()
 			c.md = channelResult.md
 			c.channel = channelResult.channel
+			c.streamCancel = channelResult.streamCancel
 			c.rw.Unlock()
 		case <-ctx.Done():
 			close(c.done)
@@ -210,7 +212,7 @@ func (c *Client) Run(ctx context.Context) error {
 			}()
 
 			go func() {
-				err = getNetworkDrift(dialResult, c.l)
+				err = getNetworkDrift(c.channel, dialResult.conn, c.streamCancel, c.l)
 				if err != nil {
 					c.l.Errorf("Ping/pong failed: %v", err)
 					doConnect <- struct{}{}
@@ -710,9 +712,9 @@ func getChannel(conn *grpc.ClientConn, cfg *config.Config, deadline time.Time, l
 	}, nil
 }
 
-func getNetworkDrift(dResult *dialResult, l *logrus.Entry) error {
+func getNetworkDrift(channel *channel.Channel, conn *grpc.ClientConn, streamCancel context.CancelFunc, l *logrus.Entry) error {
 	start := time.Now()
-	_, clockDrift, err := getNetworkInformation(dResult.channel) // ping/pong
+	_, clockDrift, err := getNetworkInformation(channel) // ping/pong
 	if err != nil {
 		msg := err.Error()
 
@@ -721,8 +723,8 @@ func getNetworkDrift(dResult *dialResult, l *logrus.Entry) error {
 			msg = strings.TrimSuffix(s.Message(), ".")
 		}
 		l.Errorf("Failed to establish two-way communication channel: %s.", msg)
-		dResult.streamCancel()
-		if err := dResult.conn.Close(); err != nil {
+		streamCancel()
+		if err := conn.Close(); err != nil {
 			l.Debugf("Connection closed: %s.", err)
 			return err
 		}
