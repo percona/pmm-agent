@@ -49,6 +49,17 @@ func TestVersionPlain(t *testing.T) {
 	assert.True(t, strings.Contains(out, `Version:`), `'pmm-agent --version --json' produces incorrect output format`)
 }
 
+// TODO: Review/Rewrite this test.
+// 1. Only works with a built agent installed in the path
+// 2. Just building the agent does not guarantees that there is a version set.
+// go run main.go --version
+// panic: pmm-agent version is not set during build.
+//
+// goroutine 1 [running]:
+// main.main()
+//         /home/user/go/src/github.com/percona/pmm-agent/main.go:34 +0x22a
+// exit status 2
+// 3. Do we really need to test the output of a command? It is making local tests to always fail.
 func TestVersionJson(t *testing.T) {
 	t.Parallel()
 	cmd := exec.Command("pmm-agent", "--version", "--json")
