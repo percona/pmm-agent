@@ -142,9 +142,11 @@ func (c *Client) Run(ctx context.Context) error {
 	var dialResult *dialResult
 
 	defer func() {
-		if err := dialResult.conn.Close(); err != nil {
-			c.l.Errorf("Connection closed: %s.", err)
-			return
+		if dialResult != nil && dialResult.conn != nil {
+			if err := dialResult.conn.Close(); err != nil {
+				c.l.Errorf("Connection closed: %s.", err)
+				return
+			}
 		}
 		c.l.Info("Connection closed.")
 	}()
@@ -171,27 +173,32 @@ func (c *Client) Run(ctx context.Context) error {
 
 	oneDone := make(chan struct{}, 5)
 
-	isDisconnected := make(chan bool, 1)
-	isDisconnected <- true
+	doConnect := make(chan struct{}, 1)
+	doConnect <- struct{}{}
 	var err error
 
 	for {
 		select {
-		case <-isDisconnected:
+		case <-doConnect:
 			dialResult, err = c.getConnection(ctx)
 			if err != nil {
+				time.Sleep(time.Second)
 				c.l.Errorf("Cannot connect to server for: %v", err)
+				doConnect <- struct{}{}
+				continue
 			}
 
-			dialResult, err = getChannel(dialResult.conn, c.cfg, dialResult.deadline, c.l)
+			channelResult, err := getChannel(dialResult.conn, c.cfg, dialResult.deadline, c.l)
 			if err != nil {
 				c.l.Errorf("Cannot get channel: %v", err)
+				time.Sleep(time.Second)
+				doConnect <- struct{}{}
 				continue
 			}
 
 			c.rw.Lock()
-			c.md = dialResult.md
-			c.channel = dialResult.channel
+			c.md = channelResult.md
+			c.channel = channelResult.channel
 			c.rw.Unlock()
 		case <-ctx.Done():
 			close(c.done)
@@ -199,14 +206,14 @@ func (c *Client) Run(ctx context.Context) error {
 		default:
 			go func() {
 				c.channel.RunReceiver()
-				isDisconnected <- true
+				doConnect <- struct{}{}
 			}()
 
 			go func() {
 				err = getNetworkDrift(dialResult, c.l)
 				if err != nil {
 					c.l.Errorf("Ping/pong failed: %v", err)
-					isDisconnected <- true
+					doConnect <- struct{}{}
 				}
 			}()
 
@@ -641,7 +648,13 @@ func dial(dialCtx context.Context, cfg *config.Config, l *logrus.Entry) (*dialRe
 	}, nil
 }
 
-func getChannel(conn *grpc.ClientConn, cfg *config.Config, deadline time.Time, l *logrus.Entry) (*dialResult, error) {
+type channelResult struct {
+	streamCancel context.CancelFunc
+	channel      *channel.Channel
+	md           *agentpb.ServerConnectMetadata
+}
+
+func getChannel(conn *grpc.ClientConn, cfg *config.Config, deadline time.Time, l *logrus.Entry) (*channelResult, error) {
 	// gRPC stream is created without lifetime timeout.
 	// However, we need to cancel it if two-way communication channel can't be established
 	// when pmm-managed is down. A separate timer is used for that.
@@ -690,8 +703,7 @@ func getChannel(conn *grpc.ClientConn, cfg *config.Config, deadline time.Time, l
 
 	channel := channel.New(stream)
 
-	return &dialResult{
-		conn:         conn,
+	return &channelResult{
 		streamCancel: streamCancel,
 		channel:      channel,
 		md:           md,
@@ -708,7 +720,6 @@ func getNetworkDrift(dResult *dialResult, l *logrus.Entry) error {
 		if s, ok := grpcstatus.FromError(errors.Cause(err)); ok {
 			msg = strings.TrimSuffix(s.Message(), ".")
 		}
-
 		l.Errorf("Failed to establish two-way communication channel: %s.", msg)
 		dResult.streamCancel()
 		if err := dResult.conn.Close(); err != nil {
