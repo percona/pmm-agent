@@ -184,6 +184,25 @@ id |select_type |table |partitions |type |possible_keys |key  |key_len |ref  |ro
 		assert.Regexp(t, `Error 1045: Access denied for user 'pmm-agent'@'.+' \(using password: YES\)`, err.Error())
 	})
 
+	t.Run("DML Query Insert", func(t *testing.T) {
+		params := &agentpb.StartActionRequest_MySQLExplainParams{
+			Dsn:          dsn,
+			Query:        `INSERT INTO city (Name) VALUES ('Rosario')`,
+			OutputFormat: agentpb.MysqlExplainOutputFormat_MYSQL_EXPLAIN_OUTPUT_FORMAT_DEFAULT,
+		}
+		a := NewMySQLExplainAction("", params)
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+
+		resp, err := a.Run(ctx)
+		require.NoError(t, err)
+		var er explainResponse
+		err = json.Unmarshal(resp, &er)
+		assert.NoError(t, err)
+		assert.Equal(t, er.IsDMLQuery, true)
+		assert.Equal(t, er.Query, `SELECT * FROM city  WHERE Name='Rosario'`)
+	})
+
 	t.Run("LittleBobbyTables", func(t *testing.T) {
 		checkCity := func(t *testing.T) {
 			var count int
