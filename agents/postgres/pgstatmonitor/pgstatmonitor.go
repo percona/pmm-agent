@@ -21,8 +21,6 @@ import (
 	"database/sql"
 	"fmt"
 	"io"
-	"strconv"
-	"strings"
 	"time"
 
 	_ "github.com/lib/pq" // register SQL driver.
@@ -116,14 +114,14 @@ func newPgStatMonitorQAN(q *reform.Querier, dbCloser io.Closer, agentID string, 
 	}, nil
 }
 
-func getPGMonitorVersion(q *reform.Querier) (pgMonitorVersion float64, err error) {
+func getPGMonitorVersion(q *reform.Querier) (string, error) {
 	var v string
-	err = q.QueryRow(fmt.Sprintf("SELECT /* %s */ pg_stat_monitor_version()", queryTag)).Scan(&v)
+	err := q.QueryRow(fmt.Sprintf("SELECT /* %s */ pg_stat_monitor_version()", queryTag)).Scan(&v)
 	if err != nil {
-		return
+		return "", err
 	}
-	split := strings.Split(v, ".")
-	return strconv.ParseFloat(fmt.Sprintf("%s.%s%s", split[0], split[1], split[2]), 64)
+
+	return v, nil
 }
 
 // Run extracts stats data and sends it to the channel until ctx is canceled.
@@ -262,6 +260,12 @@ func (m *PGStatMonitorQAN) makeBuckets(current, cache map[time.Time]map[string]*
 				},
 				Postgresql: new(agentpb.MetricsBucket_PostgreSQL),
 			}
+			if (currentPSM.PlanTotalTime - prevPSM.PlanTotalTime) != 0 {
+				mb.Postgresql.MPlanTimeSum = float32(currentPSM.PlanTotalTime-prevPSM.PlanTotalTime) / 1000
+				mb.Postgresql.MPlanTimeMin = float32(currentPSM.PlanMinTime) / 1000
+				mb.Postgresql.MPlanTimeMax = float32(currentPSM.PlanMaxTime) / 1000
+				mb.Postgresql.MPlanTimeSum = count
+			}
 
 			if !m.disableQueryExamples && currentPSM.Example != "" {
 				mb.Common.Example = currentPSM.Example
@@ -274,10 +278,7 @@ func (m *PGStatMonitorQAN) makeBuckets(current, cache map[time.Time]map[string]*
 				sum   *float32 // MetricsBucket.XXXSum field to write value
 				cnt   *float32 // MetricsBucket.XXXCnt field to write count
 			}{
-				// convert milliseconds to seconds
-				{float32(currentPSM.TotalTime-prevPSM.TotalTime) / 1000, &mb.Common.MQueryTimeSum, &mb.Common.MQueryTimeCnt},
 				{float32(currentPSM.Rows - prevPSM.Rows), &mb.Postgresql.MRowsSum, &mb.Postgresql.MRowsCnt},
-
 				{float32(currentPSM.SharedBlksHit - prevPSM.SharedBlksHit), &mb.Postgresql.MSharedBlksHitSum, &mb.Postgresql.MSharedBlksHitCnt},
 				{float32(currentPSM.SharedBlksRead - prevPSM.SharedBlksRead), &mb.Postgresql.MSharedBlksReadSum, &mb.Postgresql.MSharedBlksReadCnt},
 				{float32(currentPSM.SharedBlksDirtied - prevPSM.SharedBlksDirtied), &mb.Postgresql.MSharedBlksDirtiedSum, &mb.Postgresql.MSharedBlksDirtiedCnt},
@@ -291,13 +292,21 @@ func (m *PGStatMonitorQAN) makeBuckets(current, cache map[time.Time]map[string]*
 				{float32(currentPSM.TempBlksRead - prevPSM.TempBlksRead), &mb.Postgresql.MTempBlksReadSum, &mb.Postgresql.MTempBlksReadCnt},
 				{float32(currentPSM.TempBlksWritten - prevPSM.TempBlksWritten), &mb.Postgresql.MTempBlksWrittenSum, &mb.Postgresql.MTempBlksWrittenCnt},
 
+				{float32(currentPSM.PlansCalls - prevPSM.PlansCalls), &mb.Postgresql.MPlansCallsSum, &mb.Postgresql.MPlansCallsCnt},
+				{float32(currentPSM.WalFpi - prevPSM.WalFpi), &mb.Postgresql.MWalFpiSum, &mb.Postgresql.MWalFpiCnt},
+				{float32(currentPSM.WalRecords - prevPSM.WalRecords), &mb.Postgresql.MWalRecordsSum, &mb.Postgresql.MWalRecordsCnt},
+				{float32(currentPSM.WalBytes - prevPSM.WalBytes), &mb.Postgresql.MWalBytesSum, &mb.Postgresql.MWalBytesCnt},
+
 				// convert milliseconds to seconds
+				{float32(currentPSM.TotalTime-prevPSM.TotalTime) / 1000, &mb.Common.MQueryTimeSum, &mb.Common.MQueryTimeCnt},
 				{float32(currentPSM.BlkReadTime-prevPSM.BlkReadTime) / 1000, &mb.Postgresql.MBlkReadTimeSum, &mb.Postgresql.MBlkReadTimeCnt},
 				{float32(currentPSM.BlkWriteTime-prevPSM.BlkWriteTime) / 1000, &mb.Postgresql.MBlkWriteTimeSum, &mb.Postgresql.MBlkWriteTimeCnt},
 
 				// convert microseconds to seconds
 				{float32(currentPSM.CPUSysTime-prevPSM.CPUSysTime) / 1000000, &mb.Postgresql.MCpuSysTimeSum, &mb.Postgresql.MCpuSysTimeCnt},
 				{float32(currentPSM.CPUUserTime-prevPSM.CPUUserTime) / 1000000, &mb.Postgresql.MCpuUserTimeSum, &mb.Postgresql.MCpuUserTimeCnt},
+
+				{float32(currentPSM.WalBytes - prevPSM.WalBytes), &mb.Postgresql.MWalBytesSum, &mb.Postgresql.MWalBytesCnt},
 			} {
 				if p.value != 0 {
 					*p.sum = p.value
