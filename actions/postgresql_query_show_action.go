@@ -18,8 +18,6 @@ package actions
 import (
 	"context"
 	"database/sql"
-	"fmt"
-	"math/rand"
 	"os"
 	"path/filepath"
 	"strings"
@@ -56,11 +54,7 @@ func (a *postgresqlQueryShowAction) Type() string {
 
 // Run runs an Action and returns output and error.
 func (a *postgresqlQueryShowAction) Run(ctx context.Context) ([]byte, error) {
-	tmpDir := filepath.Join(os.TempDir(), fmt.Sprintf("pg_action_%05d", rand.Int63n(99999))) //nolint:gosec
-	if err := os.MkdirAll(tmpDir, os.ModePerm); err != nil {
-		return nil, errors.Wrap(err, "cannot create a temporary directory to run the PG action")
-	}
-	defer os.RemoveAll(tmpDir) //nolint:errcheck
+	tmpDir := filepath.Join(os.TempDir(), strings.ToLower(a.Type()), a.id)
 
 	dsn, err := templates.RenderDSN(a.params.Dsn, a.params.TlsFiles, filepath.Join(tmpDir, strings.ToLower(a.Type()), a.id))
 	if err != nil {
