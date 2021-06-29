@@ -26,7 +26,6 @@ import (
 
 	"github.com/percona/pmm/api/agentpb"
 	"github.com/pkg/errors"
-	"github.com/prometheus/common/log"
 
 	"github.com/percona/pmm-agent/tlshelpers"
 )
@@ -34,43 +33,15 @@ import (
 type mysqlExplainAction struct {
 	id     string
 	params *agentpb.StartActionRequest_MySQLExplainParams
-	// query has a copy of the original params.Query field if the query is a SELECT or the equivalent
-	// SELECT after converting DML queries.
-	query      string
-	isDMLQuery bool
 }
-
-type explainResponse struct {
-	ExplainResult []byte `json:"explain_result"`
-	Query         string `json:"explained_query"`
-	IsDMLQuery    bool   `json:"is_dml"`
-}
-
-// ErrCannotEncodeExplainResponse cannot JSON encode the explain response.
-var errCannotEncodeExplainResponse = errors.New("cannot JSON encode the explain response")
 
 // NewMySQLExplainAction creates MySQL Explain Action.
 // This is an Action that can run `EXPLAIN` command on MySQL service with given DSN.
 func NewMySQLExplainAction(id string, params *agentpb.StartActionRequest_MySQLExplainParams) Action {
-	if params.TlsFiles != nil && params.TlsFiles.Files != nil {
-		err := tlshelpers.RegisterMySQLCerts(params.TlsFiles.Files)
-		if err != nil {
-			log.Error(err)
-		}
+	return &mysqlExplainAction{
+		id:     id,
+		params: params,
 	}
-
-	ret := &mysqlExplainAction{
-		id:         id,
-		params:     params,
-		query:      params.Query,
-		isDMLQuery: isDMLQuery(params.Query),
-	}
-
-	if ret.isDMLQuery {
-		ret.query = dmlToSelect(params.Query)
-	}
-
-	return ret
 }
 
 // ID returns an Action ID.
@@ -100,38 +71,22 @@ func (a *mysqlExplainAction) Run(ctx context.Context) ([]byte, error) {
 	}
 	defer tx.Rollback() //nolint:errcheck
 
-	response := explainResponse{
-		Query:      a.query,
-		IsDMLQuery: a.isDMLQuery,
-	}
-
 	switch a.params.OutputFormat {
 	case agentpb.MysqlExplainOutputFormat_MYSQL_EXPLAIN_OUTPUT_FORMAT_DEFAULT:
-		response.ExplainResult, err = a.explainDefault(ctx, tx)
+		return a.explainDefault(ctx, tx)
 	case agentpb.MysqlExplainOutputFormat_MYSQL_EXPLAIN_OUTPUT_FORMAT_JSON:
-		response.ExplainResult, err = a.explainJSON(ctx, tx)
+		return a.explainJSON(ctx, tx)
 	case agentpb.MysqlExplainOutputFormat_MYSQL_EXPLAIN_OUTPUT_FORMAT_TRADITIONAL_JSON:
-		response.ExplainResult, err = a.explainTraditionalJSON(ctx, tx)
+		return a.explainTraditionalJSON(ctx, tx)
 	default:
 		return nil, errors.Errorf("unsupported output format %s", a.params.OutputFormat)
 	}
-
-	if err != nil {
-		return nil, err
-	}
-
-	b, err := json.Marshal(response)
-	if err != nil {
-		return nil, errCannotEncodeExplainResponse
-	}
-
-	return b, nil
 }
 
 func (a *mysqlExplainAction) sealed() {}
 
 func (a *mysqlExplainAction) explainDefault(ctx context.Context, tx *sql.Tx) ([]byte, error) {
-	rows, err := tx.QueryContext(ctx, fmt.Sprintf("EXPLAIN /* pmm-agent */ %s", a.query))
+	rows, err := tx.QueryContext(ctx, fmt.Sprintf("EXPLAIN /* pmm-agent */ %s", a.params.Query))
 	if err != nil {
 		return nil, err
 	}
@@ -167,7 +122,7 @@ func (a *mysqlExplainAction) explainDefault(ctx context.Context, tx *sql.Tx) ([]
 
 func (a *mysqlExplainAction) explainJSON(ctx context.Context, tx *sql.Tx) ([]byte, error) {
 	var b []byte
-	err := tx.QueryRowContext(ctx, fmt.Sprintf("EXPLAIN /* pmm-agent */ FORMAT=JSON %s", a.query)).Scan(&b)
+	err := tx.QueryRowContext(ctx, fmt.Sprintf("EXPLAIN /* pmm-agent */ FORMAT=JSON %s", a.params.Query)).Scan(&b)
 	if err != nil {
 		return nil, err
 	}
@@ -204,7 +159,7 @@ func (a *mysqlExplainAction) explainJSON(ctx context.Context, tx *sql.Tx) ([]byt
 }
 
 func (a *mysqlExplainAction) explainTraditionalJSON(ctx context.Context, tx *sql.Tx) ([]byte, error) {
-	rows, err := tx.QueryContext(ctx, fmt.Sprintf("EXPLAIN /* pmm-agent */ %s", a.query))
+	rows, err := tx.QueryContext(ctx, fmt.Sprintf("EXPLAIN /* pmm-agent */ %s", a.params.Query))
 	if err != nil {
 		return nil, err
 	}

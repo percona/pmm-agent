@@ -13,7 +13,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//go:build ignore
 // +build ignore
 
 // check-license checks that ASL license header in all files matches header in this file.
