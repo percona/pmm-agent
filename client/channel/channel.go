@@ -211,7 +211,6 @@ func (c *Channel) RunReceiver() {
 	for {
 		msg, err := c.s.Recv()
 		if err != nil {
-			c.close(errors.Wrap(err, "failed to receive message"))
 			return
 		}
 		c.mRecv.Inc()

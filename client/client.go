@@ -70,6 +70,7 @@ type Client struct {
 
 	rw           sync.RWMutex
 	md           *agentpb.ServerConnectMetadata
+	conn         *grpc.ClientConn
 	channel      *channel.Channel
 	streamCancel context.CancelFunc
 }
@@ -89,13 +90,13 @@ func New(cfg *config.Config, supervisor supervisor, connectionChecker connection
 	}
 }
 
-func (c *Client) getConnection(ctx context.Context) (*dialResult, error) {
+func (c *Client) getConnection(ctx context.Context) (*grpc.ClientConn, *time.Time, error) {
 	for {
 		dialCtx, dialCancel := context.WithTimeout(ctx, c.dialTimeout)
-		dialResult, dialErr := dial(dialCtx, c.cfg, c.l)
+		conn, deadline, dialErr := dial(dialCtx, c.cfg, c.l)
 		dialCancel()
-		if dialResult != nil {
-			return dialResult, nil
+		if conn != nil {
+			return conn, deadline, nil
 		}
 
 		c.l.Errorf("The connection will be reestablished in %v", c.backoff.Delay())
@@ -104,9 +105,9 @@ func (c *Client) getConnection(ctx context.Context) (*dialResult, error) {
 		retryCancel()
 		if ctx.Err() != nil {
 			if dialErr != nil {
-				return nil, dialErr
+				return nil, nil, dialErr
 			}
-			return nil, ctx.Err()
+			return nil, nil, ctx.Err()
 		}
 	}
 }
@@ -173,23 +174,20 @@ func (c *Client) Run(ctx context.Context) error {
 	// https://jira.percona.com/browse/PMM-4245
 
 	oneDone := make(chan struct{}, 5)
-
 	doConnect := make(chan struct{}, 1)
 	doConnect <- struct{}{}
-	var err error
 
 	for {
 		select {
 		case <-doConnect:
-			dialResult, err = c.getConnection(ctx)
+			conn, deadline, err := c.getConnection(ctx)
 			if err != nil {
-				time.Sleep(time.Second)
 				c.l.Errorf("Cannot connect to server for: %v", err)
 				doConnect <- struct{}{}
 				continue
 			}
 
-			channelResult, err := getChannel(dialResult.conn, c.cfg, dialResult.deadline, c.l)
+			channelResult, err := getChannel(conn, c.cfg, *deadline, c.l)
 			if err != nil {
 				c.l.Errorf("Cannot get channel: %v", err)
 				time.Sleep(time.Second)
@@ -199,6 +197,7 @@ func (c *Client) Run(ctx context.Context) error {
 
 			c.rw.Lock()
 			c.md = channelResult.md
+			c.conn = conn
 			c.channel = channelResult.channel
 			c.streamCancel = channelResult.streamCancel
 			c.rw.Unlock()
@@ -206,13 +205,16 @@ func (c *Client) Run(ctx context.Context) error {
 			close(c.done)
 			return nil
 		default:
+			if c.channel == nil {
+				break
+			}
 			go func() {
 				c.channel.RunReceiver()
 				doConnect <- struct{}{}
 			}()
 
 			go func() {
-				err = getNetworkDrift(c.channel, dialResult.conn, c.streamCancel, c.l)
+				err := getNetworkDrift(c.channel, c.conn, c.streamCancel, c.l)
 				if err != nil {
 					c.l.Errorf("Ping/pong failed: %v", err)
 					doConnect <- struct{}{}
@@ -223,18 +225,22 @@ func (c *Client) Run(ctx context.Context) error {
 				c.jobsRunner.Run(ctx)
 				oneDone <- struct{}{}
 			}()
+
 			go func() {
 				c.processActionResults()
 				oneDone <- struct{}{}
 			}()
+
 			go func() {
 				c.processJobsResults()
 				oneDone <- struct{}{}
 			}()
+
 			go func() {
 				c.processSupervisorRequests()
 				oneDone <- struct{}{}
 			}()
+
 			go func() {
 				c.processChannelRequests(ctx)
 				oneDone <- struct{}{}
@@ -247,6 +253,7 @@ func (c *Client) Run(ctx context.Context) error {
 				<-oneDone
 				<-oneDone
 				c.l.Info("Done.")
+				c.conn.Close()
 				close(c.done)
 			}()
 		}
@@ -603,7 +610,7 @@ type dialResult struct {
 
 // dial tries to connect to the server once.
 // State changes are logged via l. Returned error is not user-visible.
-func dial(dialCtx context.Context, cfg *config.Config, l *logrus.Entry) (*dialResult, error) {
+func dial(dialCtx context.Context, cfg *config.Config, l *logrus.Entry) (*grpc.ClientConn, *time.Time, error) {
 	opts := []grpc.DialOption{
 		grpc.WithBlock(),
 		grpc.WithUserAgent("pmm-agent/" + version.Version),
@@ -636,7 +643,7 @@ func dial(dialCtx context.Context, cfg *config.Config, l *logrus.Entry) (*dialRe
 		}
 
 		l.Errorf("Failed to connect to %s: %s.", cfg.Server.Address, msg)
-		return nil, errors.Wrap(err, "failed to dial")
+		return nil, nil, errors.Wrap(err, "failed to dial")
 	}
 	l.Infof("Connected to %s.", cfg.Server.Address)
 	d, ok := dialCtx.Deadline()
@@ -644,10 +651,7 @@ func dial(dialCtx context.Context, cfg *config.Config, l *logrus.Entry) (*dialRe
 		panic("no deadline in dialCtx")
 	}
 
-	return &dialResult{
-		conn:     conn,
-		deadline: d,
-	}, nil
+	return conn, &d, nil
 }
 
 type channelResult struct {
