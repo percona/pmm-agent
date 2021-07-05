@@ -17,8 +17,11 @@
 package channel
 
 import (
+	"context"
+	"io"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/golang/protobuf/proto" //nolint:staticcheck
 	"github.com/percona/pmm/api/agentpb"
@@ -26,7 +29,9 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sirupsen/logrus"
 	protostatus "google.golang.org/genproto/googleapis/rpc/status"
+	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/connectivity"
 	grpcstatus "google.golang.org/grpc/status"
 )
 
@@ -80,12 +85,40 @@ type Channel struct { //nolint:maligned
 	closeOnce sync.Once
 	closeWait chan struct{}
 	closeErr  error
+
+	reconnect chan bool
+	done      chan bool
 }
 
 // New creates new two-way communication channel with given stream.
 //
 // Stream should not be used by the caller after channel is created.
-func New(stream agentpb.Agent_ConnectClient) *Channel {
+func New(conn *grpc.ClientConn, l *logrus.Entry, ID, version string) *Channel {
+	// gRPC stream is created without lifetime timeout.
+	// However, we need to cancel it if two-way communication channel can't be established
+	// when pmm-managed is down. A separate timer is used for that.
+	streamCtx, streamCancel := context.WithCancel(context.Background())
+	l.Info("Establishing two-way communication channel ...")
+	streamCtx = agentpb.AddAgentConnectMetadata(streamCtx, &agentpb.AgentConnectMetadata{
+		ID:      ID,
+		Version: version,
+	})
+
+	stream, err := agentpb.NewAgentClient(conn).Connect(streamCtx)
+	if err != nil {
+		l.Errorf("Failed to establish two-way communication channel: %s.", err)
+		streamCancel()
+		conn.Close()
+		return nil
+	}
+
+	// level := logrus.InfoLevel
+	// if clockDrift > clockDriftWarning || -clockDrift > clockDriftWarning {
+	// 	level = logrus.WarnLevel
+	// }
+	// l.Logf(level, "Two-way communication channel established in %s. Estimated clock drift: %s.",
+	// 	time.Since(start), clockDrift)
+
 	s := &Channel{
 		s: stream,
 		l: logrus.WithField("component", "channel"), // only for debug logging
@@ -106,11 +139,67 @@ func New(stream agentpb.Agent_ConnectClient) *Channel {
 		responses: make(map[uint32]chan Response),
 		requests:  make(chan *ServerRequest, serverRequestsCap),
 
+		reconnect: make(chan bool),
+		done:      make(chan bool),
+
 		closeWait: make(chan struct{}),
 	}
 
 	go s.runReceiver()
+	go func() {
+		for {
+			select {
+			case <-s.reconnect:
+				if !s.waitUntilReady(conn, l) {
+					l.Errorf("Failed to establish two-way communication channel.")
+				}
+				streamCtx, streamCancel := context.WithCancel(context.Background())
+				l.Info("Establishing two-way communication channel ...")
+				streamCtx = agentpb.AddAgentConnectMetadata(streamCtx, &agentpb.AgentConnectMetadata{
+					ID:      ID,
+					Version: version,
+				})
+
+				stream, err := agentpb.NewAgentClient(conn).Connect(streamCtx)
+				if err != nil {
+					l.Errorf("Failed to establish two-way communication channel: %s.", err)
+					streamCancel()
+					conn.Close()
+					return
+				}
+				s.s = stream
+				go s.runReceiver()
+			case <-s.done:
+				l.Infoln("Done.")
+				streamCancel()
+				close(s.requests)
+				return
+			}
+		}
+	}()
+
 	return s
+}
+
+func (c *Channel) waitUntilReady(conn *grpc.ClientConn, l *logrus.Entry) bool {
+	ctx, cancel := context.WithTimeout(context.Background(), 300*time.Second) //define how long you want to wait for connection to be restored before giving up
+	defer cancel()
+
+	currentState := conn.GetState()
+	stillConnecting := true
+
+	for currentState != connectivity.Ready && stillConnecting {
+		//will return true when state has changed from thisState, false if timeout
+		stillConnecting = conn.WaitForStateChange(ctx, currentState)
+		currentState = conn.GetState()
+	}
+
+	if stillConnecting == false {
+		l.Error("Connection attempt has timed out.")
+		return false
+	}
+
+	return true
 }
 
 // close marks channel as closed with given error - only once.
@@ -205,14 +294,18 @@ func (c *Channel) send(msg *agentpb.AgentMessage) {
 // runReader receives messages from server
 func (c *Channel) runReceiver() {
 	defer func() {
-		close(c.requests)
 		c.l.Debug("Exiting receiver goroutine.")
 	}()
 
 	for {
 		msg, err := c.s.Recv()
-		if err != nil {
+		if err == io.EOF {
+			c.done <- true
 			c.close(errors.Wrap(err, "failed to receive message"))
+			return
+		}
+		if err != nil {
+			c.reconnect <- true
 			return
 		}
 		c.mRecv.Inc()
