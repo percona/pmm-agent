@@ -69,8 +69,9 @@ type Response struct {
 //
 // All exported methods are thread-safe.
 type Channel struct { //nolint:maligned
-	s agentpb.Agent_ConnectClient
-	l *logrus.Entry
+	s  agentpb.Agent_ConnectClient
+	l  *logrus.Entry
+	MD *agentpb.ServerConnectMetadata
 
 	mRecv, mSend prometheus.Counter
 
@@ -112,16 +113,19 @@ func New(conn *grpc.ClientConn, l *logrus.Entry, ID, version string) *Channel {
 		return nil
 	}
 
-	// level := logrus.InfoLevel
-	// if clockDrift > clockDriftWarning || -clockDrift > clockDriftWarning {
-	// 	level = logrus.WarnLevel
-	// }
-	// l.Logf(level, "Two-way communication channel established in %s. Estimated clock drift: %s.",
-	// 	time.Since(start), clockDrift)
+	md, err := agentpb.ReceiveServerConnectMetadata(stream)
+	l.Debugf("Received server metadata: %+v. Error: %+v.", md, err)
+	if err != nil {
+		l.Errorf("Failed to receive server metadata: %s.", err)
+		streamCancel()
+		conn.Close()
+		return nil
+	}
 
 	s := &Channel{
-		s: stream,
-		l: logrus.WithField("component", "channel"), // only for debug logging
+		s:  stream,
+		l:  logrus.WithField("component", "channel"), // only for debug logging
+		MD: md,
 
 		mRecv: prometheus.NewCounter(prometheus.CounterOpts{
 			Namespace: prometheusNamespace,
@@ -154,7 +158,6 @@ func New(conn *grpc.ClientConn, l *logrus.Entry, ID, version string) *Channel {
 					l.Errorf("Failed to establish two-way communication channel.")
 				}
 				streamCtx, streamCancel := context.WithCancel(context.Background())
-				l.Info("Establishing two-way communication channel ...")
 				streamCtx = agentpb.AddAgentConnectMetadata(streamCtx, &agentpb.AgentConnectMetadata{
 					ID:      ID,
 					Version: version,
@@ -168,7 +171,8 @@ func New(conn *grpc.ClientConn, l *logrus.Entry, ID, version string) *Channel {
 					return
 				}
 				s.s = stream
-				go s.runReceiver()
+				s.runReceiver()
+				// streamCancel()
 			case <-s.done:
 				l.Infoln("Done.")
 				streamCancel()
@@ -181,14 +185,21 @@ func New(conn *grpc.ClientConn, l *logrus.Entry, ID, version string) *Channel {
 	return s
 }
 
+// waitUntilReady implements queues the RPCs until the channel is READY
+// https://github.com/grpc/grpc/blob/master/doc/wait-for-ready.md
 func (c *Channel) waitUntilReady(conn *grpc.ClientConn, l *logrus.Entry) bool {
-	ctx, cancel := context.WithTimeout(context.Background(), 300*time.Second) //define how long you want to wait for connection to be restored before giving up
+	//define how long you want to wait for connection to be restored before giving up
+	ctx, cancel := context.WithTimeout(context.Background(), 720*time.Hour) // 30 days
 	defer cancel()
 
 	currentState := conn.GetState()
 	stillConnecting := true
 
 	for currentState != connectivity.Ready && stillConnecting {
+		if currentState == connectivity.Shutdown { // pmm-server was shutted down
+			c.done <- true
+			return false
+		}
 		//will return true when state has changed from thisState, false if timeout
 		stillConnecting = conn.WaitForStateChange(ctx, currentState)
 		currentState = conn.GetState()

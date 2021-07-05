@@ -551,10 +551,9 @@ func (c *Client) getActionTimeout(req *agentpb.StartActionRequest) time.Duration
 }
 
 type dialResult struct {
-	conn         *grpc.ClientConn
-	streamCancel context.CancelFunc
-	channel      *channel.Channel
-	md           *agentpb.ServerConnectMetadata
+	conn    *grpc.ClientConn
+	channel *channel.Channel
+	md      *agentpb.ServerConnectMetadata
 }
 
 // dial tries to connect to the server once.
@@ -609,41 +608,39 @@ func dial(dialCtx context.Context, cfg *config.Config, l *logrus.Entry) (*dialRe
 	// So far, nginx can handle all that itself without pmm-managed.
 	// We need to exchange one pair of messages (ping/pong) for metadata headers to reach pmm-managed
 	// to ensure that pmm-managed is alive and that Agent ID is valid.
-
+	start := time.Now()
 	channel := channel.New(conn, l, cfg.ID, version.Version)
-	// _, clockDrift, err := getNetworkInformation(channel) // ping/pong
-	// if err != nil {
-	// 	msg := err.Error()
+	_, clockDrift, err := getNetworkInformation(channel) // ping/pong
+	if err != nil {
+		msg := err.Error()
 
-	// 	// improve error message
-	// 	if s, ok := grpcstatus.FromError(errors.Cause(err)); ok {
-	// 		msg = strings.TrimSuffix(s.Message(), ".")
-	// 	}
+		// improve error message
+		if s, ok := grpcstatus.FromError(errors.Cause(err)); ok {
+			msg = strings.TrimSuffix(s.Message(), ".")
+		}
 
-	// 	l.Errorf("Failed to establish two-way communication channel: %s.", msg)
-	// 	conn.Close()
-	// 	return nil, err
-	// }
+		l.Errorf("Failed to establish two-way communication channel: %s.", msg)
+		conn.Close()
+		return nil, err
+	}
 
-	// read metadata header after receiving pong
-	// md, err := agentpb.ReceiveServerConnectMetadata(stream)
-	// l.Debugf("Received server metadata: %+v. Error: %+v.", md, err)
-	// if err != nil {
-	// 	l.Errorf("Failed to receive server metadata: %s.", err)
-	// 	conn.Close()
-	// 	return nil, errors.Wrap(err, "failed to receive server metadata")
-	// }
-	// if md.ServerVersion == "" {
-	// 	l.Errorf("Server metadata does not contain server version.")
-	// 	conn.Close()
-	// 	return nil, errors.New("empty server version in metadata")
-	// }
+	level := logrus.InfoLevel
+	if clockDrift > clockDriftWarning || -clockDrift > clockDriftWarning {
+		level = logrus.WarnLevel
+	}
+	l.Logf(level, "Two-way communication channel established in %s. Estimated clock drift: %s.",
+		time.Since(start), clockDrift)
+
+	if channel.MD.ServerVersion == "" {
+		l.Errorf("Server metadata does not contain server version.")
+		conn.Close()
+		return nil, errors.New("empty server version in metadata")
+	}
 
 	return &dialResult{
-		conn: conn,
-		// streamCancel: streamCancel,
+		conn:    conn,
 		channel: channel,
-		// md:           md
+		md:      channel.MD,
 	}, nil
 }
 
