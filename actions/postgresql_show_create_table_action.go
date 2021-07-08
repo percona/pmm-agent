@@ -22,7 +22,6 @@ import (
 	"database/sql"
 	"fmt"
 	"io"
-	"os"
 	"path/filepath"
 	"strings"
 	"text/tabwriter"
@@ -64,16 +63,18 @@ type indexInfo struct {
 }
 
 type postgresqlShowCreateTableAction struct {
-	id     string
-	params *agentpb.StartActionRequest_PostgreSQLShowCreateTableParams
+	id      string
+	params  *agentpb.StartActionRequest_PostgreSQLShowCreateTableParams
+	tempDir string
 }
 
 // NewPostgreSQLShowCreateTableAction creates PostgreSQL SHOW CREATE TABLE Action.
 // This is an Action that can run `\d+ table` command analog on PostgreSQL service with given DSN.
-func NewPostgreSQLShowCreateTableAction(id string, params *agentpb.StartActionRequest_PostgreSQLShowCreateTableParams) Action {
+func NewPostgreSQLShowCreateTableAction(id string, params *agentpb.StartActionRequest_PostgreSQLShowCreateTableParams, tempDir string) Action {
 	return &postgresqlShowCreateTableAction{
-		id:     id,
-		params: params,
+		id:      id,
+		params:  params,
+		tempDir: tempDir,
 	}
 }
 
@@ -89,9 +90,7 @@ func (a *postgresqlShowCreateTableAction) Type() string {
 
 // Run runs an Action and returns output and error.
 func (a *postgresqlShowCreateTableAction) Run(ctx context.Context) ([]byte, error) {
-	tmpDir := filepath.Join(os.TempDir(), strings.ToLower(a.Type()), a.id)
-
-	dsn, err := templates.RenderDSN(a.params.Dsn, a.params.TlsFiles, filepath.Join(tmpDir, strings.ToLower(a.Type()), a.id))
+	dsn, err := templates.RenderDSN(a.params.Dsn, a.params.TlsFiles, filepath.Join(a.tempDir, strings.ToLower(a.Type()), a.id))
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}

@@ -18,7 +18,6 @@ package actions
 import (
 	"context"
 	"database/sql"
-	"os"
 	"path/filepath"
 	"strings"
 
@@ -30,15 +29,17 @@ import (
 )
 
 type postgresqlQueryShowAction struct {
-	id     string
-	params *agentpb.StartActionRequest_PostgreSQLQueryShowParams
+	id      string
+	params  *agentpb.StartActionRequest_PostgreSQLQueryShowParams
+	tempDir string
 }
 
 // NewPostgreSQLQueryShowAction creates PostgreSQL SHOW query Action.
-func NewPostgreSQLQueryShowAction(id string, params *agentpb.StartActionRequest_PostgreSQLQueryShowParams) Action {
+func NewPostgreSQLQueryShowAction(id string, params *agentpb.StartActionRequest_PostgreSQLQueryShowParams, tempDir string) Action {
 	return &postgresqlQueryShowAction{
-		id:     id,
-		params: params,
+		id:      id,
+		params:  params,
+		tempDir: tempDir,
 	}
 }
 
@@ -54,9 +55,7 @@ func (a *postgresqlQueryShowAction) Type() string {
 
 // Run runs an Action and returns output and error.
 func (a *postgresqlQueryShowAction) Run(ctx context.Context) ([]byte, error) {
-	tmpDir := filepath.Join(os.TempDir(), strings.ToLower(a.Type()), a.id)
-
-	dsn, err := templates.RenderDSN(a.params.Dsn, a.params.TlsFiles, filepath.Join(tmpDir, strings.ToLower(a.Type()), a.id))
+	dsn, err := templates.RenderDSN(a.params.Dsn, a.params.TlsFiles, filepath.Join(a.tempDir, strings.ToLower(a.Type()), a.id))
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}

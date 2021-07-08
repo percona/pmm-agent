@@ -19,7 +19,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 
@@ -31,16 +30,18 @@ import (
 )
 
 type postgresqlShowIndexAction struct {
-	id     string
-	params *agentpb.StartActionRequest_PostgreSQLShowIndexParams
+	id      string
+	params  *agentpb.StartActionRequest_PostgreSQLShowIndexParams
+	tempDir string
 }
 
 // NewPostgreSQLShowIndexAction creates PostgreSQL SHOW INDEX Action.
 // This is an Action that can run `SHOW INDEX` command on PostgreSQL service with given DSN.
-func NewPostgreSQLShowIndexAction(id string, params *agentpb.StartActionRequest_PostgreSQLShowIndexParams) Action {
+func NewPostgreSQLShowIndexAction(id string, params *agentpb.StartActionRequest_PostgreSQLShowIndexParams, tempDir string) Action {
 	return &postgresqlShowIndexAction{
-		id:     id,
-		params: params,
+		id:      id,
+		params:  params,
+		tempDir: tempDir,
 	}
 }
 
@@ -56,9 +57,7 @@ func (a *postgresqlShowIndexAction) Type() string {
 
 // Run runs an Action and returns output and error.
 func (a *postgresqlShowIndexAction) Run(ctx context.Context) ([]byte, error) {
-	tmpDir := filepath.Join(os.TempDir(), strings.ToLower(a.Type()), a.id)
-
-	dsn, err := templates.RenderDSN(a.params.Dsn, a.params.TlsFiles, filepath.Join(tmpDir, strings.ToLower(a.Type()), a.id))
+	dsn, err := templates.RenderDSN(a.params.Dsn, a.params.TlsFiles, filepath.Join(a.tempDir, strings.ToLower(a.Type()), a.id))
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
