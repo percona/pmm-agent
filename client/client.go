@@ -57,6 +57,7 @@ type Client struct {
 	cfg               *config.Config
 	supervisor        supervisor
 	connectionChecker connectionChecker
+	softwareVersioner
 
 	l       *logrus.Entry
 	backoff *backoff.Backoff

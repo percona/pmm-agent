@@ -17,70 +17,12 @@
 package client
 
 import (
-	"context"
-	"os/exec"
-	"regexp"
-	"time"
-
-	"github.com/pkg/errors"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
 	"github.com/percona/pmm/api/agentpb"
 )
 
-const (
-	versionCheckTimeout = 5 * time.Second
-	mysqlBin            = "mysql"
-	xtrabackupBin       = "xtrabackup"
-)
-
-var (
-	mysqlVersionRegexp      = regexp.MustCompile("^.*Ver ([!-~]*).*")
-	xtrabackupVersionRegexp = regexp.MustCompile("^xtrabackup version ([!-~]*).*")
-)
-
-func (c *Client) localMySQLVersion() (string, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), versionCheckTimeout)
-	defer cancel()
-
-	if _, err := exec.LookPath(mysqlBin); err != nil {
-		return "", errors.Wrapf(err, "lookpath: %s", mysqlBin)
-	}
-
-	versionBytes, err := exec.CommandContext(ctx, mysqlBin, "--version").CombinedOutput()
-	if err != nil {
-		return "", errors.WithStack(err)
-	}
-
-	matches := mysqlVersionRegexp.FindStringSubmatch(string(versionBytes))
-	if len(matches) != 2 {
-		return "", errors.Errorf("cannot match version from output %q", string(versionBytes))
-	}
-
-	return matches[1], nil
-}
-
-func (c *Client) xtrabackupVersion() (string, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), versionCheckTimeout)
-	defer cancel()
-
-	if _, err := exec.LookPath(xtrabackupBin); err != nil {
-		return "", errors.Wrapf(err, "lookpath: %s", xtrabackupBin)
-	}
-
-	versionBytes, err := exec.CommandContext(ctx, xtrabackupBin, "--version").CombinedOutput()
-	if err != nil {
-		return "", errors.WithStack(err)
-	}
-
-	matches := xtrabackupVersionRegexp.FindStringSubmatch(string(versionBytes))
-	if len(matches) != 2 {
-		return "", errors.Errorf("cannot match version from output %q", string(versionBytes))
-	}
-
-	return matches[1], nil
-}
 
 func (c *Client) handleVersionRequest(r *agentpb.GetVersionRequest) (string, *status.Status) {
 	var version string
