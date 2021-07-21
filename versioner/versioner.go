@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package versioner implements version retrieving functions for different software.
+// Package versioner contains Versioner component that is responsible for version retrieving of different software.
 package versioner
 
 import (
@@ -39,33 +39,42 @@ var (
 	xbcloudVersionRegexp    = regexp.MustCompile("^xbcloud[ ][ ]Ver ([!-~]*).*")
 	qpressRegexp            = regexp.MustCompile("^qpress[ ]([!-~]*).*")
 
+	// ErrNotFound is used for indicating that binary is not found.
 	ErrNotFound = errors.New("not found")
 )
 
+// CombinedOutputer is used for creating an interface for CommandContext() function.
 type CombinedOutputer interface {
 	CombinedOutput() ([]byte, error)
 }
 
 //go:generate mockery -name=ExecFunctions -case=snake -inpkg -testonly
+
+// ExecFunctions is an interface for the LookPath() and CommandContext() functions.
 type ExecFunctions interface {
 	LookPath(file string) (string, error)
 	CommandContext(ctx context.Context, name string, arg ...string) CombinedOutputer
 }
 
+// RealExecFunctions is a real implementation for the LookPath() and CommandContext() functions.
 type RealExecFunctions struct{}
 
+// LookPath calls Go's implementation of the LookPath() function.
 func (RealExecFunctions) LookPath(file string) (string, error) {
 	return exec.LookPath(file)
 }
 
+// CommandContext calls Go's implementation of the CommandContext() function.
 func (RealExecFunctions) CommandContext(ctx context.Context, name string, arg ...string) CombinedOutputer {
-	return exec.CommandContext(ctx, name, arg...)
+	return exec.CommandContext(ctx, name, arg...) //nolint:gosec
 }
 
+// Versioner implements version retrieving functions for different software.
 type Versioner struct {
 	ef ExecFunctions
 }
 
+// New creates an instance of Versioner.
 func New(ef ExecFunctions) *Versioner {
 	return &Versioner{
 		ef: ef,
@@ -97,18 +106,22 @@ func (v *Versioner) binaryVersion(binaryName string, versionRegexp *regexp.Regex
 	return matches[1], nil
 }
 
+// MySQLdVersion retrieves mysqld binary version.
 func (v *Versioner) MySQLdVersion() (string, error) {
 	return v.binaryVersion(mysqldBin, mysqldVersionRegexp, "--version")
 }
 
+// XtrabackupVersion retrieves xtrabackup binary version.
 func (v *Versioner) XtrabackupVersion() (string, error) {
 	return v.binaryVersion(xtrabackupBin, xtrabackupVersionRegexp, "--version")
 }
 
+// XbcloudVersion retrieves xbcloud binary version.
 func (v *Versioner) XbcloudVersion() (string, error) {
 	return v.binaryVersion(xbcloudBin, xbcloudVersionRegexp, "--version")
 }
 
+// Qpress retrieves qpress binary version.
 func (v *Versioner) Qpress() (string, error) {
 	return v.binaryVersion(qpressBin, qpressRegexp)
 }

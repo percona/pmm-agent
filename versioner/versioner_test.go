@@ -29,7 +29,7 @@ type mockedExec struct {
 }
 
 func (m *mockedExec) CombinedOutput() ([]byte, error) {
-	return m.Output, nil
+	return m.Output, nil //nolint:unparam
 }
 
 func TestVersioner(t *testing.T) {
