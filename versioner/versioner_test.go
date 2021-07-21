@@ -1,10 +1,10 @@
 package versioner
 
 import (
-	"github.com/pkg/errors"
 	"os/exec"
 	"testing"
 
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
