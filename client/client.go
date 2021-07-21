@@ -57,7 +57,7 @@ type Client struct {
 	cfg               *config.Config
 	supervisor        supervisor
 	connectionChecker connectionChecker
-	softwareVersioner
+	softwareVersioner softwareVersioner
 
 	l       *logrus.Entry
 	backoff *backoff.Backoff
@@ -77,11 +77,12 @@ type Client struct {
 // New creates new client.
 //
 // Caller should call Run.
-func New(cfg *config.Config, supervisor supervisor, connectionChecker connectionChecker) *Client {
+func New(cfg *config.Config, supervisor supervisor, connectionChecker connectionChecker, sv softwareVersioner) *Client {
 	return &Client{
 		cfg:               cfg,
 		supervisor:        supervisor,
 		connectionChecker: connectionChecker,
+		softwareVersioner: sv,
 		l:                 logrus.WithField("component", "client"),
 		backoff:           backoff.New(backoffMinDelay, backoffMaxDelay),
 		done:              make(chan struct{}),
@@ -406,11 +407,11 @@ func (c *Client) processChannelRequests(ctx context.Context) {
 			alive := c.jobsRunner.IsRunning(p.JobId)
 			responsePayload = &agentpb.JobStatusResponse{Alive: alive}
 
-		case *agentpb.GetVersionRequest:
-			if ver, requestStatus := c.handleVersionRequest(p); requestStatus != nil {
+		case *agentpb.GetVersionsRequest:
+			if versions, requestStatus := c.handleVersionsRequest(p); requestStatus != nil {
 				status = requestStatus
 			} else {
-				responsePayload = &agentpb.GetVersionResponse{Version: ver}
+				responsePayload = &agentpb.GetVersionsResponse{Versions: versions}
 			}
 
 		case nil:

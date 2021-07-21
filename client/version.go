@@ -17,28 +17,39 @@
 package client
 
 import (
+	"github.com/percona/pmm/api/agentpb"
+	"github.com/pkg/errors"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	"github.com/percona/pmm/api/agentpb"
+	"github.com/percona/pmm-agent/versioner"
 )
 
+func (c *Client) handleVersionsRequest(r *agentpb.GetVersionsRequest) ([]*agentpb.GetVersionsResponse_Version, *status.Status) {
+	versionsResponse := make([]*agentpb.GetVersionsResponse_Version, 0, len(r.Softwares))
+	for _, s := range r.Softwares {
+		var version string
+		var err error
+		switch s.Software.(type) {
+		case *agentpb.GetVersionsRequest_Software_Mysqld:
+			version, err = c.softwareVersioner.MySQLdVersion()
+		case *agentpb.GetVersionsRequest_Software_Xtrabackup:
+			version, err = c.softwareVersioner.XtrabackupVersion()
+		case *agentpb.GetVersionsRequest_Software_Xbcloud:
+			version, err = c.softwareVersioner.XbcloudVersion()
+		case *agentpb.GetVersionsRequest_Software_Qpress:
+			version, err = c.softwareVersioner.Qpress()
+		default:
+			return nil, status.Newf(codes.Unknown, "unknown software type %v.", r)
+		}
 
-func (c *Client) handleVersionRequest(r *agentpb.GetVersionRequest) (string, *status.Status) {
-	var version string
-	var err error
-	switch r.Software.(type) {
-	case *agentpb.GetVersionRequest_LocalMysql:
-		version, err = c.localMySQLVersion()
-	case *agentpb.GetVersionRequest_Xtrabackup:
-		version, err = c.xtrabackupVersion()
-	default:
-		return "", status.Newf(codes.Unknown, "unknown software type %v.", r)
+		if err != nil && !errors.Is(err, versioner.ErrNotFound) {
+			versionsResponse = append(versionsResponse, &agentpb.GetVersionsResponse_Version{Error: err.Error()})
+			continue
+		}
+
+		versionsResponse = append(versionsResponse, &agentpb.GetVersionsResponse_Version{Version: version})
 	}
 
-	if err != nil {
-		return "", status.New(codes.Internal, err.Error())
-	}
-
-	return version, nil
+	return versionsResponse, nil
 }

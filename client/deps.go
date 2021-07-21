@@ -30,10 +30,12 @@ type connectionChecker interface {
 	Check(ctx context.Context, req *agentpb.CheckConnectionRequest, id uint32) *agentpb.CheckConnectionResponse
 }
 
-// connectionChecker is a subset of methods of connectionchecker.ConnectionChecker used by this package.
-// We use it instead of real type for testing and to avoid dependency cycle.
-type connectionChecker interface {
-	Check(ctx context.Context, req *agentpb.CheckConnectionRequest, id uint32) *agentpb.CheckConnectionResponse
+// softwareVersioner is a subset of methods of version.Versioner used by this package.
+type softwareVersioner interface {
+	MySQLdVersion() (string, error)
+	XtrabackupVersion() (string, error)
+	XbcloudVersion() (string, error)
+	Qpress() (string, error)
 }
 
 // supervisor is a subset of methods of supervisor.Supervisor used by this package.
