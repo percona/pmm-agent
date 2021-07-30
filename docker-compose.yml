@@ -100,23 +100,6 @@ services:
     volumes:
       - test_db_postgres:/docker-entrypoint-initdb.d/
 
-  postgres-load:
-    image: ${POSTGRES_IMAGE:-perconalab/percona-distribution-postgresql:13.3}
-    container_name: pmm-agent-postgres-load
-    command: >
-      bash -c "
-        PGPASSWORD=pmm-agent-password psql -Upmm-agent --host=pmm-agent_postgres -c 'CREATE DATABASE contrib_regression; CREATE EXTENSION pg_stat_monitor;'
-        for true do
-          PGPASSWORD=pmm-agent-password psql -Upmm-agent -f /testqueries/pg_stat_monitor_load.sql -o /dev/null
-        done
-        tail -f /dev/null
-      "
-    environment:
-      - POSTGRES_USER=pmm-agent
-      - POSTGRES_PASSWORD=pmm-agent-password
-    volumes:
-      - ./testqueries/postgres:/testqueries/
-
   sysbench:
     image: perconalab/sysbench
     container_name: pmm-agent_sysbench
