@@ -9,8 +9,10 @@ services:
       - 127.0.0.1:80:80
       - 127.0.0.1:443:443
     environment:
+      - ENABLE_ALERTING=1
+      - ENABLE_BACKUP_MANAGEMENT=1
       - PMM_DEBUG=1
-      - PERCONA_TEST_CHECKS_INTERVAL=10s
+      # - PERCONA_TEST_CHECKS_INTERVAL=10s
       # for local development
       - PERCONA_TEST_CHECKS_FILE=/srv/checks/custom-checks.yml
       # for check-dev
@@ -79,13 +81,14 @@ services:
       - 127.0.0.1:27019:27017
 
   postgres:
-    image: ${POSTGRES_IMAGE:-postgres:11}
+    image: ${POSTGRES_IMAGE:-perconalab/percona-distribution-postgresql:13.3}
     container_name: pmm-agent_postgres
     command: >
-      -c shared_preload_libraries='${PG_PRELOADED_LIBS:-pg_stat_statements}'
+      -c shared_preload_libraries=pg_stat_monitor,pg_stat_statements
       -c track_activity_query_size=2048
       -c pg_stat_statements.max=10000
       -c pg_stat_monitor.pgsm_query_max_len=10000
+      -c pg_stat_monitor.pgsm_normalized_query=0
       -c pg_stat_statements.track=all
       -c pg_stat_statements.save=off
       -c track_io_timing=on
@@ -96,6 +99,23 @@ services:
       - POSTGRES_PASSWORD=pmm-agent-password
     volumes:
       - test_db_postgres:/docker-entrypoint-initdb.d/
+
+  postgres-load:
+    image: ${POSTGRES_IMAGE:-perconalab/percona-distribution-postgresql:13.3}
+    container_name: pmm-agent-postgres-load
+    command: >
+      bash -c "
+        PGPASSWORD=pmm-agent-password psql -Upmm-agent --host=pmm-agent_postgres -c 'CREATE DATABASE contrib_regression; CREATE EXTENSION pg_stat_monitor;'
+        for true do
+          PGPASSWORD=pmm-agent-password psql -Upmm-agent -f /testqueries/pg_stat_monitor_load.sql -o /dev/null
+        done
+        tail -f /dev/null
+      "
+    environment:
+      - POSTGRES_USER=pmm-agent
+      - POSTGRES_PASSWORD=pmm-agent-password
+    volumes:
+      - ./testqueries/postgres:/testqueries/
 
   sysbench:
     image: perconalab/sysbench
