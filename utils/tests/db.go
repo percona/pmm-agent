@@ -17,21 +17,24 @@ package tests
 
 import (
 	"database/sql"
+	"sync"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/require"
 )
+
+var testMutex sync.Mutex
 
 // waitForFixtures waits up to 30 seconds to database fixtures (test_db) to be loaded.
 func waitForFixtures(tb testing.TB, db *sql.DB) {
 	var id int
 	var err error
 	for i := 0; i < 30; i++ {
+		testMutex.Lock()
+		defer testMutex.Unlock()
 		if err = db.QueryRow("SELECT /* pmm-agent-tests:waitForFixtures */ id FROM city LIMIT 1").Scan(&id); err == nil {
 			return
 		}
-		time.Sleep(time.Second)
 	}
 	require.NoError(tb, err)
 }
