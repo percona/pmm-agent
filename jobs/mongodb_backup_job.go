@@ -52,10 +52,18 @@ type MongoDBBackupJob struct {
 	name     string
 	dbURL    *url.URL
 	location BackupLocationConfig
+	pitr     bool
 }
 
 // NewMongoDBBackupJob creates new Job for MongoDB backup.
-func NewMongoDBBackupJob(id string, timeout time.Duration, name string, dbConfig DBConnConfig, locationConfig BackupLocationConfig) *MongoDBBackupJob {
+func NewMongoDBBackupJob(
+	id string,
+	timeout time.Duration,
+	name string,
+	dbConfig DBConnConfig,
+	locationConfig BackupLocationConfig,
+	pitr bool,
+) *MongoDBBackupJob {
 	return &MongoDBBackupJob{
 		id:       id,
 		timeout:  timeout,
@@ -63,6 +71,7 @@ func NewMongoDBBackupJob(id string, timeout time.Duration, name string, dbConfig
 		name:     name,
 		dbURL:    createDBURL(dbConfig),
 		location: locationConfig,
+		pitr:     pitr,
 	}
 }
 
@@ -87,13 +96,32 @@ func (j *MongoDBBackupJob) Run(ctx context.Context, send Send) error {
 		return errors.Wrapf(err, "lookpath: %s", pbmBin)
 	}
 
+	conf := &PBMConfig{
+		PITR: PITR{
+			Enabled: false,
+		},
+	}
 	switch {
 	case j.location.S3Config != nil:
-		if err := pbmSetupS3(ctx, j.l, j.dbURL, j.name, j.location.S3Config, false); err != nil {
-			return errors.Wrap(err, "failed to setup S3 location")
+		conf.Storage = Storage{
+			Type: "s3",
+			S3: S3{
+				EndpointURL: j.location.S3Config.Endpoint,
+				Region:      j.location.S3Config.BucketRegion,
+				Bucket:      j.location.S3Config.BucketName,
+				Prefix:      j.name,
+				Credentials: Credentials{
+					AccessKeyID:     j.location.S3Config.AccessKey,
+					SecretAccessKey: j.location.S3Config.SecretKey,
+				},
+			},
 		}
 	default:
 		return errors.New("unknown location config")
+	}
+
+	if err := pbmConfigure(ctx, j.l, j.dbURL, conf, true); err != nil {
+		return errors.Wrap(err, "failed to configure pbm")
 	}
 
 	rCtx, cancel := context.WithTimeout(ctx, resyncTimeout)
@@ -199,12 +227,31 @@ func waitForNoRunningPBMOperations(ctx context.Context, l logrus.FieldLogger, db
 	}
 }
 
-func pbmSetupS3(ctx context.Context, l logrus.FieldLogger, dbURL *url.URL, prefix string, s3Config *S3LocationConfig, resync bool) error {
+func pbmSetPITR(ctx context.Context, l logrus.FieldLogger, pitr bool) error {
+	l.Info("Configuring Point-in-Time recovery feature.")
+	nCtx, cancel := context.WithTimeout(ctx, cmdTimeout)
+	defer cancel()
+
+	output, err := exec.CommandContext( //nolint:gosec
+		nCtx,
+		pbmBin,
+		"config",
+		"--set pitr.enabled="+strconv.FormatBool(pitr),
+	).CombinedOutput()
+
+	if err != nil {
+		return errors.Wrapf(err, "pbm config error: %s", string(output))
+	}
+
+	return nil
+}
+
+func pbmConfigure(ctx context.Context, l logrus.FieldLogger, dbURL *url.URL, conf *PBMConfig, resync bool) error {
 	l.Info("Configuring S3 location.")
 	nCtx, cancel := context.WithTimeout(ctx, cmdTimeout)
 	defer cancel()
 
-	confFile, err := writePBMConfigFile(prefix, s3Config)
+	confFile, err := writePBMConfigFile(conf)
 	if err != nil {
 		return errors.WithStack(err)
 	}
@@ -242,35 +289,11 @@ func pbmSetupS3(ctx context.Context, l logrus.FieldLogger, dbURL *url.URL, prefi
 	return nil
 }
 
-func writePBMConfigFile(prefix string, s3Config *S3LocationConfig) (string, error) {
+func writePBMConfigFile(conf *PBMConfig) (string, error) {
 	tmp, err := ioutil.TempFile("", "pbm-config-*.yml")
 	if err != nil {
 		return "", errors.Wrap(err, "failed to create pbm configuration file")
 	}
-
-	var conf struct {
-		Storage struct {
-			Type string `yaml:"type"`
-			S3   struct {
-				Region      string `yaml:"region"`
-				Bucket      string `yaml:"bucket"`
-				Prefix      string `yaml:"prefix"`
-				EndpointURL string `yaml:"endpointUrl"`
-				Credentials struct {
-					AccessKeyID     string `yaml:"access-key-id"`
-					SecretAccessKey string `yaml:"secret-access-key"`
-				}
-			} `yaml:"s3"`
-		} `yaml:"storage"`
-	}
-
-	conf.Storage.Type = "s3"
-	conf.Storage.S3.EndpointURL = s3Config.Endpoint
-	conf.Storage.S3.Region = s3Config.BucketRegion
-	conf.Storage.S3.Bucket = s3Config.BucketName
-	conf.Storage.S3.Prefix = prefix
-	conf.Storage.S3.Credentials.AccessKeyID = s3Config.AccessKey
-	conf.Storage.S3.Credentials.SecretAccessKey = s3Config.SecretKey
 
 	bytes, err := yaml.Marshal(&conf)
 	if err != nil {

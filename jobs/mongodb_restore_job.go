@@ -26,19 +26,23 @@ import (
 	"github.com/percona/pmm/api/agentpb"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
+	"gopkg.in/yaml.v3"
 )
 
 // This regexp matches backup entity name.
 var lastBackupRE = regexp.MustCompile(`^Backup snapshots:\n(  (\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z).*)`)
 
+var pbmTimeFormat = "2006-01-02T15:04:05"
+
 // MongoDBRestoreJob implements Job for MongoDB restore.
 type MongoDBRestoreJob struct {
-	id       string
-	timeout  time.Duration
-	l        *logrus.Entry
-	name     string
-	dbURL    *url.URL
-	location BackupLocationConfig
+	id        string
+	timeout   time.Duration
+	l         *logrus.Entry
+	name      string
+	timestamp *time.Time
+	dbURL     *url.URL
+	location  BackupLocationConfig
 }
 
 // NewMongoDBRestoreJob creates new Job for MongoDB backup restore.
@@ -74,13 +78,37 @@ func (j *MongoDBRestoreJob) Run(ctx context.Context, send Send) error {
 		return errors.Wrapf(err, "lookpath: %s", pbmBin)
 	}
 
+	oldConf, err := getCurrentPBMConfig(ctx, j.l)
+	if err != nil {
+		return errors.Wrap(err, "failed to get pbm configuration")
+	}
+
+	conf := &PBMConfig{
+		PITR: PITR{
+			Enabled: false,
+		},
+	}
 	switch {
 	case j.location.S3Config != nil:
-		if err := pbmSetupS3(ctx, j.l, j.dbURL, j.name, j.location.S3Config, true); err != nil {
-			return errors.Wrap(err, "failed to setup S3 location")
+		conf.Storage = Storage{
+			Type: "s3",
+			S3: S3{
+				EndpointURL: j.location.S3Config.Endpoint,
+				Region:      j.location.S3Config.BucketRegion,
+				Bucket:      j.location.S3Config.BucketName,
+				Prefix:      j.name,
+				Credentials: Credentials{
+					AccessKeyID:     j.location.S3Config.AccessKey,
+					SecretAccessKey: j.location.S3Config.SecretKey,
+				},
+			},
 		}
 	default:
 		return errors.New("unknown location config")
+	}
+
+	if err := pbmConfigure(ctx, j.l, j.dbURL, conf, true); err != nil {
+		return errors.Wrap(err, "failed to configure pbm")
 	}
 
 	rCtx, cancel := context.WithTimeout(ctx, resyncTimeout)
@@ -90,12 +118,7 @@ func (j *MongoDBRestoreJob) Run(ctx context.Context, send Send) error {
 	}
 	cancel()
 
-	backupName, err := j.findBackupEntityName(ctx)
-	if err != nil {
-		return errors.WithStack(err)
-	}
-
-	if err := j.startRestore(ctx, backupName); err != nil {
+	if err := j.startRestore(ctx); err != nil {
 		return errors.Wrap(err, "failed to start backup restore")
 	}
 
@@ -110,10 +133,40 @@ func (j *MongoDBRestoreJob) Run(ctx context.Context, send Send) error {
 			MongodbRestoreBackup: &agentpb.JobResult_MongoDBRestoreBackup{},
 		},
 	})
+
+	// Try to restore old configuration
+	if err := pbmConfigure(ctx, j.l, j.dbURL, oldConf, true); err != nil {
+		j.l.Warn() // TODO
+	}
+
 	return nil
 }
 
-func (j *MongoDBRestoreJob) findBackupEntityName(ctx context.Context) (string, error) {
+func getCurrentPBMConfig(ctx context.Context, l logrus.FieldLogger) (*PBMConfig, error) {
+	l.Info("Getting current pbm configuration.")
+	nCtx, cancel := context.WithTimeout(ctx, cmdTimeout)
+	defer cancel()
+
+	output, err := exec.CommandContext( //nolint:gosec
+		nCtx,
+		pbmBin,
+		"config",
+		"--list",
+	).CombinedOutput()
+
+	if err != nil {
+		return nil, errors.Wrapf(err, "pbm config error: %s", string(output))
+	}
+
+	var config PBMConfig
+	if err = yaml.Unmarshal(output, &config); err != nil {
+		return nil, errors.Wrap(err, "failed to parse pbm configuration")
+	}
+
+	return &config, nil
+}
+
+func (j *MongoDBRestoreJob) findSnapshotName(ctx context.Context) (string, error) {
 	j.l.Info("Finding backup entity name.")
 
 	nCtx, cancel := context.WithTimeout(ctx, cmdTimeout)
@@ -133,13 +186,30 @@ func (j *MongoDBRestoreJob) findBackupEntityName(ctx context.Context) (string, e
 	return string(res[0][2]), nil
 }
 
-func (j *MongoDBRestoreJob) startRestore(ctx context.Context, backupName string) error {
-	j.l.Info("Starting backup restore.")
+func (j *MongoDBRestoreJob) startRestore(ctx context.Context) error {
+	j.l.Info("Starting backup snapshot restore.")
+
+	var err error
+	var cmdTail string
+	if j.timestamp != nil {
+		cmdTail = "--time=" + j.timestamp.Format(pbmTimeFormat)
+	} else {
+		cmdTail, err = j.findSnapshotName(ctx)
+		if err != nil {
+			return errors.WithStack(err)
+		}
+	}
 
 	nCtx, cancel := context.WithTimeout(ctx, cmdTimeout)
 	defer cancel()
 
-	output, err := exec.CommandContext(nCtx, pbmBin, "restore", "--mongodb-uri="+j.dbURL.String(), backupName).CombinedOutput() // #nosec G204
+	output, err := exec.CommandContext(
+		nCtx,
+		pbmBin,
+		"restore",
+		"--mongodb-uri="+j.dbURL.String(),
+		cmdTail,
+	).CombinedOutput() // #nosec G204
 
 	if err != nil {
 		return errors.Wrapf(err, "pbm restore error: %s", string(output))
