@@ -373,6 +373,8 @@ func (c *Client) processChannelRequests(ctx context.Context) {
 			case *agentpb.StartActionRequest_PtMongodbSummaryParams:
 				action = actions.NewProcessAction(p.ActionId, c.cfg.Paths.PTMongoDBSummary, argListFromMongoDBParams(params.PtMongodbSummaryParams))
 
+			case *agentpb.StartActionRequest_PbmSwitchPitrParams:
+				action = actions.NewPBMSwitchPITRAction(p.ActionId, params.PbmSwitchPitrParams, c.cfg.Paths.TempDir)
 			case nil:
 				c.l.Errorf("Unhandled StartAction request: %v.", req)
 				responsePayload = nil
