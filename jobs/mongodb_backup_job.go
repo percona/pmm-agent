@@ -98,7 +98,7 @@ func (j *MongoDBBackupJob) Run(ctx context.Context, send Send) error {
 
 	conf := &PBMConfig{
 		PITR: PITR{
-			Enabled: false,
+			Enabled: j.pitr,
 		},
 	}
 	switch {
@@ -120,8 +120,11 @@ func (j *MongoDBBackupJob) Run(ctx context.Context, send Send) error {
 		return errors.New("unknown location config")
 	}
 
-	if err := pbmConfigure(ctx, j.l, j.dbURL, conf, true); err != nil {
-		return errors.Wrap(err, "failed to configure pbm")
+	oldCfg, _ := getCurrentPBMConfig(ctx, j.l, j.dbURL) // TODO handle error?
+	if oldCfg == nil || !conf.Equals(oldCfg) {
+		if err := pbmConfigure(ctx, j.l, j.dbURL, conf, true); err != nil {
+			return errors.Wrap(err, "failed to configure pbm")
+		}
 	}
 
 	rCtx, cancel := context.WithTimeout(ctx, resyncTimeout)
@@ -227,8 +230,8 @@ func waitForNoRunningPBMOperations(ctx context.Context, l logrus.FieldLogger, db
 	}
 }
 
-func pbmSetPITR(ctx context.Context, l logrus.FieldLogger, pitr bool) error {
-	l.Info("Configuring Point-in-Time recovery feature.")
+func getCurrentPBMConfig(ctx context.Context, l logrus.FieldLogger, dbURL *url.URL) (*PBMConfig, error) {
+	l.Info("Getting current pbm configuration.")
 	nCtx, cancel := context.WithTimeout(ctx, cmdTimeout)
 	defer cancel()
 
@@ -236,14 +239,20 @@ func pbmSetPITR(ctx context.Context, l logrus.FieldLogger, pitr bool) error {
 		nCtx,
 		pbmBin,
 		"config",
-		"--set pitr.enabled="+strconv.FormatBool(pitr),
+		"--list",
+		"--mongodb-uri="+dbURL.String(),
 	).CombinedOutput()
 
 	if err != nil {
-		return errors.Wrapf(err, "pbm config error: %s", string(output))
+		return nil, errors.Wrapf(err, "pbm config error: %s", string(output))
 	}
 
-	return nil
+	var config PBMConfig
+	if err = yaml.Unmarshal(output, &config); err != nil {
+		return nil, errors.Wrap(err, "failed to parse pbm configuration")
+	}
+
+	return &config, nil
 }
 
 func pbmConfigure(ctx context.Context, l logrus.FieldLogger, dbURL *url.URL, conf *PBMConfig, resync bool) error {

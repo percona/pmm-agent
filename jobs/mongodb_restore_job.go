@@ -26,7 +26,6 @@ import (
 	"github.com/percona/pmm/api/agentpb"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
-	"gopkg.in/yaml.v3"
 )
 
 // This regexp matches backup entity name.
@@ -76,11 +75,6 @@ func (j *MongoDBRestoreJob) Timeout() time.Duration {
 func (j *MongoDBRestoreJob) Run(ctx context.Context, send Send) error {
 	if _, err := exec.LookPath(pbmBin); err != nil {
 		return errors.Wrapf(err, "lookpath: %s", pbmBin)
-	}
-
-	oldConf, err := getCurrentPBMConfig(ctx, j.l)
-	if err != nil {
-		return errors.Wrap(err, "failed to get pbm configuration")
 	}
 
 	conf := &PBMConfig{
@@ -134,36 +128,7 @@ func (j *MongoDBRestoreJob) Run(ctx context.Context, send Send) error {
 		},
 	})
 
-	// Try to restore old configuration
-	if err := pbmConfigure(ctx, j.l, j.dbURL, oldConf, true); err != nil {
-		j.l.Warn() // TODO
-	}
-
 	return nil
-}
-
-func getCurrentPBMConfig(ctx context.Context, l logrus.FieldLogger) (*PBMConfig, error) {
-	l.Info("Getting current pbm configuration.")
-	nCtx, cancel := context.WithTimeout(ctx, cmdTimeout)
-	defer cancel()
-
-	output, err := exec.CommandContext( //nolint:gosec
-		nCtx,
-		pbmBin,
-		"config",
-		"--list",
-	).CombinedOutput()
-
-	if err != nil {
-		return nil, errors.Wrapf(err, "pbm config error: %s", string(output))
-	}
-
-	var config PBMConfig
-	if err = yaml.Unmarshal(output, &config); err != nil {
-		return nil, errors.Wrap(err, "failed to parse pbm configuration")
-	}
-
-	return &config, nil
 }
 
 func (j *MongoDBRestoreJob) findSnapshotName(ctx context.Context) (string, error) {

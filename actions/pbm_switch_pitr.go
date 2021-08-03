@@ -67,7 +67,8 @@ func (a pbmSwitchPITRAction) Run(ctx context.Context) ([]byte, error) {
 		ctx,
 		pbmBin,
 		"config",
-		"--set pitr.enabled="+strconv.FormatBool(a.params.Enabled),
+		"--set",
+		"pitr.enabled="+strconv.FormatBool(a.params.Enabled),
 		"--mongodb-uri="+dsn).
 		CombinedOutput() // #nosec G204
 	if err != nil {
