@@ -82,7 +82,7 @@
       image: ${POSTGRES_IMAGE:-perconalab/percona-distribution-postgresql:13.3}
       container_name: pmm-agent_postgres
       command: >
-        -c shared_preload_libraries='${PG_PRELOADED_LIBS:-pg_stat_statements}'
+        -c shared_preload_libraries='${PG_PRELOADED_LIBS:-pg_stat_monitor,pg_stat_statements}'
         -c track_activity_query_size=2048
         -c pg_stat_statements.max=10000
         -c pg_stat_monitor.pgsm_query_max_len=10000
