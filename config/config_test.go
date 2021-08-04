@@ -96,6 +96,7 @@ func TestGet(t *testing.T) {
 				Address: "127.0.0.1:443",
 			},
 			Paths: Paths{
+				PathsBase:        "/usr/local/percona/pmm2",
 				ExportersBase:    "/usr/local/percona/pmm2/exporters",
 				NodeExporter:     "/usr/local/percona/pmm2/exporters/node_exporter",
 				MySQLdExporter:   "/usr/local/percona/pmm2/exporters/mysqld_exporter",
@@ -143,6 +144,7 @@ func TestGet(t *testing.T) {
 				Address: "127.0.0.1:443",
 			},
 			Paths: Paths{
+				PathsBase:        "/usr/local/percona/pmm2",
 				ExportersBase:    "/usr/local/percona/pmm2/exporters",
 				NodeExporter:     "/usr/local/percona/pmm2/exporters/node_exporter",
 				MySQLdExporter:   "/usr/local/percona/pmm2/exporters/mysqld_exporter",
@@ -191,6 +193,7 @@ func TestGet(t *testing.T) {
 				Address: "127.0.0.1:443",
 			},
 			Paths: Paths{
+				PathsBase:        "/usr/local/percona/pmm2",
 				ExportersBase:    "/usr/local/percona/pmm2/exporters",
 				NodeExporter:     "/usr/local/percona/pmm2/exporters/node_exporter",
 				MySQLdExporter:   "/usr/local/percona/pmm2/exporters/mysqld_exporter",
@@ -247,6 +250,7 @@ func TestGet(t *testing.T) {
 				Address: "127.0.0.1:443",
 			},
 			Paths: Paths{
+				PathsBase:        "/usr/local/percona/pmm2",
 				ExportersBase:    "/base",
 				NodeExporter:     "/base/node_exporter",    // default value
 				MySQLdExporter:   "/foo/mysqld_exporter",   // respect absolute value from flag
@@ -286,6 +290,7 @@ func TestGet(t *testing.T) {
 			ListenAddress: "127.0.0.1",
 			ListenPort:    7777,
 			Paths: Paths{
+				PathsBase:        "/usr/local/percona/pmm2",
 				ExportersBase:    "/usr/local/percona/pmm2/exporters",
 				NodeExporter:     "/usr/local/percona/pmm2/exporters/node_exporter",
 				MySQLdExporter:   "/usr/local/percona/pmm2/exporters/mysqld_exporter",
