@@ -101,14 +101,14 @@ func (j *MongoDBRestoreJob) Run(ctx context.Context, send Send) error {
 		return errors.New("unknown location config")
 	}
 
-	if err := pbmConfigure(ctx, j.l, j.dbURL, conf, true); err != nil {
+	if err := pbmConfigure(ctx, j.l, j.dbURL, conf); err != nil {
 		return errors.Wrap(err, "failed to configure pbm")
 	}
 
 	rCtx, cancel := context.WithTimeout(ctx, resyncTimeout)
 	if err := waitForNoRunningPBMOperations(rCtx, j.l, j.dbURL); err != nil {
 		cancel()
-		return errors.Wrap(err, "failed to wait pbm resync completion")
+		return errors.Wrap(err, "failed to wait pbm configuration completion")
 	}
 	cancel()
 

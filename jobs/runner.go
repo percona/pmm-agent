@@ -68,6 +68,7 @@ func (r *Runner) Run(ctx context.Context) {
 				nCtx, cancel = context.WithCancel(ctx)
 			}
 
+			// TODO Run only one job of particular type at time.
 			r.addJobCancel(jobID, cancel)
 			r.runningJobs.Add(1)
 			run := func(ctx context.Context) {
