@@ -549,6 +549,7 @@ func (c *Client) getActionTimeout(req *agentpb.StartActionRequest) time.Duration
 	return d
 }
 
+//
 type dialResult struct {
 	conn         *grpc.ClientConn
 	streamCancel context.CancelFunc
