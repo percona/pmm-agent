@@ -340,6 +340,8 @@ func Application(cfg *Config) (*kingpin.Application, *string) {
 		Envar("PMM_AGENT_SERVER_INSECURE_TLS").BoolVar(&cfg.Server.InsecureTLS)
 	// no flag for WithoutTLS - it is only for development and testing
 
+	app.Flag("paths-base", "Base path for exporters/collectors/tools to use [PMM_AGENT_PATHS_BASE]").
+		Envar("PMM_AGENT_PATHS_BASE").StringVar(&cfg.Paths.PathsBase)
 	app.Flag("paths-exporters_base", "Base path for exporters to use [PMM_AGENT_PATHS_EXPORTERS_BASE]").
 		Envar("PMM_AGENT_PATHS_EXPORTERS_BASE").StringVar(&cfg.Paths.ExportersBase)
 	app.Flag("paths-node_exporter", "Path to node_exporter to use [PMM_AGENT_PATHS_NODE_EXPORTER]").
