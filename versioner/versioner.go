@@ -81,7 +81,12 @@ func New(ef ExecFunctions) *Versioner {
 	}
 }
 
-func (v *Versioner) binaryVersion(binaryName string, versionRegexp *regexp.Regexp, arg ...string) (string, error) {
+func (v *Versioner) binaryVersion(
+	binaryName string,
+	expectedExitCode int,
+	versionRegexp *regexp.Regexp,
+	arg ...string,
+) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), versionCheckTimeout)
 	defer cancel()
 
@@ -95,6 +100,9 @@ func (v *Versioner) binaryVersion(binaryName string, versionRegexp *regexp.Regex
 
 	versionBytes, err := v.ef.CommandContext(ctx, binaryName, arg...).CombinedOutput()
 	if err != nil {
+		if exitError, ok := err.(*exec.ExitError); ok && exitError.ExitCode() != expectedExitCode {
+			return "", errors.WithStack(err)
+		}
 		return "", errors.WithStack(err)
 	}
 
@@ -108,20 +116,20 @@ func (v *Versioner) binaryVersion(binaryName string, versionRegexp *regexp.Regex
 
 // MySQLdVersion retrieves mysqld binary version.
 func (v *Versioner) MySQLdVersion() (string, error) {
-	return v.binaryVersion(mysqldBin, mysqldVersionRegexp, "--version")
+	return v.binaryVersion(mysqldBin, 0, mysqldVersionRegexp, "--version")
 }
 
 // XtrabackupVersion retrieves xtrabackup binary version.
 func (v *Versioner) XtrabackupVersion() (string, error) {
-	return v.binaryVersion(xtrabackupBin, xtrabackupVersionRegexp, "--version")
+	return v.binaryVersion(xtrabackupBin, 0, xtrabackupVersionRegexp, "--version")
 }
 
 // XbcloudVersion retrieves xbcloud binary version.
 func (v *Versioner) XbcloudVersion() (string, error) {
-	return v.binaryVersion(xbcloudBin, xbcloudVersionRegexp, "--version")
+	return v.binaryVersion(xbcloudBin, 0, xbcloudVersionRegexp, "--version")
 }
 
 // Qpress retrieves qpress binary version.
 func (v *Versioner) Qpress() (string, error) {
-	return v.binaryVersion(qpressBin, qpressRegexp)
+	return v.binaryVersion(qpressBin, 255, qpressRegexp)
 }
