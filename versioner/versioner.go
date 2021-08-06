@@ -100,10 +100,13 @@ func (v *Versioner) binaryVersion(
 
 	versionBytes, err := v.ef.CommandContext(ctx, binaryName, arg...).CombinedOutput()
 	if err != nil {
-		if exitError, ok := err.(*exec.ExitError); ok && exitError.ExitCode() != expectedExitCode {
+		if exitError, ok := err.(*exec.ExitError); ok {
+			if exitError.ExitCode() != expectedExitCode {
+				return "", errors.WithStack(err)
+			}
+		} else {
 			return "", errors.WithStack(err)
 		}
-		return "", errors.WithStack(err)
 	}
 
 	matches := versionRegexp.FindStringSubmatch(string(versionBytes))
