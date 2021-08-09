@@ -211,14 +211,11 @@ func get(args []string, l *logrus.Entry) (cfg *Config, configFileF string, err e
 			}
 		}
 
-		switch {
-		case cfg.Paths.PathsBase == "" && cfg.Paths.ExportersBase == "":
+		if cfg.Paths.PathsBase == "" {
 			cfg.Paths.PathsBase = pathBaseDefault
+		}
+		if cfg.Paths.ExportersBase == "" {
 			cfg.Paths.ExportersBase = filepath.Join(cfg.Paths.PathsBase, "exporters")
-		case cfg.Paths.PathsBase != "" && cfg.Paths.ExportersBase == "":
-			cfg.Paths.ExportersBase = filepath.Join(cfg.Paths.PathsBase, "exporters")
-		case cfg.Paths.PathsBase == "" && cfg.Paths.ExportersBase != "":
-			cfg.Paths.PathsBase = pathBaseDefault
 		}
 
 		if cfg.Paths.PathsBase != "" {
