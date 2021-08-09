@@ -53,7 +53,18 @@ func TestVersioner(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, "8.0.22-13", version)
 	})
-	t.Run("xtrabackup", func(t *testing.T) {
+	t.Run("xtrabackup 2", func(t *testing.T) {
+		mysqldVersionOutput := []byte(`xtrabackup: recognized server arguments: --datadir=/var/lib/mysql
+xtrabackup version 2.4.23 based on MySQL server 5.7.34 Linux (x86_64) (revision id: 3320f39)
+`)
+		execMock.On("LookPath", xtrabackupBin).Return("", nil).Once()
+		execMock.On("CommandContext", mock.Anything, xtrabackupBin, "--version").
+			Return(&mockedExec{Output: mysqldVersionOutput}).Once()
+		version, err := versioner.XtrabackupVersion()
+		assert.NoError(t, err)
+		assert.Equal(t, "2.4.23", version)
+	})
+	t.Run("xtrabackup 8", func(t *testing.T) {
 		mysqldVersionOutput := []byte(`xtrabackup version 8.0.23-16 based on MySQL server 8.0.23 Linux (x86_64) (revision id: 934bc8f)
 `)
 		execMock.On("LookPath", xtrabackupBin).Return("", nil).Once()

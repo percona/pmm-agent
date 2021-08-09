@@ -35,7 +35,7 @@ const (
 
 var (
 	mysqldVersionRegexp     = regexp.MustCompile("^.*Ver ([!-~]*).*")
-	xtrabackupVersionRegexp = regexp.MustCompile("^xtrabackup version ([!-~]*).*")
+	xtrabackupVersionRegexp = regexp.MustCompile("xtrabackup version ([!-~]*).*")
 	xbcloudVersionRegexp    = regexp.MustCompile("^xbcloud[ ][ ]Ver ([!-~]*).*")
 	qpressRegexp            = regexp.MustCompile("^qpress[ ]([!-~]*).*")
 
