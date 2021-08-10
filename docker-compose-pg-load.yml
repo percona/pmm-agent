@@ -33,6 +33,8 @@ services:
         sleep 20
         PGPASSWORD=pmm-agent-password psql -Upmm-agent --host=pmm-agent-postgres-pgmonitor -c 'CREATE DATABASE contrib_regression;'
         PGPASSWORD=pmm-agent-password psql -Upmm-agent --host=pmm-agent-postgres-pgmonitor -d contrib_regression -c 'CREATE EXTENSION pg_stat_monitor;'
+        PGPASSWORD=pmm-agent-password psql -Upmm-agent --host=pmm-agent-postgres-pgmonitor -d pmm-agent -c 'CREATE EXTENSION pg_stat_monitor;'
+        PGPASSWORD=pmm-agent-password psql -Upmm-agent --host=pmm-agent-postgres-pgmonitor -d postgres -c 'CREATE EXTENSION pg_stat_monitor;'
         while true
         do
           PGPASSWORD=pmm-agent-password psql -Upmm-agent --host=pmm-agent-postgres-pgmonitor -d contrib_regression -f /testqueries/pg_stat_monitor_load.sql -o /dev/null
