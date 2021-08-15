@@ -408,12 +408,7 @@ func (c *Client) processChannelRequests(ctx context.Context) {
 			responsePayload = &agentpb.JobStatusResponse{Alive: alive}
 
 		case *agentpb.GetVersionsRequest:
-			if versions, requestStatus := c.handleVersionsRequest(p); requestStatus != nil {
-				status = requestStatus
-			} else {
-				responsePayload = &agentpb.GetVersionsResponse{Versions: versions}
-			}
-
+			responsePayload = &agentpb.GetVersionsResponse{Versions: c.handleVersionsRequest(p)}
 		case nil:
 			c.l.Errorf("Unhandled server request: %v.", req)
 		}

@@ -19,12 +19,11 @@ package client
 import (
 	"github.com/percona/pmm/api/agentpb"
 	"github.com/pkg/errors"
-	"google.golang.org/grpc/status"
 
 	"github.com/percona/pmm-agent/versioner"
 )
 
-func (c *Client) handleVersionsRequest(r *agentpb.GetVersionsRequest) ([]*agentpb.GetVersionsResponse_Version, *status.Status) {
+func (c *Client) handleVersionsRequest(r *agentpb.GetVersionsRequest) []*agentpb.GetVersionsResponse_Version {
 	versionsResponse := make([]*agentpb.GetVersionsResponse_Version, 0, len(r.Softwares))
 	for _, s := range r.Softwares {
 		var version string
@@ -50,5 +49,5 @@ func (c *Client) handleVersionsRequest(r *agentpb.GetVersionsRequest) ([]*agentp
 		versionsResponse = append(versionsResponse, &agentpb.GetVersionsResponse_Version{Version: version})
 	}
 
-	return versionsResponse, nil
+	return versionsResponse
 }
