@@ -19,7 +19,6 @@ package client
 import (
 	"github.com/percona/pmm/api/agentpb"
 	"github.com/pkg/errors"
-	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
 	"github.com/percona/pmm-agent/versioner"
@@ -40,7 +39,7 @@ func (c *Client) handleVersionsRequest(r *agentpb.GetVersionsRequest) ([]*agentp
 		case *agentpb.GetVersionsRequest_Software_Qpress:
 			version, err = c.softwareVersioner.Qpress()
 		default:
-			return nil, status.Newf(codes.Unknown, "unknown software type %v.", r)
+			err = errors.Errorf("unknown software type %T.", s.Software)
 		}
 
 		if err != nil && !errors.Is(err, versioner.ErrNotFound) {
