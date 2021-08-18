@@ -332,17 +332,6 @@ func restoreBackup(ctx context.Context, backupDirectory, mySQLDirectory string) 
 
 // Run executes backup restore steps.
 func (j *MySQLRestoreJob) Run(ctx context.Context, send Send) (rerr error) {
-	j.l.Info("MySQL restore started")
-	defer func(start time.Time) {
-		entry := j.l.WithField("duration", time.Since(start).String())
-
-		if rerr != nil {
-			entry.Error("MySQL restore finished with error")
-		} else {
-			entry.Info("MySQL restore finished")
-		}
-	}(time.Now())
-
 	if j.location.S3Config == nil {
 		return errors.New("S3 config is not set")
 	}

@@ -82,6 +82,9 @@ func (j *MySQLBackupJob) Timeout() time.Duration {
 
 // Run starts Job execution.
 func (j *MySQLBackupJob) Run(ctx context.Context, send Send) (rerr error) {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
 	if _, err := exec.LookPath(xtrabackupBin); err != nil {
 		return errors.Wrapf(err, "lookpath: %s", xtrabackupBin)
 	}
@@ -96,9 +99,7 @@ func (j *MySQLBackupJob) Run(ctx context.Context, send Send) (rerr error) {
 		}
 	}
 
-	cmdctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-	xtrabackupCmd := exec.CommandContext(cmdctx, xtrabackupBin, "--compress", "--backup") // #nosec G204
+	xtrabackupCmd := exec.CommandContext(ctx, xtrabackupBin, "--compress", "--backup") // #nosec G204
 
 	if j.connConf.User != "" {
 		xtrabackupCmd.Args = append(xtrabackupCmd.Args, "--user="+j.connConf.User)
@@ -119,7 +120,7 @@ func (j *MySQLBackupJob) Run(ctx context.Context, send Send) (rerr error) {
 	switch {
 	case j.location.S3Config != nil:
 		xtrabackupCmd.Args = append(xtrabackupCmd.Args, "--stream=xbstream")
-		xbcloudCmd = exec.CommandContext(cmdctx, xbcloudBin,
+		xbcloudCmd = exec.CommandContext(ctx, xbcloudBin,
 			"put",
 			"--storage=s3",
 			"--s3-endpoint="+j.location.S3Config.Endpoint,
