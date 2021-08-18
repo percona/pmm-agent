@@ -30,7 +30,7 @@ import (
 
 const jobsBufferSize = 32
 
-// Runner allows to execute jobs.
+// Runner executes jobs.
 type Runner struct {
 	l *logrus.Entry
 
