@@ -223,10 +223,12 @@ func (j *MySQLRestoreJob) restoreMySQLFromS3(
 	}
 
 	if err := xbcloudCmd.Start(); err != nil {
+		cancel()
 		return errors.Wrap(wrapError(err), "xbcloud start failed")
 	}
 	defer func() {
 		if err := xbcloudCmd.Wait(); err != nil {
+			cancel()
 			if rerr != nil {
 				rerr = errors.Wrapf(rerr, "xbcloud wait error: %s", err)
 			} else {

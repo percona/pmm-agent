@@ -174,11 +174,13 @@ func (j *MySQLBackupJob) backup(pipeCtx context.Context) (rerr error) {
 	}
 
 	if err := xtrabackupCmd.Start(); err != nil {
+		cancel()
 		return wrapError(err)
 	}
 
 	defer func() {
 		if err := xtrabackupCmd.Wait(); err != nil {
+			cancel()
 			if rerr != nil {
 				rerr = errors.Wrapf(rerr, "xtrabackup wait error: %s", err)
 			} else {
