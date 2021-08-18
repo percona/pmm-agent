@@ -184,10 +184,12 @@ func restoreMySQLFromS3(
 	}()
 
 	if err := xbstreamCmd.Start(); err != nil {
+		cancel()
 		return errors.Wrap(wrapError(err), "xbstream start failed")
 	}
 
 	if err := xbstreamCmd.Wait(); err != nil {
+		cancel()
 		return errors.Wrap(wrapError(err), "xbstream wait failed")
 	}
 
