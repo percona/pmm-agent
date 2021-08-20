@@ -119,8 +119,8 @@ func (j *MySQLBackupJob) binariesInstalled() error {
 	return nil
 }
 
-func (j *MySQLBackupJob) backup(pipeCtx context.Context) (rerr error) {
-	pipeCtx, cancel := context.WithCancel(pipeCtx)
+func (j *MySQLBackupJob) backup(ctx context.Context) (rerr error) {
+	pipeCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
 	xtrabackupCmd := exec.CommandContext(pipeCtx, xtrabackupBin, "--compress", "--backup") // #nosec G204
