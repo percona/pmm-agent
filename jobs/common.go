@@ -51,7 +51,7 @@ func (c *PBMConfig) Equals(config *PBMConfig) bool {
 		return false
 	}
 
-	if c.Storage.S3.Bucket != c.Storage.S3.Bucket {
+	if c.Storage.S3.Bucket != config.Storage.S3.Bucket {
 		return false
 	}
 
