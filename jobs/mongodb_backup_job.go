@@ -16,7 +16,11 @@
 package jobs
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
+	"fmt"
+	"io"
 	"io/ioutil"
 	"net"
 	"net/url"
@@ -33,12 +37,34 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+type pbmLogEntry struct {
+	TS         int64 `json:"ts"`
+	pbmLogKeys `json:",inline"`
+	Msg        string `json:"msg"`
+}
+
+type pbmLogKeys struct {
+	Severity int    `json:"s"`
+	RS       string `json:"rs"`
+	Node     string `json:"node"`
+	Event    string `json:"e"`
+	ObjName  string `json:"eobj"`
+	OPID     string `json:"opid,omitempty"`
+}
+
+type pbmBackup struct {
+	Name    string `json:"name"`
+	Storage string `json:"storage"`
+}
+
 const (
 	pbmBin = "pbm"
 
 	cmdTimeout          = time.Minute
 	resyncTimeout       = 5 * time.Minute
 	statusCheckInterval = 5 * time.Second
+	logsCheckInterval   = 3 * time.Second
+	waitForLogs         = 30 * time.Second
 )
 
 // This regexp checks that there is no running pbm operations.
@@ -103,9 +129,18 @@ func (j *MongoDBBackupJob) Run(ctx context.Context, send Send) error {
 	}
 	cancel()
 
-	if err := j.startBackup(ctx); err != nil {
+	pbmBackupOut, err := j.startBackup(ctx)
+	if err != nil {
 		return errors.Wrap(err, "failed to start backup")
 	}
+	streamCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	go func() {
+		err := j.streamLogs(streamCtx, send, pbmBackupOut.Name)
+		if err != nil && err != io.EOF && err != context.Canceled {
+			j.l.Errorf("stream logs: %v", err)
+		}
+	}()
 
 	if err := waitForNoRunningPBMOperations(ctx, j.l, j.dbURL); err != nil {
 		return errors.Wrap(err, "failed to wait backup completion")
@@ -119,6 +154,10 @@ func (j *MongoDBBackupJob) Run(ctx context.Context, send Send) error {
 		},
 	})
 
+	select {
+	case <-ctx.Done():
+	case <-time.After(waitForLogs):
+	}
 	return nil
 }
 
@@ -147,19 +186,92 @@ func createDBURL(dbConfig DBConnConfig) *url.URL {
 	}
 }
 
-func (j *MongoDBBackupJob) startBackup(ctx context.Context) error {
+func (j *MongoDBBackupJob) startBackup(ctx context.Context) (pbmBackup, error) {
 	j.l.Info("Starting backup.")
 
 	nCtx, cancel := context.WithTimeout(ctx, cmdTimeout)
 	defer cancel()
 
-	output, err := exec.CommandContext(nCtx, pbmBin, "backup", "--mongodb-uri="+j.dbURL.String()).CombinedOutput() // #nosec G204
-
-	if err != nil {
-		return errors.Wrapf(err, "pbm backup error: %s", string(output))
+	var stderr bytes.Buffer
+	var stdout bytes.Buffer
+	cmd := exec.CommandContext(nCtx, pbmBin, "backup", "--out=json", "--mongodb-uri="+j.dbURL.String()) // #nosec G204
+	cmd.Stderr = &stderr
+	cmd.Stdout = &stdout
+	if err := cmd.Run(); err != nil {
+		return pbmBackup{}, errors.Wrapf(err, "pbm backup error: %s", stderr.String())
 	}
 
-	return nil
+	var result pbmBackup
+	if err := json.NewDecoder(&stdout).Decode(&result); err != nil {
+		return pbmBackup{}, err
+	}
+
+	return result, nil
+}
+
+func (j *MongoDBBackupJob) streamLogs(ctx context.Context, send Send, name string) error {
+	ticker := time.NewTicker(logsCheckInterval)
+	defer ticker.Stop()
+	var buffer bytes.Buffer
+	skip := 0
+	for {
+		select {
+		case <-ticker.C:
+			buffer.Reset()
+			logs, err := j.retrieveLogs(ctx, name)
+			if err != nil {
+				return err
+			}
+			logs = logs[skip:]
+			skip += len(logs)
+			if len(logs) == 0 {
+				continue
+			}
+			for _, log := range logs {
+				_, err = fmt.Fprintf(&buffer, "%s [%s:%s] %s\n", time.Unix(log.TS, 0), log.RS, log.Node, log.Msg)
+				if err != nil {
+					return err
+				}
+			}
+			send(&agentpb.JobProgress{
+				JobId:     j.id,
+				Timestamp: ptypes.TimestampNow(),
+				Result: &agentpb.JobProgress_Logs_{
+					Logs: &agentpb.JobProgress_Logs{
+						Out: buffer.Bytes(),
+					},
+				},
+			})
+			if logs[len(logs)-1].Msg == "backup finished" {
+				return nil
+			}
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+
+}
+func (j *MongoDBBackupJob) retrieveLogs(ctx context.Context, name string) ([]pbmLogEntry, error) {
+	nCtx, cancel := context.WithTimeout(ctx, cmdTimeout)
+	defer cancel()
+
+	cmd := exec.CommandContext(nCtx, pbmBin, "logs", "--out=json", "--event=backup/"+name, "--mongodb-uri="+j.dbURL.String())
+
+	var stderr bytes.Buffer
+	var stdout bytes.Buffer
+
+	cmd.Stderr = &stderr
+	cmd.Stdout = &stdout
+	if err := cmd.Run(); err != nil {
+		return nil, errors.Wrapf(err, "logs: %s", stderr.String())
+	}
+
+	var logs []pbmLogEntry
+	if err := json.NewDecoder(&stdout).Decode(&logs); err != nil {
+		return nil, err
+	}
+
+	return logs, nil
 }
 
 func checkRunningPBMOperations(ctx context.Context, l logrus.FieldLogger, dbURL *url.URL) (bool, error) {
