@@ -198,11 +198,8 @@ func prepareRestoreCommands(
 	return xbcloudCmd, xbstreamCmd, nil
 }
 
-func (j *MySQLRestoreJob) restoreMySQLFromS3(
-	pipeCtx context.Context,
-	targetDirectory string,
-) (rerr error) {
-	pipeCtx, cancel := context.WithCancel(pipeCtx)
+func (j *MySQLRestoreJob) restoreMySQLFromS3(ctx context.Context, targetDirectory string) (rerr error) {
+	pipeCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
 	var stderr, stdout bytes.Buffer
