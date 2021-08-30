@@ -57,6 +57,7 @@ type Client struct {
 	cfg               *config.Config
 	supervisor        supervisor
 	connectionChecker connectionChecker
+	softwareVersioner softwareVersioner
 
 	l       *logrus.Entry
 	backoff *backoff.Backoff
@@ -76,11 +77,12 @@ type Client struct {
 // New creates new client.
 //
 // Caller should call Run.
-func New(cfg *config.Config, supervisor supervisor, connectionChecker connectionChecker) *Client {
+func New(cfg *config.Config, supervisor supervisor, connectionChecker connectionChecker, sv softwareVersioner) *Client {
 	return &Client{
 		cfg:               cfg,
 		supervisor:        supervisor,
 		connectionChecker: connectionChecker,
+		softwareVersioner: sv,
 		l:                 logrus.WithField("component", "client"),
 		backoff:           backoff.New(backoffMinDelay, backoffMaxDelay),
 		done:              make(chan struct{}),
@@ -405,6 +407,8 @@ func (c *Client) processChannelRequests(ctx context.Context) {
 			alive := c.jobsRunner.IsRunning(p.JobId)
 			responsePayload = &agentpb.JobStatusResponse{Alive: alive}
 
+		case *agentpb.GetVersionsRequest:
+			responsePayload = &agentpb.GetVersionsResponse{Versions: c.handleVersionsRequest(p)}
 		case nil:
 			c.l.Errorf("Unhandled server request: %v.", req)
 		}
@@ -532,9 +536,7 @@ func (c *Client) handleStartJobRequest(p *agentpb.StartJobRequest) error {
 		return errors.Errorf("unknown job type: %T", j)
 	}
 
-	c.jobsRunner.Start(job)
-
-	return nil
+	return c.jobsRunner.Start(job)
 }
 
 func (c *Client) getActionTimeout(req *agentpb.StartActionRequest) time.Duration {
