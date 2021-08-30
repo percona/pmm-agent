@@ -189,7 +189,6 @@ func prepareRestoreCommands(
 		"-x",
 		"--directory="+targetDirectory,
 		"--parallel=10",
-		"--decompress",
 	)
 	xbstreamCmd.Stdin = xbcloudStdout
 	xbstreamCmd.Stderr = stderr
@@ -346,6 +345,15 @@ func isPathExists(path string) (bool, error) {
 }
 
 func restoreBackup(ctx context.Context, backupDirectory, mySQLDirectory string) error {
+	if output, err := exec.CommandContext( //nolint:gosec
+		ctx,
+		xtrabackupBin,
+		"--decompress",
+		"--target-dir="+backupDirectory,
+	).CombinedOutput(); err != nil {
+		return errors.Wrapf(err, "failed to decompress, output: %s", string(output))
+	}
+
 	if output, err := exec.CommandContext( //nolint:gosec
 		ctx,
 		xtrabackupBin,
