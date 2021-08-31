@@ -62,8 +62,8 @@ func (j *MongoDBRestoreJob) ID() string {
 }
 
 // Type returns Job type.
-func (j *MongoDBRestoreJob) Type() string {
-	return "mongodb_restore"
+func (j *MongoDBRestoreJob) Type() JobType {
+	return MongoDBRestore
 }
 
 // Timeout returns Job timeout.

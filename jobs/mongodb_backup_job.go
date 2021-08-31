@@ -81,8 +81,8 @@ func (j *MongoDBBackupJob) ID() string {
 }
 
 // Type returns Job type.
-func (j *MongoDBBackupJob) Type() string {
-	return "mongodb_backup"
+func (j *MongoDBBackupJob) Type() JobType {
+	return MongoDBBackup
 }
 
 // Timeout returns Job timeout.

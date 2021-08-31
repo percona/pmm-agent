@@ -23,6 +23,16 @@ import (
 	"github.com/percona/pmm/api/agentpb"
 )
 
+// JobType represents Job type.
+type JobType string
+
+const (
+	MySQLBackup    = "mysql_backup"
+	MongoDBBackup  = "mongodb_backup"
+	MongoDBRestore = "mongodb_restore"
+	MySQLRestore   = "mysql_restore"
+)
+
 // Send is interface for function that used by jobs to send messages back to pmm-server.
 type Send func(payload agentpb.AgentResponsePayload)
 
@@ -31,7 +41,7 @@ type Job interface {
 	// ID returns Job ID.
 	ID() string
 	// Type returns Job type.
-	Type() string
+	Type() JobType
 	// Timeout returns Job timeout.
 	Timeout() time.Duration
 	// Run starts Job execution.
