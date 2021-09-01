@@ -26,11 +26,12 @@ import (
 // JobType represents Job type.
 type JobType string
 
+// Available job types.
 const (
-	MySQLBackup    = "mysql_backup"
-	MongoDBBackup  = "mongodb_backup"
-	MongoDBRestore = "mongodb_restore"
-	MySQLRestore   = "mysql_restore"
+	MySQLBackup    = JobType("mysql_backup")
+	MongoDBBackup  = JobType("mongodb_backup")
+	MongoDBRestore = JobType("mongodb_restore")
+	MySQLRestore   = JobType("mysql_restore")
 )
 
 // Send is interface for function that used by jobs to send messages back to pmm-server.

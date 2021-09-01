@@ -24,8 +24,9 @@ import (
 // For example, it can be some directory or tool.
 type Entity string
 
+// Available lock entities.
 const (
-	PBM = "pbm"
+	PBM = Entity("pbm")
 )
 
 // Service is locking service. It allows acquiring of exclusive locks for entities.

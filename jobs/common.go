@@ -15,11 +15,13 @@
 
 package jobs
 
+// Storage represents target storage parameters.
 type Storage struct {
 	Type string `yaml:"type"`
 	S3   S3     `yaml:"s3"`
 }
 
+// S3 represents S3 storage parameters.
 type S3 struct {
 	Region      string      `yaml:"region"`
 	Bucket      string      `yaml:"bucket"`
@@ -28,20 +30,24 @@ type S3 struct {
 	Credentials Credentials `yaml:"credentials"`
 }
 
+// Credentials contains S3 credentials.
 type Credentials struct {
 	AccessKeyID     string `yaml:"access-key-id"`
 	SecretAccessKey string `yaml:"secret-access-key"`
 }
 
+// PITR contains Point-in-Time recovery reature related parameters.
 type PITR struct {
 	Enabled bool `yaml:"enabled"`
 }
 
+// PBMConfig represents pbm configuration file.
 type PBMConfig struct {
 	Storage Storage `yaml:"storage"`
 	PITR    PITR    `yaml:"pitr"`
 }
 
+// Equals compares two PBMConfig's.
 func (c *PBMConfig) Equals(config *PBMConfig) bool {
 	if c.PITR.Enabled != config.PITR.Enabled {
 		return false
