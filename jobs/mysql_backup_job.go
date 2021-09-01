@@ -132,7 +132,7 @@ func (j *MySQLBackupJob) backup(ctx context.Context) (rerr error) {
 
 	defer func() {
 		if err := os.RemoveAll(tmpDir); err != nil {
-			j.l.WithError(err).Error("failed to remove temporary directory")
+			j.l.WithError(err).Warn("failed to remove temporary directory")
 		}
 	}()
 
