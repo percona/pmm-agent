@@ -112,7 +112,7 @@ func TestConnectionChecker(t *testing.T) {
 				Type:    inventorypb.ServiceType_MONGODB_SERVICE,
 				Timeout: ptypes.DurationProto(time.Nanosecond),
 			},
-			expectedErr: `server selection error: context deadline exceeded, current topology: \\{ Type: Unknown, Servers: \\[\\{ Addr: 127.0.0.1:27017, Type: Unknown \\}, \\] \\}`,
+			expectedErr: `server selection error: context deadline exceeded, current topology: \{ Type: Unknown, Servers: \[\{ Addr: 127.0.0.1:27017, Type: Unknown \}, \] \}`,
 		}, {
 			name: "MongoDB no database",
 			req: &agentpb.CheckConnectionRequest{
