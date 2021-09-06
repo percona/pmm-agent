@@ -214,6 +214,7 @@ func (j *MongoDBBackupJob) streamLogs(ctx context.Context, send Send, name strin
 	defer ticker.Stop()
 	var buffer bytes.Buffer
 	skip := 0
+	var chunkID uint32
 	for {
 		select {
 		case <-ticker.C:
@@ -238,10 +239,12 @@ func (j *MongoDBBackupJob) streamLogs(ctx context.Context, send Send, name strin
 				Timestamp: ptypes.TimestampNow(),
 				Result: &agentpb.JobProgress_Logs_{
 					Logs: &agentpb.JobProgress_Logs{
-						Out: buffer.Bytes(),
+						ChunkId: chunkID,
+						Message: buffer.Bytes(),
 					},
 				},
 			})
+			chunkID++
 			if logs[len(logs)-1].Msg == "backup finished" {
 				return nil
 			}
@@ -255,7 +258,7 @@ func (j *MongoDBBackupJob) retrieveLogs(ctx context.Context, name string) ([]pbm
 	nCtx, cancel := context.WithTimeout(ctx, cmdTimeout)
 	defer cancel()
 
-	cmd := exec.CommandContext(nCtx, pbmBin, "logs", "--out=json", "--event=backup/"+name, "--mongodb-uri="+j.dbURL.String())
+	cmd := exec.CommandContext(nCtx, pbmBin, "logs", "--out=json", "--event=backup/"+name, "--mongodb-uri="+j.dbURL.String()) // #nosec G204
 
 	var stderr bytes.Buffer
 	var stdout bytes.Buffer
