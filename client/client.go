@@ -37,12 +37,11 @@ import (
 	"google.golang.org/grpc/credentials"
 	grpcstatus "google.golang.org/grpc/status"
 
-	"github.com/percona/pmm-agent/lock"
-
 	"github.com/percona/pmm-agent/actions" // TODO https://jira.percona.com/browse/PMM-7206
 	"github.com/percona/pmm-agent/client/channel"
 	"github.com/percona/pmm-agent/config"
 	"github.com/percona/pmm-agent/jobs"
+	"github.com/percona/pmm-agent/lock"
 	"github.com/percona/pmm-agent/utils/backoff"
 )
 
