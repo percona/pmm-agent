@@ -133,19 +133,29 @@ func (j *MongoDBBackupJob) Run(ctx context.Context, send Send) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to start backup")
 	}
-	streamCtx, cancel := context.WithCancel(ctx)
-	defer cancel()
+	backupFinished := make(chan struct{}, 1)
+	streamCtx, streamCancel := context.WithCancel(ctx)
+	defer streamCancel()
 	go func() {
-		err := j.streamLogs(streamCtx, send, pbmBackupOut.Name)
+		err := j.streamLogs(streamCtx, send, pbmBackupOut.Name, backupFinished)
 		if err != nil && err != io.EOF && err != context.Canceled {
 			j.l.Errorf("stream logs: %v", err)
 		}
+		send(&agentpb.JobProgress{
+			JobId:     j.id,
+			Timestamp: ptypes.TimestampNow(),
+			Result: &agentpb.JobProgress_Logs_{
+				Logs: &agentpb.JobProgress_Logs{
+					Done: true,
+				},
+			},
+		})
 	}()
 
 	if err := waitForNoRunningPBMOperations(ctx, j.l, j.dbURL); err != nil {
 		return errors.Wrap(err, "failed to wait backup completion")
 	}
-
+	backupFinished <- struct{}{}
 	send(&agentpb.JobResult{
 		JobId:     j.id,
 		Timestamp: ptypes.TimestampNow(),
@@ -209,17 +219,35 @@ func (j *MongoDBBackupJob) startBackup(ctx context.Context) (pbmBackup, error) {
 	return result, nil
 }
 
-func (j *MongoDBBackupJob) streamLogs(ctx context.Context, send Send, name string) error {
+func (j *MongoDBBackupJob) streamLogs(ctx context.Context, send Send, name string, backupFinished <-chan struct{}) error {
+	var (
+		err        error
+		backupDone bool
+		logs       []pbmLogEntry
+		buffer     bytes.Buffer
+		chunkID    uint32
+		skip       int
+		lastLog    pbmLogEntry
+	)
+	finished := func() bool {
+		if lastLog.Msg == "backup finished" {
+			return true
+		}
+		if backupDone && len(logs) == 0 {
+			return true
+		}
+		return false
+	}
+
 	ticker := time.NewTicker(logsCheckInterval)
 	defer ticker.Stop()
-	var buffer bytes.Buffer
-	skip := 0
-	var chunkID uint32
+
 	for {
 		select {
+		case <-backupFinished:
+			backupDone = true
 		case <-ticker.C:
-			buffer.Reset()
-			logs, err := j.retrieveLogs(ctx, name)
+			logs, err = j.retrieveLogs(ctx, name)
 			if err != nil {
 				return err
 			}
@@ -228,26 +256,37 @@ func (j *MongoDBBackupJob) streamLogs(ctx context.Context, send Send, name strin
 			if len(logs) == 0 {
 				continue
 			}
-			for _, log := range logs {
-				_, err = fmt.Fprintf(&buffer, "%s [%s:%s] %s\n", time.Unix(log.TS, 0), log.RS, log.Node, log.Msg)
-				if err != nil {
-					return err
+
+			from, to := 0, maxLogsChunkSize
+			for from < len(logs) {
+				if to > len(logs) {
+					to = len(logs)
 				}
-			}
-			send(&agentpb.JobProgress{
-				JobId:     j.id,
-				Timestamp: ptypes.TimestampNow(),
-				Result: &agentpb.JobProgress_Logs_{
-					Logs: &agentpb.JobProgress_Logs{
-						ChunkId: chunkID,
-						Message: buffer.Bytes(),
+				buffer.Reset()
+				for _, log := range logs[from:to] {
+					_, err = fmt.Fprintf(&buffer, "%s [%s:%s] %s\n", time.Unix(log.TS, 0), log.RS, log.Node, log.Msg)
+					if err != nil {
+						return err
+					}
+				}
+				send(&agentpb.JobProgress{
+					JobId:     j.id,
+					Timestamp: ptypes.TimestampNow(),
+					Result: &agentpb.JobProgress_Logs_{
+						Logs: &agentpb.JobProgress_Logs{
+							ChunkId: chunkID,
+							Message: buffer.Bytes(),
+						},
 					},
-				},
-			})
-			chunkID++
-			if logs[len(logs)-1].Msg == "backup finished" {
+				})
+				chunkID++
+				from += maxLogsChunkSize
+				to += maxLogsChunkSize
+			}
+			if finished() {
 				return nil
 			}
+			lastLog = logs[len(logs)-1]
 		case <-ctx.Done():
 			return ctx.Err()
 		}
