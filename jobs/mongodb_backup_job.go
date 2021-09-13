@@ -35,10 +35,8 @@ import (
 const (
 	pbmBin = "pbm"
 
-	resyncTimeout       = 5 * time.Minute
-	statusCheckInterval = 5 * time.Second
-	logsCheckInterval   = 3 * time.Second
-	waitForLogs         = 3 * time.Second
+	logsCheckInterval = 3 * time.Second
+	waitForLogs       = 3 * time.Second
 )
 
 // MongoDBBackupJob implements Job from MongoDB backup.

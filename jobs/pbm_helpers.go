@@ -15,7 +15,9 @@ import (
 )
 
 const (
-	cmdTimeout = time.Minute
+	cmdTimeout          = time.Minute
+	resyncTimeout       = 5 * time.Minute
+	statusCheckInterval = 5 * time.Second
 )
 
 type pbmLogEntry struct {
@@ -85,7 +87,7 @@ func getPBMOutput(ctx context.Context, dbURL *url.URL, to interface{}, args ...s
 
 	b, err := cmd.Output()
 	if err != nil {
-		var exitErr exec.ExitError
+		var exitErr *exec.ExitError
 		if errors.As(err, &exitErr) {
 			return errors.New(string(exitErr.Stderr))
 		}
@@ -145,7 +147,16 @@ func noRunningOperations(s pbmStatus) (bool, error) {
 }
 
 func pbmBackupFinished(name string) pbmStatusCondition {
+	started := false
+	checks := 0
 	return func(s pbmStatus) (bool, error) {
+		checks++
+		if s.Running.Type == "backup" && s.Running.Name == name && s.Running.Status != "" {
+			started = true
+		}
+		if !started && checks > 10 {
+			return false, errors.New("failed to start backup")
+		}
 		var snapshot *pbmSnapshot
 		for _, snap := range s.Backups.Snapshot {
 			if snap.Name == name {
@@ -156,7 +167,13 @@ func pbmBackupFinished(name string) pbmStatusCondition {
 		if snapshot == nil {
 			return false, nil
 		}
-		return s.Running.Status == "" && snapshot.Status == "done", nil
+		if s.Running.Status != "" {
+			return false, nil
+		}
+		if snapshot.Status == "error" {
+			return false, errors.New(snapshot.Error)
+		}
+		return snapshot.Status == "done", nil
 	}
 }
 
