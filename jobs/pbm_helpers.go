@@ -47,6 +47,15 @@ type pbmSnapshot struct {
 	CompleteTS int    `json:"completeTS"`
 	PbmVersion string `json:"pbmVersion"`
 }
+
+type pbmList struct {
+	Snapshots []pbmSnapshot `json:"snapshots"`
+	Pitr      struct {
+		On     bool        `json:"on"`
+		Ranges interface{} `json:"ranges"`
+	} `json:"pitr"`
+}
+
 type pbmStatus struct {
 	Backups struct {
 		Type       string        `json:"type"`
