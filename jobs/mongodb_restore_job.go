@@ -84,7 +84,7 @@ func (j *MongoDBRestoreJob) Run(ctx context.Context, send Send) error {
 	}
 
 	rCtx, cancel := context.WithTimeout(ctx, resyncTimeout)
-	if err := waitForNoRunningPBMOperations(rCtx, j.l, j.dbURL); err != nil {
+	if err := waitForPBMState(rCtx, j.l, j.dbURL, noRunningOperations); err != nil {
 		cancel()
 		return errors.Wrap(err, "failed to wait pbm resync completion")
 	}
@@ -99,7 +99,7 @@ func (j *MongoDBRestoreJob) Run(ctx context.Context, send Send) error {
 		return errors.Wrap(err, "failed to start backup restore")
 	}
 
-	if err := waitForNoRunningPBMOperations(ctx, j.l, j.dbURL); err != nil {
+	if err := waitForPBMState(ctx, j.l, j.dbURL, noRunningOperations); err != nil {
 		return errors.Wrap(err, "failed to wait backup restore completion")
 	}
 
