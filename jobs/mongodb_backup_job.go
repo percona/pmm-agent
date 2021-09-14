@@ -26,10 +26,10 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/golang/protobuf/ptypes"
 	"github.com/percona/pmm/api/agentpb"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 const (
@@ -112,10 +112,11 @@ func (j *MongoDBBackupJob) Run(ctx context.Context, send Send) error {
 		}
 		send(&agentpb.JobProgress{
 			JobId:     j.id,
-			Timestamp: ptypes.TimestampNow(),
+			Timestamp: timestamppb.Now(),
 			Result: &agentpb.JobProgress_Logs_{
 				Logs: &agentpb.JobProgress_Logs{
 					Done: true,
+					Time: timestamppb.Now(),
 				},
 			},
 		})
@@ -127,7 +128,7 @@ func (j *MongoDBBackupJob) Run(ctx context.Context, send Send) error {
 	backupFinished <- struct{}{}
 	send(&agentpb.JobResult{
 		JobId:     j.id,
-		Timestamp: ptypes.TimestampNow(),
+		Timestamp: timestamppb.Now(),
 		Result: &agentpb.JobResult_MongodbBackup{
 			MongodbBackup: &agentpb.JobResult_MongoDBBackup{},
 		},
@@ -208,6 +209,7 @@ func (j *MongoDBBackupJob) streamLogs(ctx context.Context, send Send, name strin
 			if err != nil {
 				return err
 			}
+			t := timestamppb.Now()
 			logs = logs[skip:]
 			skip += len(logs)
 			if len(logs) == 0 {
@@ -220,18 +222,19 @@ func (j *MongoDBBackupJob) streamLogs(ctx context.Context, send Send, name strin
 				}
 				buffer.Reset()
 				for _, log := range logs[from:to] {
-					_, err = fmt.Fprintf(&buffer, "%s [%s:%s] %s\n", time.Unix(log.TS, 0), log.RS, log.Node, log.Msg)
+					_, err = fmt.Fprintf(&buffer, "%s %s [%s:%s] [%s/%s] %s\n", time.Unix(log.TS, 0), log.Severity, log.RS, log.Node, log.Event, log.ObjName, log.Msg)
 					if err != nil {
 						return err
 					}
 				}
 				send(&agentpb.JobProgress{
 					JobId:     j.id,
-					Timestamp: ptypes.TimestampNow(),
+					Timestamp: timestamppb.Now(),
 					Result: &agentpb.JobProgress_Logs_{
 						Logs: &agentpb.JobProgress_Logs{
 							ChunkId: chunkID,
-							Message: buffer.Bytes(),
+							Message: buffer.String(),
+							Time:    t,
 						},
 					},
 				})

@@ -15,10 +15,40 @@ import (
 )
 
 const (
+	// How many times check if backup/restore operation was started
+	maxBackupChecks     = 10
+	maxRestoreChecks    = 10
 	cmdTimeout          = time.Minute
 	resyncTimeout       = 5 * time.Minute
 	statusCheckInterval = 3 * time.Second
 )
+
+type pbmSeverity int
+
+const (
+	Fatal pbmSeverity = iota
+	Error
+	Warning
+	Info
+	Debug
+)
+
+func (s pbmSeverity) String() string {
+	switch s {
+	case Fatal:
+		return "F"
+	case Error:
+		return "E"
+	case Warning:
+		return "W"
+	case Info:
+		return "I"
+	case Debug:
+		return "D"
+	default:
+		return ""
+	}
+}
 
 type pbmLogEntry struct {
 	TS         int64 `json:"ts"`
@@ -27,12 +57,12 @@ type pbmLogEntry struct {
 }
 
 type pbmLogKeys struct {
-	Severity int    `json:"s"`
-	RS       string `json:"rs"`
-	Node     string `json:"node"`
-	Event    string `json:"e"`
-	ObjName  string `json:"eobj"`
-	OPID     string `json:"opid,omitempty"`
+	Severity pbmSeverity `json:"s"`
+	RS       string      `json:"rs"`
+	Node     string      `json:"node"`
+	Event    string      `json:"e"`
+	ObjName  string      `json:"eobj"`
+	OPID     string      `json:"opid,omitempty"`
 }
 
 type pbmBackup struct {
@@ -163,7 +193,7 @@ func pbmBackupFinished(name string) pbmStatusCondition {
 		if s.Running.Type == "backup" && s.Running.Name == name && s.Running.Status != "" {
 			started = true
 		}
-		if !started && checks > 10 {
+		if !started && checks > maxBackupChecks {
 			return false, errors.New("failed to start backup")
 		}
 		var snapshot *pbmSnapshot
@@ -193,7 +223,7 @@ func pbmRestoreFinished(name string) pbmStatusCondition {
 			started = true
 		}
 		if !started {
-			if checks > 10 {
+			if checks > maxRestoreChecks {
 				return false, errors.New("failed to start backup")
 			}
 			return false, nil
