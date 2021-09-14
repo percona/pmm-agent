@@ -18,7 +18,6 @@ package jobs
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"io"
 	"net"
 	"net/url"
@@ -223,10 +222,13 @@ func (j *MongoDBBackupJob) streamLogs(ctx context.Context, send Send, name strin
 					to = len(logs)
 				}
 				buffer.Reset()
-				for _, log := range logs[from:to] {
-					_, err = fmt.Fprintf(&buffer, "%s %s [%s:%s] [%s/%s] %s\n", time.Unix(log.TS, 0), log.Severity, log.RS, log.Node, log.Event, log.ObjName, log.Msg)
+				for i, log := range logs[from:to] {
+					_, err := buffer.WriteString(log.String())
 					if err != nil {
 						return err
+					}
+					if i != to-from-1 {
+						buffer.WriteRune('\n')
 					}
 				}
 				send(&agentpb.JobProgress{

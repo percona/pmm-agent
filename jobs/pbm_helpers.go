@@ -3,6 +3,7 @@ package jobs
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"net/url"
 	"os"
@@ -54,6 +55,11 @@ type pbmLogEntry struct {
 	TS         int64 `json:"ts"`
 	pbmLogKeys `json:",inline"`
 	Msg        string `json:"msg"`
+}
+
+func (e pbmLogEntry) String() string {
+	return fmt.Sprintf("%s %s [%s/%s] [%s/%s] %s",
+		time.Unix(e.TS, 0).Format(time.RFC3339), e.Severity, e.RS, e.Node, e.Event, e.ObjName, e.Msg)
 }
 
 type pbmLogKeys struct {
