@@ -41,12 +41,13 @@ const (
 
 // MongoDBBackupJob implements Job from MongoDB backup.
 type MongoDBBackupJob struct {
-	id       string
-	timeout  time.Duration
-	l        logrus.FieldLogger
-	name     string
-	dbURL    *url.URL
-	location BackupLocationConfig
+	id         string
+	timeout    time.Duration
+	l          logrus.FieldLogger
+	name       string
+	dbURL      *url.URL
+	location   BackupLocationConfig
+	logChunkID uint32
 }
 
 // NewMongoDBBackupJob creates new Job for MongoDB backup.
@@ -115,8 +116,9 @@ func (j *MongoDBBackupJob) Run(ctx context.Context, send Send) error {
 			Timestamp: timestamppb.Now(),
 			Result: &agentpb.JobProgress_Logs_{
 				Logs: &agentpb.JobProgress_Logs{
-					Done: true,
-					Time: timestamppb.Now(),
+					Done:    true,
+					ChunkId: j.logChunkID,
+					Time:    timestamppb.Now(),
 				},
 			},
 		})
@@ -183,10 +185,10 @@ func (j *MongoDBBackupJob) streamLogs(ctx context.Context, send Send, name strin
 		backupDone bool
 		logs       []pbmLogEntry
 		buffer     bytes.Buffer
-		chunkID    uint32
 		skip       int
 		lastLog    pbmLogEntry
 	)
+	j.logChunkID = 0
 	finished := func() bool {
 		if lastLog.Msg == "backup finished" {
 			return true
@@ -232,13 +234,13 @@ func (j *MongoDBBackupJob) streamLogs(ctx context.Context, send Send, name strin
 					Timestamp: timestamppb.Now(),
 					Result: &agentpb.JobProgress_Logs_{
 						Logs: &agentpb.JobProgress_Logs{
-							ChunkId: chunkID,
+							ChunkId: j.logChunkID,
 							Message: buffer.String(),
 							Time:    t,
 						},
 					},
 				})
-				chunkID++
+				j.logChunkID++
 				from += maxLogsChunkSize
 				to += maxLogsChunkSize
 			}
