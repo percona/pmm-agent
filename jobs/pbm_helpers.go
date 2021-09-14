@@ -17,7 +17,7 @@ import (
 const (
 	cmdTimeout          = time.Minute
 	resyncTimeout       = 5 * time.Minute
-	statusCheckInterval = 5 * time.Second
+	statusCheckInterval = 3 * time.Second
 )
 
 type pbmLogEntry struct {
@@ -151,7 +151,7 @@ func pbmSetupS3(ctx context.Context, l logrus.FieldLogger, dbURL *url.URL, prefi
 
 type pbmStatusCondition func(s pbmStatus) (bool, error)
 
-func noRunningOperations(s pbmStatus) (bool, error) {
+func pbmNoRunningOperations(s pbmStatus) (bool, error) {
 	return s.Running.Status == "", nil
 }
 
@@ -173,16 +173,32 @@ func pbmBackupFinished(name string) pbmStatusCondition {
 				break
 			}
 		}
-		if snapshot == nil {
+		if snapshot == nil || s.Running.Status != "" {
 			return false, nil
 		}
-		if s.Running.Status != "" {
-			return false, nil
-		}
+
 		if snapshot.Status == "error" {
 			return false, errors.New(snapshot.Error)
 		}
 		return snapshot.Status == "done", nil
+	}
+}
+
+func pbmRestoreFinished(name string) pbmStatusCondition {
+	started := false
+	checks := 0
+	return func(s pbmStatus) (bool, error) {
+		checks++
+		if s.Running.Type == "restore" && s.Running.Name == name && s.Running.Status != "" {
+			started = true
+		}
+		if !started {
+			if checks > 10 {
+				return false, errors.New("failed to start backup")
+			}
+			return false, nil
+		}
+		return s.Running.Status == "", nil
 	}
 }
 

@@ -92,7 +92,7 @@ func (j *MongoDBBackupJob) Run(ctx context.Context, send Send) error {
 	}
 
 	rCtx, cancel := context.WithTimeout(ctx, resyncTimeout)
-	if err := waitForPBMState(rCtx, j.l, j.dbURL, noRunningOperations); err != nil {
+	if err := waitForPBMState(rCtx, j.l, j.dbURL, pbmNoRunningOperations); err != nil {
 		cancel()
 		return errors.Wrap(err, "failed to wait pbm resync completion")
 	}
