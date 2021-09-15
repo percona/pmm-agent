@@ -91,11 +91,12 @@ func (j *MongoDBRestoreJob) Run(ctx context.Context, send Send) error {
 		return errors.WithStack(err)
 	}
 
-	if err := j.startRestore(ctx, backupName); err != nil {
+	restoreOut, err := j.startRestore(ctx, backupName)
+	if err != nil {
 		return errors.Wrap(err, "failed to start backup restore")
 	}
 
-	if err := waitForPBMState(ctx, j.l, j.dbURL, pbmRestoreFinished(backupName)); err != nil {
+	if err := waitForPBMRestore(ctx, j.l, j.dbURL, restoreOut.Snapshot); err != nil {
 		return errors.Wrap(err, "failed to wait backup restore completion")
 	}
 
@@ -124,17 +125,14 @@ func (j *MongoDBRestoreJob) findBackupEntityName(ctx context.Context) (string, e
 	return list.Snapshots[len(list.Snapshots)-1].Name, nil
 }
 
-func (j *MongoDBRestoreJob) startRestore(ctx context.Context, backupName string) error {
+func (j *MongoDBRestoreJob) startRestore(ctx context.Context, backupName string) (*pbmRestore, error) {
 	j.l.Info("Starting backup restore.")
 
-	nCtx, cancel := context.WithTimeout(ctx, cmdTimeout)
-	defer cancel()
-
-	output, err := exec.CommandContext(nCtx, pbmBin, "restore", "--mongodb-uri="+j.dbURL.String(), backupName).CombinedOutput() // #nosec G204
-
+	var restoreOutput pbmRestore
+	err := getPBMOutput(ctx, j.dbURL, &restoreOutput, "restore", backupName)
 	if err != nil {
-		return errors.Wrapf(err, "pbm restore error: %s", string(output))
+		return nil, errors.Wrapf(err, "pbm restore error: %v", err)
 	}
 
-	return nil
+	return &restoreOutput, nil
 }

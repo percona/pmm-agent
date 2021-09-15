@@ -91,6 +91,10 @@ type pbmBackup struct {
 	Storage string `json:"storage"`
 }
 
+type pbmRestore struct {
+	Snapshot string `json:"snapshot"`
+}
+
 type pbmSnapshot struct {
 	Name       string `json:"name"`
 	Status     string `json:"status"`
@@ -105,6 +109,15 @@ type pbmList struct {
 		On     bool        `json:"on"`
 		Ranges interface{} `json:"ranges"`
 	} `json:"pitr"`
+}
+
+type pbmListRestore struct {
+	Start    int    `json:"start"`
+	Status   string `json:"status"`
+	Type     string `json:"type"`
+	Snapshot string `json:"snapshot"`
+	Name     string `json:"name"`
+	Error    string `json:"error"`
 }
 
 type pbmStatus struct {
@@ -245,24 +258,6 @@ func pbmBackupFinished(name string) pbmStatusCondition {
 	}
 }
 
-func pbmRestoreFinished(name string) pbmStatusCondition {
-	started := false
-	checks := 0
-	return func(s pbmStatus) (bool, error) {
-		checks++
-		if s.Running.Type == "restore" && s.Running.Name == name && s.Running.Status != "" {
-			started = true
-		}
-		if !started {
-			if checks > maxRestoreChecks {
-				return false, errors.New("failed to start backup")
-			}
-			return false, nil
-		}
-		return s.Running.Status == "", nil
-	}
-}
-
 func waitForPBMState(ctx context.Context, l logrus.FieldLogger, dbURL *url.URL, cond pbmStatusCondition) error {
 	l.Info("Waiting for pbm state condition.")
 
@@ -289,6 +284,47 @@ func waitForPBMState(ctx context.Context, l logrus.FieldLogger, dbURL *url.URL, 
 	}
 }
 
+func waitForPBMRestore(ctx context.Context, l logrus.FieldLogger, dbURL *url.URL, name string) error {
+	l.Info("Waiting for pbm restore.")
+
+	ticker := time.NewTicker(statusCheckInterval)
+	defer ticker.Stop()
+	// Find from end (the newest one) until https://jira.percona.com/browse/PBM-723 is not done.
+	findRestore := func(list []pbmListRestore) *pbmListRestore {
+		for i := len(list) - 1; i >= 0; i-- {
+			if list[i].Name == name {
+				return &list[i]
+			}
+		}
+		return nil
+	}
+	checks := 0
+	for {
+		select {
+		case <-ticker.C:
+			checks++
+			var list []pbmListRestore
+			if err := getPBMOutput(ctx, dbURL, &list, "list", "--restore"); err != nil {
+				return errors.Wrapf(err, "pbm status error")
+			}
+			entry := findRestore(list)
+			if entry == nil {
+				if checks > maxRestoreChecks {
+					return errors.Errorf("failed to start restore")
+				}
+				continue
+			}
+			if entry.Status == "error" {
+				return errors.New(entry.Error)
+			}
+			if entry.Status == "done" {
+				return nil
+			}
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+}
 func writePBMConfigFile(prefix string, s3Config *S3LocationConfig) (string, error) {
 	tmp, err := ioutil.TempFile("", "pbm-config-*.yml")
 	if err != nil {
