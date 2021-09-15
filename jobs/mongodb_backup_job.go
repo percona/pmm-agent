@@ -206,7 +206,7 @@ func (j *MongoDBBackupJob) streamLogs(ctx context.Context, send Send, name strin
 		case <-backupFinished:
 			backupDone = true
 		case <-ticker.C:
-			logs, err = j.retrieveLogs(ctx, name)
+			logs, err = retrieveLogs(ctx, j.dbURL, "backup/"+name)
 			if err != nil {
 				return err
 			}
@@ -255,13 +255,4 @@ func (j *MongoDBBackupJob) streamLogs(ctx context.Context, send Send, name strin
 		}
 	}
 
-}
-func (j *MongoDBBackupJob) retrieveLogs(ctx context.Context, name string) ([]pbmLogEntry, error) {
-	var logs []pbmLogEntry
-
-	if err := getPBMOutput(ctx, j.dbURL, &logs, "logs", "--event=backup/"+name); err != nil {
-		return nil, err
-	}
-
-	return logs, nil
 }

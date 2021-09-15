@@ -42,24 +42,24 @@ const (
 type pbmSeverity int
 
 const (
-	Fatal pbmSeverity = iota
-	Error
-	Warning
-	Info
-	Debug
+	pbmFatal pbmSeverity = iota
+	pbmError
+	pbmWarning
+	pbmInfo
+	pbmDebug
 )
 
 func (s pbmSeverity) String() string {
 	switch s {
-	case Fatal:
+	case pbmFatal:
 		return "F"
-	case Error:
+	case pbmError:
 		return "E"
-	case Warning:
+	case pbmWarning:
 		return "W"
-	case Info:
+	case pbmInfo:
 		return "I"
-	case Debug:
+	case pbmDebug:
 		return "D"
 	default:
 		return ""
@@ -200,6 +200,16 @@ func pbmSetupS3(ctx context.Context, l logrus.FieldLogger, dbURL *url.URL, prefi
 	return nil
 }
 
+func retrieveLogs(ctx context.Context, dbURL *url.URL, event string) ([]pbmLogEntry, error) {
+	var logs []pbmLogEntry
+
+	if err := getPBMOutput(ctx, dbURL, &logs, "logs", "--event="+event, "--tail=0"); err != nil {
+		return nil, err
+	}
+
+	return logs, nil
+}
+
 type pbmStatusCondition func(s pbmStatus) (bool, error)
 
 func pbmNoRunningOperations(s pbmStatus) (bool, error) {
@@ -218,9 +228,9 @@ func pbmBackupFinished(name string) pbmStatusCondition {
 			return false, errors.New("failed to start backup")
 		}
 		var snapshot *pbmSnapshot
-		for _, snap := range s.Backups.Snapshot {
+		for i, snap := range s.Backups.Snapshot {
 			if snap.Name == name {
-				snapshot = &snap
+				snapshot = &s.Backups.Snapshot[i]
 				break
 			}
 		}
