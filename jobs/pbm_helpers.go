@@ -264,7 +264,7 @@ func pbmRestoreFinished(name string) pbmStatusCondition {
 }
 
 func waitForPBMState(ctx context.Context, l logrus.FieldLogger, dbURL *url.URL, cond pbmStatusCondition) error {
-	l.Info("Waiting for pbm operations completion.")
+	l.Info("Waiting for pbm state condition.")
 
 	ticker := time.NewTicker(statusCheckInterval)
 	defer ticker.Stop()
