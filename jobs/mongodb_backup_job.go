@@ -35,7 +35,7 @@ const (
 	pbmBin = "pbm"
 
 	logsCheckInterval = 3 * time.Second
-	waitForLogs       = 3 * time.Second
+	waitForLogs       = 2 * logsCheckInterval
 )
 
 // MongoDBBackupJob implements Job from MongoDB backup.
@@ -102,7 +102,7 @@ func (j *MongoDBBackupJob) Run(ctx context.Context, send Send) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to start backup")
 	}
-	backupFinished := make(chan struct{}, 1)
+	backupFinished := make(chan struct{})
 	streamCtx, streamCancel := context.WithCancel(ctx)
 	defer streamCancel()
 	go func() {
@@ -126,7 +126,7 @@ func (j *MongoDBBackupJob) Run(ctx context.Context, send Send) error {
 	if err := waitForPBMState(ctx, j.l, j.dbURL, pbmBackupFinished(pbmBackupOut.Name)); err != nil {
 		return errors.Wrap(err, "failed to wait backup completion")
 	}
-	backupFinished <- struct{}{}
+	close(backupFinished)
 	send(&agentpb.JobResult{
 		JobId:     j.id,
 		Timestamp: timestamppb.Now(),
@@ -171,7 +171,7 @@ func (j *MongoDBBackupJob) startBackup(ctx context.Context) (*pbmBackup, error) 
 	j.l.Info("Starting backup.")
 	var result pbmBackup
 
-	if err := getPBMOutput(ctx, j.dbURL, &result, "backup"); err != nil {
+	if err := execPBMCommand(ctx, j.dbURL, &result, "backup"); err != nil {
 		return nil, err
 	}
 
@@ -237,7 +237,7 @@ func (j *MongoDBBackupJob) streamLogs(ctx context.Context, send Send, name strin
 					Result: &agentpb.JobProgress_Logs_{
 						Logs: &agentpb.JobProgress_Logs{
 							ChunkId: j.logChunkID,
-							Message: buffer.String(),
+							Data:    buffer.String(),
 							Time:    t,
 						},
 					},

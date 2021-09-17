@@ -114,7 +114,7 @@ func (j *MongoDBRestoreJob) findBackupEntityName(ctx context.Context) (string, e
 	j.l.Info("Finding backup entity name.")
 
 	var list pbmList
-	if err := getPBMOutput(ctx, j.dbURL, &list, "list"); err != nil {
+	if err := execPBMCommand(ctx, j.dbURL, &list, "list"); err != nil {
 		return "", err
 	}
 
@@ -129,7 +129,7 @@ func (j *MongoDBRestoreJob) startRestore(ctx context.Context, backupName string)
 	j.l.Info("Starting backup restore.")
 
 	var restoreOutput pbmRestore
-	err := getPBMOutput(ctx, j.dbURL, &restoreOutput, "restore", backupName)
+	err := execPBMCommand(ctx, j.dbURL, &restoreOutput, "restore", backupName)
 	if err != nil {
 		return nil, errors.Wrapf(err, "pbm restore error: %v", err)
 	}

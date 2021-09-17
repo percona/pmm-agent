@@ -151,7 +151,7 @@ type pbmStatus struct {
 	} `json:"running"`
 }
 
-func getPBMOutput(ctx context.Context, dbURL *url.URL, to interface{}, args ...string) error {
+func execPBMCommand(ctx context.Context, dbURL *url.URL, to interface{}, args ...string) error {
 	nCtx, cancel := context.WithTimeout(ctx, cmdTimeout)
 	defer cancel()
 
@@ -216,7 +216,7 @@ func pbmSetupS3(ctx context.Context, l logrus.FieldLogger, dbURL *url.URL, prefi
 func retrieveLogs(ctx context.Context, dbURL *url.URL, event string) ([]pbmLogEntry, error) {
 	var logs []pbmLogEntry
 
-	if err := getPBMOutput(ctx, dbURL, &logs, "logs", "--event="+event, "--tail=0"); err != nil {
+	if err := execPBMCommand(ctx, dbURL, &logs, "logs", "--event="+event, "--tail=0"); err != nil {
 		return nil, err
 	}
 
@@ -268,7 +268,7 @@ func waitForPBMState(ctx context.Context, l logrus.FieldLogger, dbURL *url.URL, 
 		select {
 		case <-ticker.C:
 			var status pbmStatus
-			if err := getPBMOutput(ctx, dbURL, &status, "status"); err != nil {
+			if err := execPBMCommand(ctx, dbURL, &status, "status"); err != nil {
 				return errors.Wrapf(err, "pbm status error")
 			}
 			done, err := cond(status)
@@ -304,7 +304,7 @@ func waitForPBMRestore(ctx context.Context, l logrus.FieldLogger, dbURL *url.URL
 		case <-ticker.C:
 			checks++
 			var list []pbmListRestore
-			if err := getPBMOutput(ctx, dbURL, &list, "list", "--restore"); err != nil {
+			if err := execPBMCommand(ctx, dbURL, &list, "list", "--restore"); err != nil {
 				return errors.Wrapf(err, "pbm status error")
 			}
 			entry := findRestore(list)
