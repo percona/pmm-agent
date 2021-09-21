@@ -231,6 +231,7 @@ func pbmNoRunningOperations(s pbmStatus) (bool, error) {
 
 func pbmBackupFinished(name string) pbmStatusCondition {
 	started := false
+	snapshotStarted := false
 	checks := 0
 	return func(s pbmStatus) (bool, error) {
 		checks++
@@ -251,9 +252,16 @@ func pbmBackupFinished(name string) pbmStatusCondition {
 			return false, nil
 		}
 
-		if snapshot.Status == "error" {
+		switch snapshot.Status {
+		case "starting", "running", "dumpDone":
+			snapshotStarted = true
+			return false, nil
+		}
+
+		if snapshotStarted && snapshot.Status == "error" {
 			return false, errors.New(snapshot.Error)
 		}
+
 		return snapshot.Status == "done", nil
 	}
 }
