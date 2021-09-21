@@ -117,7 +117,6 @@ func (j *MongoDBBackupJob) Run(ctx context.Context, send Send) error {
 				Logs: &agentpb.JobProgress_Logs{
 					Done:    true,
 					ChunkId: j.logChunkID,
-					Time:    timestamppb.Now(),
 				},
 			},
 		})
@@ -210,7 +209,7 @@ func (j *MongoDBBackupJob) streamLogs(ctx context.Context, send Send, name strin
 			if err != nil {
 				return err
 			}
-			t := timestamppb.Now()
+			// @TODO Replace skip with proper paging after this is done https://jira.percona.com/browse/PBM-713
 			logs = logs[skip:]
 			skip += len(logs)
 			if len(logs) == 0 {
@@ -238,7 +237,6 @@ func (j *MongoDBBackupJob) streamLogs(ctx context.Context, send Send, name strin
 						Logs: &agentpb.JobProgress_Logs{
 							ChunkId: j.logChunkID,
 							Data:    buffer.String(),
-							Time:    t,
 						},
 					},
 				})

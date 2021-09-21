@@ -247,7 +247,7 @@ func pbmBackupFinished(name string) pbmStatusCondition {
 				break
 			}
 		}
-		if snapshot == nil || s.Running.Status != "" {
+		if snapshot == nil {
 			return false, nil
 		}
 
@@ -289,7 +289,7 @@ func waitForPBMRestore(ctx context.Context, l logrus.FieldLogger, dbURL *url.URL
 
 	ticker := time.NewTicker(statusCheckInterval)
 	defer ticker.Stop()
-	// Find from end (the newest one) until https://jira.percona.com/browse/PBM-723 is not done.
+	// @TODO Find from end (the newest one) until https://jira.percona.com/browse/PBM-723 is not done.
 	findRestore := func(list []pbmListRestore) *pbmListRestore {
 		for i := len(list) - 1; i >= 0; i-- {
 			if list[i].Name == name {
