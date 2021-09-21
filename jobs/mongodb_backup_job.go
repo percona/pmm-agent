@@ -23,6 +23,7 @@ import (
 	"net/url"
 	"os/exec"
 	"strconv"
+	"sync/atomic"
 	"time"
 
 	"github.com/percona/pmm/api/agentpb"
@@ -78,6 +79,8 @@ func (j *MongoDBBackupJob) Timeout() time.Duration {
 
 // Run starts Job execution.
 func (j *MongoDBBackupJob) Run(ctx context.Context, send Send) error {
+	defer j.sendLog(send, "", true)
+
 	if _, err := exec.LookPath(pbmBin); err != nil {
 		return errors.Wrapf(err, "lookpath: %s", pbmBin)
 	}
@@ -100,6 +103,7 @@ func (j *MongoDBBackupJob) Run(ctx context.Context, send Send) error {
 
 	pbmBackupOut, err := j.startBackup(ctx)
 	if err != nil {
+		j.sendLog(send, err.Error(), false)
 		return errors.Wrap(err, "failed to start backup")
 	}
 	backupFinished := make(chan struct{})
@@ -110,19 +114,10 @@ func (j *MongoDBBackupJob) Run(ctx context.Context, send Send) error {
 		if err != nil && err != io.EOF && err != context.Canceled {
 			j.l.Errorf("stream logs: %v", err)
 		}
-		send(&agentpb.JobProgress{
-			JobId:     j.id,
-			Timestamp: timestamppb.Now(),
-			Result: &agentpb.JobProgress_Logs_{
-				Logs: &agentpb.JobProgress_Logs{
-					Done:    true,
-					ChunkId: j.logChunkID,
-				},
-			},
-		})
 	}()
 
 	if err := waitForPBMState(ctx, j.l, j.dbURL, pbmBackupFinished(pbmBackupOut.Name)); err != nil {
+		j.sendLog(send, err.Error(), false)
 		return errors.Wrap(err, "failed to wait backup completion")
 	}
 	close(backupFinished)
@@ -230,17 +225,7 @@ func (j *MongoDBBackupJob) streamLogs(ctx context.Context, send Send, name strin
 						buffer.WriteRune('\n')
 					}
 				}
-				send(&agentpb.JobProgress{
-					JobId:     j.id,
-					Timestamp: timestamppb.Now(),
-					Result: &agentpb.JobProgress_Logs_{
-						Logs: &agentpb.JobProgress_Logs{
-							ChunkId: j.logChunkID,
-							Data:    buffer.String(),
-						},
-					},
-				})
-				j.logChunkID++
+				j.sendLog(send, buffer.String(), false)
 				from += maxLogsChunkSize
 				to += maxLogsChunkSize
 			}
@@ -253,4 +238,19 @@ func (j *MongoDBBackupJob) streamLogs(ctx context.Context, send Send, name strin
 		}
 	}
 
+}
+
+func (j *MongoDBBackupJob) sendLog(send Send, data string, done bool) {
+	send(&agentpb.JobProgress{
+		JobId:     j.id,
+		Timestamp: timestamppb.Now(),
+		Result: &agentpb.JobProgress_Logs_{
+			Logs: &agentpb.JobProgress_Logs{
+				ChunkId: atomic.LoadUint32(&j.logChunkID),
+				Data:    data,
+				Done:    done,
+			},
+		},
+	})
+	atomic.AddUint32(&j.logChunkID, 1)
 }
