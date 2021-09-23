@@ -338,6 +338,7 @@ func writePBMConfigFile(prefix string, s3Config *S3LocationConfig) (string, erro
 	if err != nil {
 		return "", errors.Wrap(err, "failed to create pbm configuration file")
 	}
+	defer tmp.Close() //nolint:errcheck
 
 	var conf struct {
 		Storage struct {
@@ -365,14 +366,12 @@ func writePBMConfigFile(prefix string, s3Config *S3LocationConfig) (string, erro
 
 	bytes, err := yaml.Marshal(&conf)
 	if err != nil {
-		tmp.Close() //nolint:errcheck
 		return "", errors.Wrap(err, "failed to marshall pbm configuration")
 	}
 
 	if _, err := tmp.Write(bytes); err != nil {
-		tmp.Close() //nolint:errcheck
 		return "", errors.Wrap(err, "failed to write pbm configuration file")
 	}
 
-	return tmp.Name(), tmp.Close()
+	return tmp.Name(), nil
 }

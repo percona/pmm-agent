@@ -106,11 +106,10 @@ func (j *MongoDBBackupJob) Run(ctx context.Context, send Send) error {
 		j.sendLog(send, err.Error(), false)
 		return errors.Wrap(err, "failed to start backup")
 	}
-	backupFinished := make(chan struct{})
 	streamCtx, streamCancel := context.WithCancel(ctx)
 	defer streamCancel()
 	go func() {
-		err := j.streamLogs(streamCtx, send, pbmBackupOut.Name, backupFinished)
+		err := j.streamLogs(streamCtx, send, pbmBackupOut.Name)
 		if err != nil && err != io.EOF && err != context.Canceled {
 			j.l.Errorf("stream logs: %v", err)
 		}
@@ -120,7 +119,6 @@ func (j *MongoDBBackupJob) Run(ctx context.Context, send Send) error {
 		j.sendLog(send, err.Error(), false)
 		return errors.Wrap(err, "failed to wait backup completion")
 	}
-	close(backupFinished)
 	send(&agentpb.JobResult{
 		JobId:     j.id,
 		Timestamp: timestamppb.Now(),
@@ -172,33 +170,20 @@ func (j *MongoDBBackupJob) startBackup(ctx context.Context) (*pbmBackup, error) 
 	return &result, nil
 }
 
-func (j *MongoDBBackupJob) streamLogs(ctx context.Context, send Send, name string, backupFinished <-chan struct{}) error {
+func (j *MongoDBBackupJob) streamLogs(ctx context.Context, send Send, name string) error {
 	var (
-		err        error
-		backupDone bool
-		logs       []pbmLogEntry
-		buffer     bytes.Buffer
-		skip       int
-		lastLog    pbmLogEntry
+		err    error
+		logs   []pbmLogEntry
+		buffer bytes.Buffer
+		skip   int
 	)
 	j.logChunkID = 0
-	finished := func() bool {
-		if lastLog.Msg == "backup finished" {
-			return true
-		}
-		if backupDone && len(logs) == 0 {
-			return true
-		}
-		return false
-	}
 
 	ticker := time.NewTicker(logsCheckInterval)
 	defer ticker.Stop()
 
 	for {
 		select {
-		case <-backupFinished:
-			backupDone = true
 		case <-ticker.C:
 			logs, err = retrieveLogs(ctx, j.dbURL, "backup/"+name)
 			if err != nil {
@@ -229,10 +214,6 @@ func (j *MongoDBBackupJob) streamLogs(ctx context.Context, send Send, name strin
 				from += maxLogsChunkSize
 				to += maxLogsChunkSize
 			}
-			if finished() {
-				return nil
-			}
-			lastLog = logs[len(logs)-1]
 		case <-ctx.Done():
 			return ctx.Err()
 		}
