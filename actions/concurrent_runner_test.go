@@ -22,8 +22,6 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-
-	"github.com/percona/pmm-agent/lock"
 )
 
 // assertResults checks expected results in any order.
@@ -47,7 +45,7 @@ func assertResults(t *testing.T, cr *ConcurrentRunner, expected ...ActionResult)
 func TestConcurrentRunnerRun(t *testing.T) {
 	t.Parallel()
 
-	cr := NewConcurrentRunner(context.Background(), lock.New())
+	cr := NewConcurrentRunner(context.Background())
 	a1 := NewProcessAction("/action_id/6a479303-5081-46d0-baa0-87d6248c987b", "echo", []string{"test"})
 	a2 := NewProcessAction("/action_id/84140ab2-612d-4d93-9360-162a4bd5de14", "echo", []string{"test2"})
 
@@ -65,7 +63,7 @@ func TestConcurrentRunnerRun(t *testing.T) {
 func TestConcurrentRunnerTimeout(t *testing.T) {
 	t.Parallel()
 
-	cr := NewConcurrentRunner(context.Background(), lock.New())
+	cr := NewConcurrentRunner(context.Background())
 	a1 := NewProcessAction("/action_id/6a479303-5081-46d0-baa0-87d6248c987b", "sleep", []string{"20"})
 	a2 := NewProcessAction("/action_id/84140ab2-612d-4d93-9360-162a4bd5de14", "sleep", []string{"30"})
 
@@ -84,7 +82,7 @@ func TestConcurrentRunnerTimeout(t *testing.T) {
 func TestConcurrentRunnerStop(t *testing.T) {
 	t.Parallel()
 
-	cr := NewConcurrentRunner(context.Background(), lock.New())
+	cr := NewConcurrentRunner(context.Background())
 	a1 := NewProcessAction("/action_id/6a479303-5081-46d0-baa0-87d6248c987b", "sleep", []string{"20"})
 	a2 := NewProcessAction("/action_id/84140ab2-612d-4d93-9360-162a4bd5de14", "sleep", []string{"30"})
 
@@ -109,7 +107,7 @@ func TestConcurrentRunnerCancel(t *testing.T) {
 	t.Parallel()
 
 	ctx, cancel := context.WithCancel(context.Background())
-	cr := NewConcurrentRunner(ctx, lock.New())
+	cr := NewConcurrentRunner(ctx)
 	a1 := NewProcessAction("/action_id/6a479303-5081-46d0-baa0-87d6248c987b", "sleep", []string{"20"})
 	a2 := NewProcessAction("/action_id/84140ab2-612d-4d93-9360-162a4bd5de14", "sleep", []string{"30"})
 
@@ -136,7 +134,7 @@ func TestConcurrentRunnerCancelEmpty(t *testing.T) {
 	t.Parallel()
 
 	ctx, cancel := context.WithCancel(context.Background())
-	cr := NewConcurrentRunner(ctx, lock.New())
+	cr := NewConcurrentRunner(ctx)
 	a := NewProcessAction("/action_id/6a479303-5081-46d0-baa0-87d6248c987b", "sleep", []string{"20"})
 
 	go cancel()

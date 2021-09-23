@@ -27,7 +27,6 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"github.com/percona/pmm-agent/client/channel"
-	"github.com/percona/pmm-agent/lock"
 )
 
 const jobsBufferSize = 32
@@ -43,18 +42,15 @@ type Runner struct {
 
 	rw         sync.RWMutex
 	jobsCancel map[string]context.CancelFunc
-
-	locksService *lock.Service
 }
 
 // NewRunner creates new jobs runner.
-func NewRunner(locksService *lock.Service) *Runner {
+func NewRunner() *Runner {
 	return &Runner{
-		l:            logrus.WithField("component", "jobs-runner"),
-		jobs:         make(chan Job, jobsBufferSize),
-		jobsCancel:   make(map[string]context.CancelFunc),
-		messages:     make(chan *channel.AgentResponse),
-		locksService: locksService,
+		l:          logrus.WithField("component", "jobs-runner"),
+		jobs:       make(chan Job, jobsBufferSize),
+		jobsCancel: make(map[string]context.CancelFunc),
+		messages:   make(chan *channel.AgentResponse),
 	}
 }
 
@@ -65,29 +61,6 @@ func (r *Runner) Run(ctx context.Context) {
 		case job := <-r.jobs:
 			jobID, jobType := job.ID(), job.Type()
 			l := r.l.WithFields(logrus.Fields{"id": jobID, "type": jobType})
-
-			var requirements []lock.Entity
-			switch jobType {
-			case MongoDBBackup, MongoDBRestore:
-				requirements = append(requirements, lock.PBM)
-			case MySQLBackup, MySQLRestore:
-				// TODO: add requirements
-			}
-
-			if !r.locksService.TryAcquire(requirements...) {
-				r.send(&agentpb.JobResult{
-					JobId:     job.ID(),
-					Timestamp: ptypes.TimestampNow(),
-					Result: &agentpb.JobResult_Error_{
-						Error: &agentpb.JobResult_Error{
-							Message: "can't get lock for required entities, some other job/action may use it at this time",
-						},
-					},
-				})
-				l.Warnf("Job was rejected becauase it can't get lock for required entities, " +
-					"some other job/action may use it at this time.")
-				continue
-			}
 
 			var nCtx context.Context
 			var cancel context.CancelFunc
@@ -109,7 +82,6 @@ func (r *Runner) Run(ctx context.Context) {
 				defer r.runningJobs.Done()
 				defer cancel()
 				defer r.removeJobCancel(jobID)
-				defer r.locksService.Release(requirements...)
 
 				err := job.Run(ctx, r.send)
 				if err != nil {

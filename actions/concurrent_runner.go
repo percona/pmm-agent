@@ -22,8 +22,6 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus"
-
-	"github.com/percona/pmm-agent/lock"
 )
 
 // ActionResult represents an Action result.
@@ -36,10 +34,9 @@ type ActionResult struct {
 // ConcurrentRunner represents concurrent Action runner.
 // Action runner is component that can run an Actions.
 type ConcurrentRunner struct {
-	ctx          context.Context
-	l            *logrus.Entry
-	results      chan ActionResult
-	locksService *lock.Service
+	ctx     context.Context
+	l       *logrus.Entry
+	results chan ActionResult
 
 	runningActions sync.WaitGroup
 
@@ -52,13 +49,12 @@ type ConcurrentRunner struct {
 //
 // ConcurrentRunner is stopped when context passed to NewConcurrentRunner is canceled.
 // Results are reported via Results() channel which must be read until it is closed.
-func NewConcurrentRunner(ctx context.Context, locksService *lock.Service) *ConcurrentRunner {
+func NewConcurrentRunner(ctx context.Context) *ConcurrentRunner {
 	r := &ConcurrentRunner{
 		ctx:           ctx,
 		l:             logrus.WithField("component", "actions-runner"),
 		results:       make(chan ActionResult),
 		actionsCancel: make(map[string]context.CancelFunc),
-		locksService:  locksService,
 	}
 
 	// let all actions finish and send their results before closing it
@@ -80,23 +76,6 @@ func (r *ConcurrentRunner) Start(a Action, timeout time.Duration) {
 	}
 	actionID, actionType := a.ID(), a.Type()
 
-	var requirements []lock.Entity
-	switch actionType {
-	case "pbm-switch-pitr":
-		requirements = append(requirements, lock.PBM)
-	}
-
-	if !r.locksService.TryAcquire(requirements...) {
-		r.results <- ActionResult{
-			ID:     actionID,
-			Output: nil,
-			Error:  "can't get lock for required entities, some other job/action may use it at this time",
-		}
-		r.l.Warnf("Action was rejected becauase it can't get lock for required entities, " +
-			"some other job/action may use it at this time.")
-		return
-	}
-
 	// FIXME There is a data race. Add must not be called concurrently with Wait, but it can be:
 	// 0. no actions are running, WaitGroup has 0
 	// 1. Start is called
@@ -113,7 +92,6 @@ func (r *ConcurrentRunner) Start(a Action, timeout time.Duration) {
 	run := func(ctx context.Context) {
 		defer r.runningActions.Done()
 		defer cancel()
-		defer r.locksService.Release(requirements...)
 
 		r.rw.Lock()
 		r.actionsCancel[actionID] = cancel

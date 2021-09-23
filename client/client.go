@@ -41,7 +41,6 @@ import (
 	"github.com/percona/pmm-agent/client/channel"
 	"github.com/percona/pmm-agent/config"
 	"github.com/percona/pmm-agent/jobs"
-	"github.com/percona/pmm-agent/lock"
 	"github.com/percona/pmm-agent/utils/backoff"
 )
 
@@ -67,7 +66,6 @@ type Client struct {
 	// for unit tests only
 	dialTimeout time.Duration
 
-	locksService  *lock.Service
 	actionsRunner *actions.ConcurrentRunner
 	jobsRunner    *jobs.Runner
 
@@ -86,7 +84,6 @@ func New(cfg *config.Config, supervisor supervisor, connectionChecker connection
 		connectionChecker: connectionChecker,
 		softwareVersioner: sv,
 		l:                 logrus.WithField("component", "client"),
-		locksService:      lock.New(),
 		backoff:           backoff.New(backoffMinDelay, backoffMaxDelay),
 		done:              make(chan struct{}),
 		dialTimeout:       dialTimeout,
@@ -103,8 +100,8 @@ func New(cfg *config.Config, supervisor supervisor, connectionChecker connection
 func (c *Client) Run(ctx context.Context) error {
 	c.l.Info("Starting...")
 
-	c.actionsRunner = actions.NewConcurrentRunner(ctx, c.locksService)
-	c.jobsRunner = jobs.NewRunner(c.locksService)
+	c.actionsRunner = actions.NewConcurrentRunner(ctx)
+	c.jobsRunner = jobs.NewRunner()
 
 	// do nothing until ctx is canceled if config misses critical info
 	var missing string
