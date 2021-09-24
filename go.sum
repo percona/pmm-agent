@@ -260,6 +260,8 @@ github.com/percona/percona-toolkit v3.2.1+incompatible h1:5jLvtZKcu9fDmaLRB8qA4b
 github.com/percona/percona-toolkit v3.2.1+incompatible/go.mod h1:netQWdWMaF1cnmwiIS+i5uyaqNXz46yNeM6HKkR6yeI=
 github.com/percona/pmm v0.0.0-20210903111152-a67c13e85733 h1:V69du08Fbqi3LYUGZvag7fSyQeNr3pX6IVm+QbF9LVA=
 github.com/percona/pmm v0.0.0-20210903111152-a67c13e85733/go.mod h1:OmWayvQAavtvlzLkvpea5tAqaWGGNNyG+xj4MJUsNm4=
+github.com/percona/pmm v0.0.0-20210924205200-d64c4e7df8fe h1:r8S896bpUTu6sb844NtDp1t8C5n47OjRkmYjZgtKk2U=
+github.com/percona/pmm v0.0.0-20210924205200-d64c4e7df8fe/go.mod h1:OmWayvQAavtvlzLkvpea5tAqaWGGNNyG+xj4MJUsNm4=
 github.com/pkg/errors v0.8.0/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
 github.com/pkg/errors v0.8.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
 github.com/pkg/errors v0.9.1 h1:FEBLx1zS214owpjy7qsBeixbURkuhQAwrK5UwLGTwt4=
