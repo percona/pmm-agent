@@ -46,32 +46,3 @@ type PBMConfig struct {
 	Storage Storage `yaml:"storage"`
 	PITR    PITR    `yaml:"pitr"`
 }
-
-// Equals compares two PBMConfig's.
-func (c *PBMConfig) Equals(config *PBMConfig) bool {
-	if c.PITR.Enabled != config.PITR.Enabled {
-		return false
-	}
-
-	if c.Storage.Type != config.Storage.Type {
-		return false
-	}
-
-	if c.Storage.S3.Bucket != config.Storage.S3.Bucket {
-		return false
-	}
-
-	if c.Storage.S3.EndpointURL != config.Storage.S3.EndpointURL {
-		return false
-	}
-
-	if c.Storage.S3.Prefix != config.Storage.S3.Prefix {
-		return false
-	}
-
-	if c.Storage.S3.Region != config.Storage.S3.Region {
-		return false
-	}
-
-	return true
-}
