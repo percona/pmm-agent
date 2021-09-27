@@ -180,12 +180,12 @@ type pgStatMonitor09 struct {
 	DatName           string         `reform:"datname"`
 	ClientIP          string         `reform:"client_ip"`
 	QueryID           string         `reform:"queryid"`
-	TopQueryid        *string        `reform:"top_queryid"`
+	TopQueryid        string         `reform:"top_queryid"`
 	Query             string         `reform:"query"`
-	Planid            *string        `reform:"planid"`
+	Planid            string         `reform:"planid"`
 	QueryPlan         *string        `reform:"query_plan"`
 	TopQuery          *string        `reform:"top_query"`
-	ApplicationName   *string        `reform:"application_name"`
+	ApplicationName   string         `reform:"application_name"`
 	Relations         pq.StringArray `reform:"relations"`
 	CmdType           int32          `reform:"cmd_type"`
 	CmdTypeText       string         `reform:"cmd_type_text"`
@@ -266,6 +266,9 @@ func (m pgStatMonitor09) ToPgStatMonitor() (pgStatMonitor, error) {
 		PlanTotalTime:     m.PlanTotalTime,
 		PlanMinTime:       m.PlanMinTime,
 		PlanMaxTime:       m.PlanMaxTime,
+		TopQueryID:        m.TopQueryid,
+		ApplicationName:   m.ApplicationName,
+		PlanID:            m.Planid,
 	}, nil
 }
 
@@ -306,6 +309,9 @@ type pgStatMonitor struct {
 	PlanTotalTime     float64
 	PlanMinTime       float64
 	PlanMaxTime       float64
+	TopQueryID        string
+	ApplicationName   string
+	PlanID            string
 }
 
 // pgStatMonitorSettings represents a row in pg_stat_monitor_settings view.
