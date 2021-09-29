@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/AlekSi/pointer"
 	"github.com/lib/pq"
 	"github.com/pkg/errors"
 )
@@ -180,12 +181,12 @@ type pgStatMonitor09 struct {
 	DatName           string         `reform:"datname"`
 	ClientIP          string         `reform:"client_ip"`
 	QueryID           string         `reform:"queryid"`
-	TopQueryid        string         `reform:"top_queryid"`
+	TopQueryid        *string        `reform:"top_queryid"`
 	Query             string         `reform:"query"`
-	Planid            string         `reform:"planid"`
+	Planid            *string        `reform:"planid"`
 	QueryPlan         *string        `reform:"query_plan"`
 	TopQuery          *string        `reform:"top_query"`
-	ApplicationName   string         `reform:"application_name"`
+	ApplicationName   *string        `reform:"application_name"`
 	Relations         pq.StringArray `reform:"relations"`
 	CmdType           int32          `reform:"cmd_type"`
 	CmdTypeText       string         `reform:"cmd_type_text"`
@@ -266,9 +267,9 @@ func (m pgStatMonitor09) ToPgStatMonitor() (pgStatMonitor, error) {
 		PlanTotalTime:     m.PlanTotalTime,
 		PlanMinTime:       m.PlanMinTime,
 		PlanMaxTime:       m.PlanMaxTime,
-		TopQueryID:        m.TopQueryid,
-		ApplicationName:   m.ApplicationName,
-		PlanID:            m.Planid,
+		TopQueryID:        pointer.GetString(m.TopQueryid),
+		ApplicationName:   pointer.GetString(m.ApplicationName),
+		PlanID:            pointer.GetString(m.Planid),
 	}, nil
 }
 
