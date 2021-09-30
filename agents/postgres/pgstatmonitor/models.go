@@ -224,6 +224,7 @@ type pgStatMonitor09 struct {
 	WalBytes          int64          `reform:"wal_bytes"`
 	StateCode         int64          `reform:"state_code"`
 	State             string         `reform:"state"`
+	Comments          string         `reform:"comments"`
 }
 
 func (m pgStatMonitor09) ToPgStatMonitor() (pgStatMonitor, error) {
