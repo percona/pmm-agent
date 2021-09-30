@@ -264,7 +264,7 @@ func (m *PGStatMonitorQAN) makeBuckets(current, cache map[time.Time]map[string]*
 
 			mb.Postgresql.TopQueryid = currentPSM.TopQueryID
 			mb.Postgresql.ApplicationName = currentPSM.ApplicationName
-			mb.Postgresql.PlanId = currentPSM.QueryID
+			mb.Postgresql.Planid = currentPSM.PlanID
 
 			if (currentPSM.PlanTotalTime - prevPSM.PlanTotalTime) != 0 {
 				mb.Postgresql.MPlanTimeSum = float32(currentPSM.PlanTotalTime-prevPSM.PlanTotalTime) / 1000
