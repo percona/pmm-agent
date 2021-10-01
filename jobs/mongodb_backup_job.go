@@ -227,11 +227,10 @@ func (j *MongoDBBackupJob) sendLog(send Send, data string, done bool) {
 		Timestamp: timestamppb.Now(),
 		Result: &agentpb.JobProgress_Logs_{
 			Logs: &agentpb.JobProgress_Logs{
-				ChunkId: atomic.LoadUint32(&j.logChunkID),
+				ChunkId: atomic.AddUint32(&j.logChunkID, 1) - 1,
 				Data:    data,
 				Done:    done,
 			},
 		},
 	})
-	atomic.AddUint32(&j.logChunkID, 1)
 }
