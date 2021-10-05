@@ -19,7 +19,6 @@ import (
 	"context"
 	"net/url"
 	"os/exec"
-	"regexp"
 	"time"
 
 	"github.com/golang/protobuf/ptypes"
@@ -27,11 +26,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
-
-// This regexp matches backup entity name.
-var lastBackupRE = regexp.MustCompile(`^Backup snapshots:\n(  (\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z).*)`)
-
-var pbmTimeFormat = "2006-01-02T15:04:05"
 
 // MongoDBRestoreJob implements Job for MongoDB restore.
 type MongoDBRestoreJob struct {
@@ -106,17 +100,23 @@ func (j *MongoDBRestoreJob) Run(ctx context.Context, send Send) error {
 	}
 
 	rCtx, cancel := context.WithTimeout(ctx, resyncTimeout)
-	if err := waitForNoRunningPBMOperations(rCtx, j.l, j.dbURL); err != nil {
+	if err := waitForPBMState(rCtx, j.l, j.dbURL, pbmNoRunningOperations); err != nil {
 		cancel()
 		return errors.Wrap(err, "failed to wait pbm configuration completion")
 	}
 	cancel()
 
-	if err := j.startRestore(ctx); err != nil {
+	backupName, err := j.findSnapshotName(ctx)
+	if err != nil {
+		return errors.WithStack(err)
+	}
+
+	restoreOut, err := j.startRestore(ctx, backupName)
+	if err != nil {
 		return errors.Wrap(err, "failed to start backup restore")
 	}
 
-	if err := waitForNoRunningPBMOperations(ctx, j.l, j.dbURL); err != nil {
+	if err := waitForPBMRestore(ctx, j.l, j.dbURL, restoreOut.Snapshot); err != nil {
 		return errors.Wrap(err, "failed to wait backup restore completion")
 	}
 
@@ -134,51 +134,26 @@ func (j *MongoDBRestoreJob) Run(ctx context.Context, send Send) error {
 func (j *MongoDBRestoreJob) findSnapshotName(ctx context.Context) (string, error) {
 	j.l.Info("Finding backup entity name.")
 
-	nCtx, cancel := context.WithTimeout(ctx, cmdTimeout)
-	defer cancel()
-
-	output, err := exec.CommandContext(nCtx, pbmBin, "list", "--mongodb-uri="+j.dbURL.String()).CombinedOutput() // #nosec G204
-	if err != nil {
-		return "", errors.Wrapf(err, "pbm list error: %s", string(output))
+	var list pbmList
+	if err := execPBMCommand(ctx, j.dbURL, &list, "list"); err != nil {
+		return "", err
 	}
 
-	res := lastBackupRE.FindAllSubmatch(output, -1)
-	if len(res) == 0 {
+	if len(list.Snapshots) == 0 {
 		return "", errors.New("failed to find backup entity")
 	}
 
-	// Return backup entity name, see lastBackupRE regexp.
-	return string(res[0][2]), nil
+	return list.Snapshots[len(list.Snapshots)-1].Name, nil
 }
 
-func (j *MongoDBRestoreJob) startRestore(ctx context.Context) error {
-	j.l.Info("Starting backup snapshot restore.")
+func (j *MongoDBRestoreJob) startRestore(ctx context.Context, backupName string) (*pbmRestore, error) {
+	j.l.Info("Starting backup restore.")
 
-	var err error
-	var cmdTail string
-	if j.timestamp != nil {
-		cmdTail = "--time=" + j.timestamp.Format(pbmTimeFormat)
-	} else {
-		cmdTail, err = j.findSnapshotName(ctx)
-		if err != nil {
-			return errors.WithStack(err)
-		}
-	}
-
-	nCtx, cancel := context.WithTimeout(ctx, cmdTimeout)
-	defer cancel()
-
-	output, err := exec.CommandContext(
-		nCtx,
-		pbmBin,
-		"restore",
-		"--mongodb-uri="+j.dbURL.String(),
-		cmdTail,
-	).CombinedOutput() // #nosec G204
-
+	var restoreOutput pbmRestore
+	err := execPBMCommand(ctx, j.dbURL, &restoreOutput, "restore", backupName)
 	if err != nil {
-		return errors.Wrapf(err, "pbm restore error: %s", string(output))
+		return nil, errors.Wrapf(err, "pbm restore error: %v", err)
 	}
 
-	return nil
+	return &restoreOutput, nil
 }

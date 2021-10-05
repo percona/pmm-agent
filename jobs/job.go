@@ -32,6 +32,8 @@ const (
 	MongoDBBackup  = JobType("mongodb_backup")
 	MongoDBRestore = JobType("mongodb_restore")
 	MySQLRestore   = JobType("mysql_restore")
+
+	maxLogsChunkSize = 50
 )
 
 // Send is interface for function that used by jobs to send messages back to pmm-server.
