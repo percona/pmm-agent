@@ -273,6 +273,7 @@ func (m pgStatMonitor09) ToPgStatMonitor() (pgStatMonitor, error) {
 		PlanMaxTime:       m.PlanMaxTime,
 		Elevel:            m.Elevel,
 		TopQueryID:        pointer.GetString(m.TopQueryid),
+		TopQuery:          pointer.GetString(m.TopQuery),
 		ApplicationName:   pointer.GetString(m.ApplicationName),
 		PlanID:            pointer.GetString(m.Planid),
 	}, nil
@@ -317,6 +318,7 @@ type pgStatMonitor struct {
 	PlanMaxTime       float64
 	Elevel            int32
 	TopQueryID        string
+	TopQuery          string
 	ApplicationName   string
 	PlanID            string
 }
