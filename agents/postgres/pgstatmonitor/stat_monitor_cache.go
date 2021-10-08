@@ -90,7 +90,11 @@ func (ssc *statMonitorCache) getStatMonitorExtended(ctx context.Context, q *refo
 		return
 	}
 	conditions := "WHERE queryid IS NOT NULL AND query IS NOT NULL"
-	switch row.(type) {
+	if _, ok := row.(*pgStatMonitor09); ok {
+		// only pg_stat_monitor 0.9.0 and above supports state_code. It tells what is the query's current state.
+		// To have correct data in QAN, we have to get only queries that are either 'FINISHED' or 'FINISHED WITH ERROR'.
+		conditions += " AND (state_code = 3 OR state_code = 4)"
+	}
 	case *pgStatMonitor09:
 		// only pg_stat_monitor 0.9.0 and above supports state_code. It tells what is the query's current state.
 		// To have correct data in QAN, we have to get only queries that are either 'FINISHED' or 'FINISHED WITH ERROR'.
