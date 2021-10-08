@@ -261,6 +261,9 @@ func (m *PGStatMonitorQAN) makeBuckets(current, cache map[time.Time]map[string]*
 				},
 				Postgresql: new(agentpb.MetricsBucket_PostgreSQL),
 			}
+
+			mb.Postgresql.CmdType = currentPSM.pgStatMonitor.CmdType
+
 			if (currentPSM.PlanTotalTime - prevPSM.PlanTotalTime) != 0 {
 				mb.Postgresql.MPlanTimeSum = float32(currentPSM.PlanTotalTime-prevPSM.PlanTotalTime) / 1000
 				mb.Postgresql.MPlanTimeMin = float32(currentPSM.PlanMinTime) / 1000
