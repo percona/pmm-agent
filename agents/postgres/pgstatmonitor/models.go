@@ -276,6 +276,7 @@ func (m pgStatMonitor09) ToPgStatMonitor() (pgStatMonitor, error) {
 		TopQuery:          pointer.GetString(m.TopQuery),
 		ApplicationName:   pointer.GetString(m.ApplicationName),
 		PlanID:            pointer.GetString(m.Planid),
+		QueryPlan:         pointer.GetString(m.QueryPlan),
 	}, nil
 }
 
@@ -321,6 +322,7 @@ type pgStatMonitor struct {
 	TopQuery          string
 	ApplicationName   string
 	PlanID            string
+	QueryPlan         string
 }
 
 // pgStatMonitorSettings represents a row in pg_stat_monitor_settings view.
