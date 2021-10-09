@@ -21,6 +21,7 @@ import (
 	"database/sql"
 	"fmt"
 	"io"
+	"strconv"
 	"time"
 
 	_ "github.com/lib/pq" // register SQL driver.
@@ -262,7 +263,7 @@ func (m *PGStatMonitorQAN) makeBuckets(current, cache map[time.Time]map[string]*
 				Postgresql: new(agentpb.MetricsBucket_PostgreSQL),
 			}
 
-			mb.Postgresql.CmdType = currentPSM.pgStatMonitor.CmdType
+			mb.Postgresql.CmdType = strconv.FormatInt(int64(currentPSM.pgStatMonitor.CmdType), 10)
 
 			if (currentPSM.PlanTotalTime - prevPSM.PlanTotalTime) != 0 {
 				mb.Postgresql.MPlanTimeSum = float32(currentPSM.PlanTotalTime-prevPSM.PlanTotalTime) / 1000
