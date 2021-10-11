@@ -21,7 +21,6 @@ import (
 	"database/sql"
 	"fmt"
 	"io"
-	"strconv"
 	"time"
 
 	_ "github.com/lib/pq" // register SQL driver.
@@ -65,7 +64,20 @@ type Params struct {
 	AgentID              string
 }
 
-const queryTag = "pmm-agent:pgstatmonitor"
+const (
+	queryTag            = "pmm-agent:pgstatmonitor"
+	commandTextNotAvailable = "n/a"
+)
+
+var commandTypeToText [7]string = [7]string{
+	commandTextNotAvailable,
+	"SELECT",
+	"UPDATE",
+	"INSERT",
+	"DELETE",
+	"UTILITY",
+	commandTextNotAvailable,
+}
 
 // New creates new PGStatMonitorQAN QAN service.
 func New(params *Params, l *logrus.Entry) (*PGStatMonitorQAN, error) {
@@ -262,8 +274,12 @@ func (m *PGStatMonitorQAN) makeBuckets(current, cache map[time.Time]map[string]*
 				},
 				Postgresql: new(agentpb.MetricsBucket_PostgreSQL),
 			}
-
-			mb.Postgresql.CmdType = strconv.FormatInt(int64(currentPSM.pgStatMonitor.CmdType), 10)
+			if currentPSM.pgStatMonitor.CmdType >= 0 && currentPSM.pgStatMonitor.CmdType < int32(len(commandTypeToText)) {
+				mb.Postgresql.CmdType = commandTypeToText[currentPSM.pgStatMonitor.CmdType]
+			} else {
+				mb.Postgresql.CmdType = commandTextNotAvailable
+				m.l.Warnf("failed to translate command type '%d' into text", mb.Postgresql.CmdType)
+			}
 
 			if (currentPSM.PlanTotalTime - prevPSM.PlanTotalTime) != 0 {
 				mb.Postgresql.MPlanTimeSum = float32(currentPSM.PlanTotalTime-prevPSM.PlanTotalTime) / 1000

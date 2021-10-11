@@ -317,7 +317,7 @@ type pgStatMonitor struct {
 	PlanMinTime       float64
 	PlanMaxTime       float64
 	Elevel            int32
-	CmdType           int32 `reform:"cmd_type"`
+	CmdType           int32
 }
 
 // pgStatMonitorSettings represents a row in pg_stat_monitor_settings view.
