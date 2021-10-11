@@ -278,7 +278,7 @@ func (m *PGStatMonitorQAN) makeBuckets(current, cache map[time.Time]map[string]*
 				mb.Postgresql.CmdType = commandTypeToText[currentPSM.pgStatMonitor.CmdType]
 			} else {
 				mb.Postgresql.CmdType = commandTextNotAvailable
-				m.l.Warnf("failed to translate command type '%d' into text", mb.Postgresql.CmdType)
+				m.l.Warnf("failed to translate command type '%d' into text", currentPSM.pgStatMonitor.CmdType)
 			}
 
 			if (currentPSM.PlanTotalTime - prevPSM.PlanTotalTime) != 0 {
