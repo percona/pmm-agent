@@ -65,7 +65,7 @@ type Params struct {
 }
 
 const (
-	queryTag            = "pmm-agent:pgstatmonitor"
+	queryTag                = "pmm-agent:pgstatmonitor"
 	commandTextNotAvailable = "n/a"
 )
 
