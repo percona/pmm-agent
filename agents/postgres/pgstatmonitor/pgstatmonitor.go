@@ -65,8 +65,9 @@ type Params struct {
 }
 
 const (
-	queryTag                = "pmm-agent:pgstatmonitor"
-	commandTextNotAvailable = "n/a"
+	queryTag = "pmm-agent:pgstatmonitor"
+	// There is a feature in the FE that shows "n/a" for empty responses for dimensions.
+	commandTextNotAvailable = ""
 )
 
 var commandTypeToText = [7]string{
