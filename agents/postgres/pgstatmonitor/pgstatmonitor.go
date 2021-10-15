@@ -70,7 +70,7 @@ const (
 	commandTextNotAvailable = ""
 )
 
-var commandTypeToText = [7]string{
+var commandTypeToText = []string{
 	commandTextNotAvailable,
 	"SELECT",
 	"UPDATE",
