@@ -17,6 +17,7 @@ package pgstatmonitor
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/lib/pq"
@@ -230,14 +231,26 @@ type pgStatMonitor09 struct {
 	WalRecords        int64          `reform:"wal_records"`
 	WalFpi            int64          `reform:"wal_fpi"`
 	WalBytes          int64          `reform:"wal_bytes"`
-	StateCode         int64          `reform:"state_code"`
-	State             string         `reform:"state"`
+
+	// state_code = 0 state 'PARSING'
+	// state_code = 1 state 'PLANNING'
+	// state_code = 2 state 'ACTIVE'
+	// state_code = 3 state 'FINISHED'
+	// state_code = 4 state 'FINISHED WITH ERROR'
+	StateCode int64 `reform:"state_code"`
+
+	State string `reform:"state"`
 }
 
 func (m pgStatMonitor09) ToPgStatMonitor() (pgStatMonitor, error) {
 	bucketStartTime, err := time.Parse("2006-01-02 15:04:05", m.BucketStartTime)
 	if err != nil {
 		return pgStatMonitor{}, errors.Wrap(err, "cannot parse bucket start time")
+	}
+
+	// Views contain asterisk as a suffix so we need to trim them. Introduced in pg_stat_monitor 0.9.2.
+	for i, relation := range m.Relations {
+		m.Relations[i] = strings.TrimSuffix(relation, "*")
 	}
 
 	return pgStatMonitor{
