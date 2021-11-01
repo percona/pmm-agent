@@ -282,13 +282,11 @@ func (m *PGStatMonitorQAN) makeBuckets(current, cache map[time.Time]map[string]*
 				m.l.Warnf("failed to translate command type '%d' into text", currentPSM.pgStatMonitor.CmdType)
 			}
 
-
 			mb.Postgresql.TopQueryid = currentPSM.TopQueryID
 			mb.Postgresql.TopQuery = currentPSM.TopQuery
 			mb.Postgresql.ApplicationName = currentPSM.ApplicationName
 			mb.Postgresql.Planid = currentPSM.PlanID
 			mb.Postgresql.QueryPlan = currentPSM.QueryPlan
-			mb.Postgresql.RespCalls = currentPSM.RespCalls
 
 			if (currentPSM.PlanTotalTime - prevPSM.PlanTotalTime) != 0 {
 				mb.Postgresql.MPlanTimeSum = float32(currentPSM.PlanTotalTime-prevPSM.PlanTotalTime) / 1000
