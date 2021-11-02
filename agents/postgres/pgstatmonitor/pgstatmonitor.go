@@ -19,7 +19,6 @@ package pgstatmonitor
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"fmt"
 	"io"
 	"strconv"
@@ -29,7 +28,6 @@ import (
 	_ "github.com/lib/pq" // register SQL driver.
 	"github.com/percona/pmm/api/agentpb"
 	"github.com/percona/pmm/api/inventorypb"
-	"github.com/percona/pmm/api/qanpb"
 	"github.com/percona/pmm/utils/sqlmetrics"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -360,9 +358,8 @@ func (m *PGStatMonitorQAN) makeBuckets(current, cache map[time.Time]map[string]*
 	return res
 }
 
-func parseHistogramFromRespCalls(respCalls pq.StringArray) ([]string, error) {
+func parseHistogramFromRespCalls(respCalls pq.StringArray) ([]*agentpb.HistogramItem, error) {
 	histogram := getHistogramRangesArray()
-	res := []string{}
 	for k, v := range respCalls {
 		val, err := strconv.ParseInt(v, 10, 32)
 		if err != nil {
@@ -370,23 +367,16 @@ func parseHistogramFromRespCalls(respCalls pq.StringArray) ([]string, error) {
 		}
 
 		histogram[k].Frequency = uint32(val)
-
-		json, err := json.Marshal(histogram[k])
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to marshal histogram")
-		}
-
-		res = append(res, string(json))
 	}
 
-	return res, nil
+	return histogram, nil
 }
 
-func getHistogramRangesArray() []*qanpb.Histogram {
+func getHistogramRangesArray() []*agentpb.HistogramItem {
 	// For now we using static ranges.
 	// In future we will compute range values from pg_stat_monitor_settings.
 	// pgsm_histogram_min, pgsm_histogram_max, pgsm_histogram_buckets.
-	return []*qanpb.Histogram{
+	return []*agentpb.HistogramItem{
 		{Range: "(0 - 3)"},
 		{Range: "(3 - 10)"},
 		{Range: "(10 - 31)"},
