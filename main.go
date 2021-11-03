@@ -28,6 +28,7 @@ import (
 	"github.com/percona/pmm-agent/config"
 )
 
+// test
 func main() {
 	// empty version breaks much of pmm-managed logic
 	if version.Version == "" {
