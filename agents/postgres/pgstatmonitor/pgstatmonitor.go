@@ -290,7 +290,7 @@ func (m *PGStatMonitorQAN) makeBuckets(current, cache map[time.Time]map[string]*
 			mb.Postgresql.Planid = currentPSM.PlanID
 			mb.Postgresql.QueryPlan = currentPSM.QueryPlan
 
-			histogram, err := parseHistogramFromRespCalls(currentPSM.RespCalls)
+			histogram, err := parseHistogramFromRespCalls(currentPSM.RespCalls, prevPSM.RespCalls)
 			if err != nil {
 				m.l.Warnf(err.Error())
 			} else {
@@ -358,7 +358,7 @@ func (m *PGStatMonitorQAN) makeBuckets(current, cache map[time.Time]map[string]*
 	return res
 }
 
-func parseHistogramFromRespCalls(respCalls pq.StringArray) ([]*agentpb.HistogramItem, error) {
+func parseHistogramFromRespCalls(respCalls pq.StringArray, prevRespCalls pq.StringArray) ([]*agentpb.HistogramItem, error) {
 	histogram := getHistogramRangesArray()
 	for k, v := range respCalls {
 		val, err := strconv.ParseInt(v, 10, 32)
@@ -367,6 +367,15 @@ func parseHistogramFromRespCalls(respCalls pq.StringArray) ([]*agentpb.Histogram
 		}
 
 		histogram[k].Frequency = uint32(val)
+	}
+
+	for k, v := range prevRespCalls {
+		val, err := strconv.ParseInt(v, 10, 32)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to parse histogram")
+		}
+
+		histogram[k].Frequency -= uint32(val)
 	}
 
 	return histogram, nil
