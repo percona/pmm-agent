@@ -100,6 +100,11 @@ func TestPGStatMonitorSchema(t *testing.T) {
 	defer sqlDB.Close() //nolint:errcheck
 	db := reform.NewDB(sqlDB, postgresql.Dialect, reform.NewPrintfLogger(t.Logf))
 
+	engineVersion := tests.PostgreSQLVersion(t, sqlDB)
+	if !supportedVersion(engineVersion) || !extensionExists(db) {
+		t.Skip()
+	}
+
 	_, err := db.Exec("CREATE EXTENSION IF NOT EXISTS pg_stat_monitor SCHEMA public")
 	assert.NoError(t, err)
 
@@ -107,11 +112,6 @@ func TestPGStatMonitorSchema(t *testing.T) {
 		_, err = db.Exec("DROP EXTENSION pg_stat_monitor")
 		assert.NoError(t, err)
 	}()
-
-	engineVersion := tests.PostgreSQLVersion(t, sqlDB)
-	if !supportedVersion(engineVersion) || !extensionExists(db) {
-		t.Skip()
-	}
 
 	version, err := getPGMonitorVersion(db.Querier)
 	assert.NoError(t, err)
