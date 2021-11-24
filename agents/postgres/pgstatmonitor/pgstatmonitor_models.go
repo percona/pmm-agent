@@ -74,11 +74,8 @@ var (
 	v08 = version.Must(version.NewVersion("0.8"))
 )
 
-//go:generate reform
-
 // pgStatMonitor represents a row in pg_stat_monitor
 // view in version lower than 0.8.
-//reform:pg_stat_monitor
 type pgStatMonitor struct {
 	//common
 	Bucket            int64

@@ -25,6 +25,11 @@ func TestPGStatMonitorStructs(t *testing.T) {
 		assert.NoError(t, err)
 	}()
 
+	engineVersion := tests.PostgreSQLVersion(t, sqlDB)
+	if !supportedVersion(engineVersion) || !extensionExists(db) {
+		t.Skip()
+	}
+
 	m := setup(t, db, false)
 	current, cache, err := m.monitorCache.getStatMonitorExtended(context.TODO(), db.Querier, m.pgsmNormalizedQuery)
 
