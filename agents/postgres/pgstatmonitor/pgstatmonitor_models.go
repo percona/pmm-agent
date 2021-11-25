@@ -164,14 +164,14 @@ type pgStatMonitor struct {
 	view     reform.View
 }
 
-type Field struct {
+type field struct {
 	info    parse.FieldInfo
 	pointer interface{}
 }
 
 func NewPgStatMonitorStructs(v pgStatMonitorVersion) (*pgStatMonitor, reform.View) {
 	s := &pgStatMonitor{}
-	fields := []Field{
+	fields := []field{
 		{info: parse.FieldInfo{Name: "Bucket", Type: "int64", Column: "bucket"}, pointer: &s.Bucket},
 		{info: parse.FieldInfo{Name: "ClientIP", Type: "string", Column: "client_ip"}, pointer: &s.ClientIP},
 		{info: parse.FieldInfo{Name: "QueryID", Type: "string", Column: "queryid"}, pointer: &s.QueryID},
@@ -197,91 +197,83 @@ func NewPgStatMonitorStructs(v pgStatMonitorVersion) (*pgStatMonitor, reform.Vie
 	if v == pgStatMonitorVersion06 {
 		// versions older than 0.8
 		fields = append(fields,
-			Field{info: parse.FieldInfo{Name: "Relations", Type: "pq.StringArray", Column: "tables_names"}, pointer: &s.Relations},
-			Field{info: parse.FieldInfo{Name: "DBID", Type: "int64", Column: "dbid"}, pointer: &s.DBID},
-			Field{info: parse.FieldInfo{Name: "UserID", Type: "int64", Column: "userid"}, pointer: &s.UserID},
-			Field{info: parse.FieldInfo{Name: "Rows", Type: "int64", Column: "rows"}, pointer: &s.Rows},
-			Field{info: parse.FieldInfo{Name: "BucketStartTime", Type: "time.Time", Column: "bucket_start_time"}, pointer: &s.BucketStartTime},
+			field{info: parse.FieldInfo{Name: "Relations", Type: "pq.StringArray", Column: "tables_names"}, pointer: &s.Relations},
+			field{info: parse.FieldInfo{Name: "DBID", Type: "int64", Column: "dbid"}, pointer: &s.DBID},
+			field{info: parse.FieldInfo{Name: "UserID", Type: "int64", Column: "userid"}, pointer: &s.UserID},
+			field{info: parse.FieldInfo{Name: "Rows", Type: "int64", Column: "rows"}, pointer: &s.Rows},
+			field{info: parse.FieldInfo{Name: "BucketStartTime", Type: "time.Time", Column: "bucket_start_time"}, pointer: &s.BucketStartTime},
 		)
 	}
 	if v == pgStatMonitorVersion08 {
 		fields = append(fields,
-			Field{info: parse.FieldInfo{Name: "Rows", Type: "int64", Column: "rows"}, pointer: &s.Rows},
+			field{info: parse.FieldInfo{Name: "Rows", Type: "int64", Column: "rows"}, pointer: &s.Rows},
 		)
 	}
 	if v >= pgStatMonitorVersion08 {
 		fields = append(fields,
-			Field{info: parse.FieldInfo{Name: "Relations", Type: "pq.StringArray", Column: "relations"}, pointer: &s.Relations},
-			Field{info: parse.FieldInfo{Name: "DatName", Type: "string", Column: "datname"}, pointer: &s.DatName},
-			Field{info: parse.FieldInfo{Name: "UserName", Type: "string", Column: "userid"}, pointer: &s.UserName},
-			Field{info: parse.FieldInfo{Name: "BucketStartTimeString", Type: "string", Column: "bucket_start_time"}, pointer: &s.BucketStartTimeString},
+			field{info: parse.FieldInfo{Name: "Relations", Type: "pq.StringArray", Column: "relations"}, pointer: &s.Relations},
+			field{info: parse.FieldInfo{Name: "DatName", Type: "string", Column: "datname"}, pointer: &s.DatName},
+			field{info: parse.FieldInfo{Name: "UserName", Type: "string", Column: "userid"}, pointer: &s.UserName},
+			field{info: parse.FieldInfo{Name: "BucketStartTimeString", Type: "string", Column: "bucket_start_time"}, pointer: &s.BucketStartTimeString},
 		)
 	}
 	if v == pgStatMonitorVersion09 {
 		fields = append(fields,
-			Field{info: parse.FieldInfo{Name: "MinTime", Type: "float64", Column: "min_time"}, pointer: &s.MinTime},
-			Field{info: parse.FieldInfo{Name: "MaxTime", Type: "float64", Column: "max_time"}, pointer: &s.MaxTime},
-			Field{info: parse.FieldInfo{Name: "MeanTime", Type: "float64", Column: "mean_time"}, pointer: &s.MeanTime},
-			Field{info: parse.FieldInfo{Name: "StddevTime", Type: "float64", Column: "stddev_time"}, pointer: &s.StddevTime},
-			Field{info: parse.FieldInfo{Name: "PlanTotalTime", Type: "float64", Column: "plan_total_time"}, pointer: &s.PlanTotalTime},
-			Field{info: parse.FieldInfo{Name: "PlanMinTime", Type: "float64", Column: "plan_min_time"}, pointer: &s.PlanMinTime},
-			Field{info: parse.FieldInfo{Name: "PlanMaxTime", Type: "float64", Column: "plan_max_time"}, pointer: &s.PlanMaxTime},
-			Field{info: parse.FieldInfo{Name: "PlanMeanTime", Type: "float64", Column: "plan_mean_time"}, pointer: &s.PlanMeanTime},
-			Field{info: parse.FieldInfo{Name: "PlansCalls", Type: "int64", Column: "plans_calls"}, pointer: &s.PlansCalls},
+			field{info: parse.FieldInfo{Name: "MinTime", Type: "float64", Column: "min_time"}, pointer: &s.MinTime},
+			field{info: parse.FieldInfo{Name: "MaxTime", Type: "float64", Column: "max_time"}, pointer: &s.MaxTime},
+			field{info: parse.FieldInfo{Name: "MeanTime", Type: "float64", Column: "mean_time"}, pointer: &s.MeanTime},
+			field{info: parse.FieldInfo{Name: "StddevTime", Type: "float64", Column: "stddev_time"}, pointer: &s.StddevTime},
+			field{info: parse.FieldInfo{Name: "PlanTotalTime", Type: "float64", Column: "plan_total_time"}, pointer: &s.PlanTotalTime},
+			field{info: parse.FieldInfo{Name: "PlanMinTime", Type: "float64", Column: "plan_min_time"}, pointer: &s.PlanMinTime},
+			field{info: parse.FieldInfo{Name: "PlanMaxTime", Type: "float64", Column: "plan_max_time"}, pointer: &s.PlanMaxTime},
+			field{info: parse.FieldInfo{Name: "PlanMeanTime", Type: "float64", Column: "plan_mean_time"}, pointer: &s.PlanMeanTime},
+			field{info: parse.FieldInfo{Name: "PlansCalls", Type: "int64", Column: "plans_calls"}, pointer: &s.PlansCalls},
 		)
 	}
 	if v >= pgStatMonitorVersion09 {
 		fields = append(fields,
-			Field{info: parse.FieldInfo{Name: "Rows", Type: "int64", Column: "rows_retrieved"}, pointer: &s.Rows},
-			Field{info: parse.FieldInfo{Name: "TopQueryID", Type: "*string", Column: "top_queryid"}, pointer: &s.TopQueryID},
-			Field{info: parse.FieldInfo{Name: "PlanID", Type: "*string", Column: "planid"}, pointer: &s.PlanID},
-			Field{info: parse.FieldInfo{Name: "QueryPlan", Type: "*string", Column: "query_plan"}, pointer: &s.QueryPlan},
-			Field{info: parse.FieldInfo{Name: "TopQuery", Type: "*string", Column: "top_query"}, pointer: &s.TopQuery},
-			Field{info: parse.FieldInfo{Name: "ApplicationName", Type: "*string", Column: "application_name"}, pointer: &s.ApplicationName},
-			Field{info: parse.FieldInfo{Name: "CmdType", Type: "int32", Column: "cmd_type"}, pointer: &s.CmdType},
-			Field{info: parse.FieldInfo{Name: "CmdTypeText", Type: "string", Column: "cmd_type_text"}, pointer: &s.CmdTypeText},
-			Field{info: parse.FieldInfo{Name: "Elevel", Type: "int32", Column: "elevel"}, pointer: &s.Elevel},
-			Field{info: parse.FieldInfo{Name: "Sqlcode", Type: "*string", Column: "sqlcode"}, pointer: &s.Sqlcode},
-			Field{info: parse.FieldInfo{Name: "Message", Type: "*string", Column: "message"}, pointer: &s.Message},
-			Field{info: parse.FieldInfo{Name: "WalRecords", Type: "int64", Column: "wal_records"}, pointer: &s.WalRecords},
-			Field{info: parse.FieldInfo{Name: "WalFpi", Type: "int64", Column: "wal_fpi"}, pointer: &s.WalFpi},
-			Field{info: parse.FieldInfo{Name: "WalBytes", Type: "int64", Column: "wal_bytes"}, pointer: &s.WalBytes},
-			Field{info: parse.FieldInfo{Name: "StateCode", Type: "int64", Column: "state_code"}, pointer: &s.StateCode},
-			Field{info: parse.FieldInfo{Name: "State", Type: "string", Column: "state"}, pointer: &s.State},
+			field{info: parse.FieldInfo{Name: "Rows", Type: "int64", Column: "rows_retrieved"}, pointer: &s.Rows},
+			field{info: parse.FieldInfo{Name: "TopQueryID", Type: "*string", Column: "top_queryid"}, pointer: &s.TopQueryID},
+			field{info: parse.FieldInfo{Name: "PlanID", Type: "*string", Column: "planid"}, pointer: &s.PlanID},
+			field{info: parse.FieldInfo{Name: "QueryPlan", Type: "*string", Column: "query_plan"}, pointer: &s.QueryPlan},
+			field{info: parse.FieldInfo{Name: "TopQuery", Type: "*string", Column: "top_query"}, pointer: &s.TopQuery},
+			field{info: parse.FieldInfo{Name: "ApplicationName", Type: "*string", Column: "application_name"}, pointer: &s.ApplicationName},
+			field{info: parse.FieldInfo{Name: "CmdType", Type: "int32", Column: "cmd_type"}, pointer: &s.CmdType},
+			field{info: parse.FieldInfo{Name: "CmdTypeText", Type: "string", Column: "cmd_type_text"}, pointer: &s.CmdTypeText},
+			field{info: parse.FieldInfo{Name: "Elevel", Type: "int32", Column: "elevel"}, pointer: &s.Elevel},
+			field{info: parse.FieldInfo{Name: "Sqlcode", Type: "*string", Column: "sqlcode"}, pointer: &s.Sqlcode},
+			field{info: parse.FieldInfo{Name: "Message", Type: "*string", Column: "message"}, pointer: &s.Message},
+			field{info: parse.FieldInfo{Name: "WalRecords", Type: "int64", Column: "wal_records"}, pointer: &s.WalRecords},
+			field{info: parse.FieldInfo{Name: "WalFpi", Type: "int64", Column: "wal_fpi"}, pointer: &s.WalFpi},
+			field{info: parse.FieldInfo{Name: "WalBytes", Type: "int64", Column: "wal_bytes"}, pointer: &s.WalBytes},
+			field{info: parse.FieldInfo{Name: "StateCode", Type: "int64", Column: "state_code"}, pointer: &s.StateCode},
+			field{info: parse.FieldInfo{Name: "State", Type: "string", Column: "state"}, pointer: &s.State},
 		)
 	}
 
 	if v <= pgStatMonitorVersion10PG12 {
 		fields = append(fields,
-			Field{info: parse.FieldInfo{Name: "TotalTime", Type: "float64", Column: "total_time"}, pointer: &s.TotalTime},
-			Field{info: parse.FieldInfo{Name: "MinTime", Type: "float64", Column: "min_time"}, pointer: &s.MinTime},
-			Field{info: parse.FieldInfo{Name: "MaxTime", Type: "float64", Column: "max_time"}, pointer: &s.MaxTime},
-			Field{info: parse.FieldInfo{Name: "MeanTime", Type: "float64", Column: "mean_time"}, pointer: &s.MeanTime},
-			Field{info: parse.FieldInfo{Name: "StddevTime", Type: "float64", Column: "stddev_time"}, pointer: &s.StddevTime},
+			field{info: parse.FieldInfo{Name: "TotalTime", Type: "float64", Column: "total_time"}, pointer: &s.TotalTime},
+			field{info: parse.FieldInfo{Name: "MinTime", Type: "float64", Column: "min_time"}, pointer: &s.MinTime},
+			field{info: parse.FieldInfo{Name: "MaxTime", Type: "float64", Column: "max_time"}, pointer: &s.MaxTime},
+			field{info: parse.FieldInfo{Name: "MeanTime", Type: "float64", Column: "mean_time"}, pointer: &s.MeanTime},
+			field{info: parse.FieldInfo{Name: "StddevTime", Type: "float64", Column: "stddev_time"}, pointer: &s.StddevTime},
 		)
 	}
 	if v >= pgStatMonitorVersion10PG13 {
 		fields = append(fields,
-			Field{info: parse.FieldInfo{Name: "TotalTime", Type: "float64", Column: "total_exec_time"}, pointer: &s.TotalTime},
-			Field{info: parse.FieldInfo{Name: "MinTime", Type: "float64", Column: "min_exec_time"}, pointer: &s.MinTime},
-			Field{info: parse.FieldInfo{Name: "MaxTime", Type: "float64", Column: "max_exec_time"}, pointer: &s.MaxTime},
-			Field{info: parse.FieldInfo{Name: "MeanTime", Type: "float64", Column: "mean_exec_time"}, pointer: &s.MeanTime},
-			Field{info: parse.FieldInfo{Name: "StddevTime", Type: "float64", Column: "stddev_exec_time"}, pointer: &s.StddevTime},
-			Field{info: parse.FieldInfo{Name: "PlansCalls", Type: "int64", Column: "plans_calls"}, pointer: &s.PlansCalls},
-			Field{info: parse.FieldInfo{Name: "PlanTotalTime", Type: "float64", Column: "total_plan_time"}, pointer: &s.PlanTotalTime},
-			Field{info: parse.FieldInfo{Name: "PlanMinTime", Type: "float64", Column: "min_plan_time"}, pointer: &s.PlanMinTime},
-			Field{info: parse.FieldInfo{Name: "PlanMaxTime", Type: "float64", Column: "max_plan_time"}, pointer: &s.PlanMaxTime},
-			Field{info: parse.FieldInfo{Name: "PlanMeanTime", Type: "float64", Column: "mean_plan_time"}, pointer: &s.PlanMeanTime},
+			field{info: parse.FieldInfo{Name: "TotalTime", Type: "float64", Column: "total_exec_time"}, pointer: &s.TotalTime},
+			field{info: parse.FieldInfo{Name: "MinTime", Type: "float64", Column: "min_exec_time"}, pointer: &s.MinTime},
+			field{info: parse.FieldInfo{Name: "MaxTime", Type: "float64", Column: "max_exec_time"}, pointer: &s.MaxTime},
+			field{info: parse.FieldInfo{Name: "MeanTime", Type: "float64", Column: "mean_exec_time"}, pointer: &s.MeanTime},
+			field{info: parse.FieldInfo{Name: "StddevTime", Type: "float64", Column: "stddev_exec_time"}, pointer: &s.StddevTime},
+			field{info: parse.FieldInfo{Name: "PlansCalls", Type: "int64", Column: "plans_calls"}, pointer: &s.PlansCalls},
+			field{info: parse.FieldInfo{Name: "PlanTotalTime", Type: "float64", Column: "total_plan_time"}, pointer: &s.PlanTotalTime},
+			field{info: parse.FieldInfo{Name: "PlanMinTime", Type: "float64", Column: "min_plan_time"}, pointer: &s.PlanMinTime},
+			field{info: parse.FieldInfo{Name: "PlanMaxTime", Type: "float64", Column: "max_plan_time"}, pointer: &s.PlanMaxTime},
+			field{info: parse.FieldInfo{Name: "PlanMeanTime", Type: "float64", Column: "mean_plan_time"}, pointer: &s.PlanMeanTime},
 		)
 	}
-	//if v >= pgStatMonitorVersion10PG14 {
-	//	fields = append(fields,
-	//		Field{info: parse.FieldInfo{Name: "PlanTotalTime", Type: "float64", Column: "total_plan_time"}, pointer: &s.PlanTotalTime},
-	//		Field{info: parse.FieldInfo{Name: "PlanMinTime", Type: "float64", Column: "min_plan_time"}, pointer: &s.PlanMinTime},
-	//		Field{info: parse.FieldInfo{Name: "PlanMaxTime", Type: "float64", Column: "max_plan_time"}, pointer: &s.PlanMaxTime},
-	//		Field{info: parse.FieldInfo{Name: "PlanMeanTime", Type: "float64", Column: "mean_plan_time"}, pointer: &s.PlanMeanTime},
-	//	)
-	//}
 
 	s.pointers = make([]interface{}, len(fields))
 	pgStatMonitorDefaultView := &pgStatMonitorAllViewType{

@@ -84,15 +84,20 @@ const (
 	queryTag = "pmm-agent:pgstatmonitor"
 	// There is a feature in the FE that shows "n/a" for empty responses for dimensions.
 	commandTextNotAvailable = ""
+	commandTypeSelect       = "SELECT"
+	commandTypeUpdate       = "UPDATE"
+	commandTypeInsert       = "INSERT"
+	commandTypeDelete       = "DELETE"
+	commandTypeUtiity       = "UTILITY"
 )
 
 var commandTypeToText = []string{
 	commandTextNotAvailable,
-	"SELECT",
-	"UPDATE",
-	"INSERT",
-	"DELETE",
-	"UTILITY",
+	commandTypeSelect,
+	commandTypeUpdate,
+	commandTypeInsert,
+	commandTypeDelete,
+	commandTypeUtiity,
 	commandTextNotAvailable,
 }
 

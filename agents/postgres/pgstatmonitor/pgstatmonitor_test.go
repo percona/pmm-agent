@@ -183,14 +183,14 @@ func TestPGStatMonitorSchema(t *testing.T) {
 	case pgStatMonitorVersion06:
 	case pgStatMonitorVersion08:
 	case pgStatMonitorVersion09:
-		selectCMDType = "SELECT"
-		insertCMDType = "INSERT"
+		selectCMDType = commandTypeSelect
+		insertCMDType = commandTypeInsert
 	case pgStatMonitorVersion10PG12:
-		selectCMDType = "SELECT"
-		insertCMDType = "INSERT"
+		selectCMDType = commandTypeSelect
+		insertCMDType = commandTypeInsert
 	case pgStatMonitorVersion10PG13, pgStatMonitorVersion10PG14:
-		selectCMDType = "SELECT"
-		insertCMDType = "INSERT"
+		selectCMDType = commandTypeSelect
+		insertCMDType = commandTypeInsert
 		mPlansCallsCnt = 1
 		mPlansTimeCnt = 1
 	}
