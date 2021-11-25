@@ -213,7 +213,6 @@ func NewPgStatMonitorStructs(v pgStatMonitorVersion) (*pgStatMonitor, reform.Vie
 		{info: parse.FieldInfo{Name: "ClientIP", Type: "string", Column: "client_ip"}, pointer: &s.ClientIP},
 		{info: parse.FieldInfo{Name: "QueryID", Type: "string", Column: "queryid"}, pointer: &s.QueryID},
 		{info: parse.FieldInfo{Name: "Query", Type: "string", Column: "query"}, pointer: &s.Query},
-		{info: parse.FieldInfo{Name: "Relations", Type: "pq.StringArray", Column: "relations"}, pointer: &s.Relations},
 		{info: parse.FieldInfo{Name: "Calls", Type: "int64", Column: "calls"}, pointer: &s.Calls},
 		{info: parse.FieldInfo{Name: "SharedBlksHit", Type: "int64", Column: "shared_blks_hit"}, pointer: &s.SharedBlksHit},
 		{info: parse.FieldInfo{Name: "SharedBlksRead", Type: "int64", Column: "shared_blks_read"}, pointer: &s.SharedBlksRead},
@@ -235,6 +234,7 @@ func NewPgStatMonitorStructs(v pgStatMonitorVersion) (*pgStatMonitor, reform.Vie
 	if v == pgStatMonitorVersion06 {
 		// versions older than 0.8
 		fields = append(fields,
+			Field{info: parse.FieldInfo{Name: "Relations", Type: "pq.StringArray", Column: "tables_names"}, pointer: &s.Relations},
 			Field{info: parse.FieldInfo{Name: "DBID", Type: "int64", Column: "dbid"}, pointer: &s.DBID},
 			Field{info: parse.FieldInfo{Name: "UserID", Type: "int64", Column: "userid"}, pointer: &s.UserID},
 			Field{info: parse.FieldInfo{Name: "Rows", Type: "int64", Column: "rows"}, pointer: &s.Rows},
@@ -248,6 +248,7 @@ func NewPgStatMonitorStructs(v pgStatMonitorVersion) (*pgStatMonitor, reform.Vie
 	}
 	if v >= pgStatMonitorVersion08 {
 		fields = append(fields,
+			Field{info: parse.FieldInfo{Name: "Relations", Type: "pq.StringArray", Column: "relations"}, pointer: &s.Relations},
 			Field{info: parse.FieldInfo{Name: "DatName", Type: "string", Column: "datname"}, pointer: &s.DatName},
 			Field{info: parse.FieldInfo{Name: "UserName", Type: "string", Column: "userid"}, pointer: &s.UserName},
 			Field{info: parse.FieldInfo{Name: "BucketStartTimeString", Type: "string", Column: "bucket_start_time"}, pointer: &s.BucketStartTimeString},
