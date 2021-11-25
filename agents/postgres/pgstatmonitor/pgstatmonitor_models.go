@@ -92,7 +92,6 @@ var (
 // pgStatMonitor represents a row in pg_stat_monitor
 // view in version lower than 0.8.
 type pgStatMonitor struct {
-	//common
 	Bucket            int64
 	BucketStartTime   time.Time
 	ClientIP          string
@@ -115,21 +114,8 @@ type pgStatMonitor struct {
 	RespCalls         pq.StringArray
 	CPUUserTime       float64
 	CPUSysTime        float64
+	Rows              int64
 
-	// < pg0.6
-	DBID   int64
-	UserID int64
-
-	// >= pg0.8
-	DatName               string
-	UserName              string
-	BucketStartTimeString string
-
-	// < pg 0.9
-	Rows int64
-
-	// pg 0.9
-	//RowsRetrieved   int64
 	TopQueryID      *string
 	PlanID          *string
 	QueryPlan       *string
@@ -140,6 +126,7 @@ type pgStatMonitor struct {
 	Elevel          int32
 	Sqlcode         *string
 	Message         *string
+	TotalTime       float64
 	MinTime         float64
 	MaxTime         float64
 	MeanTime        float64
@@ -160,46 +147,22 @@ type pgStatMonitor struct {
 	StateCode int64
 	State     string
 
-	// < pg 1.0
-	TotalTime float64
+	// < pg0.6
+
+	DBID   int64
+	UserID int64
+
+	// >= pg0.8
+
+	DatName               string
+	UserName              string
+	BucketStartTimeString string
+
+	// reform related fields
 
 	pointers []interface{}
 	view     reform.View
 }
-
-//
-//func (s pgStatMonitor) ToPgStatMonitor() pgStatMonitor {
-//	return pgStatMonitor{
-//		Bucket:            s.Bucket,
-//		BucketStartTime:   s.BucketStartTime,
-//		UserID:            s.UserID,
-//		DBID:              s.DBID,
-//		QueryID:           s.QueryID,
-//		Query:             s.Query,
-//		Calls:             s.Calls,
-//		TotalTime:         s.TotalTime,
-//		Rows:              s.RowsRetrieved,
-//		SharedBlksHit:     s.SharedBlksHit,
-//		SharedBlksRead:    s.SharedBlksRead,
-//		SharedBlksDirtied: s.SharedBlksDirtied,
-//		SharedBlksWritten: s.SharedBlksWritten,
-//		LocalBlksHit:      s.LocalBlksHit,
-//		LocalBlksRead:     s.LocalBlksRead,
-//		LocalBlksDirtied:  s.LocalBlksDirtied,
-//		LocalBlksWritten:  s.LocalBlksWritten,
-//		TempBlksRead:      s.TempBlksRead,
-//		TempBlksWritten:   s.TempBlksWritten,
-//		BlkReadTime:       s.BlkReadTime,
-//		BlkWriteTime:      s.BlkWriteTime,
-//		ClientIP:          s.ClientIP,
-//		RespCalls:         s.RespCalls,
-//		CPUUserTime:       s.CPUUserTime,
-//		CPUSysTime:        s.CPUSysTime,
-//		Relations:         s.Relations,
-//		Elevel:            s.Elevel,
-//		CmdType:           s.CmdType,
-//	}
-//}
 
 type Field struct {
 	info    parse.FieldInfo
@@ -321,7 +284,7 @@ func NewPgStatMonitorStructs(v pgStatMonitorVersion) (*pgStatMonitor, reform.Vie
 	//}
 
 	s.pointers = make([]interface{}, len(fields))
-	var pgStatMonitorDefaultView = &pgStatMonitorAllViewType{
+	pgStatMonitorDefaultView := &pgStatMonitorAllViewType{
 		s: parse.StructInfo{
 			Type:         "pgStatMonitor",
 			SQLName:      "pg_stat_monitor",

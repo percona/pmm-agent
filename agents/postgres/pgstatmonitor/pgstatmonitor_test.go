@@ -88,6 +88,7 @@ func filter(mb []*agentpb.MetricsBucket) []*agentpb.MetricsBucket {
 	}
 	return res
 }
+
 func TestVersion(t *testing.T) {
 	pgsmVersion, err := ver.NewVersion("1.0.0-beta-2")
 	require.NoError(t, err)

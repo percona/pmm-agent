@@ -159,11 +159,11 @@ func getPGMonitorVersion(q *reform.Querier) (pgStatMonitorVersion, error) {
 	var result string
 	err := q.QueryRow(fmt.Sprintf("SELECT /* %s */ pg_stat_monitor_version()", queryTag)).Scan(&result)
 	if err != nil {
-		return pgStatMonitorVersion06, err
+		return pgStatMonitorVersion06, errors.Wrap(err, "failed to get pg_stat_monitor version from DB")
 	}
 	pgsmVersion, err := ver.NewVersion(result)
 	if err != nil {
-		return pgStatMonitorVersion06, err
+		return pgStatMonitorVersion06, errors.Wrap(err, "failed to parse pg_stat_monitor version")
 	}
 
 	pgVersion, err := getPGVersion(q)

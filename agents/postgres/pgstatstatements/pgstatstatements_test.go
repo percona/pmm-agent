@@ -398,7 +398,7 @@ func TestPGStatStatementsQAN(t *testing.T) {
 		}
 		actual := buckets[0]
 		assert.NotZero(t, actual.Postgresql.MBlkReadTimeSum)
-		var expected = &agentpb.MetricsBucket{
+		expected := &agentpb.MetricsBucket{
 			Common: &agentpb.MetricsBucket_Common{
 				Queryid:             actual.Common.Queryid,
 				Fingerprint:         fingerprint,
