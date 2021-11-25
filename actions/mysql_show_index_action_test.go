@@ -75,7 +75,7 @@ func TestMySQLShowIndex(t *testing.T) {
 				"Table", "Non_unique", "Key_name", "Seq_in_index", "Column_name", "Collation", "Cardinality",
 				"Sub_part", "Packed", "Null", "Index_type", "Comment", "Index_comment",
 			}, actual[0])
-			assert.Equal(t, []interface{}{"city", "0", "PRIMARY", "1", "ID", "A", "CARDINALITY", nil, nil, "", "BTREE", "", "NO"}, actual[1])
+			assert.Equal(t, []interface{}{"city", "0", "PRIMARY", "1", "ID", "A", "CARDINALITY", nil, nil, "", "BTREE", "", ""}, actual[1])
 			assert.Equal(t, []interface{}{"city", "1", "CountryCode", "1", "CountryCode", "A", "CARDINALITY", nil, nil, "", "BTREE", "", ""}, actual[2])
 
 		case mySQLVersion == "5.7":
