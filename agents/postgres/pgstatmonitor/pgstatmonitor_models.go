@@ -144,11 +144,10 @@ func NewPgStatMonitorStructs(v pgStatMonitorVersion) (*pgStatMonitor, reform.Vie
 			field{info: parse.FieldInfo{Name: "Relations", Type: "pq.StringArray", Column: "tables_names"}, pointer: &s.Relations},
 			field{info: parse.FieldInfo{Name: "DBID", Type: "int64", Column: "dbid"}, pointer: &s.DBID},
 			field{info: parse.FieldInfo{Name: "UserID", Type: "int64", Column: "userid"}, pointer: &s.UserID},
-			field{info: parse.FieldInfo{Name: "Rows", Type: "int64", Column: "rows"}, pointer: &s.Rows},
 			field{info: parse.FieldInfo{Name: "BucketStartTime", Type: "time.Time", Column: "bucket_start_time"}, pointer: &s.BucketStartTime},
 		)
 	}
-	if v == pgStatMonitorVersion08 {
+	if v <= pgStatMonitorVersion08 {
 		fields = append(fields,
 			field{info: parse.FieldInfo{Name: "Rows", Type: "int64", Column: "rows"}, pointer: &s.Rows},
 		)
@@ -163,10 +162,6 @@ func NewPgStatMonitorStructs(v pgStatMonitorVersion) (*pgStatMonitor, reform.Vie
 	}
 	if v == pgStatMonitorVersion09 {
 		fields = append(fields,
-			field{info: parse.FieldInfo{Name: "MinTime", Type: "float64", Column: "min_time"}, pointer: &s.MinTime},
-			field{info: parse.FieldInfo{Name: "MaxTime", Type: "float64", Column: "max_time"}, pointer: &s.MaxTime},
-			field{info: parse.FieldInfo{Name: "MeanTime", Type: "float64", Column: "mean_time"}, pointer: &s.MeanTime},
-			field{info: parse.FieldInfo{Name: "StddevTime", Type: "float64", Column: "stddev_time"}, pointer: &s.StddevTime},
 			field{info: parse.FieldInfo{Name: "PlanTotalTime", Type: "float64", Column: "plan_total_time"}, pointer: &s.PlanTotalTime},
 			field{info: parse.FieldInfo{Name: "PlanMinTime", Type: "float64", Column: "plan_min_time"}, pointer: &s.PlanMinTime},
 			field{info: parse.FieldInfo{Name: "PlanMaxTime", Type: "float64", Column: "plan_max_time"}, pointer: &s.PlanMaxTime},
