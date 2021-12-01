@@ -15,62 +15,6 @@
 
 package pgstatmonitor
 
-/*
-pgDefault
-	Rows              int64          `reform:"rows"`
-pg 0.8
-	BucketStartTime   string         `reform:"bucket_start_time"`
-	User              string         `reform:"userid"`
-	DatName           string         `reform:"datname"`
-pg 0.9
-	BucketStartTime   string         `reform:"bucket_start_time"`
-	User              string         `reform:"userid"`
-	DatName           string         `reform:"datname"`
-	QueryID           string         `reform:"queryid"`
-	TopQueryID        *string        `reform:"top_queryid"`
-	Query             string         `reform:"query"`
-	PlanID            *string        `reform:"planid"`
-	QueryPlan         *string        `reform:"query_plan"`
-	TopQuery          *string        `reform:"top_query"`
-	ApplicationName   *string        `reform:"application_name"`
-	Relations         pq.StringArray `reform:"relations"`
-	CmdType           int32          `reform:"cmd_type"`
-	CmdTypeText       string         `reform:"cmd_type_text"`
-	Elevel            int32          `reform:"elevel"`
-	Sqlcode           *string        `reform:"sqlcode"`
-	Message           *string        `reform:"message"`
-	MinTime           float64        `reform:"min_time"`
-	MaxTime           float64        `reform:"max_time"`
-	MeanTime          float64        `reform:"mean_time"`
-	StddevTime        float64        `reform:"stddev_time"`
-	RowsRetrieved     int64          `reform:"rows_retrieved"`
-	PlansCalls        int64          `reform:"plans_calls"`
-	PlanTotalTime     float64        `reform:"plan_total_time"`
-	PlanMinTime       float64        `reform:"plan_min_time"`
-	PlanMaxTime       float64        `reform:"plan_max_time"`
-	PlanMeanTime      float64        `reform:"plan_mean_time"`
-	WalRecords        int64          `reform:"wal_records"`
-	WalFpi            int64          `reform:"wal_fpi"`
-	WalBytes          int64          `reform:"wal_bytes"`
-
-	// state_code = 0 state 'PARSING'
-	// state_code = 1 state 'PLANNING'
-	// state_code = 2 state 'ACTIVE'
-	// state_code = 3 state 'FINISHED'
-	// state_code = 4 state 'FINISHED WITH ERROR'
-	StateCode int64 `reform:"state_code"`
-
-	State string `reform:"state"`
-pg 1.0 - 11.0-12.0
-removed
-	PlanTotalTime     float64        `reform:"plan_total_time"`
-	PlanMinTime       float64        `reform:"plan_min_time"`
-	PlanMaxTime       float64        `reform:"plan_max_time"`
-	PlanMeanTime      float64        `reform:"plan_mean_time"`
-pg 1.0 - 13.0
-
-*/
-
 import (
 	"fmt"
 	"reflect"
