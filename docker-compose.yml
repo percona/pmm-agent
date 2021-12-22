@@ -19,6 +19,26 @@ services:
     volumes:
       - ./testdata/checks:/srv/checks
 
+#  pmm-client:
+#    image: ${PMM_CLIENT_IMAGE:-perconalab/pmm-client:dev-latest}
+#    container_name: pmm-agent_pmm-client
+#    ports:
+#      - 127.0.0.1:7777:7777
+#      - "41000-41500:41000-41500"
+#    environment:
+#      - PMM_AGENT_SETUP=1
+#      - PMM_AGENT_SERVER_ADDRESS=pmm-server
+#      - PMM_AGENT_SERVER_USERNAME=admin
+#      - PMM_AGENT_SERVER_PASSWORD=admin
+#      - PMM_AGENT_PORTS_MIN=41000
+#      - PMM_AGENT_PORTS_MAX=41500
+#      - PMM_AGENT_SERVER_INSECURE_TLS=1
+#      - PMM_AGENT_CONFIG_FILE=config/pmm-agent.yaml
+#      - PMM_AGENT_SETUP_NODE_NAME=${PMM_AGENT_SETUP_NODE_NAME:-pmm-client}
+#      - PMM_AGENT_SETUP_FORCE=1
+#      - PMM_AGENT_SETUP_NODE_TYPE=container
+#      - PMM_AGENT_PRERUN_SCRIPT=${PMM_AGENT_PRERUN_SCRIPT}
+
   test_db:
     image: aleksi/test_db:1.1.0
     container_name: pmm-agent_test_db
