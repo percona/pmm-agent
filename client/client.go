@@ -35,6 +35,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/keepalive"
 	grpcstatus "google.golang.org/grpc/status"
 
 	"github.com/percona/pmm-agent/actions" // TODO https://jira.percona.com/browse/PMM-7206
@@ -551,10 +552,9 @@ func (c *Client) getActionTimeout(req *agentpb.StartActionRequest) time.Duration
 }
 
 type dialResult struct {
-	conn         *grpc.ClientConn
-	streamCancel context.CancelFunc
-	channel      *channel.Channel
-	md           *agentpb.ServerConnectMetadata
+	conn    *grpc.ClientConn
+	channel *channel.Channel
+	md      *agentpb.ServerConnectMetadata
 }
 
 // dial tries to connect to the server once.
@@ -563,6 +563,11 @@ func dial(dialCtx context.Context, cfg *config.Config, l *logrus.Entry) (*dialRe
 	opts := []grpc.DialOption{
 		grpc.WithBlock(),
 		grpc.WithUserAgent("pmm-agent/" + version.Version),
+		grpc.WithKeepaliveParams(keepalive.ClientParameters{
+			Time:                10 * time.Second,
+			Timeout:             100 * time.Millisecond,
+			PermitWithoutStream: true,
+		}),
 	}
 	if cfg.Server.WithoutTLS {
 		opts = append(opts, grpc.WithInsecure())
@@ -596,43 +601,16 @@ func dial(dialCtx context.Context, cfg *config.Config, l *logrus.Entry) (*dialRe
 	}
 	l.Infof("Connected to %s.", cfg.Server.Address)
 
-	// gRPC stream is created without lifetime timeout.
-	// However, we need to cancel it if two-way communication channel can't be established
-	// when pmm-managed is down. A separate timer is used for that.
-	streamCtx, streamCancel := context.WithCancel(context.Background())
-	teardown := func() {
-		streamCancel()
-		if err := conn.Close(); err != nil {
-			l.Debugf("Connection closed: %s.", err)
-			return
-		}
-		l.Debugf("Connection closed.")
-	}
-	d, ok := dialCtx.Deadline()
+	_, ok := dialCtx.Deadline()
 	if !ok {
 		panic("no deadline in dialCtx")
-	}
-	streamCancelT := time.AfterFunc(time.Until(d), streamCancel)
-	defer streamCancelT.Stop()
-
-	l.Info("Establishing two-way communication channel ...")
-	start := time.Now()
-	streamCtx = agentpb.AddAgentConnectMetadata(streamCtx, &agentpb.AgentConnectMetadata{
-		ID:      cfg.ID,
-		Version: version.Version,
-	})
-	stream, err := agentpb.NewAgentClient(conn).Connect(streamCtx)
-	if err != nil {
-		l.Errorf("Failed to establish two-way communication channel: %s.", err)
-		teardown()
-		return nil, errors.Wrap(err, "failed to connect")
 	}
 
 	// So far, nginx can handle all that itself without pmm-managed.
 	// We need to exchange one pair of messages (ping/pong) for metadata headers to reach pmm-managed
 	// to ensure that pmm-managed is alive and that Agent ID is valid.
-
-	channel := channel.New(stream)
+	start := time.Now()
+	channel := channel.New(conn, l, cfg.ID, version.Version)
 	_, clockDrift, err := getNetworkInformation(channel) // ping/pong
 	if err != nil {
 		msg := err.Error()
@@ -643,22 +621,8 @@ func dial(dialCtx context.Context, cfg *config.Config, l *logrus.Entry) (*dialRe
 		}
 
 		l.Errorf("Failed to establish two-way communication channel: %s.", msg)
-		teardown()
+		conn.Close()
 		return nil, err
-	}
-
-	// read metadata header after receiving pong
-	md, err := agentpb.ReceiveServerConnectMetadata(stream)
-	l.Debugf("Received server metadata: %+v. Error: %+v.", md, err)
-	if err != nil {
-		l.Errorf("Failed to receive server metadata: %s.", err)
-		teardown()
-		return nil, errors.Wrap(err, "failed to receive server metadata")
-	}
-	if md.ServerVersion == "" {
-		l.Errorf("Server metadata does not contain server version.")
-		teardown()
-		return nil, errors.New("empty server version in metadata")
 	}
 
 	level := logrus.InfoLevel
@@ -668,11 +632,17 @@ func dial(dialCtx context.Context, cfg *config.Config, l *logrus.Entry) (*dialRe
 	l.Logf(level, "Two-way communication channel established in %s. Estimated clock drift: %s.",
 		time.Since(start), clockDrift)
 
+	if channel.MD.ServerVersion == "" {
+		l.Errorf("Server metadata does not contain server version.")
+		conn.Close()
+		return nil, errors.New("empty server version in metadata")
+	}
+
 	return &dialResult{
-		conn:         conn,
-		streamCancel: streamCancel,
-		channel:      channel,
-		md:           md}, nil
+		conn:    conn,
+		channel: channel,
+		md:      channel.MD,
+	}, nil
 }
 
 func getNetworkInformation(channel *channel.Channel) (latency, clockDrift time.Duration, err error) {
