@@ -180,8 +180,7 @@ func (p *Process) toWaiting() {
 	select {
 	case <-t.C:
 		// VM_AGENT need recreate config file in temp dir
-		switch p.params.Type {
-		case inventorypb.AgentType_VM_AGENT:
+		if p.params.Type == inventorypb.AgentType_VM_AGENT {
 			p.params.TemplateRenderer.RenderFiles(p.params.TemplateParams)
 		}
 
