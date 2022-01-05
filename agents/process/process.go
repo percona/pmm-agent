@@ -179,7 +179,7 @@ func (p *Process) toWaiting() {
 	defer t.Stop()
 	select {
 	case <-t.C:
-		// VM_AGENT need recreate config file in temp dir
+		// VM_AGENT need recreate config file in temp dir.
 		if p.params.Type == inventorypb.AgentType_VM_AGENT {
 			_, err := p.params.TemplateRenderer.RenderFiles(p.params.TemplateParams)
 			if err != nil {
