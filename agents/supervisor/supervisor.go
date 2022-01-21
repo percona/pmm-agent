@@ -114,18 +114,41 @@ func (s *Supervisor) AgentsList() []*agentlocalpb.AgentInfo {
 	defer s.arw.RUnlock()
 
 	res := make([]*agentlocalpb.AgentInfo, 0, len(s.agentProcesses)+len(s.builtinAgents))
-
+	//TODO will be work after marge  pmm PMM-8308 (depends on github package)
 	for id, agent := range s.agentProcesses {
+		path := ""
+		switch agent.requestedState.Type {
+		case inventorypb.AgentType_NODE_EXPORTER:
+			path = s.paths.NodeExporter
+		case inventorypb.AgentType_MYSQLD_EXPORTER:
+			path = s.paths.MySQLdExporter
+		case inventorypb.AgentType_MONGODB_EXPORTER:
+			path = s.paths.MongoDBExporter
+		case inventorypb.AgentType_POSTGRES_EXPORTER:
+			path = s.paths.PostgresExporter
+		case inventorypb.AgentType_PROXYSQL_EXPORTER:
+			path = s.paths.ProxySQLExporter
+		case inventorypb.AgentType_RDS_EXPORTER:
+			path = s.paths.RDSExporter
+		case inventorypb.AgentType_AZURE_DATABASE_EXPORTER:
+			path = s.paths.AzureExporter
+		case type_TEST_SLEEP:
+			path = "sleep"
+		case inventorypb.AgentType_VM_AGENT:
+			path = s.paths.VMAgent
+		}
 		info := &agentlocalpb.AgentInfo{
 			AgentId:    id,
 			AgentType:  agent.requestedState.Type,
 			Status:     s.lastStatuses[id],
 			ListenPort: uint32(agent.listenPort),
+			Path:       path,
 		}
 		res = append(res, info)
 	}
 
 	for id, agent := range s.builtinAgents {
+
 		info := &agentlocalpb.AgentInfo{
 			AgentId:   id,
 			AgentType: agent.requestedState.Type,
