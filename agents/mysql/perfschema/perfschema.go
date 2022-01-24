@@ -34,10 +34,14 @@ import (
 	mysqlDialects "gopkg.in/reform.v1/dialects/mysql"
 
 	"github.com/percona/pmm-agent/agents"
+	"github.com/percona/pmm-agent/agents/cache"
 	"github.com/percona/pmm-agent/tlshelpers"
 	"github.com/percona/pmm-agent/utils/truncate"
 	"github.com/percona/pmm-agent/utils/version"
 )
+
+type historyMap map[string]*eventsStatementsHistory
+type summaryMap map[string]*eventsStatementsSummaryByDigest
 
 // mySQLVersion contains
 type mySQLVersion struct {
@@ -64,11 +68,13 @@ func (m *PerfSchema) mySQLVersion() *mySQLVersion {
 }
 
 const (
-	retainHistory  = 5 * time.Minute
-	refreshHistory = 5 * time.Second
+	retainHistory    = 5 * time.Minute
+	refreshHistory   = 5 * time.Second
+	historyCacheSize = 5000 // history cache size rows limit
 
-	retainSummaries = 25 * time.Hour // make it work for daily queries
-	querySummaries  = time.Minute
+	retainSummaries    = 25 * time.Hour // make it work for daily queries
+	querySummaries     = time.Minute
+	summariesCacheSize = 5000 // summary cache size rows limit
 )
 
 // PerfSchema QAN services connects to MySQL and extracts performance data.
@@ -79,8 +85,8 @@ type PerfSchema struct {
 	disableQueryExamples bool
 	l                    *logrus.Entry
 	changes              chan agents.Change
-	historyCache         *historyCache
-	summaryCache         *summaryCache
+	historyCache         *cache.Cache
+	summaryCache         *cache.Cache
 	versionsCache        *versionsCache
 }
 
@@ -142,8 +148,8 @@ func newPerfSchema(params *newPerfSchemaParams) *PerfSchema {
 		disableQueryExamples: params.DisableQueryExamples,
 		l:                    params.LogEntry,
 		changes:              make(chan agents.Change, 10),
-		historyCache:         newHistoryCache(retainHistory),
-		summaryCache:         newSummaryCache(retainSummaries),
+		historyCache:         cache.New(historyMap{}, retainHistory, historyCacheSize, params.LogEntry),
+		summaryCache:         cache.New(summaryMap{}, retainSummaries, summariesCacheSize, params.LogEntry),
 		versionsCache:        &versionsCache{items: make(map[string]*mySQLVersion)},
 	}
 }
@@ -160,7 +166,7 @@ func (m *PerfSchema) Run(ctx context.Context) {
 	var running bool
 	m.changes <- agents.Change{Status: inventorypb.AgentStatus_STARTING}
 	if s, err := getSummaries(m.q); err == nil {
-		m.summaryCache.refresh(s)
+		m.summaryCache.Refresh(s)
 		m.l.Debugf("Got %d initial summaries.", len(s))
 		running = true
 		m.changes <- agents.Change{Status: inventorypb.AgentStatus_RUNNING}
@@ -251,7 +257,7 @@ func (m *PerfSchema) refreshHistoryCache() error {
 	mysqlVer := m.mySQLVersion()
 
 	var err error
-	var current map[string]*eventsStatementsHistory
+	var current historyMap
 	switch {
 	case mysqlVer.version >= 8 && mysqlVer.vendor == "oracle":
 		current, err = getHistory80(m.q)
@@ -261,7 +267,8 @@ func (m *PerfSchema) refreshHistoryCache() error {
 	if err != nil {
 		return err
 	}
-	m.historyCache.refresh(current)
+	m.historyCache.Refresh(current)
+	m.l.Debugf("historyCache: %s", m.historyCache.Stats())
 	return nil
 }
 
@@ -270,7 +277,8 @@ func (m *PerfSchema) getNewBuckets(periodStart time.Time, periodLengthSecs uint3
 	if err != nil {
 		return nil, err
 	}
-	prev := m.summaryCache.get()
+	prev := make(summaryMap)
+	m.summaryCache.Get(prev)
 
 	buckets := makeBuckets(current, prev, m.l)
 	startS := uint32(periodStart.Unix())
@@ -278,10 +286,12 @@ func (m *PerfSchema) getNewBuckets(periodStart time.Time, periodLengthSecs uint3
 		len(buckets), len(current), periodStart.Format("15:04:05"), periodLengthSecs)
 
 	// merge prev and current in cache
-	m.summaryCache.refresh(current)
+	m.summaryCache.Refresh(current)
+	m.l.Debugf("summaryCache: %s", m.summaryCache.Stats())
 
 	// add agent_id, timestamps, and examples from history cache
-	history := m.historyCache.get()
+	history := make(historyMap)
+	m.historyCache.Get(history)
 	for i, b := range buckets {
 		b.Common.AgentId = m.agentID
 		b.Common.PeriodStartUnixSecs = startS
@@ -324,7 +334,7 @@ func inc(current, prev uint64) float32 {
 // to make metrics buckets.
 //
 // makeBuckets is a pure function for easier testing.
-func makeBuckets(current, prev map[string]*eventsStatementsSummaryByDigest, l *logrus.Entry) []*agentpb.MetricsBucket {
+func makeBuckets(current, prev summaryMap, l *logrus.Entry) []*agentpb.MetricsBucket {
 	res := make([]*agentpb.MetricsBucket, 0, len(current))
 
 	for digest, currentESS := range current {

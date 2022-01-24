@@ -27,21 +27,27 @@ import (
 	"time"
 
 	_ "github.com/lib/pq" // register SQL driver
+	"github.com/percona/pmm-agent/utils/truncate"
 	"github.com/percona/pmm/api/agentpb"
 	"github.com/percona/pmm/api/inventorypb"
 	"github.com/percona/pmm/utils/sqlmetrics"
+	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"gopkg.in/reform.v1"
 	"gopkg.in/reform.v1/dialects/postgresql"
 
 	"github.com/percona/pmm-agent/agents"
+	"github.com/percona/pmm-agent/agents/cache"
 	"github.com/percona/pmm-agent/utils/version"
 )
 
 const (
-	retainStatStatements = 25 * time.Hour // make it work for daily queries
-	queryStatStatements  = time.Minute
+	retainStatStatements    = 25 * time.Hour // make it work for daily queries
+	statStatementsCacheSize = 5000           // cache size rows limit
+	queryStatStatements     = time.Minute
 )
+
+type statementsMap map[int64]*pgStatStatementsExtended
 
 // PGStatStatementsQAN QAN services connects to PostgreSQL and extracts stats.
 type PGStatStatementsQAN struct {
@@ -50,7 +56,7 @@ type PGStatStatementsQAN struct {
 	agentID        string
 	l              *logrus.Entry
 	changes        chan agents.Change
-	statementCache *statStatementCache
+	statementCache *cache.Cache
 }
 
 // Params represent Agent parameters.
@@ -85,7 +91,7 @@ func newPgStatStatementsQAN(q *reform.Querier, dbCloser io.Closer, agentID strin
 		agentID:        agentID,
 		l:              l,
 		changes:        make(chan agents.Change, 10),
-		statementCache: newStatStatementCache(retainStatStatements, l),
+		statementCache: cache.New(statementsMap{}, retainStatStatements, statStatementsCacheSize, l),
 	}
 }
 
@@ -125,8 +131,8 @@ func (m *PGStatStatementsQAN) Run(ctx context.Context) {
 	// add current stat statements to cache so they are not send as new on first iteration with incorrect timestamps
 	var running bool
 	m.changes <- agents.Change{Status: inventorypb.AgentStatus_STARTING}
-	if current, _, err := m.statementCache.getStatStatementsExtended(ctx, m.q); err == nil {
-		m.statementCache.refresh(current)
+	if current, _, err := m.getStatStatementsExtended(ctx, m.q); err == nil {
+		m.statementCache.Refresh(current)
 		m.l.Debugf("Got %d initial stat statements.", len(current))
 		running = true
 		m.changes <- agents.Change{Status: inventorypb.AgentStatus_RUNNING}
@@ -179,8 +185,74 @@ func (m *PGStatStatementsQAN) Run(ctx context.Context) {
 	}
 }
 
+// getStatStatementsExtended returns the current state of pg_stat_statements table with extended information (database, username, tables)
+// and the previous cashed state.
+func (m *PGStatStatementsQAN) getStatStatementsExtended(ctx context.Context, q *reform.Querier) (current, prev statementsMap, err error) {
+	var totalN, newN, newSharedN, oldN int
+	start := time.Now()
+	defer func() {
+		dur := time.Since(start)
+		m.l.Debugf("Selected %d rows from pg_stat_statements in %s: %d new (%d shared tables), %d old.", totalN, dur, newN, newSharedN, oldN)
+	}()
+
+	current = make(statementsMap, m.statementCache.Len())
+	prev = make(statementsMap, m.statementCache.Len())
+	m.statementCache.Get(prev)
+
+	// load all databases and usernames first as we can't use querier while iterating over rows below
+	databases := queryDatabases(q)
+	usernames := queryUsernames(q)
+
+	rows, e := rowsByVersion(q, "WHERE queryid IS NOT NULL AND query IS NOT NULL")
+	if e != nil {
+		err = e
+		return
+	}
+	defer rows.Close() //nolint:errcheck
+
+	for ctx.Err() == nil {
+		var row pgStatStatements
+		if err = q.NextRow(&row, rows); err != nil {
+			if err == reform.ErrNoRows {
+				err = nil
+			}
+			break
+		}
+		totalN++
+
+		c := &pgStatStatementsExtended{
+			pgStatStatements: row,
+			Database:         databases[row.DBID],
+			Username:         usernames[row.UserID],
+		}
+
+		if p := prev[c.QueryID]; p != nil {
+			oldN++
+			newSharedN++
+
+			c.Tables = p.Tables
+			c.Query, c.IsQueryTruncated = p.Query, p.IsQueryTruncated
+		} else {
+			newN++
+
+			c.Query, c.IsQueryTruncated = truncate.Query(c.Query)
+		}
+
+		current[c.QueryID] = c
+	}
+	if ctx.Err() != nil {
+		err = ctx.Err()
+	}
+
+	if err != nil {
+		err = errors.Wrap(err, "failed to fetch pg_stat_statements")
+	}
+
+	return
+}
+
 func (m *PGStatStatementsQAN) getNewBuckets(ctx context.Context, periodStart time.Time, periodLengthSecs uint32) ([]*agentpb.MetricsBucket, error) {
-	current, prev, err := m.statementCache.getStatStatementsExtended(ctx, m.q)
+	current, prev, err := m.getStatStatementsExtended(ctx, m.q)
 	if err != nil {
 		return nil, err
 	}
@@ -191,8 +263,8 @@ func (m *PGStatStatementsQAN) getNewBuckets(ctx context.Context, periodStart tim
 		len(buckets), len(current), periodStart.Format("15:04:05"), periodLengthSecs)
 
 	// merge prev and current in cache
-	m.statementCache.refresh(current)
-	m.l.Debugf("statStatementCache: %s", m.statementCache.stats())
+	m.statementCache.Refresh(current)
+	m.l.Debugf("statStatementCache: %s", m.statementCache.Stats())
 
 	// add agent_id and timestamps
 	for i, b := range buckets {
@@ -210,7 +282,7 @@ func (m *PGStatStatementsQAN) getNewBuckets(ctx context.Context, periodStart tim
 // to make metrics buckets.
 //
 // makeBuckets is a pure function for easier testing.
-func makeBuckets(current, prev map[int64]*pgStatStatementsExtended, l *logrus.Entry) []*agentpb.MetricsBucket {
+func makeBuckets(current, prev statementsMap, l *logrus.Entry) []*agentpb.MetricsBucket {
 	res := make([]*agentpb.MetricsBucket, 0, len(current))
 
 	for queryID, currentPSS := range current {
