@@ -4,6 +4,7 @@ package client
 
 import (
 	agentpb "github.com/percona/pmm/api/agentpb"
+	"github.com/prometheus/client_golang/prometheus"
 	mock "github.com/stretchr/testify/mock"
 )
 
@@ -47,4 +48,12 @@ func (_m *mockSupervisor) QANRequests() <-chan *agentpb.QANCollectRequest {
 // SetState provides a mock function with given fields: _a0
 func (_m *mockSupervisor) SetState(_a0 *agentpb.SetStateRequest) {
 	_m.Called(_a0)
+}
+
+// Describe is a mock to implement prometheus.Collector.
+func (_m *mockSupervisor) Describe(ch chan<- *prometheus.Desc) {
+}
+
+// Collect is a mock to implement prometheus.Collector.
+func (_m *mockSupervisor) Collect(ch chan<- prometheus.Metric) {
 }

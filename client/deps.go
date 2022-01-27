@@ -19,6 +19,7 @@ import (
 	"context"
 
 	"github.com/percona/pmm/api/agentpb"
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 //go:generate mockery -name=connectionChecker -case=snake -inpkg -testonly
@@ -44,4 +45,6 @@ type supervisor interface {
 	Changes() <-chan *agentpb.StateChangedRequest
 	QANRequests() <-chan *agentpb.QANCollectRequest
 	SetState(*agentpb.SetStateRequest)
+	Describe(chan<- *prometheus.Desc)
+	Collect(chan<- prometheus.Metric)
 }

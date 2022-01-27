@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/percona/pmm/api/inventorypb"
+	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/percona/pmm-agent/agents"
 )
@@ -55,3 +56,18 @@ func (n *NoOp) Run(ctx context.Context) {
 func (n *NoOp) Changes() <-chan agents.Change {
 	return n.changes
 }
+
+// Describe implements prometheus.Collector.
+func (n *NoOp) Describe(ch chan<- *prometheus.Desc) {
+	// not implemented
+}
+
+// Collect implement prometheus.Collector.
+func (n *NoOp) Collect(ch chan<- prometheus.Metric) {
+	// not implemented
+}
+
+// check interfaces
+var (
+	_ prometheus.Collector = (*NoOp)(nil)
+)
