@@ -27,7 +27,6 @@ import (
 	"time"
 
 	_ "github.com/lib/pq" // register SQL driver
-	"github.com/percona/pmm-agent/utils/truncate"
 	"github.com/percona/pmm/api/agentpb"
 	"github.com/percona/pmm/api/inventorypb"
 	"github.com/percona/pmm/utils/sqlmetrics"
@@ -39,6 +38,7 @@ import (
 
 	"github.com/percona/pmm-agent/agents"
 	"github.com/percona/pmm-agent/agents/cache"
+	"github.com/percona/pmm-agent/utils/truncate"
 	"github.com/percona/pmm-agent/utils/version"
 )
 
