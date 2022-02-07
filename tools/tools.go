@@ -22,6 +22,7 @@ import (
 	_ "github.com/golangci/golangci-lint/cmd/golangci-lint"
 	_ "github.com/reviewdog/reviewdog/cmd/reviewdog"
 	_ "github.com/vektra/mockery/cmd/mockery"
+	_ "github.com/quasilyte/go-consistent"
 	_ "golang.org/x/perf/cmd/benchstat"
 	_ "golang.org/x/tools/cmd/goimports"
 	_ "gopkg.in/reform.v1/reform"
