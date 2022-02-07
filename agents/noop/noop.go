@@ -59,12 +59,12 @@ func (n *NoOp) Changes() <-chan agents.Change {
 
 // Describe implements prometheus.Collector.
 func (n *NoOp) Describe(ch chan<- *prometheus.Desc) {
-	// not implemented
+	// This method is needed to satisfy interface.
 }
 
 // Collect implement prometheus.Collector.
 func (n *NoOp) Collect(ch chan<- prometheus.Metric) {
-	// not implemented
+	// This method is needed to satisfy interface.
 }
 
 // check interfaces

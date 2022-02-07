@@ -88,7 +88,7 @@ func New(params *Params, l *logrus.Entry) (*PGStatStatementsQAN, error) {
 func newPgStatStatementsQAN(q *reform.Querier, dbCloser io.Closer, agentID string, l *logrus.Entry) (*PGStatStatementsQAN, error) {
 	statementCache, err := newStatementsCache(statementsMap{}, retainStatStatements, statStatementsCacheSize, l)
 	if err != nil {
-		return nil, fmt.Errorf("can not create cache: %w", err)
+		return nil, errors.Wrap(err, "cannot create cache")
 	}
 
 	return &PGStatStatementsQAN{
@@ -384,7 +384,7 @@ func (m *PGStatStatementsQAN) Changes() <-chan agents.Change {
 
 // Describe implements prometheus.Collector.
 func (m *PGStatStatementsQAN) Describe(ch chan<- *prometheus.Desc) {
-	// not implemented
+	// This method is needed to satisfy interface.
 }
 
 // Collect implement prometheus.Collector.

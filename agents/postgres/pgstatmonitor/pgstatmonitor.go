@@ -460,12 +460,12 @@ func (m *PGStatMonitorQAN) Changes() <-chan agents.Change {
 
 // Describe implements prometheus.Collector.
 func (m *PGStatMonitorQAN) Describe(ch chan<- *prometheus.Desc) {
-	// not implemented
+	// This method is needed to satisfy interface.
 }
 
 // Collect implement prometheus.Collector.
 func (m *PGStatMonitorQAN) Collect(ch chan<- prometheus.Metric) {
-	// not implemented
+	// This method is needed to satisfy interface.
 }
 
 // check interfaces

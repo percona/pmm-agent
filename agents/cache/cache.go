@@ -93,12 +93,13 @@ func (c *Cache) Set(current interface{}) error {
 	c.rw.Lock()
 	defer c.rw.Unlock()
 	now := time.Now()
+	var wasTrimmed bool
 
-	for e := c.itemsList.Front(); e != nil && now.Sub(e.Value.(*cacheItem).added) > c.retain; {
+	var next *list.Element
+	for e := c.itemsList.Front(); e != nil && now.Sub(e.Value.(*cacheItem).added) > c.retain; e = next {
 		c.removedN++
-		d := e
-		e = e.Next()
-		delete(c.items, c.itemsList.Remove(d).(*cacheItem).key)
+		next = e.Next()
+		delete(c.items, c.itemsList.Remove(e).(*cacheItem).key)
 	}
 
 	m := reflect.ValueOf(current)
@@ -106,24 +107,24 @@ func (c *Cache) Set(current interface{}) error {
 	for iter.Next() {
 		key := iter.Key().Interface()
 		value := iter.Value().Interface()
-		if _, ok := c.items[key]; ok {
+		if e, ok := c.items[key]; ok {
 			c.updatedN++
-			e := c.items[key]
 			e.Value.(*cacheItem).added = now
 			e.Value.(*cacheItem).value = value
 			c.itemsList.MoveToBack(e)
 		} else {
 			c.addedN++
 			c.items[key] = c.itemsList.PushBack(&cacheItem{key, value, now})
+
+			if uint(len(c.items)) > c.sizeLimit {
+				delete(c.items, c.itemsList.Remove(c.itemsList.Front()).(*cacheItem).key)
+				c.removedN++
+				wasTrimmed = true
+
+			}
 		}
 	}
-
-	cacheItemsN := uint(len(c.items))
-	if cacheItemsN > c.sizeLimit {
-		for e := c.itemsList.Front(); uint(len(c.items)) > c.sizeLimit; e = e.Next() {
-			c.removedN++
-			delete(c.items, c.itemsList.Remove(e).(*cacheItem).key)
-		}
+	if wasTrimmed {
 		c.l.Debugf("Cache size exceeded the limit of %d items and the oldest values were trimmed. "+
 			"Now the oldest query in the cache is of time %s",
 			c.sizeLimit, c.itemsList.Front().Value.(*cacheItem).added.UTC().Format("2006-01-02T15:04:05Z"))

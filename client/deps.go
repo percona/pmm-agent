@@ -45,6 +45,6 @@ type supervisor interface {
 	Changes() <-chan *agentpb.StateChangedRequest
 	QANRequests() <-chan *agentpb.QANCollectRequest
 	SetState(*agentpb.SetStateRequest)
-	Describe(chan<- *prometheus.Desc)
-	Collect(chan<- prometheus.Metric)
+	// Collector added to use client as Prometheus collector
+	prometheus.Collector
 }

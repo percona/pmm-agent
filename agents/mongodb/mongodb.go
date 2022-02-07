@@ -110,12 +110,12 @@ type Profiler interface {
 
 // Describe implements prometheus.Collector.
 func (m *MongoDB) Describe(ch chan<- *prometheus.Desc) {
-	// not implemented
+	// This method is needed to satisfy interface.
 }
 
 // Collect implement prometheus.Collector.
 func (m *MongoDB) Collect(ch chan<- prometheus.Metric) {
-	// not implemented
+	// This method is needed to satisfy interface.
 }
 
 // check interfaces

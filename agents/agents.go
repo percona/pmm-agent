@@ -37,6 +37,6 @@ type BuiltinAgent interface {
 	// Changes returns channel that should be read until it is closed.
 	Changes() <-chan Change
 
-	Describe(chan<- *prometheus.Desc)
-	Collect(chan<- prometheus.Metric)
+	// Collector added to use BuiltinAgent as Prometheus collector
+	prometheus.Collector
 }

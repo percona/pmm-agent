@@ -47,7 +47,8 @@ func TestCache(t *testing.T) {
 		2: new(someType),
 		3: new(someType),
 		4: new(someType),
-		6: new(someType)}
+		6: new(someType),
+		7: new(someType)}
 
 	t.Run("DoesntReachLimits", func(t *testing.T) {
 		t.Parallel()
@@ -82,11 +83,12 @@ func TestCache(t *testing.T) {
 			expected[k] = v
 		}
 		expected[6] = new(someType)
+		expected[7] = new(someType)
 
 		assert.True(t, reflect.DeepEqual(actual, expected))
-		assert.Equal(t, uint(6), stats.Current)
+		assert.Equal(t, uint(7), stats.Current)
 		assert.Equal(t, uint(4), stats.UpdatedN)
-		assert.Equal(t, uint(6), stats.AddedN)
+		assert.Equal(t, uint(7), stats.AddedN)
 		assert.Equal(t, uint(0), stats.RemovedN)
 		assert.InDelta(t, 0, int(stats.Oldest.Sub(now1).Seconds()), 0.01)
 		assert.InDelta(t, 0, int(stats.Newest.Sub(now2).Seconds()), 0.01)
@@ -111,9 +113,9 @@ func TestCache(t *testing.T) {
 		}
 
 		assert.True(t, reflect.DeepEqual(actual, expected))
-		assert.Equal(t, uint(5), stats.Current)
+		assert.Equal(t, uint(6), stats.Current)
 		assert.Equal(t, uint(0), stats.UpdatedN)
-		assert.Equal(t, uint(10), stats.AddedN)
+		assert.Equal(t, uint(11), stats.AddedN)
 		assert.Equal(t, uint(5), stats.RemovedN)
 		assert.InDelta(t, 0, int(stats.Oldest.Sub(now).Seconds()), 0.01)
 		assert.InDelta(t, 0, int(stats.Newest.Sub(now).Seconds()), 0.01)
@@ -129,13 +131,8 @@ func TestCache(t *testing.T) {
 		now := time.Now()
 		_ = c.Set(set2)
 		stats := c.Stats()
-		actual := make(map[int64]*someType)
-		_ = c.Get(actual)
 
 		assert.Equal(t, uint(5), stats.Current)
-		assert.Equal(t, uint(4), stats.UpdatedN)
-		assert.Equal(t, uint(6), stats.AddedN)
-		assert.Equal(t, uint(1), stats.RemovedN)
 		assert.InDelta(t, 0, int(stats.Oldest.Sub(now).Seconds()), 0.01)
 		assert.InDelta(t, 0, int(stats.Newest.Sub(now).Seconds()), 0.01)
 	})

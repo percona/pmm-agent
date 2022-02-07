@@ -19,7 +19,6 @@ package perfschema
 import (
 	"context"
 	"database/sql"
-	"fmt"
 	"io"
 	"math"
 	"strconv"
@@ -30,6 +29,7 @@ import (
 	"github.com/percona/pmm/api/agentpb"
 	"github.com/percona/pmm/api/inventorypb"
 	"github.com/percona/pmm/utils/sqlmetrics"
+	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sirupsen/logrus"
 	"gopkg.in/reform.v1"
@@ -145,12 +145,12 @@ func New(params *Params, l *logrus.Entry) (*PerfSchema, error) {
 func newPerfSchema(params *newPerfSchemaParams) (*PerfSchema, error) {
 	historyCache, err := newHistoryCache(historyMap{}, retainHistory, historyCacheSize, params.LogEntry)
 	if err != nil {
-		return nil, fmt.Errorf("cannot create cache: %w", err)
+		return nil, errors.Wrap(err, "cannot create cache")
 	}
 
 	summaryCache, err := newSummaryCache(summaryMap{}, retainSummaries, summariesCacheSize, params.LogEntry)
 	if err != nil {
-		return nil, fmt.Errorf("cannot create cache: %w", err)
+		return nil, errors.Wrap(err, "cannot create cache")
 	}
 
 	return &PerfSchema{
@@ -452,7 +452,7 @@ func (m *PerfSchema) Changes() <-chan agents.Change {
 
 // Describe implements prometheus.Collector.
 func (m *PerfSchema) Describe(ch chan<- *prometheus.Desc) {
-	// not implemented
+	// This method is needed to satisfy interface.
 }
 
 // Collect implement prometheus.Collector.

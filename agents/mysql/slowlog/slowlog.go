@@ -677,12 +677,12 @@ func errListsToMap(k, v []uint64) map[uint64]uint64 {
 
 // Describe implements prometheus.Collector.
 func (s *SlowLog) Describe(ch chan<- *prometheus.Desc) {
-	// not implemented
+	// This method is needed to satisfy interface.
 }
 
 // Collect implement prometheus.Collector.
 func (s *SlowLog) Collect(ch chan<- prometheus.Metric) {
-	// not implemented
+	// This method is needed to satisfy interface.
 }
 
 // check interfaces
