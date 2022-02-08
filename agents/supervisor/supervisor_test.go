@@ -36,7 +36,6 @@ import (
 // assertChanges checks expected changes in any order.
 func assertChanges(t *testing.T, s *Supervisor, expected ...*agentpb.StateChangedRequest) {
 	t.Helper()
-
 	actual := make([]*agentpb.StateChangedRequest, len(expected))
 	for i := range expected {
 		actual[i] = <-s.Changes()
