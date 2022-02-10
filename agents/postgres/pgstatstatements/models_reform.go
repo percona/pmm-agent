@@ -35,7 +35,7 @@ func (v *pgStatDatabaseViewType) Columns() []string {
 
 // NewStruct makes a new struct for that view or table.
 func (v *pgStatDatabaseViewType) NewStruct() reform.Struct {
-	return new(pgStatDatabase)
+	return &pgStatDatabase{}
 }
 
 // pgStatDatabaseView represents pg_stat_database view or table in SQL database.
@@ -50,7 +50,7 @@ var pgStatDatabaseView = &pgStatDatabaseViewType{
 		},
 		PKFieldIndex: -1,
 	},
-	z: new(pgStatDatabase).Values(),
+	z: (&pgStatDatabase{}).Values(),
 }
 
 // String returns a string representation of this struct or record.
@@ -116,7 +116,7 @@ func (v *pgUserViewType) Columns() []string {
 
 // NewStruct makes a new struct for that view or table.
 func (v *pgUserViewType) NewStruct() reform.Struct {
-	return new(pgUser)
+	return &pgUser{}
 }
 
 // pgUserView represents pg_user view or table in SQL database.
@@ -131,7 +131,7 @@ var pgUserView = &pgUserViewType{
 		},
 		PKFieldIndex: -1,
 	},
-	z: new(pgUser).Values(),
+	z: (&pgUser{}).Values(),
 }
 
 // String returns a string representation of this struct or record.
@@ -214,7 +214,7 @@ func (v *pgStatStatementsViewType) Columns() []string {
 
 // NewStruct makes a new struct for that view or table.
 func (v *pgStatStatementsViewType) NewStruct() reform.Struct {
-	return new(pgStatStatements)
+	return &pgStatStatements{}
 }
 
 // pgStatStatementsView represents pg_stat_statements view or table in SQL database.
@@ -245,7 +245,7 @@ var pgStatStatementsView = &pgStatStatementsViewType{
 		},
 		PKFieldIndex: -1,
 	},
-	z: new(pgStatStatements).Values(),
+	z: (&pgStatStatements{}).Values(),
 }
 
 // String returns a string representation of this struct or record.
@@ -338,7 +338,7 @@ var (
 )
 
 func init() {
-	parse.AssertUpToDate(&pgStatDatabaseView.s, new(pgStatDatabase))
-	parse.AssertUpToDate(&pgUserView.s, new(pgUser))
-	parse.AssertUpToDate(&pgStatStatementsView.s, new(pgStatStatements))
+	parse.AssertUpToDate(&pgStatDatabaseView.s, &pgStatDatabase{})
+	parse.AssertUpToDate(&pgUserView.s, &pgUser{})
+	parse.AssertUpToDate(&pgStatStatementsView.s, &pgStatStatements{})
 }
