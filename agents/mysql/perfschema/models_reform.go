@@ -60,7 +60,7 @@ func (v *eventsStatementsSummaryByDigestViewType) Columns() []string {
 
 // NewStruct makes a new struct for that view or table.
 func (v *eventsStatementsSummaryByDigestViewType) NewStruct() reform.Struct {
-	return &eventsStatementsSummaryByDigest{}
+	return new(eventsStatementsSummaryByDigest)
 }
 
 // eventsStatementsSummaryByDigestView represents events_statements_summary_by_digest view or table in SQL database.
@@ -100,7 +100,7 @@ var eventsStatementsSummaryByDigestView = &eventsStatementsSummaryByDigestViewTy
 		},
 		PKFieldIndex: -1,
 	},
-	z: (&eventsStatementsSummaryByDigest{}).Values(),
+	z: new(eventsStatementsSummaryByDigest).Values(),
 }
 
 // String returns a string representation of this struct or record.
@@ -242,7 +242,7 @@ func (v *eventsStatementsSummaryByDigestExamplesViewType) Columns() []string {
 
 // NewStruct makes a new struct for that view or table.
 func (v *eventsStatementsSummaryByDigestExamplesViewType) NewStruct() reform.Struct {
-	return &eventsStatementsSummaryByDigestExamples{}
+	return new(eventsStatementsSummaryByDigestExamples)
 }
 
 // eventsStatementsSummaryByDigestExamplesView represents events_statements_summary_by_digest view or table in SQL database.
@@ -258,7 +258,7 @@ var eventsStatementsSummaryByDigestExamplesView = &eventsStatementsSummaryByDige
 		},
 		PKFieldIndex: -1,
 	},
-	z: (&eventsStatementsSummaryByDigestExamples{}).Values(),
+	z: new(eventsStatementsSummaryByDigestExamples).Values(),
 }
 
 // String returns a string representation of this struct or record.
