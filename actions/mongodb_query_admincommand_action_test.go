@@ -18,7 +18,6 @@ package actions
 import (
 	"context"
 	"io/ioutil"
-	"os"
 	"strings"
 	"testing"
 	"time"
@@ -38,35 +37,34 @@ func TestMongoDBActions(t *testing.T) {
 	t.Parallel()
 
 	dsn := tests.GetTestMongoDBDSN(t)
-	tempDir := os.TempDir()
 
 	t.Run("getParameter", func(t *testing.T) {
 		t.Parallel()
-		b := runAction(t, &MongoDBQueryAdmincommandActionParams{"", dsn, nil, "getParameter", "*", tempDir})
+		b := runAction(t, &MongoDBQueryAdmincommandActionParams{"", dsn, nil, "getParameter", "*", createTempDir(t)})
 		getParameterAssertions(t, b)
 	})
 
 	t.Run("buildInfo", func(t *testing.T) {
 		t.Parallel()
-		b := runAction(t, &MongoDBQueryAdmincommandActionParams{"", dsn, nil, "buildInfo", 1, tempDir})
+		b := runAction(t, &MongoDBQueryAdmincommandActionParams{"", dsn, nil, "buildInfo", 1, createTempDir(t)})
 		buildInfoAssertions(t, b)
 	})
 
 	t.Run("getCmdLineOpts", func(t *testing.T) {
 		t.Parallel()
-		b := runAction(t, &MongoDBQueryAdmincommandActionParams{"", dsn, nil, "getCmdLineOpts", 1, tempDir})
+		b := runAction(t, &MongoDBQueryAdmincommandActionParams{"", dsn, nil, "getCmdLineOpts", 1, createTempDir(t)})
 		getCmdLineOptsAssertionsWithAuth(t, b)
 	})
 
 	t.Run("replSetGetStatus", func(t *testing.T) {
 		t.Parallel()
-		params := &MongoDBQueryAdmincommandActionParams{"", dsn, nil, "replSetGetStatus", 1, tempDir}
+		params := &MongoDBQueryAdmincommandActionParams{"", dsn, nil, "replSetGetStatus", 1, createTempDir(t)}
 		replSetGetStatusAssertionsStandalone(t, params)
 	})
 
 	t.Run("getDiagnosticData", func(t *testing.T) {
 		t.Parallel()
-		b := runAction(t, &MongoDBQueryAdmincommandActionParams{"", dsn, nil, "getDiagnosticData", 1, tempDir})
+		b := runAction(t, &MongoDBQueryAdmincommandActionParams{"", dsn, nil, "getDiagnosticData", 1, createTempDir(t)})
 		getDiagnosticDataAssertions(t, b)
 	})
 }
@@ -75,36 +73,34 @@ func TestMongoDBActionsWithSSL(t *testing.T) {
 	t.Parallel()
 
 	dsn, files := tests.GetTestMongoDBWithSSLDSN(t, "../")
-	tempDir, err := ioutil.TempDir("", "pmm-agent-")
-	require.NoError(t, err)
 
 	t.Run("getParameter", func(t *testing.T) {
 		t.Parallel()
-		b := runAction(t, &MongoDBQueryAdmincommandActionParams{"", dsn, files, "getParameter", "*", tempDir})
+		b := runAction(t, &MongoDBQueryAdmincommandActionParams{"", dsn, files, "getParameter", "*", createTempDir(t)})
 		getParameterAssertions(t, b)
 	})
 
 	t.Run("buildInfo", func(t *testing.T) {
 		t.Parallel()
-		b := runAction(t, &MongoDBQueryAdmincommandActionParams{"", dsn, files, "buildInfo", 1, tempDir})
+		b := runAction(t, &MongoDBQueryAdmincommandActionParams{"", dsn, files, "buildInfo", 1, createTempDir(t)})
 		buildInfoAssertions(t, b)
 	})
 
 	t.Run("getCmdLineOpts", func(t *testing.T) {
 		t.Parallel()
-		b := runAction(t, &MongoDBQueryAdmincommandActionParams{"", dsn, files, "getCmdLineOpts", 1, tempDir})
+		b := runAction(t, &MongoDBQueryAdmincommandActionParams{"", dsn, files, "getCmdLineOpts", 1, createTempDir(t)})
 		getCmdLineOptsAssertionsWithSSL(t, b)
 	})
 
 	t.Run("replSetGetStatus", func(t *testing.T) {
 		t.Parallel()
-		params := &MongoDBQueryAdmincommandActionParams{"", dsn, files, "replSetGetStatus", 1, tempDir}
+		params := &MongoDBQueryAdmincommandActionParams{"", dsn, files, "replSetGetStatus", 1, createTempDir(t)}
 		replSetGetStatusAssertionsStandalone(t, params)
 	})
 
 	t.Run("getDiagnosticData", func(t *testing.T) {
 		t.Parallel()
-		b := runAction(t, &MongoDBQueryAdmincommandActionParams{"", dsn, files, "getDiagnosticData", 1, tempDir})
+		b := runAction(t, &MongoDBQueryAdmincommandActionParams{"", dsn, files, "getDiagnosticData", 1, createTempDir(t)})
 		getDiagnosticDataAssertions(t, b)
 	})
 }
@@ -113,35 +109,34 @@ func TestMongoDBActionsReplNoAuth(t *testing.T) {
 	t.Parallel()
 
 	dsn := tests.GetTestMongoDBReplicatedDSN(t)
-	tempDir := os.TempDir()
 
 	t.Run("getParameter", func(t *testing.T) {
 		t.Parallel()
-		b := runAction(t, &MongoDBQueryAdmincommandActionParams{"", dsn, nil, "getParameter", "*", tempDir})
+		b := runAction(t, &MongoDBQueryAdmincommandActionParams{"", dsn, nil, "getParameter", "*", createTempDir(t)})
 		getParameterAssertions(t, b)
 	})
 
 	t.Run("buildInfo", func(t *testing.T) {
 		t.Parallel()
-		b := runAction(t, &MongoDBQueryAdmincommandActionParams{"", dsn, nil, "buildInfo", 1, tempDir})
+		b := runAction(t, &MongoDBQueryAdmincommandActionParams{"", dsn, nil, "buildInfo", 1, createTempDir(t)})
 		buildInfoAssertions(t, b)
 	})
 
 	t.Run("getCmdLineOpts", func(t *testing.T) {
 		t.Parallel()
-		b := runAction(t, &MongoDBQueryAdmincommandActionParams{"", dsn, nil, "getCmdLineOpts", 1, tempDir})
+		b := runAction(t, &MongoDBQueryAdmincommandActionParams{"", dsn, nil, "getCmdLineOpts", 1, createTempDir(t)})
 		getCmdLineOptsAssertionsWithoutAuth(t, b)
 	})
 
 	t.Run("replSetGetStatus", func(t *testing.T) {
 		t.Parallel()
-		b := runAction(t, &MongoDBQueryAdmincommandActionParams{"", dsn, nil, "replSetGetStatus", 1, tempDir})
+		b := runAction(t, &MongoDBQueryAdmincommandActionParams{"", dsn, nil, "replSetGetStatus", 1, createTempDir(t)})
 		replSetGetStatusAssertionsReplicated(t, b)
 	})
 
 	t.Run("getDiagnosticData", func(t *testing.T) {
 		t.Parallel()
-		b := runAction(t, &MongoDBQueryAdmincommandActionParams{"", dsn, nil, "getDiagnosticData", 1, tempDir})
+		b := runAction(t, &MongoDBQueryAdmincommandActionParams{"", dsn, nil, "getDiagnosticData", 1, createTempDir(t)})
 		getDiagnosticDataAssertions(t, b)
 	})
 }
@@ -150,36 +145,34 @@ func TestMongoDBActionsReplWithSSL(t *testing.T) {
 	t.Parallel()
 
 	dsn, files := tests.GetTestMongoDBReplicatedWithSSLDSN(t, "../")
-	tempDir, err := ioutil.TempDir("", "pmm-agent-")
-	require.NoError(t, err)
 
 	t.Run("getParameter", func(t *testing.T) {
 		t.Parallel()
-		b := runAction(t, &MongoDBQueryAdmincommandActionParams{"", dsn, files, "getParameter", "*", tempDir})
+		b := runAction(t, &MongoDBQueryAdmincommandActionParams{"", dsn, files, "getParameter", "*", createTempDir(t)})
 		getParameterAssertions(t, b)
 	})
 
 	t.Run("buildInfo", func(t *testing.T) {
 		t.Parallel()
-		b := runAction(t, &MongoDBQueryAdmincommandActionParams{"", dsn, files, "buildInfo", 1, tempDir})
+		b := runAction(t, &MongoDBQueryAdmincommandActionParams{"", dsn, files, "buildInfo", 1, createTempDir(t)})
 		buildInfoAssertions(t, b)
 	})
 
 	t.Run("getCmdLineOpts", func(t *testing.T) {
 		t.Parallel()
-		b := runAction(t, &MongoDBQueryAdmincommandActionParams{"", dsn, files, "getCmdLineOpts", 1, tempDir})
+		b := runAction(t, &MongoDBQueryAdmincommandActionParams{"", dsn, files, "getCmdLineOpts", 1, createTempDir(t)})
 		getCmdLineOptsAssertionsWithSSL(t, b)
 	})
 
 	t.Run("replSetGetStatus", func(t *testing.T) {
 		t.Parallel()
-		b := runAction(t, &MongoDBQueryAdmincommandActionParams{"", dsn, files, "replSetGetStatus", 1, tempDir})
+		b := runAction(t, &MongoDBQueryAdmincommandActionParams{"", dsn, files, "replSetGetStatus", 1, createTempDir(t)})
 		replSetGetStatusAssertionsReplicated(t, b)
 	})
 
 	t.Run("getDiagnosticData", func(t *testing.T) {
 		t.Parallel()
-		b := runAction(t, &MongoDBQueryAdmincommandActionParams{"", dsn, files, "getDiagnosticData", 1, tempDir})
+		b := runAction(t, &MongoDBQueryAdmincommandActionParams{"", dsn, files, "getDiagnosticData", 1, createTempDir(t)})
 		getDiagnosticDataAssertions(t, b)
 	})
 }
@@ -310,4 +303,11 @@ func getCmdLineOptsAssertionsWithSSL(t *testing.T, b []byte) { //nolint:thelper
 		expected = []interface{}{"mongod", "--tlsMode", "requireTLS", "--tlsCertificateKeyFile", "/etc/ssl/certificates/server.pem"}
 	}
 	assert.Subset(t, argv, expected)
+}
+
+func createTempDir(t *testing.T) string {
+	t.Helper()
+	tempDir, err := ioutil.TempDir("", "pmm-agent-")
+	require.NoError(t, err)
+	return tempDir
 }
