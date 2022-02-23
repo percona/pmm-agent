@@ -22,6 +22,8 @@ import (
 	"google.golang.org/grpc/grpclog"
 )
 
+const defaultLevel = logrus.WarnLevel
+
 // gRPCLogger is a compatibility wrapper between logrus entry and gRPC logger interface.
 type gRPCLogger struct {
 	*logrus.Entry
@@ -42,33 +44,62 @@ var initLogger sync.Once
 
 // ConfigureLogger configures standard Logrus logger.
 func ConfigureLogger(cfg *Config) {
+	level, trace := parseLoggerConfig(cfg.LogLevel, cfg.Debug, cfg.Trace)
+
 	initLogger.Do(func() {
-		if cfg.Debug {
-			logrus.SetLevel(logrus.DebugLevel)
-		}
+		logrus.SetLevel(level)
 
-		if cfg.Trace {
-			logrus.SetLevel(logrus.TraceLevel)
-
+		if trace {
 			// grpclog.SetLoggerV2 is not thread-safe
 			grpclog.SetLoggerV2(&gRPCLogger{Entry: logrus.WithField("component", "grpclog")})
 
-			// logrus.SetReportCaller not thread-safe: https://github.com/sirupsen/logrus/issues/954
+			// logrus.SetReportCaller thread-safe: https://github.com/sirupsen/logrus/issues/954
 			logrus.SetReportCaller(true)
 		}
 	})
 
 	// logrus.GetLevel/SetLevel are thread-safe, so enable changing level without full restart,
 	// and warn if other settings should be changed, but can't
-	level := logrus.InfoLevel
-	if cfg.Debug {
+	if logrus.GetLevel() != level {
+		logrus.Warn("Some logging settings (gRPC tracing) can't be changed without restart.")
+
+		logrus.SetLevel(level)
+
+		if trace {
+			// grpclog.SetLoggerV2 is not thread-safe
+			// grpclog.SetLoggerV2(&gRPCLogger{Entry: logrus.WithField("component", "grpclog")})
+
+			// logrus.SetReportCaller thread-safe: https://github.com/sirupsen/logrus/issues/954
+			logrus.SetReportCaller(true)
+		}
+	}
+}
+
+func parseLoggerConfig(cfgLogLevel string, cfgDebug, cfgTrace bool) (logrus.Level, bool) {
+	var (
+		level = defaultLevel
+		trace = false
+	)
+
+	if cfgLogLevel != "" {
+		parsedLevel, err := logrus.ParseLevel(cfgLogLevel)
+
+		if err != nil {
+			logrus.Errorf("config: cannot parse logging level: %s, error: %v", cfgLogLevel, err)
+		} else {
+			level = parsedLevel
+		}
+	}
+
+	if cfgDebug {
 		level = logrus.DebugLevel
 	}
-	if cfg.Trace {
+
+	if cfgTrace {
 		level = logrus.TraceLevel
+
+		trace = true
 	}
-	if logrus.GetLevel() != level {
-		logrus.Warn("Some logging settings (caller reporter, gRPC tracing) can't be changed without restart.")
-		logrus.SetLevel(level)
-	}
+
+	return level, trace
 }
