@@ -18,26 +18,26 @@ require (
 	github.com/davecgh/go-spew v1.1.1
 	github.com/go-openapi/runtime v0.19.20
 	github.com/go-sql-driver/mysql v1.5.0
-	github.com/golang/protobuf v1.4.3
-	github.com/grpc-ecosystem/grpc-gateway v1.15.1
+	github.com/golang/protobuf v1.5.2
+	github.com/grpc-ecosystem/grpc-gateway/v2 v2.7.3
 	github.com/hashicorp/go-version v1.3.0
 	github.com/lfittl/pg_query_go v1.0.2
 	github.com/lib/pq v1.10.0
 	github.com/percona/exporter_shared v0.7.3
 	github.com/percona/go-mysql v0.0.0-20200630114833-b77f37c0bfa2
 	github.com/percona/percona-toolkit v3.2.1+incompatible
-	github.com/percona/pmm v0.0.0-20220310104949-dd33560bcdde
+	github.com/percona/pmm v0.0.0-20220314044734-70e6ebbedd4f
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.5.1
 	github.com/prometheus/common v0.10.0
 	github.com/sirupsen/logrus v1.6.0
 	github.com/stretchr/objx v0.2.0
-	github.com/stretchr/testify v1.6.1
+	github.com/stretchr/testify v1.7.0
 	go.mongodb.org/mongo-driver v1.7.1
-	golang.org/x/sys v0.0.0-20200724161237-0e2f3a69832c
-	google.golang.org/genproto v0.0.0-20200526211855-cb27e3aa2013
-	google.golang.org/grpc v1.32.0
-	google.golang.org/protobuf v1.25.0
+	golang.org/x/sys v0.0.0-20210510120138-977fb7262007
+	google.golang.org/genproto v0.0.0-20220118154757-00ab72f36ad5
+	google.golang.org/grpc v1.43.0
+	google.golang.org/protobuf v1.27.1
 	gopkg.in/alecthomas/kingpin.v2 v2.2.6
 	gopkg.in/reform.v1 v1.5.0
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b
@@ -63,7 +63,6 @@ require (
 	github.com/go-stack/stack v1.8.0 // indirect
 	github.com/gogo/protobuf v1.3.1 // indirect
 	github.com/golang/snappy v0.0.1 // indirect
-	github.com/google/uuid v1.1.2 // indirect
 	github.com/klauspost/compress v1.9.5 // indirect
 	github.com/konsorten/go-windows-terminal-sequences v1.0.3 // indirect
 	github.com/mailru/easyjson v0.7.1 // indirect
@@ -79,9 +78,8 @@ require (
 	github.com/xdg-go/stringprep v1.0.2 // indirect
 	github.com/youmark/pkcs8 v0.0.0-20181117223130-1be2e3e5546d // indirect
 	golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9 // indirect
-	golang.org/x/net v0.0.0-20200707034311-ab3426394381 // indirect
+	golang.org/x/net v0.0.0-20210405180319-a5a99cb37ef4 // indirect
 	golang.org/x/sync v0.0.0-20201207232520-09787c993a3a // indirect
 	golang.org/x/text v0.3.5 // indirect
-	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
-	gopkg.in/yaml.v2 v2.3.0 // indirect
+	gopkg.in/yaml.v2 v2.4.0 // indirect
 )

@@ -31,7 +31,7 @@ import (
 	"time"
 
 	"github.com/golang/protobuf/ptypes"
-	grpc_gateway "github.com/grpc-ecosystem/grpc-gateway/runtime"
+	grpc_gateway "github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/percona/pmm/api/agentlocalpb"
 	"github.com/percona/pmm/api/agentpb"
 	"github.com/percona/pmm/version"
@@ -43,6 +43,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/encoding/protojson"
 
 	"github.com/percona/pmm-agent/config"
 )
@@ -267,9 +268,11 @@ func (s *Server) runJSONServer(ctx context.Context, grpcAddress string) {
 
 	proxyMux := grpc_gateway.NewServeMux(
 		grpc_gateway.WithMarshalerOption(grpc_gateway.MIMEWildcard, &grpc_gateway.JSONPb{
-			EmitDefaults: true,
-			Indent:       "  ",
-			OrigName:     true,
+			MarshalOptions: protojson.MarshalOptions{
+				EmitUnpopulated: true,
+				Indent:          "  ",
+				UseProtoNames:   true,
+			},
 		}),
 	)
 	opts := []grpc.DialOption{

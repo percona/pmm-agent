@@ -327,7 +327,7 @@ func TestAgentClosesConnection(t *testing.T) {
 		assert.NoError(t, err)
 
 		msg, err := stream.Recv()
-		assert.Equal(t, status.Error(codes.Canceled, context.Canceled.Error()), err)
+		assert.Equal(t, status.Error(codes.Canceled, context.Canceled.Error()).Error(), err.Error())
 		assert.Nil(t, msg)
 
 		return nil
@@ -336,7 +336,8 @@ func TestAgentClosesConnection(t *testing.T) {
 	// gRPC library has a race in that case, so we can get two errors
 	errClientConnClosing := status.Error(codes.Canceled, "grpc: the client connection is closing") // == grpc.ErrClientConnClosing
 	errConnClosing := status.Error(codes.Unavailable, "transport is closing")
-	channel, cc, teardown := setup(t, connect, errClientConnClosing, errConnClosing)
+	errConnClosed := status.Error(codes.Unavailable, "use of closed network connection")
+	channel, cc, teardown := setup(t, connect, errClientConnClosing, errConnClosing, errConnClosed)
 	defer teardown()
 
 	req := <-channel.Requests()
