@@ -85,7 +85,7 @@ func setup(t *testing.T, connect func(agentpb.Agent_ConnectServer) error, expect
 
 		assert.Conditionf(t, func() (success bool) {
 			for _, e := range expected {
-				if errors.Is(err, e) {
+				if strings.Contains(err.Error(), e.Error()) {
 					return true
 				}
 			}
@@ -336,7 +336,7 @@ func TestAgentClosesConnection(t *testing.T) {
 	// gRPC library has a race in that case, so we can get two errors
 	errClientConnClosing := status.Error(codes.Canceled, "grpc: the client connection is closing") // == grpc.ErrClientConnClosing
 	errConnClosing := status.Error(codes.Unavailable, "transport is closing")
-	errConnClosed := status.Error(codes.Unavailable, "use of closed network connection")
+	errConnClosed := errors.New("use of closed network connection")
 	channel, cc, teardown := setup(t, connect, errClientConnClosing, errConnClosing, errConnClosed)
 	defer teardown()
 
