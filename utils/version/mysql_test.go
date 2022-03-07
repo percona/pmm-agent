@@ -1,5 +1,5 @@
 // pmm-agent
-// Copyright 2019 Percona LLC
+// Copyright 2022 Percona LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,7 +17,6 @@ package version
 
 import (
 	"context"
-	"fmt"
 	"testing"
 
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
@@ -29,59 +28,91 @@ import (
 func TestGetMySQLVersion(t *testing.T) {
 	sqlDB, mock, err := sqlmock.New()
 	if err != nil {
-		fmt.Println("error creating mock database")
+		t.Log("error creating mock database")
 		return
 	}
 	defer sqlDB.Close() //nolint:errcheck
 
-	t.Run("PerconaServer", func(t *testing.T) {
-		columns := []string{"variable_name", "value"}
-		mock.ExpectQuery("SHOW").
-			WillReturnRows(sqlmock.NewRows(columns).AddRow("version", "8.0.26-17"))
-		mock.ExpectQuery("SHOW").
-			WillReturnRows(sqlmock.NewRows(columns).AddRow("version_comment", "Percona Server (GPL), Release 17, Revision d7119cd"))
+	type mockedVariables struct {
+		variable string
+		value    string
+	}
 
-		db := reform.NewDB(sqlDB, mysql.Dialect, reform.NewPrintfLogger(t.Logf))
+	type testingCase struct {
+		name        string
+		mockedData  []mockedVariables
+		wantVendor  string
+		wantVersion string
+	}
 
-		q := db.WithContext(context.Background())
+	testCases := []*testingCase{
+		{
+			name: "Percona Server",
+			mockedData: []mockedVariables{
+				{
+					variable: "version",
+					value:    "8.0.26-17",
+				},
+				{
+					variable: "version_comment",
+					value:    "Percona Server (GPL), Release 17, Revision d7119cd",
+				},
+			},
+			wantVendor:  "percona",
+			wantVersion: "8.0",
+		},
+		{
+			name: "MySQL",
+			mockedData: []mockedVariables{
+				{
+					variable: "version",
+					value:    "8.0.28",
+				},
+				{
+					variable: "version_comment",
+					value:    "MySQL Community Server - GPL",
+				},
+			},
+			wantVendor:  "oracle",
+			wantVersion: "8.0",
+		},
+		{
+			name: "MariaDB",
+			mockedData: []mockedVariables{
+				{
+					variable: "version",
+					value:    "10.2.43-MariaDB-1:10.2.43+maria~bionic",
+				},
+				{
+					variable: "version_comment",
+					value:    "mariadb.org binary distribution",
+				},
+			},
+			wantVendor:  "mariadb",
+			wantVersion: "10.2",
+		},
+	}
 
-		version, vendor, err := GetMySQLVersion(q)
-		assert.Equal(t, "8.0", version)
-		assert.Equal(t, "percona", vendor)
-		assert.NoError(t, err)
-	})
+	//nolint:paralleltest
+	for _, testCase := range testCases {
+		tc := testCase //nolint:varnamelen
+		t.Run(tc.name, func(t *testing.T) {
+			// Don't run in parallel. If this is ran in parallel, there is no way to know
+			// in which case we are.
+			columns := []string{"variable_name", "value"}
+			for _, mockedVar := range tc.mockedData {
+				mock.ExpectQuery("SHOW").
+					WillReturnRows(sqlmock.NewRows(columns).AddRow(mockedVar.variable, mockedVar.value))
+			}
 
-	t.Run("MySQL", func(t *testing.T) {
-		columns := []string{"variable_name", "value"}
-		mock.ExpectQuery("SHOW").
-			WillReturnRows(sqlmock.NewRows(columns).AddRow("version", "8.0.28"))
-		mock.ExpectQuery("SHOW").
-			WillReturnRows(sqlmock.NewRows(columns).AddRow("version_comment", "MySQL Community Server - GPL"))
+			db := reform.NewDB(sqlDB, mysql.Dialect, reform.NewPrintfLogger(t.Logf))
 
-		db := reform.NewDB(sqlDB, mysql.Dialect, reform.NewPrintfLogger(t.Logf))
+			q := db.WithContext(context.Background())
 
-		q := db.WithContext(context.Background())
-
-		version, vendor, err := GetMySQLVersion(q)
-		assert.Equal(t, "8.0", version)
-		assert.Equal(t, "oracle", vendor)
-		assert.NoError(t, err)
-	})
-
-	t.Run("MariaDB", func(t *testing.T) {
-		columns := []string{"variable_name", "value"}
-		mock.ExpectQuery("SHOW").
-			WillReturnRows(sqlmock.NewRows(columns).AddRow("version", "10.2.43-MariaDB-1:10.2.43+maria~bionic"))
-		mock.ExpectQuery("SHOW").
-			WillReturnRows(sqlmock.NewRows(columns).AddRow("version_comment", "mariadb.org binary distribution"))
-
-		db := reform.NewDB(sqlDB, mysql.Dialect, reform.NewPrintfLogger(t.Logf))
-
-		q := db.WithContext(context.Background())
-
-		version, vendor, err := GetMySQLVersion(q)
-		assert.Equal(t, "10.2", version)
-		assert.Equal(t, "mariadb", vendor)
-		assert.NoError(t, err)
-	})
+			version, vendor, err := GetMySQLVersion(q)
+			assert.Equal(t, tc.wantVersion, version)
+			assert.Equal(t, tc.wantVendor, vendor)
+			assert.NoError(t, err)
+		})
+	}
 }
