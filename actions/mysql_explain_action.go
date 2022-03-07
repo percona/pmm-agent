@@ -26,7 +26,7 @@ import (
 
 	"github.com/percona/pmm/api/agentpb"
 	"github.com/pkg/errors"
-	log "github.com/sirupsen/logrus"
+	"github.com/prometheus/common/log"
 
 	"github.com/percona/pmm-agent/tlshelpers"
 )
