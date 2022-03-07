@@ -16,6 +16,7 @@
 // Package pgstatmonitor runs built-in QAN Agent for PostgreSQL pg stat monitor.
 package pgstatmonitor
 
+// test - trigger
 import (
 	"context"
 	"database/sql"
