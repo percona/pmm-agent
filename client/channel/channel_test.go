@@ -23,7 +23,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang/protobuf/ptypes"
 	"github.com/percona/exporter_shared/helpers"
 	"github.com/percona/pmm/api/agentpb"
 	"github.com/pkg/errors"
@@ -33,6 +32,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/percona/pmm-agent/utils/truncate"
 )
@@ -232,8 +232,8 @@ func TestServerRequest(t *testing.T) {
 			assert.Equal(t, i, msg.Id)
 			pong := msg.GetPong()
 			require.NotNil(t, pong)
-			ts, err := ptypes.Timestamp(pong.CurrentTime)
-			assert.NoError(t, err)
+			ts := pong.CurrentTime.AsTime()
+			assert.True(t, pong.CurrentTime.IsValid())
 			assert.InDelta(t, time.Now().Unix(), ts.Unix(), 1)
 		}
 
@@ -249,7 +249,7 @@ func TestServerRequest(t *testing.T) {
 		channel.Send(&AgentResponse{
 			ID: req.ID,
 			Payload: &agentpb.Pong{
-				CurrentTime: ptypes.TimestampNow(),
+				CurrentTime: timestamppb.Now(),
 			},
 		})
 	}
@@ -409,7 +409,7 @@ func TestUnexpectedResponsePayloadFromServer(t *testing.T) {
 	channel.Send(&AgentResponse{
 		ID: req.ID,
 		Payload: &agentpb.Pong{
-			CurrentTime: ptypes.TimestampNow(),
+			CurrentTime: timestamppb.Now(),
 		},
 	})
 }

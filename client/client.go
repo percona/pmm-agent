@@ -25,7 +25,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/golang/protobuf/ptypes"
 	"github.com/percona/pmm/api/agentpb"
 	"github.com/percona/pmm/utils/tlsconfig"
 	"github.com/percona/pmm/version"
@@ -36,6 +35,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
 	grpcstatus "google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/percona/pmm-agent/actions" // TODO https://jira.percona.com/browse/PMM-7206
 	"github.com/percona/pmm-agent/client/channel"
@@ -290,7 +290,7 @@ func (c *Client) processChannelRequests(ctx context.Context) {
 		switch p := req.Payload.(type) {
 		case *agentpb.Ping:
 			responsePayload = &agentpb.Pong{
-				CurrentTime: ptypes.TimestampNow(),
+				CurrentTime: timestamppb.Now(),
 			}
 
 		case *agentpb.SetStateRequest:
@@ -456,8 +456,8 @@ func (c *Client) processChannelRequests(ctx context.Context) {
 }
 
 func (c *Client) handleStartJobRequest(p *agentpb.StartJobRequest) error {
-	timeout, err := ptypes.Duration(p.Timeout)
-	if err != nil {
+	timeout := p.Timeout.AsDuration()
+	if err := p.Timeout.CheckValid(); err != nil {
 		return err
 	}
 
@@ -559,7 +559,8 @@ func (c *Client) handleStartJobRequest(p *agentpb.StartJobRequest) error {
 }
 
 func (c *Client) getActionTimeout(req *agentpb.StartActionRequest) time.Duration {
-	d, err := ptypes.Duration(req.Timeout)
+	d := req.Timeout.AsDuration()
+	err := req.Timeout.CheckValid()
 	if err == nil && d == 0 {
 		err = errors.New("timeout can't be zero")
 	}
@@ -707,7 +708,8 @@ func getNetworkInformation(channel *channel.Channel) (latency, clockDrift time.D
 		return
 	}
 	roundtrip := time.Since(start)
-	serverTime, err := ptypes.Timestamp(resp.(*agentpb.Pong).CurrentTime)
+	serverTime := (resp.(*agentpb.Pong).CurrentTime).AsTime()
+	err = (resp.(*agentpb.Pong).CurrentTime).CheckValid()
 	if err != nil {
 		err = errors.Wrap(err, "Failed to decode Ping")
 		return
