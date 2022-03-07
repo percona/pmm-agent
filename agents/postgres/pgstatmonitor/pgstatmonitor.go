@@ -88,7 +88,7 @@ const (
 	commandTypeUpdate       = "UPDATE"
 	commandTypeInsert       = "INSERT"
 	commandTypeDelete       = "DELETE"
-	commandTypeUtiity       = "UTILITY"
+	commandTypeUtility      = "UTILITY"
 )
 
 var commandTypeToText = []string{
@@ -97,7 +97,7 @@ var commandTypeToText = []string{
 	commandTypeUpdate,
 	commandTypeInsert,
 	commandTypeDelete,
-	commandTypeUtiity,
+	commandTypeUtility,
 	commandTextNotAvailable,
 }
 
@@ -160,38 +160,41 @@ func getPGVersion(q *reform.Querier) (pgVersion float64, err error) {
 	return strconv.ParseFloat(v, 64)
 }
 
-func getPGMonitorVersion(q *reform.Querier) (pgStatMonitorVersion, error) {
+func getPGMonitorVersion(q *reform.Querier) (pgStatMonitorVersion, string, error) {
 	var result string
 	err := q.QueryRow(fmt.Sprintf("SELECT /* %s */ pg_stat_monitor_version()", queryTag)).Scan(&result)
 	if err != nil {
-		return pgStatMonitorVersion06, errors.Wrap(err, "failed to get pg_stat_monitor version from DB")
+		return pgStatMonitorVersion06, "", errors.Wrap(err, "failed to get pg_stat_monitor version from DB")
 	}
 	pgsmVersion, err := ver.NewVersion(result)
 	if err != nil {
-		return pgStatMonitorVersion06, errors.Wrap(err, "failed to parse pg_stat_monitor version")
+		return pgStatMonitorVersion06, "", errors.Wrap(err, "failed to parse pg_stat_monitor version")
 	}
 
 	pgVersion, err := getPGVersion(q)
 	if err != nil {
-		return pgStatMonitorVersion06, err
+		return pgStatMonitorVersion06, "", err
 	}
 
+	version := pgStatMonitorVersion06
 	switch {
 	case pgsmVersion.Core().GreaterThanOrEqual(v10):
 		if pgVersion >= 14 {
-			return pgStatMonitorVersion10PG14, nil
+			version = pgStatMonitorVersion10PG14
+			break
 		}
 		if pgVersion >= 13 {
-			return pgStatMonitorVersion10PG13, nil
+			version = pgStatMonitorVersion10PG13
+			break
 		}
-		return pgStatMonitorVersion10PG12, nil
+		version = pgStatMonitorVersion10PG12
 	case pgsmVersion.GreaterThanOrEqual(v09):
-		return pgStatMonitorVersion09, nil
+		version = pgStatMonitorVersion09
 	case pgsmVersion.GreaterThanOrEqual(v08):
-		return pgStatMonitorVersion08, nil
-	default:
-		return pgStatMonitorVersion06, nil
+		version = pgStatMonitorVersion08
 	}
+
+	return version, pgsmVersion.Prerelease(), nil
 }
 
 // Run extracts stats data and sends it to the channel until ctx is canceled.
