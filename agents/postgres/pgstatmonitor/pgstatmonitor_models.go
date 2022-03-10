@@ -194,7 +194,7 @@ func NewPgStatMonitorStructs(v pgStatMonitorVersion, p pgStatMonitorPrerelease) 
 			field{info: parse.FieldInfo{Name: "PlanMaxTime", Type: "float64", Column: "max_plan_time"}, pointer: &s.PlanMaxTime},
 			field{info: parse.FieldInfo{Name: "PlanMeanTime", Type: "float64", Column: "mean_plan_time"}, pointer: &s.PlanMeanTime})
 	}
-	if v >= pgStatMonitorVersion08 && v <= pgStatMonitorVersion10PG14 && prerelease != "" {
+	if v >= pgStatMonitorVersion08 && v <= pgStatMonitorVersion10PG14 && p != "" {
 		fields = append(fields,
 			field{info: parse.FieldInfo{Name: "BucketStartTimeString", Type: "string", Column: "bucket_start_time"}, pointer: &s.BucketStartTimeString})
 	} else {
