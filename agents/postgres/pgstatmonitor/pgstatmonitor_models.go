@@ -106,7 +106,7 @@ type field struct {
 	pointer interface{}
 }
 
-func NewPgStatMonitorStructs(v pgStatMonitorVersion, prerelease pgStatMonitorPrerelease) (*pgStatMonitor, reform.View) {
+func NewPgStatMonitorStructs(v pgStatMonitorVersion, p pgStatMonitorPrerelease) (*pgStatMonitor, reform.View) {
 	s := &pgStatMonitor{}
 	fields := []field{
 		{info: parse.FieldInfo{Name: "Bucket", Type: "int64", Column: "bucket"}, pointer: &s.Bucket},
