@@ -36,23 +36,23 @@ type innerStruct struct{ float64 }
 
 func TestCache(t *testing.T) {
 	set1 := map[int64]*someType{
-		1: new(someType),
-		2: new(someType),
-		3: new(someType),
-		4: new(someType),
-		5: new(someType)}
+		1: {},
+		2: {},
+		3: {},
+		4: {},
+		5: {}}
 
 	set2 := map[int64]*someType{
-		1: new(someType),
-		2: new(someType),
-		3: new(someType),
-		4: new(someType),
-		6: new(someType),
-		7: new(someType)}
+		1: {},
+		2: {},
+		3: {},
+		4: {},
+		6: {},
+		7: {}}
 
 	t.Run("DoesntReachLimits", func(t *testing.T) {
 		t.Parallel()
-		c, err := New(map[int64]*someType{}, time.Second*60, 100, logrus.WithField("test", t.Name()))
+		c, err := New(make(map[int64]*someType), time.Second*60, 100, logrus.WithField("test", t.Name()))
 		require.NoError(t, err)
 
 		now1 := time.Now()
@@ -82,8 +82,8 @@ func TestCache(t *testing.T) {
 		for k, v := range set1 {
 			expected[k] = v
 		}
-		expected[6] = new(someType)
-		expected[7] = new(someType)
+		expected[6] = &someType{}
+		expected[7] = &someType{}
 
 		assert.True(t, reflect.DeepEqual(actual, expected))
 		assert.Equal(t, uint(7), stats.Current)
@@ -96,7 +96,7 @@ func TestCache(t *testing.T) {
 
 	t.Run("ReachesTimeLimit", func(t *testing.T) {
 		t.Parallel()
-		c, err := New(map[int64]*someType{}, time.Second*1, 100, logrus.WithField("test", t.Name()))
+		c, err := New(make(map[int64]*someType), time.Second*1, 100, logrus.WithField("test", t.Name()))
 		require.NoError(t, err)
 
 		_ = c.Set(set1)
@@ -123,7 +123,7 @@ func TestCache(t *testing.T) {
 
 	t.Run("ReachesSizeLimit", func(t *testing.T) {
 		t.Parallel()
-		c, err := New(map[int64]*someType{}, time.Second*60, 5, logrus.WithField("test", t.Name()))
+		c, err := New(make(map[int64]*someType), time.Second*60, 5, logrus.WithField("test", t.Name()))
 		require.NoError(t, err)
 
 		_ = c.Set(set1)
@@ -154,14 +154,14 @@ func TestCacheErrors(t *testing.T) {
 
 	t.Run("WrongTypeOnRefresh", func(t *testing.T) {
 		t.Parallel()
-		c, _ := New(map[int]int{}, time.Second*100, 100, logrus.WithField("test", t.Name()))
+		c, _ := New(make(map[int]int), time.Second*100, 100, logrus.WithField("test", t.Name()))
 		err := c.Set(map[int]string{1: "some string"})
 		assert.NotNil(t, err)
 	})
 
 	t.Run("WrongTypeOnGet", func(t *testing.T) {
 		t.Parallel()
-		c, _ := New(map[int]int{}, time.Second*100, 100, logrus.WithField("test", t.Name()))
+		c, _ := New(make(map[int]int), time.Second*100, 100, logrus.WithField("test", t.Name()))
 		dest := make(map[int]string)
 		err := c.Get(dest)
 		assert.NotNil(t, err)
