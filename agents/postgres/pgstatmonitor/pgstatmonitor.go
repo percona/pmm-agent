@@ -71,6 +71,7 @@ type Params struct {
 }
 
 type pgStatMonitorVersion int
+type pgStatMonitorPrerelease string
 
 const (
 	pgStatMonitorVersion06 pgStatMonitorVersion = iota
@@ -161,7 +162,7 @@ func getPGVersion(q *reform.Querier) (pgVersion float64, err error) {
 	return strconv.ParseFloat(v, 64)
 }
 
-func getPGMonitorVersion(q *reform.Querier) (pgStatMonitorVersion, string, error) {
+func getPGMonitorVersion(q *reform.Querier) (pgStatMonitorVersion, pgStatMonitorPrerelease, error) {
 	var result string
 	err := q.QueryRow(fmt.Sprintf("SELECT /* %s */ pg_stat_monitor_version()", queryTag)).Scan(&result)
 	if err != nil {
@@ -195,7 +196,9 @@ func getPGMonitorVersion(q *reform.Querier) (pgStatMonitorVersion, string, error
 		version = pgStatMonitorVersion08
 	}
 
-	return version, pgsmVersion.Prerelease(), nil
+	prerelease := pgsmVersion.Prerelease()
+
+	return version, pgStatMonitorPrerelease(prerelease), nil
 }
 
 // Run extracts stats data and sends it to the channel until ctx is canceled.
