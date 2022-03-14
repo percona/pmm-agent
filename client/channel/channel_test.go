@@ -32,6 +32,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/status"
 
 	"github.com/percona/pmm-agent/utils/truncate"
@@ -72,7 +73,7 @@ func setup(t *testing.T, connect func(agentpb.Agent_ConnectServer) error, expect
 	// make client and channel
 	opts := []grpc.DialOption{
 		grpc.WithBlock(),
-		grpc.WithInsecure(),
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	}
 	cc, err = grpc.DialContext(ctx, lis.Addr().String(), opts...)
 	require.NoError(t, err, "failed to dial server")
@@ -327,7 +328,7 @@ func TestAgentClosesConnection(t *testing.T) {
 		assert.NoError(t, err)
 
 		msg, err := stream.Recv()
-		assert.Equal(t, status.Error(codes.Canceled, context.Canceled.Error()).Error(), err.Error())
+		assert.ErrorIs(t, status.Error(codes.Canceled, context.Canceled.Error()), err)
 		assert.Nil(t, msg)
 
 		return nil
