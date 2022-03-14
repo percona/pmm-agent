@@ -273,6 +273,9 @@ func (s *Server) runJSONServer(ctx context.Context, grpcAddress string) {
 				Indent:          "  ",
 				UseProtoNames:   true,
 			},
+			UnmarshalOptions: protojson.UnmarshalOptions{
+				DiscardUnknown: true,
+			},
 		}),
 	)
 	opts := []grpc.DialOption{
