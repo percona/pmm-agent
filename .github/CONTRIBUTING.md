@@ -12,6 +12,8 @@ Install exporters:
 * [mongodb_exporter](https://github.com/percona/mongodb_exporter)
 * [proxysql_exporter](https://github.com/percona/proxysql_exporter)
 
+Run `make download-exporters` to download all exporters
+
 Run `make init` to install dependencies.
 
 #### To run pmm-agent

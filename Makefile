@@ -28,6 +28,15 @@ release:                        ## Build static pmm-agent release binary (Linux 
 	$(PMM_RELEASE_PATH)/pmm-agent --version
 	-ldd $(PMM_RELEASE_PATH)/pmm-agent
 
+download-exporters:
+	cd .. && git clone https://github.com/percona/node_exporter || cd ./node_exporter && git pull
+	cd .. && git clone https://github.com/percona/mysqld_exporter || cd ./mysqld_exporter && git pull
+	cd .. && git clone https://github.com/percona/rds_exporter || cd ./rds_exporter && git pull
+	cd .. && git clone https://github.com/percona/postgres_exporter || cd ./postgres_exporter && git pull
+	cd .. && git clone https://github.com/percona/mongodb_exporter || cd ./mongodb_exporter && git pull
+	cd .. && git clone https://github.com/percona/proxysql_exporter || cd ./proxysql_exporter && git pull
+	ls -la .. | grep _exporter
+
 init:                           ## Installs development tools
 	go build -modfile=tools/go.mod -o $(BIN_PATH)/golangci-lint github.com/golangci/golangci-lint/cmd/golangci-lint
 	go build -modfile=tools/go.mod -o $(BIN_PATH)/mockery github.com/vektra/mockery/cmd/mockery
