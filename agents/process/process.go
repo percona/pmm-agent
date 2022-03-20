@@ -17,6 +17,7 @@
 package process
 
 import (
+	"container/ring"
 	"context"
 	"fmt"
 	"os/exec"
@@ -60,7 +61,7 @@ type Process struct {
 	changes chan inventorypb.AgentStatus
 	backoff *backoff.Backoff
 	ctxDone chan struct{}
-
+	savelog *ring.Ring
 	// recreated on each restart
 	cmd     *exec.Cmd
 	cmdDone chan struct{}
@@ -87,7 +88,7 @@ func (p *Params) String() string {
 }
 
 // New creates new process.
-func New(params *Params, redactWords []string, l *logrus.Entry) *Process {
+func New(params *Params, redactWords []string, l *logrus.Entry, rl *ring.Ring) *Process {
 	return &Process{
 		params:  params,
 		l:       l,
@@ -95,6 +96,7 @@ func New(params *Params, redactWords []string, l *logrus.Entry) *Process {
 		changes: make(chan inventorypb.AgentStatus, 10),
 		backoff: backoff.New(backoffMinDelay, backoffMaxDelay),
 		ctxDone: make(chan struct{}),
+		savelog: rl,
 	}
 }
 
@@ -209,6 +211,7 @@ func (p *Process) toStopping() {
 		// nothing
 	case <-t.C:
 		p.l.Warnf("Process: still alive after %s, sending SIGKILL...", killT)
+
 		if err := p.cmd.Process.Signal(unix.SIGKILL); err != nil {
 			p.l.Errorf("Process: failed to send SIGKILL: %s.", err)
 		}

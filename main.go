@@ -16,9 +16,12 @@
 package main
 
 import (
+	"container/ring"
 	"fmt"
+	"github.com/percona/pmm-agent/storelogs"
 	"path/filepath"
 	"runtime"
+	"time"
 
 	"github.com/percona/pmm/version"
 	"github.com/sirupsen/logrus"
@@ -33,7 +36,7 @@ func main() {
 	if version.Version == "" {
 		panic("pmm-agent version is not set during build.")
 	}
-
+	time.Sleep(time.Second * 30)
 	// we don't have configuration options for formatter, so set it once there
 	logrus.SetFormatter(&logrus.TextFormatter{
 		// Enable multiline-friendly formatter in both development (with terminal) and production (without terminal):
@@ -63,7 +66,7 @@ func main() {
 	kingpin.HelpFlag = app.HelpFlag
 	kingpin.HelpCommand = app.HelpCommand
 	cmd := kingpin.Parse()
-
+	storelogs.Logs.MapLogs = make(map[string]*ring.Ring)
 	switch cmd {
 	case "run":
 		// delay logger configuration until we read configuration file

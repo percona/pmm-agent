@@ -39,8 +39,9 @@ func main() {
 	logger := logrus.New()
 	logger.SetOutput(ioutil.Discard)
 	l := logrus.NewEntry(logger)
+	ringLogs := ring.New(30)
 
-	p := process.New(&process.Params{Path: "sleep", Args: []string{"100500"}}, nil, l)
+	p := process.New(&process.Params{Path: "sleep", Args: []string{"100500"}}, nil, l, ringLogs)
 	go p.Run(context.Background())
 
 	// Wait until the process is running.
