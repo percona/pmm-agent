@@ -18,7 +18,7 @@ require (
 	github.com/davecgh/go-spew v1.1.1
 	github.com/go-openapi/runtime v0.19.20
 	github.com/go-sql-driver/mysql v1.5.0
-	github.com/golang/protobuf v1.4.3
+	github.com/golang/protobuf v1.5.0
 	github.com/grpc-ecosystem/grpc-gateway v1.15.1
 	github.com/hashicorp/go-version v1.3.0
 	github.com/lfittl/pg_query_go v1.0.2
@@ -37,7 +37,7 @@ require (
 	golang.org/x/sys v0.0.0-20200724161237-0e2f3a69832c
 	google.golang.org/genproto v0.0.0-20200526211855-cb27e3aa2013
 	google.golang.org/grpc v1.32.0
-	google.golang.org/protobuf v1.25.0
+	google.golang.org/protobuf v1.27.1
 	gopkg.in/alecthomas/kingpin.v2 v2.2.6
 	gopkg.in/reform.v1 v1.5.0
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b
