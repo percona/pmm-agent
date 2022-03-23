@@ -19,6 +19,7 @@ package supervisor
 import (
 	"context"
 	"fmt"
+	"github.com/percona/pmm-agent/storelogs"
 	"path/filepath"
 	"regexp"
 	"runtime/pprof"
@@ -345,8 +346,9 @@ func (s *Supervisor) startProcess(agentID string, agentProcess *agentpb.SetState
 		"type":      agentType,
 	})
 	l.Debugf("Starting: %s.", processParams)
-
-	process := process.New(processParams, agentProcess.RedactWords, l)
+	ringLog := new(storelogs.LogsStore)
+	ringLog.SetUp(100, l)
+	process := process.New(processParams, agentProcess.RedactWords, l, ringLog)
 	go pprof.Do(ctx, pprof.Labels("agentID", agentID, "type", agentType), process.Run)
 
 	done := make(chan struct{})

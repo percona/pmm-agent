@@ -17,9 +17,9 @@
 package process
 
 import (
-	"container/ring"
 	"context"
 	"fmt"
+	"github.com/percona/pmm-agent/storelogs"
 	"os/exec"
 	"strings"
 	"time"
@@ -61,7 +61,7 @@ type Process struct {
 	changes chan inventorypb.AgentStatus
 	backoff *backoff.Backoff
 	ctxDone chan struct{}
-	savelog *ring.Ring
+	savelog *storelogs.LogsStore
 	// recreated on each restart
 	cmd     *exec.Cmd
 	cmdDone chan struct{}
@@ -88,7 +88,8 @@ func (p *Params) String() string {
 }
 
 // New creates new process.
-func New(params *Params, redactWords []string, l *logrus.Entry, rl *ring.Ring) *Process {
+//func New(params *Params, redactWords []string, l *logrus.Entry) *Process {
+func New(params *Params, redactWords []string, l *logrus.Entry, rl *storelogs.LogsStore) *Process {
 	return &Process{
 		params:  params,
 		l:       l,
@@ -106,6 +107,9 @@ func (p *Process) Run(ctx context.Context) {
 
 	<-ctx.Done()
 	p.l.Infof("Process: context canceled.")
+	p.savelog.SaveLog("Process: context canceled.")
+	//p.l.Data
+
 	close(p.ctxDone)
 }
 
@@ -113,6 +117,7 @@ func (p *Process) Run(ctx context.Context) {
 // STARTING -> WAITING
 func (p *Process) toStarting() {
 	p.l.Tracef("Process: starting.")
+	p.savelog.SaveLog("Process: starting.")
 	p.changes <- inventorypb.AgentStatus_STARTING
 
 	p.cmd = exec.Command(p.params.Path, p.params.Args...) //nolint:gosec
@@ -131,6 +136,7 @@ func (p *Process) toStarting() {
 
 	if err := p.cmd.Start(); err != nil {
 		p.l.Warnf("Process: failed to start: %s.", err)
+		p.savelog.SaveLog(fmt.Sprintf("Process: failed to start: %s.", err))
 		go p.toWaiting()
 		return
 	}
@@ -148,6 +154,7 @@ func (p *Process) toStarting() {
 		go p.toRunning()
 	case <-p.cmdDone:
 		p.l.Warnf("Process: exited early: %s.", p.cmd.ProcessState)
+		p.savelog.SaveLog(fmt.Sprintf("Process: exited early: %s.", p.cmd.ProcessState))
 		go p.toWaiting()
 	}
 }
@@ -156,6 +163,7 @@ func (p *Process) toStarting() {
 // RUNNING -> WAITING
 func (p *Process) toRunning() {
 	p.l.Tracef("Process: running.")
+	p.savelog.SaveLog("Process: running.")
 	p.changes <- inventorypb.AgentStatus_RUNNING
 
 	p.backoff.Reset()
@@ -165,6 +173,7 @@ func (p *Process) toRunning() {
 		go p.toStopping()
 	case <-p.cmdDone:
 		p.l.Warnf("Process: exited: %s.", p.cmd.ProcessState)
+		p.savelog.SaveLog(fmt.Sprintf("Process: exited: %s.", p.cmd.ProcessState))
 		go p.toWaiting()
 	}
 }
@@ -175,6 +184,8 @@ func (p *Process) toWaiting() {
 	delay := p.backoff.Delay()
 
 	p.l.Infof("Process: waiting %s.", delay)
+	p.savelog.SaveLog(fmt.Sprintf("Process: waiting %s.", delay))
+
 	p.changes <- inventorypb.AgentStatus_WAITING
 
 	t := time.NewTimer(delay)
@@ -186,6 +197,7 @@ func (p *Process) toWaiting() {
 			_, err := p.params.TemplateRenderer.RenderFiles(p.params.TemplateParams)
 			if err != nil {
 				p.l.Warnf("Process: failed to regenerate config in %s.", p.params.TemplateRenderer.TempDir)
+				p.savelog.SaveLog(fmt.Sprintf("Process: failed to regenerate config in %s.", p.params.TemplateRenderer.TempDir))
 			}
 		}
 
@@ -198,10 +210,12 @@ func (p *Process) toWaiting() {
 // STOPPING -> DONE
 func (p *Process) toStopping() {
 	p.l.Tracef("Process: stopping (sending SIGTERM)...")
+	p.savelog.SaveLog("Process: stopping (sending SIGTERM)...")
 	p.changes <- inventorypb.AgentStatus_STOPPING
 
 	if err := p.cmd.Process.Signal(unix.SIGTERM); err != nil {
 		p.l.Errorf("Process: failed to send SIGTERM: %s.", err)
+		p.savelog.SaveLog(fmt.Sprintf("Process: failed to send SIGTERM: %s.", err))
 	}
 
 	t := time.NewTimer(killT)
@@ -211,14 +225,16 @@ func (p *Process) toStopping() {
 		// nothing
 	case <-t.C:
 		p.l.Warnf("Process: still alive after %s, sending SIGKILL...", killT)
-
+		p.savelog.SaveLog(fmt.Sprintf("Process: still alive after %s, sending SIGKILL...", killT))
 		if err := p.cmd.Process.Signal(unix.SIGKILL); err != nil {
 			p.l.Errorf("Process: failed to send SIGKILL: %s.", err)
+			p.savelog.SaveLog(fmt.Sprintf("Process: failed to send SIGKILL: %s.", err))
 		}
 		<-p.cmdDone
 	}
 
 	p.l.Infof("Process: exited: %s.", p.cmd.ProcessState)
+	p.savelog.SaveLog(fmt.Sprintf("Process: exited: %s.", p.cmd.ProcessState))
 	go p.toDone()
 }
 

@@ -16,9 +16,7 @@
 package main
 
 import (
-	"container/ring"
 	"fmt"
-	"github.com/percona/pmm-agent/storelogs"
 	"path/filepath"
 	"runtime"
 	"time"
@@ -66,7 +64,6 @@ func main() {
 	kingpin.HelpFlag = app.HelpFlag
 	kingpin.HelpCommand = app.HelpCommand
 	cmd := kingpin.Parse()
-	storelogs.Logs.MapLogs = make(map[string]*ring.Ring)
 	switch cmd {
 	case "run":
 		// delay logger configuration until we read configuration file
