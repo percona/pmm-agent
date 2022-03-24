@@ -28,8 +28,8 @@ require (
 	github.com/percona/percona-toolkit v3.2.1+incompatible
 	github.com/percona/pmm v0.0.0-20220310104949-dd33560bcdde
 	github.com/pkg/errors v0.9.1
-	github.com/prometheus/client_golang v1.11.1
-	github.com/prometheus/common v0.26.0
+	github.com/prometheus/client_golang v1.12.1
+	github.com/prometheus/common v0.32.1
 	github.com/sirupsen/logrus v1.6.0
 	github.com/stretchr/objx v0.2.0
 	github.com/stretchr/testify v1.6.1
