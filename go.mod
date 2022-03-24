@@ -32,7 +32,7 @@ require (
 	github.com/prometheus/common v0.10.0
 	github.com/sirupsen/logrus v1.6.0
 	github.com/stretchr/objx v0.2.0
-	github.com/stretchr/testify v1.6.1
+	github.com/stretchr/testify v1.7.1
 	go.mongodb.org/mongo-driver v1.7.1
 	golang.org/x/sys v0.0.0-20200724161237-0e2f3a69832c
 	google.golang.org/genproto v0.0.0-20200526211855-cb27e3aa2013
