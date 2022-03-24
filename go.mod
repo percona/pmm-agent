@@ -22,7 +22,7 @@ require (
 	github.com/grpc-ecosystem/grpc-gateway v1.15.1
 	github.com/hashicorp/go-version v1.3.0
 	github.com/lfittl/pg_query_go v1.0.2
-	github.com/lib/pq v1.10.0
+	github.com/lib/pq v1.10.4
 	github.com/percona/exporter_shared v0.7.3
 	github.com/percona/go-mysql v0.0.0-20200630114833-b77f37c0bfa2
 	github.com/percona/percona-toolkit v3.2.1+incompatible
