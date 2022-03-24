@@ -39,7 +39,7 @@ type pgUser struct {
 //reform:pg_stat_monitor_settings
 type pgStatMonitorSettings struct {
 	Name  string `reform:"name"`
-	Value int64  `reform:"value"`
+	Value string `reform:"value"`
 }
 
 // pgStatMonitorExtended contains pgStatMonitor data and extends it with database, username and tables data.

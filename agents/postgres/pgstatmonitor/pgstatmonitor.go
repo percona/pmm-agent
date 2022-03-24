@@ -128,14 +128,18 @@ func newPgStatMonitorQAN(q *reform.Querier, dbCloser io.Closer, agentID string, 
 	waitTime := defaultWaitTime
 	for _, row := range settings {
 		setting := row.(*pgStatMonitorSettings)
-		switch setting.Name {
-		case "pg_stat_monitor.pgsm_normalized_query":
-			normalizedQuery = setting.Value == 1
-		case "pg_stat_monitor.pgsm_bucket_time":
-			if setting.Value < int64(defaultWaitTime.Seconds()) {
-				waitTime = time.Duration(setting.Value) * time.Second
+		valueInt, err := strconv.ParseInt(setting.Value, 10, 64)
+		if err == nil {
+			switch setting.Name {
+			case "pg_stat_monitor.pgsm_normalized_query":
+				normalizedQuery = valueInt == 1
+			case "pg_stat_monitor.pgsm_bucket_time":
+				if valueInt < int64(defaultWaitTime.Seconds()) {
+					waitTime = time.Duration(valueInt) * time.Second
+				}
 			}
 		}
+
 	}
 
 	return &PGStatMonitorQAN{

@@ -207,7 +207,7 @@ var pgStatMonitorSettingsView = &pgStatMonitorSettingsViewType{
 		SQLName: "pg_stat_monitor_settings",
 		Fields: []parse.FieldInfo{
 			{Name: "Name", Type: "string", Column: "name"},
-			{Name: "Value", Type: "int64", Column: "value"},
+			{Name: "Value", Type: "string", Column: "value"},
 		},
 		PKFieldIndex: -1,
 	},
