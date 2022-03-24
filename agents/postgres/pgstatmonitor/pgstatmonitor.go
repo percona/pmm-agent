@@ -139,7 +139,6 @@ func newPgStatMonitorQAN(q *reform.Querier, dbCloser io.Closer, agentID string, 
 				}
 			}
 		}
-
 	}
 
 	return &PGStatMonitorQAN{
