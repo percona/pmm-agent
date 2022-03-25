@@ -35,9 +35,10 @@ import (
 
 const (
 	xbstreamBin      = "xbstream"
-	mySQLServiceName = "mysql"
+	mySQLServiceName = "mysqld"
 	mySQLUserName    = "mysql"
 	mySQLGroupName   = "mysql"
+	// TODO make mySQLDirectory autorecognized as done in 'xtrabackup' utility; see 'xtrabackup --help' --datadir parameter
 	mySQLDirectory   = "/var/lib/mysql"
 	systemctlTimeout = 10 * time.Second
 )
@@ -341,7 +342,17 @@ func isPathExists(path string) (bool, error) {
 	}
 }
 
+func getPermissions(path string) (os.FileMode, error) {
+	info, err := os.Stat(path)
+	if err != nil {
+		return 0, err
+	}
+	return info.Mode(), nil
+}
+
 func restoreBackup(ctx context.Context, backupDirectory, mySQLDirectory string) error {
+	mysqlDirPermissions := os.FileMode(0751)
+
 	if output, err := exec.CommandContext( //nolint:gosec
 		ctx,
 		xtrabackupBin,
@@ -363,6 +374,10 @@ func restoreBackup(ctx context.Context, backupDirectory, mySQLDirectory string) 
 		return errors.WithStack(err)
 	}
 	if exists {
+		mysqlDirPermissions, err = getPermissions(mySQLDirectory)
+		if err != nil {
+			return errors.Wrap(err, "failed to get mySQL base directory permissions")
+		}
 		postfix := ".old" + strconv.FormatInt(time.Now().Unix(), 10)
 		if err := os.Rename(mySQLDirectory, mySQLDirectory+postfix); err != nil {
 			return errors.WithStack(err)
@@ -384,6 +399,10 @@ func restoreBackup(ctx context.Context, backupDirectory, mySQLDirectory string) 
 	}
 	if err := chownRecursive(mySQLDirectory, uid, gid); err != nil {
 		return errors.WithStack(err)
+	}
+
+	if err := os.Chmod(mySQLDirectory, mysqlDirPermissions); err != nil {
+		return errors.Wrap(err, "failed to change permission bits of mySQL base directory")
 	}
 
 	return nil
