@@ -71,6 +71,7 @@ type agentProcessInfo struct {
 	done           <-chan struct{} // closes when Process.Changes() channel closes
 	requestedState *agentpb.SetStateRequest_AgentProcess
 	listenPort     uint16
+	logs           *storelogs.LogsStore //store logs
 }
 
 // builtinAgentInfo describes built-in Agent.
@@ -120,6 +121,7 @@ func (s *Supervisor) AgentsList() []*agentlocalpb.AgentInfo {
 	res := make([]*agentlocalpb.AgentInfo, 0, len(s.agentProcesses)+len(s.builtinAgents))
 
 	for id, agent := range s.agentProcesses {
+		fmt.Printf("%+v", agent.logs.GetLogs())
 		info := &agentlocalpb.AgentInfo{
 			AgentId:    id,
 			AgentType:  agent.requestedState.Type,
@@ -370,6 +372,7 @@ func (s *Supervisor) startProcess(agentID string, agentProcess *agentpb.SetState
 		done:           done,
 		requestedState: proto.Clone(agentProcess).(*agentpb.SetStateRequest_AgentProcess),
 		listenPort:     port,
+		logs:           ringLog,
 	}
 	return nil
 }

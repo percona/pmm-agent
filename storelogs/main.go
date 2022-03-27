@@ -35,11 +35,11 @@ func (l *LogsStore) SaveLog(log string) {
 	//l.MapLogs[exporter] = l.MapLogs[exporter].Next()
 }
 
-//func (l *LogsStore) GetLogs(exporter string) []string {
-//	var logs []string
-//	l.MapLogs[exporter].Do(func(p interface{}) {
-//		log := fmt.Sprint(p)
-//		logs = append(logs, log)
-//	})
-//	return logs
-//}
+func (l *LogsStore) GetLogs() []string {
+	var logs []string
+	l.log.Do(func(p interface{}) {
+		log := fmt.Sprint(p)
+		logs = append(logs, log)
+	})
+	return logs
+}
