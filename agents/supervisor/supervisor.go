@@ -121,7 +121,8 @@ func (s *Supervisor) AgentsList() []*agentlocalpb.AgentInfo {
 	res := make([]*agentlocalpb.AgentInfo, 0, len(s.agentProcesses)+len(s.builtinAgents))
 
 	for id, agent := range s.agentProcesses {
-		fmt.Printf("%+v", agent.logs.GetLogs())
+		logs := agent.logs.GetLogs()
+		fmt.Printf("%v", logs)
 		info := &agentlocalpb.AgentInfo{
 			AgentId:    id,
 			AgentType:  agent.requestedState.Type,
@@ -349,7 +350,7 @@ func (s *Supervisor) startProcess(agentID string, agentProcess *agentpb.SetState
 	})
 	l.Debugf("Starting: %s.", processParams)
 	ringLog := new(storelogs.LogsStore)
-	ringLog.SetUp(100, l)
+	ringLog.SetUp(5, l)
 	process := process.New(processParams, agentProcess.RedactWords, l, ringLog)
 	go pprof.Do(ctx, pprof.Labels("agentID", agentID, "type", agentType), process.Run)
 

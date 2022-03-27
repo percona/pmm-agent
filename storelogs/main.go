@@ -39,7 +39,9 @@ func (l *LogsStore) GetLogs() []string {
 	var logs []string
 	l.log.Do(func(p interface{}) {
 		log := fmt.Sprint(p)
-		logs = append(logs, log)
+		if p != nil {
+			logs = append(logs, log)
+		}
 	})
 	return logs
 }
