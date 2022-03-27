@@ -376,7 +376,7 @@ func restoreBackup(ctx context.Context, backupDirectory, mySQLDirectory string) 
 	if exists {
 		mysqlDirPermissions, err = getPermissions(mySQLDirectory)
 		if err != nil {
-			return errors.Wrap(err, "failed to get mySQL base directory permissions")
+			return errors.Wrap(err, "failed to get MySQL base directory permissions")
 		}
 		postfix := ".old" + strconv.FormatInt(time.Now().Unix(), 10)
 		if err := os.Rename(mySQLDirectory, mySQLDirectory+postfix); err != nil {
@@ -402,7 +402,7 @@ func restoreBackup(ctx context.Context, backupDirectory, mySQLDirectory string) 
 	}
 
 	if err := os.Chmod(mySQLDirectory, mysqlDirPermissions); err != nil {
-		return errors.Wrap(err, "failed to change permission bits of mySQL base directory")
+		return errors.Wrap(err, "failed to change permissions for MySQL base directory")
 	}
 
 	return nil
