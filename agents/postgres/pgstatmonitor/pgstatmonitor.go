@@ -165,7 +165,7 @@ func newPgStatMonitorQAN(q *reform.Querier, dbCloser io.Closer, agentID string, 
 		settings, err = q.SelectAllFrom(pgStatMonitorSettingsView, "")
 	}
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "failed to get settings")
 	}
 
 	var normalizedQuery bool
@@ -183,7 +183,7 @@ func newPgStatMonitorQAN(q *reform.Querier, dbCloser io.Closer, agentID string, 
 
 			valueInt, err := strconv.ParseInt(setting.Value, 10, 64)
 			if err != nil {
-				return nil, err
+				return nil, errors.Wrap(err, "value cannot be parsed as integer")
 			}
 			value = valueInt
 		} else {
