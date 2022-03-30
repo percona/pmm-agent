@@ -8,7 +8,6 @@ Set application_name = 'psql' ;
 SELECT 1 AS num;
 SELECT query,application_name FROM pg_stat_monitor ORDER BY query, application_name COLLATE "C";
 ​
-​
 SELECT 1 AS num;
 SELECT query,application_name FROM pg_stat_monitor ORDER BY query COLLATE "C";
 ​
@@ -78,7 +77,6 @@ INSERT  INTO Company(ID, Name) VALUES (1, 'Percona');
 Drop Table if exists Company;
 SELECT query, elevel, sqlcode, message FROM pg_stat_monitor ORDER BY query COLLATE "C",elevel;
 ​
-​
 SELECT 1/0;   -- divide by zero
 SELECT * FROM unknown; -- unknown table
 ELECET * FROM unknown; -- syntax error
@@ -122,7 +120,6 @@ BEGIN
 END;
 $$ LANGUAGE 'plpgsql' STRICT;
 ​
-​
 Set pg_stat_monitor.pgsm_track='all';
 select run_pg_sleep(5);
 ​
@@ -141,7 +138,6 @@ SELECT * FROM foo1, foo2;
 SELECT * FROM foo1, foo2, foo3;
 SELECT * FROM foo1, foo2, foo3, foo4;
 SELECT query, relations from pg_stat_monitor ORDER BY query collate "C";
-​
 ​
 -- test the schema qualified table
 CREATE schema sch1;
@@ -221,7 +217,6 @@ SELECT 1 AS num /* { "application", psql_app, "real_ip", 192.168.1.3) */;
 SELECT query, comments FROM pg_stat_monitor ORDER BY query COLLATE "C";
 ALTER SYSTEM SET pg_stat_monitor.pgsm_extract_comments TO 'no';
 SELECT pg_reload_conf();
-​
 ​
 CREATE OR REPLACE FUNCTION add(int, int) RETURNS INTEGER AS
 $$
