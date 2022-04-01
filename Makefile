@@ -166,3 +166,10 @@ ci-reviewdog:                   ## Runs reviewdog checks.
 	$(BIN_PATH)/golangci-lint run -c=.golangci-required.yml --out-format=line-number | $(BIN_PATH)/reviewdog -f=golangci-lint -level=error -reporter=github-pr-check
 	$(BIN_PATH)/golangci-lint run -c=.golangci.yml --out-format=line-number | $(BIN_PATH)/reviewdog -f=golangci-lint -level=error -reporter=github-pr-review
 	$(BIN_PATH)/go-consistent -pedantic -exclude "tests" ./... | $(BIN_PATH)/reviewdog -f=go-consistent -name='Required go-consistent checks' -reporter=github-pr-check
+
+benchmark-prepare:
+	docker-compose pull
+	make env-up
+
+benchmark-test:
+	time go test -count=1 -p=1 ./...

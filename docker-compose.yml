@@ -52,6 +52,7 @@ services:
     image: ${MONGO_IMAGE:-percona/percona-server-mongodb:4.2}
     container_name: pmm-agent_mongo
     command: --profile 2
+    platform: "amd64"
     ports:
       - "127.0.0.1:27017:27017"
     environment:
@@ -61,6 +62,7 @@ services:
   mongo_with_ssl:
     image: ${MONGO_IMAGE:-percona/percona-server-mongodb:4.2}
     container_name: pmm-agent_mongo_with_ssl
+    platform: "amd64"
     command:
       - --profile=2
       - --sslMode=requireSSL
@@ -76,6 +78,7 @@ services:
   mongonoauth:
     image: ${MONGO_IMAGE:-percona/percona-server-mongodb:4.2}
     container_name: pmm-agent_mongonoauth
+    platform: "amd64"
     command: --profile 2
     ports:
       - "127.0.0.1:27019:27017"
@@ -83,6 +86,7 @@ services:
   mongo_repl:
     image: ${MONGO_IMAGE:-percona/percona-server-mongodb:4.2}
     container_name: pmm-agent_mongorepl
+    platform: "amd64"
     command: >
       bash -c "
         mkdir /tmp/mongodb1 /tmp/mongodb2
@@ -98,6 +102,7 @@ services:
   mongo_repl_with_ssl:
     image: ${MONGO_IMAGE:-percona/percona-server-mongodb:4.2}
     container_name: pmm-agent_mongorepl_with_ssl
+    platform: "amd64"
     command: >
       bash -c "
         mkdir /tmp/mongodb1 /tmp/mongodb2
