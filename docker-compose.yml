@@ -5,6 +5,7 @@ services:
   pmm-server:
     image: ${PMM_SERVER_IMAGE:-perconalab/pmm-server:dev-latest}
     container_name: pmm-agent_pmm-server
+    platform: "amd64"
     ports:
       - "127.0.0.1:80:80"
       - "127.0.0.1:443:443"
