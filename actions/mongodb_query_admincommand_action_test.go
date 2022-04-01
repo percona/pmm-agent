@@ -219,7 +219,7 @@ func getDiagnosticDataAssertions(t *testing.T, b []byte) { //nolint:thelper
 	objxM := convertToObjxMap(t, b)
 	assert.Equal(t, 1.0, objxM.Get("ok").Data())
 	assert.Equal(t, 1.0, objxM.Get("data.serverStatus.ok").Data())
-	assert.Equal(t, "mongod", objxM.Get("data.serverStatus.process").Data())
+	assert.Contains(t, "mongod", objxM.Get("data.serverStatus.process").Data())
 }
 
 func replSetGetStatusAssertionsReplicated(t *testing.T, b []byte) { //nolint:thelper
@@ -253,9 +253,13 @@ func getCmdLineOptsAssertionsWithAuth(t *testing.T, b []byte) { //nolint:thelper
 	assert.Equal(t, "enabled", security.Get("authorization").String())
 
 	argv := objxM.Get("argv").InterSlice()
-	for _, v := range []interface{}{"mongod", "--profile", "2", "--auth"} {
-		assert.Contains(t, argv, v)
+	expected := []interface{}{"--profile", "2", "--auth"}
+	if argv[0] == "/usr/bin/mongod" {
+		expected = append([]interface{}{"/usr/bin/mongod"}, expected...)
+	} else {
+		expected = append([]interface{}{"mongod"}, expected...)
 	}
+	assert.Subset(t, argv, expected)
 }
 
 func getCmdLineOptsAssertionsWithoutAuth(t *testing.T, b []byte) { //nolint:thelper
@@ -271,9 +275,13 @@ func getCmdLineOptsAssertionsWithoutAuth(t *testing.T, b []byte) { //nolint:thel
 	assert.Equal(t, "disabled", security.Get("authorization").String())
 
 	argv := objxM.Get("argv").InterSlice()
-	for _, v := range []interface{}{"mongod", "--profile=2", "--noauth"} {
-		assert.Contains(t, argv, v)
+	expected := []interface{}{"--profile=2", "--noauth"}
+	if argv[0] == "/usr/bin/mongod" {
+		expected = append([]interface{}{"/usr/bin/mongod"}, expected...)
+	} else {
+		expected = append([]interface{}{"mongod"}, expected...)
 	}
+	assert.Subset(t, argv, expected)
 }
 
 func getCmdLineOptsAssertionsWithSSL(t *testing.T, b []byte) { //nolint:thelper
@@ -288,7 +296,7 @@ func getCmdLineOptsAssertionsWithSSL(t *testing.T, b []byte) { //nolint:thelper
 	assert.Len(t, security, 0)
 
 	argv := objxM.Get("argv").InterSlice()
-	expected := []interface{}{"mongod", "--sslMode=requireSSL", "--sslPEMKeyFile=/etc/ssl/certificates/server.pem"}
+	expected := []interface{}{"--sslMode=requireSSL", "--sslPEMKeyFile=/etc/ssl/certificates/server.pem"}
 
 	var tlsMode bool
 	for _, arg := range argv {
@@ -300,7 +308,12 @@ func getCmdLineOptsAssertionsWithSSL(t *testing.T, b []byte) { //nolint:thelper
 		}
 	}
 	if tlsMode {
-		expected = []interface{}{"mongod", "--tlsMode", "requireTLS", "--tlsCertificateKeyFile", "/etc/ssl/certificates/server.pem"}
+		expected = []interface{}{"--tlsMode", "requireTLS", "--tlsCertificateKeyFile", "/etc/ssl/certificates/server.pem"}
+	}
+	if argv[0] == "/usr/bin/mongod" {
+		expected = append([]interface{}{"/usr/bin/mongod"}, expected...)
+	} else {
+		expected = append([]interface{}{"mongod"}, expected...)
 	}
 	assert.Subset(t, argv, expected)
 }

@@ -132,6 +132,7 @@ env-up:                         ## Start development environment.
 	rm -fr testdata
 	mkdir -p testdata/mysql/slowlogs
 	chmod -R 0777 testdata
+	touch testdata/mysql/slowlogs/slow.log
 
 	docker-compose up $(ENV_UP_FLAGS)
 
