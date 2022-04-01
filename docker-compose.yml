@@ -32,6 +32,7 @@ services:
   mysql:
     image: ${MYSQL_IMAGE:-percona:5.7}
     container_name: pmm-agent_mysql
+    platform: "amd64"
     command: >
       --sql-mode="ANSI_QUOTES"
       --performance-schema --innodb_monitor_enable=all

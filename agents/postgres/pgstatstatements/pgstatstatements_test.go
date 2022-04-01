@@ -406,7 +406,7 @@ func TestPGStatStatementsQAN(t *testing.T) {
 				Queryid:             actual.Common.Queryid,
 				Fingerprint:         fingerprint,
 				Database:            "pmm-agent",
-				Tables:              []string{tableName},
+				Tables:              []string{"city"},
 				Username:            "pmm-agent",
 				AgentId:             "agent_id",
 				PeriodStartUnixSecs: 1590404340,

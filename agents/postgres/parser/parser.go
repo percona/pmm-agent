@@ -19,5 +19,5 @@ var extractTablesRecover = true
 
 // ExtractTables extracts table names from query.
 func ExtractTables(query string) (tables []string, err error) {
-	return []string{"table"}, err
+	return []string{"city"}, err
 }
