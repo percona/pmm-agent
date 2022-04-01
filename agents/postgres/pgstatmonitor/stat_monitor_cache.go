@@ -22,7 +22,6 @@ import (
 	"time"
 
 	"github.com/AlekSi/pointer"
-	pgquery "github.com/lfittl/pg_query_go"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"gopkg.in/reform.v1"
@@ -191,11 +190,12 @@ func (ssc *statMonitorCache) getStatMonitorExtended(ctx context.Context, q *refo
 }
 
 func (ssc *statMonitorCache) generateFingerprint(example string) (string, error) {
-	fingerprint, e := pgquery.Normalize(example)
-	if e != nil {
-		return "", errors.Wrap(e, "failed to normalize the query")
-	}
-	return fingerprint, nil
+	return example, nil
+	//fingerprint, e := pgquery.Normalize(example)
+	//if e != nil {
+	//	return "", errors.Wrap(e, "failed to normalize the query")
+	//}
+	//return fingerprint, nil
 }
 
 // stats returns statMonitorCache statistics.

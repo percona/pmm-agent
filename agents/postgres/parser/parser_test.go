@@ -15,98 +15,99 @@
 
 package parser
 
-import (
-	"encoding/json"
-	"io/ioutil"
-	"path/filepath"
-	"strings"
-	"testing"
-
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-)
-
-type expectedResult struct {
-	Tables []string `json:"tables"`
-	Err    string   `json:"error"`
-}
-
-func TestExtractTables(t *testing.T) {
-	files, err := filepath.Glob(filepath.FromSlash("./testdata/*.sql"))
-	require.NoError(t, err)
-
-	for _, file := range files {
-		file := file
-		t.Run(filepath.Base(file), func(t *testing.T) {
-			d, err := ioutil.ReadFile(file) //nolint:gosec
-			require.NoError(t, err)
-			query := string(d)
-
-			goldenFile := strings.TrimSuffix(file, ".sql") + ".json"
-			d, err = ioutil.ReadFile(goldenFile) //nolint:gosec
-			require.NoError(t, err)
-			var expected expectedResult
-			err = json.Unmarshal(d, &expected)
-			require.NoError(t, err)
-
-			for name, f := range map[string]func(string) ([]string, error){
-				"ExtractTables":    ExtractTables,
-				"extractTablesOld": extractTablesOld,
-			} {
-				name, f := name, f
-				t.Run(name, func(t *testing.T) {
-					t.Parallel()
-
-					actual, err := f(query)
-					assert.Equal(t, expected.Tables, actual)
-					if expected.Err != "" {
-						require.EqualError(t, err, expected.Err, "err = %+v", err)
-					} else {
-						require.NoError(t, err)
-					}
-				})
-			}
-		})
-	}
-}
-
-var actualB interface{}
-
-func BenchmarkExtractTables(b *testing.B) {
-	files, err := filepath.Glob(filepath.FromSlash("./testdata/*.sql"))
-	require.NoError(b, err)
-
-	for _, file := range files {
-		file := file
-		goldenFile := strings.TrimSuffix(file, ".sql") + ".json"
-		name := strings.TrimSuffix(filepath.Base(file), ".log")
-		b.Run(name, func(b *testing.B) {
-			d, err := ioutil.ReadFile(file) //nolint:gosec
-			require.NoError(b, err)
-			query := string(d)
-
-			d, err = ioutil.ReadFile(goldenFile) //nolint:gosec
-			require.NoError(b, err)
-			var expected expectedResult
-			err = json.Unmarshal(d, &expected)
-			require.NoError(b, err)
-
-			b.SetBytes(int64(len(query)))
-			b.ReportAllocs()
-			b.ResetTimer()
-
-			for i := 0; i < b.N; i++ {
-				actualB, err = ExtractTables(query)
-			}
-
-			b.StopTimer()
-
-			assert.Equal(b, expected.Tables, actualB.([]string))
-			if expected.Err != "" {
-				require.EqualError(b, err, expected.Err, "err = %+v", err)
-			} else {
-				require.NoError(b, err)
-			}
-		})
-	}
-}
+//
+//import (
+//	"encoding/json"
+//	"io/ioutil"
+//	"path/filepath"
+//	"strings"
+//	"testing"
+//
+//	"github.com/stretchr/testify/assert"
+//	"github.com/stretchr/testify/require"
+//)
+//
+//type expectedResult struct {
+//	Tables []string `json:"tables"`
+//	Err    string   `json:"error"`
+//}
+//
+//func TestExtractTables(t *testing.T) {
+//	files, err := filepath.Glob(filepath.FromSlash("./testdata/*.sql"))
+//	require.NoError(t, err)
+//
+//	for _, file := range files {
+//		file := file
+//		t.Run(filepath.Base(file), func(t *testing.T) {
+//			d, err := ioutil.ReadFile(file) //nolint:gosec
+//			require.NoError(t, err)
+//			query := string(d)
+//
+//			goldenFile := strings.TrimSuffix(file, ".sql") + ".json"
+//			d, err = ioutil.ReadFile(goldenFile) //nolint:gosec
+//			require.NoError(t, err)
+//			var expected expectedResult
+//			err = json.Unmarshal(d, &expected)
+//			require.NoError(t, err)
+//
+//			for name, f := range map[string]func(string) ([]string, error){
+//				"ExtractTables":    ExtractTables,
+//				"extractTablesOld": extractTablesOld,
+//			} {
+//				name, f := name, f
+//				t.Run(name, func(t *testing.T) {
+//					t.Parallel()
+//
+//					actual, err := f(query)
+//					assert.Equal(t, expected.Tables, actual)
+//					if expected.Err != "" {
+//						require.EqualError(t, err, expected.Err, "err = %+v", err)
+//					} else {
+//						require.NoError(t, err)
+//					}
+//				})
+//			}
+//		})
+//	}
+//}
+//
+//var actualB interface{}
+//
+//func BenchmarkExtractTables(b *testing.B) {
+//	files, err := filepath.Glob(filepath.FromSlash("./testdata/*.sql"))
+//	require.NoError(b, err)
+//
+//	for _, file := range files {
+//		file := file
+//		goldenFile := strings.TrimSuffix(file, ".sql") + ".json"
+//		name := strings.TrimSuffix(filepath.Base(file), ".log")
+//		b.Run(name, func(b *testing.B) {
+//			d, err := ioutil.ReadFile(file) //nolint:gosec
+//			require.NoError(b, err)
+//			query := string(d)
+//
+//			d, err = ioutil.ReadFile(goldenFile) //nolint:gosec
+//			require.NoError(b, err)
+//			var expected expectedResult
+//			err = json.Unmarshal(d, &expected)
+//			require.NoError(b, err)
+//
+//			b.SetBytes(int64(len(query)))
+//			b.ReportAllocs()
+//			b.ResetTimer()
+//
+//			for i := 0; i < b.N; i++ {
+//				actualB, err = ExtractTables(query)
+//			}
+//
+//			b.StopTimer()
+//
+//			assert.Equal(b, expected.Tables, actualB.([]string))
+//			if expected.Err != "" {
+//				require.EqualError(b, err, expected.Err, "err = %+v", err)
+//			} else {
+//				require.NoError(b, err)
+//			}
+//		})
+//	}
+//}
