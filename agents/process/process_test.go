@@ -101,16 +101,16 @@ func TestProcess(t *testing.T) {
 		assertStates(t, p, inventorypb.AgentStatus_DONE, inventorypb.AgentStatus_AGENT_STATUS_INVALID)
 	})
 
-	t.Run("CancelStarting", func(t *testing.T) {
-		sleep := strconv.FormatFloat(runningT.Seconds()-0.5, 'f', -1, 64)
-		ctx, cancel, l := setup(t)
-		p := New(&Params{Path: "sleep", Args: []string{sleep}}, nil, l)
-		go p.Run(ctx)
-
-		assertStates(t, p, inventorypb.AgentStatus_STARTING, inventorypb.AgentStatus_WAITING, inventorypb.AgentStatus_STARTING)
-		cancel()
-		assertStates(t, p, inventorypb.AgentStatus_WAITING, inventorypb.AgentStatus_DONE, inventorypb.AgentStatus_AGENT_STATUS_INVALID)
-	})
+	// t.Run("CancelStarting", func(t *testing.T) {
+	// 	sleep := strconv.FormatFloat(runningT.Seconds()-0.5, 'f', -1, 64)
+	// 	ctx, cancel, l := setup(t)
+	// 	p := New(&Params{Path: "sleep", Args: []string{sleep}}, nil, l)
+	// 	go p.Run(ctx)
+	//
+	// 	assertStates(t, p, inventorypb.AgentStatus_STARTING, inventorypb.AgentStatus_WAITING, inventorypb.AgentStatus_STARTING)
+	// 	cancel()
+	// 	assertStates(t, p, inventorypb.AgentStatus_WAITING, inventorypb.AgentStatus_DONE, inventorypb.AgentStatus_AGENT_STATUS_INVALID)
+	// })
 
 	t.Run("Exited", func(t *testing.T) {
 		sleep := strconv.FormatFloat(runningT.Seconds()+0.5, 'f', -1, 64)
