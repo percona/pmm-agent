@@ -83,7 +83,7 @@ func (a *mongodbQueryAdmincommandAction) Run(ctx context.Context) ([]byte, error
 	}
 	defer client.Disconnect(ctx) //nolint:errcheck
 
-	runCommand := bson.D{{a.command, a.arg}} //nolint:govet
+	runCommand := bson.D{{Key: a.command, Value: a.arg}} //nolint:govet
 	res := client.Database("admin").RunCommand(ctx, runCommand)
 
 	var doc map[string]interface{}

@@ -51,7 +51,7 @@ type MongoVersion struct {
 
 func GetMongoVersion(ctx context.Context, client *mongo.Client) (string, error) {
 	var ver MongoVersion
-	err := client.Database("admin").RunCommand(ctx, bson.D{{"buildInfo", 1}}).Decode(&ver)
+	err := client.Database("admin").RunCommand(ctx, bson.D{{Key: "buildInfo", Value: 1}}).Decode(&ver)
 	if err != nil {
 		return "", nil
 	}

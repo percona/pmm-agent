@@ -100,7 +100,7 @@ func TestParserRunning(t *testing.T) {
 	case docsChan <- pm.SystemProfile{
 		Ts: timeStart,
 		Query: bson.D{
-			{"find", "test"},
+			{Key: "find", Value: "test"},
 		},
 		ResponseLength: 100,
 		DocsExamined:   200,

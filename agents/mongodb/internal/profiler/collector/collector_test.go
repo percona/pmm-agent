@@ -73,11 +73,11 @@ func BenchmarkCollector(b *testing.B) {
 	ps := ProfilerStatus{}
 	err = client.Database("admin").RunCommand(ctx, primitive.M{"profile": -1}).Decode(&ps)
 	defer func() { // restore profiler status
-		client.Database("admin").RunCommand(ctx, primitive.D{{"profile", ps.Was}, {"slowms", ps.SlowMs}})
+		client.Database("admin").RunCommand(ctx, primitive.D{{Key: "profile", Value: ps.Was}, {Key: "slowms", Value: ps.SlowMs}})
 	}()
 
 	// Enable profilling all queries (2, slowms = 0)
-	res := client.Database("admin").RunCommand(ctx, primitive.D{{"profile", 2}, {"slowms", 0}})
+	res := client.Database("admin").RunCommand(ctx, primitive.D{{Key: "profile", Value: 2}, {Key: "slowms", Value: 0}})
 	if res.Err() != nil {
 		return
 	}
