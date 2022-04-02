@@ -122,12 +122,13 @@ func (s *Supervisor) AgentsList() []*agentlocalpb.AgentInfo {
 
 	for id, agent := range s.agentProcesses {
 		logs := agent.logs.GetLogs()
-		fmt.Printf("%v", logs)
+		//fmt.Printf("%v", logs)
 		info := &agentlocalpb.AgentInfo{
 			AgentId:    id,
 			AgentType:  agent.requestedState.Type,
 			Status:     s.lastStatuses[id],
 			ListenPort: uint32(agent.listenPort),
+			Logs:       logs,
 		}
 		res = append(res, info)
 	}
@@ -144,6 +145,16 @@ func (s *Supervisor) AgentsList() []*agentlocalpb.AgentInfo {
 	sort.Slice(res, func(i, j int) bool { return res[i].AgentId < res[j].AgentId })
 	return res
 }
+
+//func (s *Supervisor) AgentsLogs() (res []*agentlocalpb.AgentLogs) {
+//	for id, agent := range s.agentProcesses {
+//
+//		logs := agent.logs.GetLogs()
+//		fmt.Printf("%v", logs)
+//		res = append(res, ag)
+//	}
+//	return
+//}
 
 // Changes returns channel with Agent's state changes.
 func (s *Supervisor) Changes() <-chan *agentpb.StateChangedRequest {
@@ -350,7 +361,7 @@ func (s *Supervisor) startProcess(agentID string, agentProcess *agentpb.SetState
 	})
 	l.Debugf("Starting: %s.", processParams)
 	ringLog := new(storelogs.LogsStore)
-	ringLog.SetUp(5, l)
+	ringLog.SetUp(30, l)
 	process := process.New(processParams, agentProcess.RedactWords, l, ringLog)
 	go pprof.Do(ctx, pprof.Labels("agentID", agentID, "type", agentType), process.Run)
 

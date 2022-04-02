@@ -17,13 +17,11 @@ package main
 
 import (
 	"fmt"
-	"path/filepath"
-	"runtime"
-	"time"
-
 	"github.com/percona/pmm/version"
 	"github.com/sirupsen/logrus"
 	"gopkg.in/alecthomas/kingpin.v2"
+	"path/filepath"
+	"runtime"
 
 	"github.com/percona/pmm-agent/commands"
 	"github.com/percona/pmm-agent/config"
@@ -34,7 +32,6 @@ func main() {
 	if version.Version == "" {
 		panic("pmm-agent version is not set during build.")
 	}
-	time.Sleep(time.Second * 30)
 	// we don't have configuration options for formatter, so set it once there
 	logrus.SetFormatter(&logrus.TextFormatter{
 		// Enable multiline-friendly formatter in both development (with terminal) and production (without terminal):

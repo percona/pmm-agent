@@ -4,6 +4,7 @@ import (
 	"container/ring"
 	"fmt"
 	"github.com/sirupsen/logrus"
+	"time"
 )
 
 type LogsStore struct {
@@ -16,16 +17,10 @@ func (l *LogsStore) SetUp(countLogs int, entry *logrus.Entry) {
 	l.entry = entry
 }
 
-//func (l *LogsStore) LenLogs(exporter string) int {
-//	r, ok := l.MapLogs[exporter]
-//	if !ok {
-//		return 0
-//	}
-//	return r.Len()
-//}
-
 func (l *LogsStore) SaveLog(log string) {
-	log = l.entry.Level.String() + ": " + log
+	dt := time.Now()
+	dt.Format("01-02-2006 15:04:05")
+	log = dt.Format("01-02-2006 15:04:05") + " " + l.entry.Level.String() + ": " + log
 	for _, v := range l.entry.Data {
 		log = log + fmt.Sprintf("       %v", v)
 	}
