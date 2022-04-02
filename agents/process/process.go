@@ -236,6 +236,7 @@ func (p *Process) toStopping() {
 
 func (p *Process) toDone() {
 	p.l.Trace("Process: done.")
+	p.l.Trace("Process: done.")
 	p.changes <- inventorypb.AgentStatus_DONE
 
 	close(p.changes)
