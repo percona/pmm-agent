@@ -24,6 +24,7 @@ import (
 	"os/exec"
 	"os/user"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"time"
 
@@ -34,13 +35,16 @@ import (
 )
 
 const (
-	xbstreamBin      = "xbstream"
-	mySQLServiceName = "mysqld"
-	mySQLUserName    = "mysql"
-	mySQLGroupName   = "mysql"
+	xbstreamBin          = "xbstream"
+	mySqlSystemUserName  = "mysql"
+	mySqlSystemGroupName = "mysql"
 	// TODO make mySQLDirectory autorecognized as done in 'xtrabackup' utility; see 'xtrabackup --help' --datadir parameter
 	mySQLDirectory   = "/var/lib/mysql"
 	systemctlTimeout = 10 * time.Second
+)
+
+var (
+	mysqlServiceRegex = regexp.MustCompile(`mysql(d)?\.service`) // this is used to lookup MySQL service in the list of all system services
 )
 
 // MySQLRestoreJob implements Job for MySQL backup restore.
@@ -102,16 +106,22 @@ func (j *MySQLRestoreJob) Run(ctx context.Context, send Send) (rerr error) {
 		}
 	}()
 
+	mySQLServiceName, err := getMysqlServiceName(ctx)
+	if err != nil {
+		return errors.WithStack(err)
+	}
+	j.l.Debugf("Using MySQL service name: %s", mySQLServiceName)
+
 	if err := j.restoreMySQLFromS3(ctx, tmpDir); err != nil {
 		return errors.WithStack(err)
 	}
 
-	active, err := mySQLActive(ctx)
+	active, err := mySQLActive(ctx, mySQLServiceName)
 	if err != nil {
 		return errors.WithStack(err)
 	}
 	if active {
-		if err := stopMySQL(ctx); err != nil {
+		if err := stopMySQL(ctx, mySQLServiceName); err != nil {
 			return errors.WithStack(err)
 		}
 	}
@@ -120,7 +130,7 @@ func (j *MySQLRestoreJob) Run(ctx context.Context, send Send) (rerr error) {
 		return errors.WithStack(err)
 	}
 
-	if err := startMySQL(ctx); err != nil {
+	if err := startMySQL(ctx, mySQLServiceName); err != nil {
 		return errors.WithStack(err)
 	}
 
@@ -249,7 +259,7 @@ func (j *MySQLRestoreJob) restoreMySQLFromS3(ctx context.Context, targetDirector
 	return nil
 }
 
-func mySQLActive(ctx context.Context) (bool, error) {
+func mySQLActive(ctx context.Context, mySQLServiceName string) (bool, error) {
 	ctx, cancel := context.WithTimeout(ctx, systemctlTimeout)
 	defer cancel()
 
@@ -271,7 +281,7 @@ func mySQLActive(ctx context.Context) (bool, error) {
 	}
 }
 
-func stopMySQL(ctx context.Context) error {
+func stopMySQL(ctx context.Context, mySQLServiceName string) error {
 	ctx, cancel := context.WithTimeout(ctx, systemctlTimeout)
 	defer cancel()
 
@@ -283,7 +293,7 @@ func stopMySQL(ctx context.Context) error {
 	return errors.Wrap(cmd.Wait(), "waiting systemctl stop command failed")
 }
 
-func startMySQL(ctx context.Context) error {
+func startMySQL(ctx context.Context, mySQLServiceName string) error {
 	ctx, cancel := context.WithTimeout(ctx, systemctlTimeout)
 	defer cancel()
 
@@ -307,7 +317,7 @@ func chownRecursive(path string, uid, gid int) error {
 
 // mySQLUserAndGroupIDs returns uid, gid if error is nil.
 func mySQLUserAndGroupIDs() (int, int, error) {
-	u, err := user.Lookup(mySQLUserName)
+	u, err := user.Lookup(mySqlSystemUserName)
 	if err != nil {
 		return 0, 0, errors.WithStack(err)
 	}
@@ -317,7 +327,7 @@ func mySQLUserAndGroupIDs() (int, int, error) {
 		return 0, 0, errors.WithStack(err)
 	}
 
-	g, err := user.LookupGroup(mySQLGroupName)
+	g, err := user.LookupGroup(mySqlSystemGroupName)
 	if err != nil {
 		return 0, 0, errors.WithStack(err)
 	}
@@ -409,4 +419,22 @@ func restoreBackup(ctx context.Context, backupDirectory, mySQLDirectory string) 
 	}
 
 	return nil
+}
+
+// getMysqlServiceName returns MySQL system service name
+func getMysqlServiceName(ctx context.Context) (string, error) {
+	ctx, cancel := context.WithTimeout(ctx, systemctlTimeout)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, "systemctl", "list-units", "--type=service")
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return "", errors.Wrapf(err, "failed to list system services, output: %s", string(output))
+	}
+
+	if serviceName := mysqlServiceRegex.Find(output); serviceName != nil {
+		return string(serviceName), nil
+	}
+
+	return "", errors.New("mysql service not found in the system")
 }
