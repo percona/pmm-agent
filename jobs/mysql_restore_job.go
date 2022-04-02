@@ -355,7 +355,7 @@ func isPathExists(path string) (bool, error) {
 func getPermissions(path string) (os.FileMode, error) {
 	info, err := os.Stat(path)
 	if err != nil {
-		return 0, err
+		return 0, errors.Wrapf(err, "failed to get permissions for path: %s", path)
 	}
 	return info.Mode(), nil
 }
