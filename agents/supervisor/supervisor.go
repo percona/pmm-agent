@@ -122,7 +122,6 @@ func (s *Supervisor) AgentsList() []*agentlocalpb.AgentInfo {
 
 	for id, agent := range s.agentProcesses {
 		logs := agent.logs.GetLogs()
-		//fmt.Printf("%v", logs)
 		info := &agentlocalpb.AgentInfo{
 			AgentId:    id,
 			AgentType:  agent.requestedState.Type,
@@ -145,16 +144,6 @@ func (s *Supervisor) AgentsList() []*agentlocalpb.AgentInfo {
 	sort.Slice(res, func(i, j int) bool { return res[i].AgentId < res[j].AgentId })
 	return res
 }
-
-//func (s *Supervisor) AgentsLogs() (res []*agentlocalpb.AgentLogs) {
-//	for id, agent := range s.agentProcesses {
-//
-//		logs := agent.logs.GetLogs()
-//		fmt.Printf("%v", logs)
-//		res = append(res, ag)
-//	}
-//	return
-//}
 
 // Changes returns channel with Agent's state changes.
 func (s *Supervisor) Changes() <-chan *agentpb.StateChangedRequest {

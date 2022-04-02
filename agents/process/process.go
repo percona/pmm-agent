@@ -88,8 +88,7 @@ func (p *Params) String() string {
 }
 
 // New creates new process.
-//func New(params *Params, redactWords []string, l *logrus.Entry) *Process {
-func New(params *Params, redactWords []string, l *logrus.Entry, rl *storelogs.LogsStore) *Process {
+func New(params *Params, redactWords []string, l *logrus.Entry, sl *storelogs.LogsStore) *Process {
 	return &Process{
 		params:  params,
 		l:       l,
@@ -97,7 +96,7 @@ func New(params *Params, redactWords []string, l *logrus.Entry, rl *storelogs.Lo
 		changes: make(chan inventorypb.AgentStatus, 10),
 		backoff: backoff.New(backoffMinDelay, backoffMaxDelay),
 		ctxDone: make(chan struct{}),
-		savelog: rl,
+		savelog: sl,
 	}
 }
 
@@ -108,8 +107,6 @@ func (p *Process) Run(ctx context.Context) {
 	<-ctx.Done()
 	p.l.Infof("Process: context canceled.")
 	p.savelog.SaveLog("Process: context canceled.")
-	//p.l.Data
-
 	close(p.ctxDone)
 }
 
@@ -185,7 +182,6 @@ func (p *Process) toWaiting() {
 
 	p.l.Infof("Process: waiting %s.", delay)
 	p.savelog.SaveLog(fmt.Sprintf("Process: waiting %s.", delay))
-
 	p.changes <- inventorypb.AgentStatus_WAITING
 
 	t := time.NewTimer(delay)

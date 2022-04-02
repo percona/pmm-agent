@@ -17,11 +17,12 @@ package main
 
 import (
 	"fmt"
+	"path/filepath"
+	"runtime"
+
 	"github.com/percona/pmm/version"
 	"github.com/sirupsen/logrus"
 	"gopkg.in/alecthomas/kingpin.v2"
-	"path/filepath"
-	"runtime"
 
 	"github.com/percona/pmm-agent/commands"
 	"github.com/percona/pmm-agent/config"
