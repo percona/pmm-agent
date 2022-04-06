@@ -22,7 +22,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang/protobuf/proto" //nolint:staticcheck
 	"github.com/golang/protobuf/ptypes"
 	"github.com/percona/pmm/api/agentpb"
 	"github.com/pkg/errors"
@@ -30,12 +29,14 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/percona/pmm-agent/config"
 )
 
 type testServer struct {
 	connectFunc func(agentpb.Agent_ConnectServer) error
+	agentpb.UnimplementedAgentServer
 }
 
 func (s *testServer) Connect(stream agentpb.Agent_ConnectServer) error {
@@ -209,7 +210,8 @@ func TestGetActionTimeout(t *testing.T) {
 
 	for _, tc := range testCases {
 		tc := tc
-		t.Run(proto.CompactTextString(tc.req), func(t *testing.T) {
+		name, _ := proto.Marshal(tc.req)
+		t.Run(string(name), func(t *testing.T) {
 			client := New(nil, nil, nil, nil)
 			actual := client.getActionTimeout(tc.req)
 			assert.Equal(t, tc.expected, actual)
@@ -302,7 +304,8 @@ func TestArgListFromPgParams(t *testing.T) {
 
 	for _, tc := range testCases {
 		tc := tc
-		t.Run(proto.CompactTextString(tc.req), func(t *testing.T) {
+		name, _ := proto.Marshal(tc.req)
+		t.Run(string(name), func(t *testing.T) {
 			actual := argListFromPgParams(tc.req)
 			fmt.Printf("\n%+v\n", actual)
 			assert.ElementsMatch(t, tc.expected, actual)
@@ -337,7 +340,8 @@ func TestArgListFromMongoDBParams(t *testing.T) {
 
 	for _, tc := range testCases {
 		tc := tc
-		t.Run(proto.CompactTextString(tc.req), func(t *testing.T) {
+		name, _ := proto.Marshal(tc.req)
+		t.Run(string(name), func(t *testing.T) {
 			actual := argListFromMongoDBParams(tc.req)
 			assert.ElementsMatch(t, tc.expected, actual)
 		})

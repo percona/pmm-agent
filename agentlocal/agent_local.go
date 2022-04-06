@@ -19,6 +19,7 @@ import (
 	"bytes"
 	"context"
 	_ "expvar" // register /debug/vars
+	"github.com/golang/protobuf/ptypes"
 	"html/template"
 	"log"
 	"net"
@@ -30,7 +31,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/golang/protobuf/ptypes"
 	grpc_gateway "github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"github.com/percona/pmm/api/agentlocalpb"
 	"github.com/percona/pmm/api/agentpb"
@@ -61,6 +61,8 @@ type Server struct {
 	l               *logrus.Entry
 	reload          chan struct{}
 	reloadCloseOnce sync.Once
+
+	agentlocalpb.UnimplementedAgentLocalServer
 }
 
 // NewServer creates new server.
