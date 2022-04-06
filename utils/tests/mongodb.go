@@ -50,6 +50,7 @@ func GetTestMongoDBReplicatedDSN(tb testing.TB) string {
 func GetTestMongoDBWithSSLDSN(tb testing.TB, pathToRoot string) (string, *agentpb.TextFiles) {
 	tb.Helper()
 
+	pathToRoot = filepath.Clean(pathToRoot)
 	if testing.Short() {
 		tb.Skip("-short flag is passed, skipping test with real database.")
 	}
