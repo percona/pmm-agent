@@ -20,6 +20,7 @@ import (
 	"io"
 	"net"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -320,7 +321,10 @@ func TestAgentClosesStream(t *testing.T) {
 }
 
 func TestAgentClosesConnection(t *testing.T) {
+	var wg sync.WaitGroup
+	wg.Add(1)
 	connect := func(stream agentpb.Agent_ConnectServer) error { //nolint:unparam
+		defer wg.Done()
 		err := stream.Send(&agentpb.ServerMessage{
 			Id:      1,
 			Payload: (&agentpb.Ping{}).ServerMessageRequestPayload(),
@@ -328,7 +332,7 @@ func TestAgentClosesConnection(t *testing.T) {
 		assert.NoError(t, err)
 
 		msg, err := stream.Recv()
-		assert.Equal(t, status.Error(codes.Canceled, context.Canceled.Error()), err)
+		assert.Equal(t, status.Error(codes.Canceled, context.Canceled.Error()).Error(), err.Error())
 		assert.Nil(t, msg)
 
 		return nil
@@ -347,6 +351,7 @@ func TestAgentClosesConnection(t *testing.T) {
 
 	err := cc.Close()
 	assert.NoError(t, err)
+	wg.Wait()
 }
 
 func TestUnexpectedResponseIDFromServer(t *testing.T) {
