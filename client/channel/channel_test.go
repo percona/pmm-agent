@@ -17,6 +17,7 @@ package channel
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"net"
 	"strings"
@@ -87,7 +88,8 @@ func setup(t *testing.T, connect func(agentpb.Agent_ConnectServer) error, expect
 
 		assert.Conditionf(t, func() (success bool) {
 			for _, e := range expected {
-				if errors.Is(err, e) {
+				// have to use strings.Contains because grpc returns error with random ports in message.
+				if errors.Is(err, e) || strings.Contains(err.Error(), e.Error()) {
 					return true
 				}
 			}
@@ -333,10 +335,11 @@ func TestAgentClosesConnection(t *testing.T) {
 		return nil
 	}
 
-	// gRPC library has a race in that case, so we can get two errors
+	// gRPC library has a race in that case, so we can get three errors
 	errClientConnClosing := status.Error(codes.Canceled, "grpc: the client connection is closing") // == grpc.ErrClientConnClosing
 	errConnClosing := status.Error(codes.Unavailable, "transport is closing")
-	channel, cc, teardown := setup(t, connect, errClientConnClosing, errConnClosing)
+	errConnClosed := fmt.Errorf("use of closed network connection")
+	channel, cc, teardown := setup(t, connect, errClientConnClosing, errConnClosing, errConnClosed)
 	defer teardown()
 
 	req := <-channel.Requests()
