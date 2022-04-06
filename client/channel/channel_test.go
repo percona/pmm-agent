@@ -23,7 +23,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang/protobuf/ptypes"
 	"github.com/percona/exporter_shared/helpers"
 	"github.com/percona/pmm/api/agentpb"
 	"github.com/pkg/errors"
@@ -32,13 +31,16 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/percona/pmm-agent/utils/truncate"
 )
 
 type testServer struct {
 	connectFunc func(agentpb.Agent_ConnectServer) error
+	agentpb.UnimplementedAgentServer
 }
 
 func (s *testServer) Connect(stream agentpb.Agent_ConnectServer) error {
@@ -72,7 +74,7 @@ func setup(t *testing.T, connect func(agentpb.Agent_ConnectServer) error, expect
 	// make client and channel
 	opts := []grpc.DialOption{
 		grpc.WithBlock(),
-		grpc.WithInsecure(),
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	}
 	cc, err = grpc.DialContext(ctx, lis.Addr().String(), opts...)
 	require.NoError(t, err, "failed to dial server")
@@ -232,9 +234,7 @@ func TestServerRequest(t *testing.T) {
 			assert.Equal(t, i, msg.Id)
 			pong := msg.GetPong()
 			require.NotNil(t, pong)
-			ts, err := ptypes.Timestamp(pong.CurrentTime)
-			assert.NoError(t, err)
-			assert.InDelta(t, time.Now().Unix(), ts.Unix(), 1)
+			assert.InDelta(t, time.Now().Unix(), pong.CurrentTime.AsTime().Unix(), 1)
 		}
 
 		return nil
@@ -249,7 +249,7 @@ func TestServerRequest(t *testing.T) {
 		channel.Send(&AgentResponse{
 			ID: req.ID,
 			Payload: &agentpb.Pong{
-				CurrentTime: ptypes.TimestampNow(),
+				CurrentTime: timestamppb.Now(),
 			},
 		})
 	}
@@ -409,7 +409,7 @@ func TestUnexpectedResponsePayloadFromServer(t *testing.T) {
 	channel.Send(&AgentResponse{
 		ID: req.ID,
 		Payload: &agentpb.Pong{
-			CurrentTime: ptypes.TimestampNow(),
+			CurrentTime: timestamppb.Now(),
 		},
 	})
 }

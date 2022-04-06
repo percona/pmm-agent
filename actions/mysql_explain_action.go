@@ -24,9 +24,10 @@ import (
 	"strings"
 	"text/tabwriter"
 
-	"github.com/percona/pmm-agent/tlshelpers"
 	"github.com/percona/pmm/api/agentpb"
 	"github.com/pkg/errors"
+
+	"github.com/percona/pmm-agent/tlshelpers"
 )
 
 type mysqlExplainAction struct {
@@ -68,7 +69,6 @@ func (a *mysqlExplainAction) Type() string {
 
 // Run runs an Action and returns output and error.
 func (a *mysqlExplainAction) Run(ctx context.Context) ([]byte, error) {
-
 	// query has a copy of the original params.Query field if the query is a SELECT or the equivalent
 	// SELECT after converting DML queries.
 	query := a.query
