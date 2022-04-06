@@ -17,7 +17,7 @@ package tests
 
 import (
 	"context"
-	"io/ioutil"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -56,10 +56,10 @@ func GetTestMongoDBWithSSLDSN(tb testing.TB, pathToRoot string) (string, *agentp
 
 	dsn := "mongodb://localhost:27018/admin/?ssl=true&tlsCaFile={{.TextFiles.caFilePlaceholder}}&tlsCertificateKeyFile={{.TextFiles.certificateKeyFilePlaceholder}}"
 
-	caFile, err := ioutil.ReadFile(filepath.Join(pathToRoot, "utils/tests/testdata/", "mongodb/", "ca.crt"))
+	caFile, err := os.ReadFile(filepath.Join(pathToRoot, "utils/tests/testdata/", "mongodb/", "ca.crt"))
 	require.NoError(tb, err)
 
-	certificateKey, err := ioutil.ReadFile(filepath.Join(pathToRoot, "utils/tests/testdata/", "mongodb/", "client.pem"))
+	certificateKey, err := os.ReadFile(filepath.Join(pathToRoot, "utils/tests/testdata/", "mongodb/", "client.pem"))
 	require.NoError(tb, err)
 
 	return dsn, &agentpb.TextFiles{
@@ -83,10 +83,10 @@ func GetTestMongoDBReplicatedWithSSLDSN(tb testing.TB, pathToRoot string) (strin
 	dsn := "mongodb://localhost:27022,localhost:27023/admin/?ssl=true&tlsCaFile=" +
 		"{{.TextFiles.caFilePlaceholder}}&tlsCertificateKeyFile={{.TextFiles.certificateKeyFilePlaceholder}}"
 
-	caFile, err := ioutil.ReadFile(filepath.Join(filepath.Clean(pathToRoot), "utils/tests/testdata/", "mongodb/", "ca.crt"))
+	caFile, err := os.ReadFile(filepath.Join(filepath.Clean(pathToRoot), "utils/tests/testdata/", "mongodb/", "ca.crt"))
 	require.NoError(tb, err)
 
-	certificateKey, err := ioutil.ReadFile(filepath.Join(filepath.Clean(pathToRoot), "utils/tests/testdata/", "mongodb/", "client.pem"))
+	certificateKey, err := os.ReadFile(filepath.Join(filepath.Clean(pathToRoot), "utils/tests/testdata/", "mongodb/", "client.pem"))
 	require.NoError(tb, err)
 
 	return dsn, &agentpb.TextFiles{

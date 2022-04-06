@@ -19,7 +19,6 @@ import (
 	"bytes"
 	"context"
 	"io"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"os/user"
@@ -96,7 +95,7 @@ func (j *MySQLRestoreJob) Run(ctx context.Context, send Send) (rerr error) {
 		return errors.WithStack(err)
 	}
 
-	tmpDir, err := ioutil.TempDir("", "backup-restore")
+	tmpDir, err := os.MkdirTemp("", "backup-restore")
 	if err != nil {
 		return errors.Wrap(err, "cannot create temporary directory")
 	}

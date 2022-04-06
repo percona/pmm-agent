@@ -18,7 +18,6 @@ package templates
 
 import (
 	"bytes"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -82,7 +81,7 @@ func (tr *TemplateRenderer) RenderFiles(templateParams map[string]interface{}) (
 		}
 
 		path := filepath.Join(tr.TempDir, name)
-		if err = ioutil.WriteFile(path, b, 0600); err != nil { //nolint:gosec
+		if err = os.WriteFile(path, b, 0600); err != nil { //nolint:gosec
 			return nil, errors.WithStack(err)
 		}
 		textFiles[name] = path
