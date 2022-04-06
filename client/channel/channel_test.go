@@ -17,7 +17,6 @@ package channel
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"net"
 	"strings"
@@ -338,8 +337,8 @@ func TestAgentClosesConnection(t *testing.T) {
 	// gRPC library has a race in that case, so we can get three errors
 	errClientConnClosing := status.Error(codes.Canceled, "grpc: the client connection is closing") // == grpc.ErrClientConnClosing
 	errConnClosing := status.Error(codes.Unavailable, "transport is closing")
-	errConnClosed := fmt.Errorf("use of closed network connection")
-	channel, cc, teardown := setup(t, connect, errClientConnClosing, errConnClosing, errConnClosed)
+	errConnClosed := errors.New("use of closed network connection")
+	channel, cc, teardown := setup(t, connect, errClientConnClosing, errConnClosing, errConnClosed) // nolint:varnamelen
 	defer teardown()
 
 	req := <-channel.Requests()
