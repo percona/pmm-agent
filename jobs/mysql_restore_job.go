@@ -36,8 +36,8 @@ import (
 
 const (
 	xbstreamBin          = "xbstream"
-	mySqlSystemUserName  = "mysql"
-	mySqlSystemGroupName = "mysql"
+	mySQLSystemUserName  = "mysql"
+	mySQLSystemGroupName = "mysql"
 	// TODO make mySQLDirectory autorecognized as done in 'xtrabackup' utility; see 'xtrabackup --help' --datadir parameter
 	mySQLDirectory   = "/var/lib/mysql"
 	systemctlTimeout = 10 * time.Second
@@ -317,7 +317,7 @@ func chownRecursive(path string, uid, gid int) error {
 
 // mySQLUserAndGroupIDs returns uid, gid if error is nil.
 func mySQLUserAndGroupIDs() (int, int, error) {
-	u, err := user.Lookup(mySqlSystemUserName)
+	u, err := user.Lookup(mySQLSystemUserName)
 	if err != nil {
 		return 0, 0, errors.WithStack(err)
 	}
@@ -327,7 +327,7 @@ func mySQLUserAndGroupIDs() (int, int, error) {
 		return 0, 0, errors.WithStack(err)
 	}
 
-	g, err := user.LookupGroup(mySqlSystemGroupName)
+	g, err := user.LookupGroup(mySQLSystemGroupName)
 	if err != nil {
 		return 0, 0, errors.WithStack(err)
 	}
