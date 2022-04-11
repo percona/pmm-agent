@@ -341,6 +341,9 @@ func TestAgentClosesConnection(t *testing.T) {
 	// gRPC library has a race in that case, so we can get three errors
 	errClientConnClosing := status.Error(codes.Canceled, "grpc: the client connection is closing") // == grpc.ErrClientConnClosing
 	errConnClosing := status.Error(codes.Unavailable, "transport is closing")
+	// For an explanation of why we are using a dynamic error here, and why we are comparing the string representation of this error, see:
+	// https://github.com/golang/go/issues/4373
+	// https://github.com/golang/go/blob/master/src/internal/poll/fd.go#L20
 	errConnClosed := errors.New("use of closed network connection")
 	channel, cc, teardown := setup(t, connect, errClientConnClosing, errConnClosing, errConnClosed) // nolint:varnamelen
 	defer teardown()
