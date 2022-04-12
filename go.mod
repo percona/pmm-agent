@@ -34,10 +34,10 @@ require (
 	github.com/stretchr/objx v0.2.0
 	github.com/stretchr/testify v1.7.1
 	go.mongodb.org/mongo-driver v1.7.1
-	golang.org/x/sys v0.0.0-20200930185726-fdedc70b468f
-	google.golang.org/genproto v0.0.0-20200526211855-cb27e3aa2013
-	google.golang.org/grpc v1.32.0
-	google.golang.org/protobuf v1.25.0
+	golang.org/x/sys v0.0.0-20220114195835-da31bd327af9
+	google.golang.org/genproto v0.0.0-20220302033224-9aa15565e42a
+	google.golang.org/grpc v1.45.0
+	google.golang.org/protobuf v1.27.1
 	gopkg.in/alecthomas/kingpin.v2 v2.2.6
 	gopkg.in/reform.v1 v1.5.1
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b
@@ -78,8 +78,8 @@ require (
 	github.com/xdg-go/stringprep v1.0.2 // indirect
 	github.com/youmark/pkcs8 v0.0.0-20181117223130-1be2e3e5546d // indirect
 	golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9 // indirect
-	golang.org/x/net v0.0.0-20201021035429-f5854403a974 // indirect
+	golang.org/x/net v0.0.0-20220127200216-cd36cc0744dd // indirect
 	golang.org/x/sync v0.0.0-20201207232520-09787c993a3a // indirect
-	golang.org/x/text v0.3.5 // indirect
-	gopkg.in/yaml.v2 v2.3.0 // indirect
+	golang.org/x/text v0.3.7 // indirect
+	gopkg.in/yaml.v2 v2.4.0 // indirect
 )
