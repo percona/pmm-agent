@@ -412,8 +412,8 @@ func restoreBackup(ctx context.Context, backupDirectory, mySQLDirectory string) 
 		return errors.WithStack(err)
 	}
 
-	// Now we set permissions as original directory has before restoring.
-	// If original directory was absent, we set such permissions that all users could connect to the DB.
+	// Set such permissions as original directory has before restoring.
+	// If original directory was absent, we set predefined permissions.
 	// Permissions inside DB's main directory are managed by xtrabackup utility, and we don't change them.
 	if err := os.Chmod(mySQLDirectory, mysqlDirPermissions); err != nil {
 		return errors.Wrap(err, "failed to change permissions for MySQL base directory")
