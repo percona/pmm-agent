@@ -436,6 +436,11 @@ func (c *Client) processChannelRequests(ctx context.Context) {
 				resp.Error = err.Error()
 			}
 			responsePayload = &resp
+		case *agentpb.ParseDefaultsFileRequest:
+			responsePayload = &agentpb.ParseDefaultsFileResponse{
+				Username: "username",
+				Password: "password",
+			}
 		default:
 			c.l.Errorf("Unhandled server request: %v.", req)
 		}
