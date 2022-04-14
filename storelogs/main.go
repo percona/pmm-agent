@@ -5,6 +5,7 @@ import (
 	"container/ring"
 	"fmt"
 	"github.com/sirupsen/logrus"
+	"sync"
 	"time"
 )
 
@@ -12,6 +13,7 @@ type LogsStore struct {
 	log   *ring.Ring
 	Entry *logrus.Entry
 	count int
+	m     sync.RWMutex
 }
 
 func (l *LogsStore) SetUp(entry *logrus.Entry) {
@@ -37,11 +39,14 @@ func (l *LogsStore) SaveLog(log string) {
 	for _, v := range l.Entry.Data {
 		b.WriteString(fmt.Sprintf("  %v", v))
 	}
+	l.m.Lock()
 	l.log.Value = b.String()
+	l.m.Unlock()
 	l.log = l.log.Next()
 }
 
 func (l *LogsStore) GetLogs() (logs []string) {
+	l.m.Lock()
 	if l != nil {
 		l.log.Do(func(p interface{}) {
 			log := fmt.Sprint(p)
@@ -50,6 +55,7 @@ func (l *LogsStore) GetLogs() (logs []string) {
 			}
 		})
 	}
+	l.m.Unlock()
 	return logs
 }
 
