@@ -63,11 +63,6 @@ type Server struct {
 	reloadCloseOnce sync.Once
 }
 
-func (s *Server) mustEmbedUnimplementedAgentLocalServer() {
-	//TODO implement me
-	panic("implement me")
-}
-
 // NewServer creates new server.
 //
 // Caller should call Run.
