@@ -17,6 +17,7 @@ package process
 
 import (
 	"context"
+	"github.com/percona/pmm-agent/storelogs"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -60,13 +61,15 @@ func build(t *testing.T, tag string, fileName string, outputFile string) *exec.C
 	return cmd
 }
 
-func setup(t *testing.T) (context.Context, context.CancelFunc, *logrus.Entry) {
+func setup(t *testing.T) (context.Context, context.CancelFunc, *storelogs.LogsStore) {
 	t.Helper()
 	t.Parallel()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	l := logrus.WithField("test", t.Name())
-	return ctx, cancel, l
+	ringLog := new(storelogs.LogsStore)
+	ringLog.SetUp(l)
+	return ctx, cancel, ringLog
 }
 
 func TestProcess(t *testing.T) {
@@ -159,7 +162,7 @@ func TestProcess(t *testing.T) {
 		ctx, cancel, l := setup(t)
 		defer cancel()
 
-		logger := newProcessLogger(l, 2, nil)
+		logger := newProcessLogger(l.Entry, 2, nil)
 
 		pCmd := exec.CommandContext(ctx, f.Name()) //nolint:gosec
 		pCmd.Stdout = logger
