@@ -145,6 +145,15 @@ func (s *Supervisor) AgentsList() []*agentlocalpb.AgentInfo {
 	return res
 }
 
+// AgentsListWithoutLogs returns info for all Agents managed by this supervisor without logs.
+func (s *Supervisor) AgentsListWithoutLogs() []*agentlocalpb.AgentInfo {
+	agentList := s.AgentsList()
+	for i, _ := range agentList {
+		agentList[i].Logs = nil
+	}
+	return agentList
+}
+
 // Changes returns channel with Agent's state changes.
 func (s *Supervisor) Changes() <-chan *agentpb.StateChangedRequest {
 	return s.changes

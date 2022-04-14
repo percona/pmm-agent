@@ -65,10 +65,7 @@ func TestSupervisor(t *testing.T) {
 				"noop3": {Type: type_TEST_NOOP, Dsn: "30"},
 			},
 		})
-		agentList := s.AgentsList()
-		for _, agent := range agentList {
-			agent.Logs = nil
-		}
+
 		assertChanges(t, s,
 			&agentpb.StateChangedRequest{AgentId: "noop3", Status: inventorypb.AgentStatus_STARTING},
 			&agentpb.StateChangedRequest{AgentId: "sleep1", Status: inventorypb.AgentStatus_STARTING, ListenPort: 65000})
@@ -76,7 +73,8 @@ func TestSupervisor(t *testing.T) {
 			{AgentType: type_TEST_NOOP, AgentId: "noop3", Status: inventorypb.AgentStatus_STARTING},
 			{AgentType: type_TEST_SLEEP, AgentId: "sleep1", Status: inventorypb.AgentStatus_STARTING, ListenPort: 65000},
 		}
-		assert.Equal(t, expectedList, agentList)
+
+		assert.Equal(t, expectedList, s.AgentsListWithoutLogs())
 
 		assertChanges(t, s,
 			&agentpb.StateChangedRequest{AgentId: "noop3", Status: inventorypb.AgentStatus_RUNNING},
@@ -85,19 +83,15 @@ func TestSupervisor(t *testing.T) {
 			{AgentType: type_TEST_NOOP, AgentId: "noop3", Status: inventorypb.AgentStatus_RUNNING},
 			{AgentType: type_TEST_SLEEP, AgentId: "sleep1", Status: inventorypb.AgentStatus_RUNNING, ListenPort: 65000},
 		}
-		assert.Equal(t, expectedList, agentList)
+		assert.Equal(t, expectedList, s.AgentsListWithoutLogs())
 	})
 
 	t.Run("Restart1Start2", func(t *testing.T) {
-		agentList := s.AgentsList()
-		for _, agent := range agentList {
-			agent.Logs = nil
-		}
 		expectedList := []*agentlocalpb.AgentInfo{
 			{AgentType: type_TEST_NOOP, AgentId: "noop3", Status: inventorypb.AgentStatus_RUNNING},
 			{AgentType: type_TEST_SLEEP, AgentId: "sleep1", Status: inventorypb.AgentStatus_RUNNING, ListenPort: 65000},
 		}
-		require.Equal(t, expectedList, agentList)
+		require.Equal(t, expectedList, s.AgentsListWithoutLogs())
 
 		s.SetState(&agentpb.SetStateRequest{
 			AgentProcesses: map[string]*agentpb.SetStateRequest_AgentProcess{
@@ -122,7 +116,7 @@ func TestSupervisor(t *testing.T) {
 			{AgentType: type_TEST_SLEEP, AgentId: "sleep1", Status: inventorypb.AgentStatus_STARTING, ListenPort: 65000},
 			{AgentType: type_TEST_SLEEP, AgentId: "sleep2", Status: inventorypb.AgentStatus_STARTING, ListenPort: 65001},
 		}
-		assert.Equal(t, expectedList, agentList)
+		assert.Equal(t, expectedList, s.AgentsListWithoutLogs())
 
 		assertChanges(t, s,
 			&agentpb.StateChangedRequest{AgentId: "sleep1", Status: inventorypb.AgentStatus_RUNNING, ListenPort: 65000},
@@ -132,20 +126,17 @@ func TestSupervisor(t *testing.T) {
 			{AgentType: type_TEST_SLEEP, AgentId: "sleep1", Status: inventorypb.AgentStatus_RUNNING, ListenPort: 65000},
 			{AgentType: type_TEST_SLEEP, AgentId: "sleep2", Status: inventorypb.AgentStatus_RUNNING, ListenPort: 65001},
 		}
-		assert.Equal(t, expectedList, agentList)
+
+		assert.Equal(t, expectedList, s.AgentsListWithoutLogs())
 	})
 
 	t.Run("Restart3Start4", func(t *testing.T) {
-		agentList := s.AgentsList()
-		for _, agent := range agentList {
-			agent.Logs = nil
-		}
 		expectedList := []*agentlocalpb.AgentInfo{
 			{AgentType: type_TEST_NOOP, AgentId: "noop3", Status: inventorypb.AgentStatus_RUNNING},
 			{AgentType: type_TEST_SLEEP, AgentId: "sleep1", Status: inventorypb.AgentStatus_RUNNING, ListenPort: 65000},
 			{AgentType: type_TEST_SLEEP, AgentId: "sleep2", Status: inventorypb.AgentStatus_RUNNING, ListenPort: 65001},
 		}
-		require.Equal(t, expectedList, agentList)
+		require.Equal(t, expectedList, s.AgentsListWithoutLogs())
 
 		s.SetState(&agentpb.SetStateRequest{
 			AgentProcesses: map[string]*agentpb.SetStateRequest_AgentProcess{
@@ -172,7 +163,7 @@ func TestSupervisor(t *testing.T) {
 			{AgentType: type_TEST_SLEEP, AgentId: "sleep1", Status: inventorypb.AgentStatus_RUNNING, ListenPort: 65000},
 			{AgentType: type_TEST_SLEEP, AgentId: "sleep2", Status: inventorypb.AgentStatus_RUNNING, ListenPort: 65001},
 		}
-		assert.Equal(t, expectedList, agentList)
+		assert.Equal(t, expectedList, s.AgentsListWithoutLogs())
 
 		assertChanges(t, s,
 			&agentpb.StateChangedRequest{AgentId: "noop3", Status: inventorypb.AgentStatus_RUNNING},
@@ -183,21 +174,17 @@ func TestSupervisor(t *testing.T) {
 			{AgentType: type_TEST_SLEEP, AgentId: "sleep1", Status: inventorypb.AgentStatus_RUNNING, ListenPort: 65000},
 			{AgentType: type_TEST_SLEEP, AgentId: "sleep2", Status: inventorypb.AgentStatus_RUNNING, ListenPort: 65001},
 		}
-		assert.Equal(t, expectedList, agentList)
+		assert.Equal(t, expectedList, s.AgentsListWithoutLogs())
 	})
 
 	t.Run("Stop1", func(t *testing.T) {
-		agentList := s.AgentsList()
-		for _, agent := range agentList {
-			agent.Logs = nil
-		}
 		expectedList := []*agentlocalpb.AgentInfo{
 			{AgentType: type_TEST_NOOP, AgentId: "noop3", Status: inventorypb.AgentStatus_RUNNING},
 			{AgentType: type_TEST_NOOP, AgentId: "noop4", Status: inventorypb.AgentStatus_RUNNING},
 			{AgentType: type_TEST_SLEEP, AgentId: "sleep1", Status: inventorypb.AgentStatus_RUNNING, ListenPort: 65000},
 			{AgentType: type_TEST_SLEEP, AgentId: "sleep2", Status: inventorypb.AgentStatus_RUNNING, ListenPort: 65001},
 		}
-		require.Equal(t, expectedList, agentList)
+		require.Equal(t, expectedList, s.AgentsListWithoutLogs())
 
 		s.SetState(&agentpb.SetStateRequest{
 			AgentProcesses: map[string]*agentpb.SetStateRequest_AgentProcess{
@@ -218,20 +205,16 @@ func TestSupervisor(t *testing.T) {
 			{AgentType: type_TEST_NOOP, AgentId: "noop4", Status: inventorypb.AgentStatus_RUNNING},
 			{AgentType: type_TEST_SLEEP, AgentId: "sleep2", Status: inventorypb.AgentStatus_RUNNING, ListenPort: 65001},
 		}
-		require.Equal(t, expectedList, agentList)
+		require.Equal(t, expectedList, s.AgentsListWithoutLogs())
 	})
 
 	t.Run("Stop3", func(t *testing.T) {
-		agentList := s.AgentsList()
-		for _, agent := range agentList {
-			agent.Logs = nil
-		}
 		expectedList := []*agentlocalpb.AgentInfo{
 			{AgentType: type_TEST_NOOP, AgentId: "noop3", Status: inventorypb.AgentStatus_RUNNING},
 			{AgentType: type_TEST_NOOP, AgentId: "noop4", Status: inventorypb.AgentStatus_RUNNING},
 			{AgentType: type_TEST_SLEEP, AgentId: "sleep2", Status: inventorypb.AgentStatus_RUNNING, ListenPort: 65001},
 		}
-		require.Equal(t, expectedList, agentList)
+		require.Equal(t, expectedList, s.AgentsListWithoutLogs())
 
 		s.SetState(&agentpb.SetStateRequest{
 			AgentProcesses: map[string]*agentpb.SetStateRequest_AgentProcess{
@@ -250,19 +233,15 @@ func TestSupervisor(t *testing.T) {
 			{AgentType: type_TEST_NOOP, AgentId: "noop4", Status: inventorypb.AgentStatus_RUNNING},
 			{AgentType: type_TEST_SLEEP, AgentId: "sleep2", Status: inventorypb.AgentStatus_RUNNING, ListenPort: 65001},
 		}
-		require.Equal(t, expectedList, agentList)
+		require.Equal(t, expectedList, s.AgentsListWithoutLogs())
 	})
 
 	t.Run("Exit", func(t *testing.T) {
-		agentList := s.AgentsList()
-		for _, agent := range agentList {
-			agent.Logs = nil
-		}
 		expectedList := []*agentlocalpb.AgentInfo{
 			{AgentType: type_TEST_NOOP, AgentId: "noop4", Status: inventorypb.AgentStatus_RUNNING},
 			{AgentType: type_TEST_SLEEP, AgentId: "sleep2", Status: inventorypb.AgentStatus_RUNNING, ListenPort: 65001},
 		}
-		require.Equal(t, expectedList, agentList)
+		require.Equal(t, expectedList, s.AgentsListWithoutLogs())
 
 		cancel()
 
@@ -273,7 +252,7 @@ func TestSupervisor(t *testing.T) {
 			&agentpb.StateChangedRequest{AgentId: "noop4", Status: inventorypb.AgentStatus_DONE})
 		assertChanges(t, s, nil)
 		expectedList = []*agentlocalpb.AgentInfo{}
-		require.Equal(t, expectedList, agentList)
+		require.Equal(t, expectedList, s.AgentsList())
 	})
 }
 
