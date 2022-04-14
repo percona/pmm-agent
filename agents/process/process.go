@@ -60,7 +60,7 @@ type Process struct {
 	changes chan inventorypb.AgentStatus
 	backoff *backoff.Backoff
 	ctxDone chan struct{}
-	logs    *storelogs.LogsStore
+	l       *storelogs.LogsStore
 	// recreated on each restart
 	cmd     *exec.Cmd
 	cmdDone chan struct{}
@@ -94,7 +94,7 @@ func New(params *Params, redactWords []string, sl *storelogs.LogsStore) *Process
 		changes: make(chan inventorypb.AgentStatus, 10),
 		backoff: backoff.New(backoffMinDelay, backoffMaxDelay),
 		ctxDone: make(chan struct{}),
-		logs:    sl,
+		l:       sl,
 	}
 }
 
@@ -103,14 +103,14 @@ func (p *Process) Run(ctx context.Context) {
 	go p.toStarting()
 
 	<-ctx.Done()
-	p.logs.Infof("Process: context canceled.")
+	p.l.Infof("Process: context canceled.")
 	close(p.ctxDone)
 }
 
 // STARTING -> RUNNING
 // STARTING -> WAITING
 func (p *Process) toStarting() {
-	p.logs.Tracef("Process: starting.")
+	p.l.Tracef("Process: starting.")
 	p.changes <- inventorypb.AgentStatus_STARTING
 
 	p.cmd = exec.Command(p.params.Path, p.params.Args...) //nolint:gosec
@@ -128,7 +128,7 @@ func (p *Process) toStarting() {
 	p.cmdDone = make(chan struct{})
 
 	if err := p.cmd.Start(); err != nil {
-		p.logs.Warnf("Process: failed to start: %s.", err)
+		p.l.Warnf("Process: failed to start: %s.", err)
 		go p.toWaiting()
 		return
 	}
@@ -145,7 +145,7 @@ func (p *Process) toStarting() {
 	case <-t.C:
 		go p.toRunning()
 	case <-p.cmdDone:
-		p.logs.Warnf("Process: exited early: %s.", p.cmd.ProcessState)
+		p.l.Warnf("Process: exited early: %s.", p.cmd.ProcessState)
 		go p.toWaiting()
 	}
 }
@@ -153,7 +153,7 @@ func (p *Process) toStarting() {
 // RUNNING -> STOPPING
 // RUNNING -> WAITING
 func (p *Process) toRunning() {
-	p.logs.Tracef("Process: running.")
+	p.l.Tracef("Process: running.")
 	p.changes <- inventorypb.AgentStatus_RUNNING
 
 	p.backoff.Reset()
@@ -162,7 +162,7 @@ func (p *Process) toRunning() {
 	case <-p.ctxDone:
 		go p.toStopping()
 	case <-p.cmdDone:
-		p.logs.Warnf("Process: exited: %s.", p.cmd.ProcessState)
+		p.l.Warnf("Process: exited: %s.", p.cmd.ProcessState)
 		go p.toWaiting()
 	}
 }
@@ -172,7 +172,7 @@ func (p *Process) toRunning() {
 func (p *Process) toWaiting() {
 	delay := p.backoff.Delay()
 
-	p.logs.Infof("Process: waiting %s.", delay)
+	p.l.Infof("Process: waiting %s.", delay)
 	p.changes <- inventorypb.AgentStatus_WAITING
 
 	t := time.NewTimer(delay)
@@ -183,7 +183,7 @@ func (p *Process) toWaiting() {
 		if p.params.Type == inventorypb.AgentType_VM_AGENT {
 			_, err := p.params.TemplateRenderer.RenderFiles(p.params.TemplateParams)
 			if err != nil {
-				p.logs.Warnf("Process: failed to regenerate config in %s.", p.params.TemplateRenderer.TempDir)
+				p.l.Warnf("Process: failed to regenerate config in %s.", p.params.TemplateRenderer.TempDir)
 			}
 		}
 
@@ -195,11 +195,11 @@ func (p *Process) toWaiting() {
 
 // STOPPING -> DONE
 func (p *Process) toStopping() {
-	p.logs.Tracef("Process: stopping (sending SIGTERM)...")
+	p.l.Tracef("Process: stopping (sending SIGTERM)...")
 	p.changes <- inventorypb.AgentStatus_STOPPING
 
 	if err := p.cmd.Process.Signal(unix.SIGTERM); err != nil {
-		p.logs.Errorf("Process: failed to send SIGTERM: %s.", err)
+		p.l.Errorf("Process: failed to send SIGTERM: %s.", err)
 	}
 
 	t := time.NewTimer(killT)
@@ -208,19 +208,19 @@ func (p *Process) toStopping() {
 	case <-p.cmdDone:
 		// nothing
 	case <-t.C:
-		p.logs.Warnf("Process: still alive after %s, sending SIGKILL...", killT)
+		p.l.Warnf("Process: still alive after %s, sending SIGKILL...", killT)
 		if err := p.cmd.Process.Signal(unix.SIGKILL); err != nil {
-			p.logs.Errorf("Process: failed to send SIGKILL: %s.", err)
+			p.l.Errorf("Process: failed to send SIGKILL: %s.", err)
 		}
 		<-p.cmdDone
 	}
 
-	p.logs.Infof("Process: exited: %s.", p.cmd.ProcessState)
+	p.l.Infof("Process: exited: %s.", p.cmd.ProcessState)
 	go p.toDone()
 }
 
 func (p *Process) toDone() {
-	p.logs.Trace("Process: done.")
+	p.l.Trace("Process: done.")
 	p.changes <- inventorypb.AgentStatus_DONE
 
 	close(p.changes)
@@ -231,7 +231,7 @@ func (p *Process) Changes() <-chan inventorypb.AgentStatus {
 	return p.changes
 }
 
-// Logs returns latest process logs.
+// Logs returns latest process l.
 func (p *Process) Logs() []string {
 	return p.pl.Latest()
 }
