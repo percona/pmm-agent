@@ -17,7 +17,6 @@ package process
 
 import (
 	"context"
-	"github.com/percona/pmm-agent/storelogs"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -25,6 +24,8 @@ import (
 	"strconv"
 	"testing"
 	"time"
+
+	"github.com/percona/pmm-agent/storelogs"
 
 	"github.com/percona/pmm/api/inventorypb"
 	"github.com/sirupsen/logrus"

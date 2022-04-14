@@ -28,9 +28,10 @@ import (
 	"io/ioutil"
 	"time"
 
-	"github.com/percona/pmm-agent/storelogs"
 	"github.com/percona/pmm/api/inventorypb"
 	"github.com/sirupsen/logrus"
+
+	"github.com/percona/pmm-agent/storelogs"
 
 	"github.com/percona/pmm-agent/agents/process"
 )

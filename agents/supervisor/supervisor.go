@@ -19,13 +19,14 @@ package supervisor
 import (
 	"context"
 	"fmt"
-	"github.com/percona/pmm-agent/storelogs"
 	"path/filepath"
 	"regexp"
 	"runtime/pprof"
 	"sort"
 	"strings"
 	"sync"
+
+	"github.com/percona/pmm-agent/storelogs"
 
 	"github.com/percona/pmm/api/agentlocalpb"
 	"github.com/percona/pmm/api/agentpb"
@@ -148,7 +149,7 @@ func (s *Supervisor) AgentsList() []*agentlocalpb.AgentInfo {
 // AgentsListWithoutLogs returns info for all Agents managed by this supervisor without logs.
 func (s *Supervisor) AgentsListWithoutLogs() []*agentlocalpb.AgentInfo {
 	agentList := s.AgentsList()
-	for i, _ := range agentList {
+	for i := range agentList {
 		agentList[i].Logs = nil
 	}
 	return agentList

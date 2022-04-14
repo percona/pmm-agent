@@ -19,10 +19,11 @@ package process
 import (
 	"context"
 	"fmt"
-	"github.com/percona/pmm-agent/storelogs"
 	"os/exec"
 	"strings"
 	"time"
+
+	"github.com/percona/pmm-agent/storelogs"
 
 	"github.com/percona/pmm/api/inventorypb"
 	"github.com/percona/pmm/utils/pdeathsig"

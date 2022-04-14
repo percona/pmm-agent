@@ -4,9 +4,10 @@ import (
 	"bytes"
 	"container/ring"
 	"fmt"
-	"github.com/sirupsen/logrus"
 	"sync"
 	"time"
+
+	"github.com/sirupsen/logrus"
 )
 
 type LogsStore struct {
