@@ -42,7 +42,7 @@ func main() {
 	l := logrus.NewEntry(logger)
 	ringLog := new(storelogs.LogsStore)
 	ringLog.SetUp(l)
-	p := process.New(&process.Params{Path: "sleep", Args: []string{"100500"}}, nil, ringLogs)
+	p := process.New(&process.Params{Path: "sleep", Args: []string{"100500"}}, nil, ringLog)
 	go p.Run(context.Background())
 
 	// Wait until the process is running.
