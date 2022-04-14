@@ -61,27 +61,27 @@ func (l *LogsStore) GetLogs() (logs []string) {
 
 func (l *LogsStore) Warnf(format string, v ...interface{}) {
 	l.SaveLog(fmt.Sprintf(format, v...))
-	l.Entry.Warnf(format, v)
+	l.Entry.Warnf(format, v...)
 }
 
 func (l *LogsStore) Infof(format string, v ...interface{}) {
 	l.SaveLog(fmt.Sprintf(format, v...))
-	l.Entry.Infof(format, v)
+	l.Entry.Infof(format, v...)
 }
 
 func (l *LogsStore) Debugf(format string, v ...interface{}) {
 	l.SaveLog(fmt.Sprintf(format, v...))
-	l.Entry.Debugf(format, v)
+	l.Entry.Debugf(format, v...)
 }
 
 func (l *LogsStore) Tracef(format string, v ...interface{}) {
 	l.SaveLog(fmt.Sprintf(format, v...))
-	l.Entry.Tracef(format, v)
+	l.Entry.Tracef(format, v...)
 }
 
 func (l *LogsStore) Errorf(format string, v ...interface{}) {
 	l.SaveLog(fmt.Sprintf(format, v...))
-	l.Entry.Errorf(format, v)
+	l.Entry.Errorf(format, v...)
 }
 
 func (l *LogsStore) Trace(message string) {
