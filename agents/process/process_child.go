@@ -28,6 +28,7 @@ import (
 	"io/ioutil"
 	"time"
 
+	"github.com/percona/pmm-agent/storelogs"
 	"github.com/percona/pmm/api/inventorypb"
 	"github.com/sirupsen/logrus"
 
@@ -39,9 +40,9 @@ func main() {
 	logger := logrus.New()
 	logger.SetOutput(ioutil.Discard)
 	l := logrus.NewEntry(logger)
-	ringLogs := ring.New(30)
-
-	p := process.New(&process.Params{Path: "sleep", Args: []string{"100500"}}, nil, l, ringLogs)
+	ringLog := new(storelogs.LogsStore)
+	ringLog.SetUp(l)
+	p := process.New(&process.Params{Path: "sleep", Args: []string{"100500"}}, nil, ringLogs)
 	go p.Run(context.Background())
 
 	// Wait until the process is running.
