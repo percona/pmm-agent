@@ -55,10 +55,11 @@ const (
 
 // Client represents pmm-agent's connection to nginx/pmm-managed.
 type Client struct {
-	cfg               *config.Config
-	supervisor        supervisor
-	connectionChecker connectionChecker
-	softwareVersioner softwareVersioner
+	cfg                *config.Config
+	supervisor         supervisor
+	connectionChecker  connectionChecker
+	softwareVersioner  softwareVersioner
+	defaultsFileParser defaultsFileParser
 
 	l       *logrus.Entry
 	backoff *backoff.Backoff
@@ -78,16 +79,17 @@ type Client struct {
 // New creates new client.
 //
 // Caller should call Run.
-func New(cfg *config.Config, supervisor supervisor, connectionChecker connectionChecker, sv softwareVersioner) *Client {
+func New(cfg *config.Config, supervisor supervisor, connectionChecker connectionChecker, sv softwareVersioner, dfp defaultsFileParser) *Client {
 	return &Client{
-		cfg:               cfg,
-		supervisor:        supervisor,
-		connectionChecker: connectionChecker,
-		softwareVersioner: sv,
-		l:                 logrus.WithField("component", "client"),
-		backoff:           backoff.New(backoffMinDelay, backoffMaxDelay),
-		done:              make(chan struct{}),
-		dialTimeout:       dialTimeout,
+		cfg:                cfg,
+		supervisor:         supervisor,
+		connectionChecker:  connectionChecker,
+		softwareVersioner:  sv,
+		l:                  logrus.WithField("component", "client"),
+		backoff:            backoff.New(backoffMinDelay, backoffMaxDelay),
+		done:               make(chan struct{}),
+		dialTimeout:        dialTimeout,
+		defaultsFileParser: dfp,
 	}
 }
 
@@ -437,10 +439,7 @@ func (c *Client) processChannelRequests(ctx context.Context) {
 			}
 			responsePayload = &resp
 		case *agentpb.ParseDefaultsFileRequest:
-			responsePayload = &agentpb.ParseDefaultsFileResponse{
-				Username: "username",
-				Password: "password",
-			}
+			responsePayload = c.defaultsFileParser.ParseDefaultsFile(p)
 		default:
 			c.l.Errorf("Unhandled server request: %v.", req)
 		}
