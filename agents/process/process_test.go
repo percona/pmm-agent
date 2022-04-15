@@ -26,7 +26,6 @@ import (
 	"time"
 
 	"github.com/percona/pmm-agent/storelogs"
-
 	"github.com/percona/pmm/api/inventorypb"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
@@ -69,7 +68,7 @@ func setup(t *testing.T) (context.Context, context.CancelFunc, *storelogs.LogsSt
 	ctx, cancel := context.WithCancel(context.Background())
 	l := logrus.WithField("test", t.Name())
 	ringLog := &storelogs.LogsStore{}
-	ringLog.SetUp(l)
+	ringLog.Init(l)
 	return ctx, cancel, ringLog
 }
 

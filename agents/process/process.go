@@ -24,7 +24,6 @@ import (
 	"time"
 
 	"github.com/percona/pmm-agent/storelogs"
-
 	"github.com/percona/pmm/api/inventorypb"
 	"github.com/percona/pmm/utils/pdeathsig"
 	"golang.org/x/sys/unix"

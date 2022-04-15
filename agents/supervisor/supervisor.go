@@ -72,7 +72,7 @@ type agentProcessInfo struct {
 	done           <-chan struct{} // closes when Process.Changes() channel closes
 	requestedState *agentpb.SetStateRequest_AgentProcess
 	listenPort     uint16
-	logs           *storelogs.LogsStore //store logs
+	logs           *storelogs.LogsStore // store logs
 }
 
 // builtinAgentInfo describes built-in Agent.
@@ -360,7 +360,7 @@ func (s *Supervisor) startProcess(agentID string, agentProcess *agentpb.SetState
 	})
 	l.Debugf("Starting: %s.", processParams)
 	ringLog := &storelogs.LogsStore{}
-	ringLog.SetUp(l)
+	ringLog.Init(l)
 	process := process.New(processParams, agentProcess.RedactWords, ringLog)
 	go pprof.Do(ctx, pprof.Labels("agentID", agentID, "type", agentType), process.Run)
 

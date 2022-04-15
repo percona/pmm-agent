@@ -26,6 +26,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+// LogsStore implement ring save logs
 type LogsStore struct {
 	log   *ring.Ring
 	Entry *logrus.Entry
@@ -33,7 +34,8 @@ type LogsStore struct {
 	m     sync.RWMutex
 }
 
-func (l *LogsStore) SetUp(entry *logrus.Entry) {
+// Init initializes basic parameters
+func (l *LogsStore) Init(entry *logrus.Entry) {
 	if l.count == 0 {
 		l.count = 10
 	}
@@ -41,11 +43,12 @@ func (l *LogsStore) SetUp(entry *logrus.Entry) {
 	l.Entry = entry
 }
 
+// SetCountLogs sets the number of logs to store
 func (l *LogsStore) SetCountLogs(countLogs int) {
 	l.count = countLogs
 }
 
-func (l *LogsStore) SaveLog(log string) {
+func (l *LogsStore) saveLog(log string) {
 	dt := time.Now()
 	var b bytes.Buffer
 	b.WriteString(l.Entry.Level.String())
@@ -62,6 +65,7 @@ func (l *LogsStore) SaveLog(log string) {
 	l.log = l.log.Next()
 }
 
+//GetLogs return all logs
 func (l *LogsStore) GetLogs() (logs []string) {
 	if l != nil {
 		l.m.Lock()
@@ -76,32 +80,38 @@ func (l *LogsStore) GetLogs() (logs []string) {
 	return logs
 }
 
+// Warnf Save log and print Warnf
 func (l *LogsStore) Warnf(format string, v ...interface{}) {
-	l.SaveLog(fmt.Sprintf(format, v...))
+	l.saveLog(fmt.Sprintf(format, v...))
 	l.Entry.Warnf(format, v...)
 }
 
+// Infof Save log and print Infof
 func (l *LogsStore) Infof(format string, v ...interface{}) {
-	l.SaveLog(fmt.Sprintf(format, v...))
+	l.saveLog(fmt.Sprintf(format, v...))
 	l.Entry.Infof(format, v...)
 }
 
+// Debugf Save log and print Debugf
 func (l *LogsStore) Debugf(format string, v ...interface{}) {
-	l.SaveLog(fmt.Sprintf(format, v...))
+	l.saveLog(fmt.Sprintf(format, v...))
 	l.Entry.Debugf(format, v...)
 }
 
+// Tracef Save log and print Tracef
 func (l *LogsStore) Tracef(format string, v ...interface{}) {
-	l.SaveLog(fmt.Sprintf(format, v...))
+	l.saveLog(fmt.Sprintf(format, v...))
 	l.Entry.Tracef(format, v...)
 }
 
+// Errorf Save log and print Errorf
 func (l *LogsStore) Errorf(format string, v ...interface{}) {
-	l.SaveLog(fmt.Sprintf(format, v...))
+	l.saveLog(fmt.Sprintf(format, v...))
 	l.Entry.Errorf(format, v...)
 }
 
+// Trace Save log and print Trace
 func (l *LogsStore) Trace(message string) {
-	l.SaveLog(message)
+	l.saveLog(message)
 	l.Entry.Trace(message, nil)
 }
