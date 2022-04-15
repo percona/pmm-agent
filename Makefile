@@ -29,13 +29,8 @@ release:                        ## Build static pmm-agent release binary (Linux 
 	-ldd $(PMM_RELEASE_PATH)/pmm-agent
 
 init:                           ## Installs development tools
-	go build -modfile=tools/go.mod -o $(BIN_PATH)/golangci-lint github.com/golangci/golangci-lint/cmd/golangci-lint
-	go build -modfile=tools/go.mod -o $(BIN_PATH)/mockery github.com/vektra/mockery/cmd/mockery
-	go build -modfile=tools/go.mod -o $(BIN_PATH)/benchstat golang.org/x/perf/cmd/benchstat
-	go build -modfile=tools/go.mod -o $(BIN_PATH)/goimports golang.org/x/tools/cmd/goimports
-	go build -modfile=tools/go.mod -o $(BIN_PATH)/reviewdog github.com/reviewdog/reviewdog/cmd/reviewdog
-	go build -modfile=tools/go.mod -o $(BIN_PATH)/reform gopkg.in/reform.v1/reform
-	go build -modfile=tools/go.mod -o $(BIN_PATH)/go-consistent github.com/quasilyte/go-consistent
+	rm -rf ./bin
+	cd tools && go generate -x -tags=tools
 
 gen:                            ## Generate files.
 	go generate ./...
