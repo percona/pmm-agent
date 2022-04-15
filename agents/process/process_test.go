@@ -25,12 +25,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/percona/pmm-agent/storelogs"
 	"github.com/percona/pmm/api/inventorypb"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sys/unix"
+
+	"github.com/percona/pmm-agent/storelogs"
 )
 
 // assertStates checks expected statuses in the same order.
