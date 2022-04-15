@@ -70,8 +70,10 @@ type Params struct {
 	AgentID              string
 }
 
-type pgStatMonitorVersion int
-type pgStatMonitorPrerelease string
+type (
+	pgStatMonitorVersion    int
+	pgStatMonitorPrerelease string
+)
 
 const (
 	pgStatMonitorVersion06 pgStatMonitorVersion = iota

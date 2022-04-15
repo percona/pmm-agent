@@ -42,8 +42,10 @@ import (
 	"github.com/percona/pmm-agent/utils/version"
 )
 
-type historyMap map[string]*eventsStatementsHistory
-type summaryMap map[string]*eventsStatementsSummaryByDigest
+type (
+	historyMap map[string]*eventsStatementsHistory
+	summaryMap map[string]*eventsStatementsSummaryByDigest
+)
 
 // mySQLVersion contains
 type mySQLVersion struct {

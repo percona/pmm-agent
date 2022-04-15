@@ -101,8 +101,10 @@ check-all: check                ## Run golang ci linter to check new changes fro
 FILES = $(shell find . -type f -name '*.go' -not -path "./vendor/*")
 
 format:                         ## Format source code.
-	gofmt -w -s $(FILES)
+	$(BIN_PATH)/gofumpt -l -w $(FILES)
 	$(BIN_PATH)/goimports -local github.com/percona/pmm-agent -l -w $(FILES)
+	$(BIN_PATH)/gci write --Section Standard --Section Default --Section "Prefix(github.com/percona/pmm-agent)" $(FILES)
+	$(BIN_PATH)/goimports -local github.com/percona/pmm-agent -l -w $(FILES) # Temporary fix, gci has bug with sorting black imports.
 
 RUN_FLAGS = --config-file=pmm-agent-dev.yaml
 
