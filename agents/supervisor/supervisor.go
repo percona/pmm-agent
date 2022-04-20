@@ -386,7 +386,7 @@ func (s *Supervisor) startProcess(agentID string, agentProcess *agentpb.SetState
 }
 
 func (s *Supervisor) newLogger(component string, agentID string, agentType string) (*storelogs.LogsStore, *logrus.Entry) {
-	ringLog := storelogs.NewLogsStore(10)
+	ringLog := storelogs.New(10)
 	logger := logrus.New()
 	logger.SetFormatter(logrus.StandardLogger().Formatter)
 	logger.Out = io.MultiWriter(os.Stderr, ringLog)

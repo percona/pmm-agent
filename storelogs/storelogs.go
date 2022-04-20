@@ -28,7 +28,7 @@ type LogsStore struct {
 	m   sync.RWMutex
 }
 
-func NewLogsStore(count int) *LogsStore {
+func New(count int) *LogsStore {
 	return &LogsStore{
 		log: ring.New(count),
 		m:   sync.RWMutex{},
