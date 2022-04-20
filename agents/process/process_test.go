@@ -68,8 +68,7 @@ func setup(t *testing.T) (context.Context, context.CancelFunc, *storelogs.LogsSt
 
 	ctx, cancel := context.WithCancel(context.Background())
 	l := logrus.WithField("test", t.Name())
-	ringLog := &storelogs.LogsStore{}
-	ringLog.Init(l)
+	ringLog := storelogs.InitLogStore(l)
 	return ctx, cancel, ringLog
 }
 

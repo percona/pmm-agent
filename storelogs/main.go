@@ -34,13 +34,15 @@ type LogsStore struct {
 	m     sync.RWMutex
 }
 
-// Init initializes basic parameters.
-func (l *LogsStore) Init(entry *logrus.Entry) {
+// InitLogStore initializes basic parameters.
+func InitLogStore(entry *logrus.Entry) *LogsStore {
+	l := new(LogsStore)
 	if l.count == 0 {
 		l.count = 10
 	}
 	l.log = ring.New(l.count)
 	l.Entry = entry
+	return l
 }
 
 // SetCountLogs sets the number of logs to store.

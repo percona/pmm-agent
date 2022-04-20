@@ -359,8 +359,8 @@ func (s *Supervisor) startProcess(agentID string, agentProcess *agentpb.SetState
 		"type":      agentType,
 	})
 	l.Debugf("Starting: %s.", processParams)
-	ringLog := &storelogs.LogsStore{}
-	ringLog.Init(l)
+
+	ringLog := storelogs.InitLogStore(l)
 	process := process.New(processParams, agentProcess.RedactWords, ringLog)
 	go pprof.Do(ctx, pprof.Labels("agentID", agentID, "type", agentType), process.Run)
 
