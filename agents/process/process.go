@@ -25,9 +25,8 @@ import (
 
 	"github.com/percona/pmm/api/inventorypb"
 	"github.com/percona/pmm/utils/pdeathsig"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
-
-	"github.com/percona/pmm-agent/storelogs"
 
 	"github.com/percona/pmm-agent/utils/backoff"
 	"github.com/percona/pmm-agent/utils/templates"
@@ -56,11 +55,11 @@ const (
 // only to avoid stack overflow; there are no extra goroutines for states.
 type Process struct {
 	params  *Params
+	l       *logrus.Entry
 	pl      *processLogger
 	changes chan inventorypb.AgentStatus
 	backoff *backoff.Backoff
 	ctxDone chan struct{}
-	l       *storelogs.LogsStore
 	// recreated on each restart
 	cmd     *exec.Cmd
 	cmdDone chan struct{}
@@ -87,14 +86,14 @@ func (p *Params) String() string {
 }
 
 // New creates new process.
-func New(params *Params, redactWords []string, sl *storelogs.LogsStore) *Process {
+func New(params *Params, redactWords []string, l *logrus.Entry) *Process {
 	return &Process{
 		params:  params,
-		pl:      newProcessLogger(sl.Entry, keepLogLines, redactWords),
+		l:       l,
+		pl:      newProcessLogger(l, keepLogLines, redactWords),
 		changes: make(chan inventorypb.AgentStatus, 10),
 		backoff: backoff.New(backoffMinDelay, backoffMaxDelay),
 		ctxDone: make(chan struct{}),
-		l:       sl,
 	}
 }
 

@@ -30,8 +30,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sys/unix"
-
-	"github.com/percona/pmm-agent/storelogs"
 )
 
 // assertStates checks expected statuses in the same order.
@@ -62,15 +60,13 @@ func build(t *testing.T, tag string, fileName string, outputFile string) *exec.C
 	return cmd
 }
 
-func setup(t *testing.T) (context.Context, context.CancelFunc, *storelogs.LogsStore) {
+func setup(t *testing.T) (context.Context, context.CancelFunc, *logrus.Entry) {
 	t.Helper()
 	t.Parallel()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	l := logrus.WithField("test", t.Name())
-	ringLog := &storelogs.LogsStore{}
-	ringLog.Init(l)
-	return ctx, cancel, ringLog
+	return ctx, cancel, l
 }
 
 func TestProcess(t *testing.T) {
@@ -163,7 +159,7 @@ func TestProcess(t *testing.T) {
 		ctx, cancel, l := setup(t)
 		defer cancel()
 
-		logger := newProcessLogger(l.Entry, 2, nil)
+		logger := newProcessLogger(l, 2, nil)
 
 		pCmd := exec.CommandContext(ctx, f.Name()) //nolint:gosec
 		pCmd.Stdout = logger
