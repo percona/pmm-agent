@@ -42,9 +42,7 @@ const (
 	systemctlTimeout = 10 * time.Second
 )
 
-var (
-	mysqlServiceRegex = regexp.MustCompile(`mysql(d)?\.service`) // this is used to lookup MySQL service in the list of all system services
-)
+var mysqlServiceRegex = regexp.MustCompile(`mysql(d)?\.service`) // this is used to lookup MySQL service in the list of all system services
 
 // MySQLRestoreJob implements Job for MySQL backup restore.
 type MySQLRestoreJob struct {
