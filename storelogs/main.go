@@ -45,11 +45,6 @@ func InitLogStore(entry *logrus.Entry) *LogsStore {
 	return l
 }
 
-// SetCountLogs sets the number of logs to store.
-func (l *LogsStore) SetCountLogs(countLogs int) {
-	l.count = countLogs
-}
-
 func (l *LogsStore) saveLog(log string) {
 	dt := time.Now()
 	var b bytes.Buffer
