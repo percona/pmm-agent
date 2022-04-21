@@ -34,6 +34,7 @@ type DefaultsFile struct {
 	password string
 	host     string
 	port     uint32
+	socket   string
 }
 
 // New creates new DefaultsFile.
@@ -54,6 +55,7 @@ func (d *DefaultsFile) ParseDefaultsFile(req *agentpb.ParseDefaultsFileRequest) 
 	res.Password = defaultsFile.password
 	res.Host = defaultsFile.host
 	res.Port = defaultsFile.port
+	res.Socket = defaultsFile.socket
 
 	return &res
 }
@@ -89,12 +91,15 @@ func parseMySQLDefaultsFile(configPath string) (*DefaultsFile, error) {
 		return nil, fmt.Errorf("fail to read config file: %w", err)
 	}
 
-	port, _ := cfg.Section("client").Key("port").Uint()
+	cfgSection := cfg.Section("client")
+	port, _ := cfgSection.Key("port").Uint()
+
 	return &DefaultsFile{
-		username: cfg.Section("client").Key("user").String(),
-		password: cfg.Section("client").Key("password").String(),
-		host:     cfg.Section("client").Key("host").String(),
+		username: cfgSection.Key("user").String(),
+		password: cfgSection.Key("password").String(),
+		host:     cfgSection.Key("host").String(),
 		port:     uint32(port),
+		socket:   cfgSection.Key("socket").String(),
 	}, nil
 }
 
