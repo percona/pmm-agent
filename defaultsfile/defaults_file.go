@@ -28,8 +28,15 @@ import (
 	"gopkg.in/ini.v1"
 )
 
-// DefaultsFile is a struct with database specs fetched from file.
-type DefaultsFile struct {
+// Parser is a struct which is responsible for parsing defaults file.
+type Parser struct{}
+
+// New creates new DefaultsFileParser.
+func New() *Parser {
+	return &Parser{}
+}
+
+type defaultsFile struct {
 	username string
 	password string
 	host     string
@@ -37,13 +44,8 @@ type DefaultsFile struct {
 	socket   string
 }
 
-// New creates new DefaultsFile.
-func New() *DefaultsFile {
-	return &DefaultsFile{}
-}
-
-// ParseDefaultsFile parses given defaultsFile. It returns the database specs.
-func (d *DefaultsFile) ParseDefaultsFile(req *agentpb.ParseDefaultsFileRequest) *agentpb.ParseDefaultsFileResponse {
+// ParseDefaultsFile parses given defaultsFile in request. It returns the database specs.
+func (d *Parser) ParseDefaultsFile(req *agentpb.ParseDefaultsFileRequest) *agentpb.ParseDefaultsFileResponse {
 	var res agentpb.ParseDefaultsFileResponse
 	defaultsFile, err := parseDefaultsFile(req.ConfigPath, req.ServiceType)
 	if err != nil {
@@ -60,7 +62,7 @@ func (d *DefaultsFile) ParseDefaultsFile(req *agentpb.ParseDefaultsFileRequest) 
 	return &res
 }
 
-func parseDefaultsFile(configPath string, serviceType inventorypb.ServiceType) (*DefaultsFile, error) {
+func parseDefaultsFile(configPath string, serviceType inventorypb.ServiceType) (*defaultsFile, error) {
 	if len(configPath) == 0 {
 		return nil, errors.New("configPath for DefaultsFile is empty")
 	}
@@ -80,7 +82,7 @@ func parseDefaultsFile(configPath string, serviceType inventorypb.ServiceType) (
 	return nil, errors.Errorf("unimplemented service type %s", serviceType)
 }
 
-func parseMySQLDefaultsFile(configPath string) (*DefaultsFile, error) {
+func parseMySQLDefaultsFile(configPath string) (*defaultsFile, error) {
 	configPath, err := expandPath(configPath)
 	if err != nil {
 		return nil, fmt.Errorf("fail to normalize path: %w", err)
@@ -94,7 +96,7 @@ func parseMySQLDefaultsFile(configPath string) (*DefaultsFile, error) {
 	cfgSection := cfg.Section("client")
 	port, _ := cfgSection.Key("port").Uint()
 
-	return &DefaultsFile{
+	return &defaultsFile{
 		username: cfgSection.Key("user").String(),
 		password: cfgSection.Key("password").String(),
 		host:     cfgSection.Key("host").String(),
