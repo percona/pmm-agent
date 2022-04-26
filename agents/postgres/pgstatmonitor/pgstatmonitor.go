@@ -170,6 +170,10 @@ func newPgStatMonitorQAN(q *reform.Querier, dbCloser io.Closer, agentID string, 
 		return nil, errors.Wrap(err, "failed to get settings")
 	}
 
+	//var errors []reform.Struct
+	errs, err := q.SelectAllFrom(pgStatMonitorErrorsView, "")
+	fmt.Printf("\n\n\n\n\n\n\n\n err:%+v \n\n\n\n\n\n\n\n", errs)
+
 	var normalizedQuery bool
 	waitTime := defaultWaitTime
 	for _, row := range settings {
