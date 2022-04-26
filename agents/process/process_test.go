@@ -17,7 +17,6 @@ package process
 
 import (
 	"context"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"runtime"
@@ -127,7 +126,7 @@ func TestProcess(t *testing.T) {
 	})
 
 	t.Run("Killed", func(t *testing.T) {
-		f, err := ioutil.TempFile("", "pmm-agent-process-test-noterm")
+		f, err := os.CreateTemp("", "pmm-agent-process-test-noterm")
 		require.NoError(t, err)
 		require.NoError(t, f.Close())
 		defer func() {
@@ -150,7 +149,7 @@ func TestProcess(t *testing.T) {
 			t.Skip("Pdeathsig is implemented only on Linux")
 		}
 
-		f, err := ioutil.TempFile("", "pmm-agent-process-test-child")
+		f, err := os.CreateTemp("", "pmm-agent-process-test-child")
 		require.NoError(t, err)
 		require.NoError(t, f.Close())
 		defer func() {

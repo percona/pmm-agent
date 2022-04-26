@@ -25,7 +25,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"time"
 
 	"github.com/percona/pmm/api/inventorypb"
@@ -39,7 +39,8 @@ import (
 func main() {
 	flag.Parse()
 	logger := logrus.New()
-	logger.SetOutput(ioutil.Discard)
+	logger.SetOutput(io.Discard)
+	l := logrus.NewEntry(logger)
 
 	ringLog := new(storelogs.LogsStore)
 	ringLog.Init(l)
