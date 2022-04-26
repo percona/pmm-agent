@@ -26,7 +26,7 @@ import (
 
 	"github.com/AlekSi/pointer"
 	ver "github.com/hashicorp/go-version"
-	"github.com/lib/pq"
+	"github.com/lib/pq"   //nolint:gci
 	_ "github.com/lib/pq" // register SQL driver.
 	"github.com/percona/pmm/api/agentpb"
 	"github.com/percona/pmm/api/inventorypb"
@@ -70,7 +70,10 @@ type Params struct {
 	AgentID              string
 }
 
-type pgStatMonitorVersion int
+type (
+	pgStatMonitorVersion    int
+	pgStatMonitorPrerelease string
+)
 
 const (
 	pgStatMonitorVersion06 pgStatMonitorVersion = iota
@@ -119,21 +122,86 @@ func New(params *Params, l *logrus.Entry) (*PGStatMonitorQAN, error) {
 	return newPgStatMonitorQAN(q, sqlDB, params.AgentID, params.DisableQueryExamples, l)
 }
 
+func isPropertyValueInt(property string) bool {
+	switch property {
+	case
+		"pg_stat_monitor.pgsm_histogram_max",
+		"pg_stat_monitor.pgsm_query_max_len",
+		"pg_stat_monitor.pgsm_max",
+		"pg_stat_monitor.pgsm_bucket_time",
+		"pg_stat_monitor.pgsm_query_shared_buffer",
+		"pg_stat_monitor.pgsm_max_buckets",
+		"pg_stat_monitor.pgsm_histogram_buckets",
+		"pg_stat_monitor.pgsm_overflow_target",
+		"pg_stat_monitor.pgsm_histogram_min":
+
+		return true
+	}
+
+	return false
+}
+
+func areSettingsTextValues(q *reform.Querier) (bool, error) {
+	pgsmVersion, prerelease, err := getPGMonitorVersion(q)
+	if err != nil {
+		return false, err
+	}
+
+	if pgsmVersion >= 3 && prerelease != "beta-2" && prerelease != "rc.1" {
+		return true, nil
+	}
+
+	return false, nil
+}
+
 func newPgStatMonitorQAN(q *reform.Querier, dbCloser io.Closer, agentID string, disableQueryExamples bool, l *logrus.Entry) (*PGStatMonitorQAN, error) {
-	settings, err := q.SelectAllFrom(pgStatMonitorSettingsView, "")
+	var settings []reform.Struct
+
+	settingsValuesAreText, err := areSettingsTextValues(q)
 	if err != nil {
 		return nil, err
 	}
+	if settingsValuesAreText {
+		settings, err = q.SelectAllFrom(pgStatMonitorSettingsTextValueView, "")
+	} else {
+		settings, err = q.SelectAllFrom(pgStatMonitorSettingsView, "")
+	}
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get settings")
+	}
+
 	var normalizedQuery bool
 	waitTime := defaultWaitTime
 	for _, row := range settings {
-		setting := row.(*pgStatMonitorSettings)
-		switch setting.Name {
-		case "pg_stat_monitor.pgsm_normalized_query":
-			normalizedQuery = setting.Value == 1
-		case "pg_stat_monitor.pgsm_bucket_time":
-			if setting.Value < int64(defaultWaitTime.Seconds()) {
-				waitTime = time.Duration(setting.Value) * time.Second
+		var name string
+		var value int64
+
+		if settingsValuesAreText {
+			setting := row.(*pgStatMonitorSettingsTextValue)
+			name = setting.Name
+			if !isPropertyValueInt(name) {
+				continue
+			}
+
+			valueInt, err := strconv.ParseInt(setting.Value, 10, 64)
+			if err != nil {
+				return nil, errors.Wrap(err, "value cannot be parsed as integer")
+			}
+			value = valueInt
+		} else {
+			setting := row.(*pgStatMonitorSettings)
+			name = setting.Name
+			value = setting.Value
+		}
+
+		if err == nil {
+			switch name {
+			case "pg_stat_monitor.pgsm_normalized_query":
+				normalizedQuery = value == 1
+			case "pg_stat_monitor.pgsm_bucket_time":
+				if value < int64(defaultWaitTime.Seconds()) {
+					waitTime = time.Duration(value) * time.Second
+				}
 			}
 		}
 	}
@@ -161,7 +229,7 @@ func getPGVersion(q *reform.Querier) (pgVersion float64, err error) {
 	return strconv.ParseFloat(v, 64)
 }
 
-func getPGMonitorVersion(q *reform.Querier) (pgStatMonitorVersion, string, error) {
+func getPGMonitorVersion(q *reform.Querier) (pgStatMonitorVersion, pgStatMonitorPrerelease, error) {
 	var result string
 	err := q.QueryRow(fmt.Sprintf("SELECT /* %s */ pg_stat_monitor_version()", queryTag)).Scan(&result)
 	if err != nil {
@@ -195,7 +263,9 @@ func getPGMonitorVersion(q *reform.Querier) (pgStatMonitorVersion, string, error
 		version = pgStatMonitorVersion08
 	}
 
-	return version, pgsmVersion.Prerelease(), nil
+	prerelease := pgsmVersion.Prerelease()
+
+	return version, pgStatMonitorPrerelease(prerelease), nil
 }
 
 // Run extracts stats data and sends it to the channel until ctx is canceled.
@@ -363,7 +433,7 @@ func (m *PGStatMonitorQAN) makeBuckets(current, cache map[time.Time]map[string]*
 
 			if !m.disableQueryExamples && currentPSM.Example != "" {
 				mb.Common.Example = currentPSM.Example
-				mb.Common.ExampleFormat = agentpb.ExampleFormat_EXAMPLE // nolint:staticcheck
+				mb.Common.ExampleFormat = agentpb.ExampleFormat_EXAMPLE
 				mb.Common.ExampleType = agentpb.ExampleType_RANDOM
 			}
 
