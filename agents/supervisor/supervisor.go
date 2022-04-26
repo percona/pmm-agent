@@ -19,6 +19,8 @@ package supervisor
 import (
 	"context"
 	"fmt"
+	"io"
+	"os"
 	"path/filepath"
 	"regexp"
 	"runtime/pprof"
@@ -82,6 +84,7 @@ type builtinAgentInfo struct {
 	requestedState *agentpb.SetStateRequest_BuiltinAgent
 	describe       func(chan<- *prometheus.Desc)  // agent's func to describe Prometheus metrics
 	collect        func(chan<- prometheus.Metric) // agent's func to provide Prometheus metrics
+	logs           *storelogs.LogsStore           // store logs
 }
 
 // NewSupervisor creates new Supervisor object.
@@ -122,13 +125,12 @@ func (s *Supervisor) AgentsList() []*agentlocalpb.AgentInfo {
 	res := make([]*agentlocalpb.AgentInfo, 0, len(s.agentProcesses)+len(s.builtinAgents))
 
 	for id, agent := range s.agentProcesses {
-		logs := agent.logs.GetLogs()
 		info := &agentlocalpb.AgentInfo{
 			AgentId:    id,
 			AgentType:  agent.requestedState.Type,
 			Status:     s.lastStatuses[id],
 			ListenPort: uint32(agent.listenPort),
-			Logs:       logs,
+			Logs:       agent.logs.GetLogs(),
 		}
 		res = append(res, info)
 	}
@@ -138,6 +140,7 @@ func (s *Supervisor) AgentsList() []*agentlocalpb.AgentInfo {
 			AgentId:   id,
 			AgentType: agent.requestedState.Type,
 			Status:    s.lastStatuses[id],
+			Logs:      agent.logs.GetLogs(),
 		}
 		res = append(res, info)
 	}
@@ -353,15 +356,9 @@ func (s *Supervisor) startProcess(agentID string, agentProcess *agentpb.SetState
 
 	ctx, cancel := context.WithCancel(s.ctx)
 	agentType := strings.ToLower(agentProcess.Type.String())
-	l := logrus.WithFields(logrus.Fields{
-		"component": "agent-process",
-		"agentID":   agentID,
-		"type":      agentType,
-	})
+	ringLog, l := s.newLogger("agent-process", agentID, agentType)
 	l.Debugf("Starting: %s.", processParams)
-
-	ringLog := storelogs.InitLogStore(l)
-	process := process.New(processParams, agentProcess.RedactWords, ringLog)
+	process := process.New(processParams, agentProcess.RedactWords, l)
 	go pprof.Do(ctx, pprof.Labels("agentID", agentID, "type", agentType), process.Run)
 
 	done := make(chan struct{})
@@ -388,16 +385,25 @@ func (s *Supervisor) startProcess(agentID string, agentProcess *agentpb.SetState
 	return nil
 }
 
+func (s *Supervisor) newLogger(component string, agentID string, agentType string) (*storelogs.LogsStore, *logrus.Entry) {
+	ringLog := storelogs.New(10)
+	logger := logrus.New()
+	logger.SetFormatter(logrus.StandardLogger().Formatter)
+	logger.Out = io.MultiWriter(os.Stderr, ringLog)
+	l := logger.WithFields(logrus.Fields{
+		"component": component,
+		"agentID":   agentID,
+		"type":      agentType,
+	})
+	return ringLog, l
+}
+
 // startBuiltin starts built-in Agent.
 // Must be called with s.rw held for writing.
 func (s *Supervisor) startBuiltin(agentID string, builtinAgent *agentpb.SetStateRequest_BuiltinAgent) error {
 	ctx, cancel := context.WithCancel(s.ctx)
 	agentType := strings.ToLower(builtinAgent.Type.String())
-	l := logrus.WithFields(logrus.Fields{
-		"component": "agent-builtin",
-		"agentID":   agentID,
-		"type":      agentType,
-	})
+	ringLog, l := s.newLogger("agent-process", agentID, agentType)
 
 	done := make(chan struct{})
 	var agent agents.BuiltinAgent
@@ -502,6 +508,7 @@ func (s *Supervisor) startBuiltin(agentID string, builtinAgent *agentpb.SetState
 		requestedState: proto.Clone(builtinAgent).(*agentpb.SetStateRequest_BuiltinAgent),
 		describe:       agent.Describe,
 		collect:        agent.Collect,
+		logs:           ringLog,
 	}
 	return nil
 }

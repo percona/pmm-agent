@@ -17,6 +17,7 @@ package process
 
 import (
 	"context"
+	"io/ioutil"
 	"os"
 	"os/exec"
 	"runtime"
@@ -29,8 +30,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sys/unix"
-
-	"github.com/percona/pmm-agent/storelogs"
 )
 
 // assertStates checks expected statuses in the same order.
@@ -61,14 +60,13 @@ func build(t *testing.T, tag string, fileName string, outputFile string) *exec.C
 	return cmd
 }
 
-func setup(t *testing.T) (context.Context, context.CancelFunc, *storelogs.LogsStore) {
+func setup(t *testing.T) (context.Context, context.CancelFunc, *logrus.Entry) {
 	t.Helper()
 	t.Parallel()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	l := logrus.WithField("test", t.Name())
-	ringLog := storelogs.InitLogStore(l)
-	return ctx, cancel, ringLog
+	return ctx, cancel, l
 }
 
 func TestProcess(t *testing.T) {
@@ -126,7 +124,7 @@ func TestProcess(t *testing.T) {
 	})
 
 	t.Run("Killed", func(t *testing.T) {
-		f, err := os.CreateTemp("", "pmm-agent-process-test-noterm")
+		f, err := ioutil.TempFile("", "pmm-agent-process-test-noterm")
 		require.NoError(t, err)
 		require.NoError(t, f.Close())
 		defer func() {
@@ -149,7 +147,7 @@ func TestProcess(t *testing.T) {
 			t.Skip("Pdeathsig is implemented only on Linux")
 		}
 
-		f, err := os.CreateTemp("", "pmm-agent-process-test-child")
+		f, err := ioutil.TempFile("", "pmm-agent-process-test-child")
 		require.NoError(t, err)
 		require.NoError(t, f.Close())
 		defer func() {
@@ -161,7 +159,7 @@ func TestProcess(t *testing.T) {
 		ctx, cancel, l := setup(t)
 		defer cancel()
 
-		logger := newProcessLogger(l.Entry, 2, nil)
+		logger := newProcessLogger(l, 2, nil)
 
 		pCmd := exec.CommandContext(ctx, f.Name()) //nolint:gosec
 		pCmd.Stdout = logger
