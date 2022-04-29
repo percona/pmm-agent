@@ -337,7 +337,10 @@ func (m *PGStatMonitorQAN) getNewBuckets(ctx context.Context, periodLengthSecs u
 		return nil, err
 	}
 
-	m.checkErrorsView(ctx)
+	err = m.checkErrorsView(ctx)
+	if err != nil {
+		return nil, err
+	}
 
 	buckets := m.makeBuckets(current, prev)
 	m.l.Debugf("Made %d buckets out of %d stat monitor in %d interval.",
