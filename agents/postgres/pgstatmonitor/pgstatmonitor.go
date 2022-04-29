@@ -340,7 +340,7 @@ func (m *PGStatMonitorQAN) getNewBuckets(ctx context.Context, periodLengthSecs u
 	row := &pgStatMonitorErrors{}
 	rows, err := m.q.SelectRows(pgStatMonitorErrorsView, "")
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "failed to query pg_stat_monitor_errors view")
 	}
 
 	now := time.Now()
@@ -350,12 +350,12 @@ func (m *PGStatMonitorQAN) getNewBuckets(ctx context.Context, periodLengthSecs u
 				break
 			}
 
-			return nil, err
+			return nil, errors.Wrap(err, "cannot read row from errors view")
 		}
 
 		messageTime, err := time.Parse("2006-01-02 15:04:05", row.MessageTime)
 		if err != nil {
-			return nil, err
+			return nil, errors.Wrap(err, "cannot parse messageTime")
 		}
 		if now.After(messageTime) {
 			continue
