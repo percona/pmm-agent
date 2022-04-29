@@ -342,7 +342,7 @@ func (v *pgStatMonitorErrorsViewType) Schema() string {
 	return v.s.SQLSchema
 }
 
-// Name returns a view or table name in SQL database ("pg_stat_monitor_settings").
+// Name returns a view or table name in SQL database ("pg_stat_monitor_errors").
 func (v *pgStatMonitorErrorsViewType) Name() string {
 	return v.s.SQLName
 }
@@ -362,16 +362,16 @@ func (v *pgStatMonitorErrorsViewType) NewStruct() reform.Struct {
 	return new(pgStatMonitorErrors)
 }
 
-// pgStatMonitorErrorsView represents pg_stat_monitor_settings view or table in SQL database.
+// pgStatMonitorErrorsView represents pg_stat_monitor_errors view or table in SQL database.
 var pgStatMonitorErrorsView = &pgStatMonitorErrorsViewType{
 	s: parse.StructInfo{
 		Type:    "pgStatMonitorErrors",
-		SQLName: "pg_stat_monitor_settings",
+		SQLName: "pg_stat_monitor_errors",
 		Fields: []parse.FieldInfo{
 			{Name: "Severity", Type: "string", Column: "severity"},
 			{Name: "Message", Type: "string", Column: "message"},
 			{Name: "MessageTime", Type: "string", Column: "msgtime"},
-			{Name: "Calls", Type: "int8", Column: "calls"},
+			{Name: "Calls", Type: "int64", Column: "calls"},
 		},
 		PKFieldIndex: -1,
 	},

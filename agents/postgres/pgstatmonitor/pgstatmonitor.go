@@ -59,6 +59,7 @@ type PGStatMonitorQAN struct {
 	// options.
 	pgsmNormalizedQuery  bool
 	waitTime             time.Duration
+	timeDiff             time.Duration
 	disableQueryExamples bool
 }
 
@@ -170,10 +171,6 @@ func newPgStatMonitorQAN(q *reform.Querier, dbCloser io.Closer, agentID string, 
 		return nil, errors.Wrap(err, "failed to get settings")
 	}
 
-	//var errors []reform.Struct
-	errs, err := q.SelectAllFrom(pgStatMonitorErrorsView, "")
-	fmt.Printf("\n\n\n\n\n\n\n\n err:%+v \n\n\n\n\n\n\n\n", errs)
-
 	var normalizedQuery bool
 	waitTime := defaultWaitTime
 	for _, row := range settings {
@@ -209,6 +206,20 @@ func newPgStatMonitorQAN(q *reform.Querier, dbCloser io.Closer, agentID string, 
 			}
 		}
 	}
+
+	// var pgTime string
+	// err = q.QueryRow(fmt.Sprintf("SELECT /* %s */ NOW()", queryTag)).Scan(&pgTime)
+	// if err != nil {
+	// 	return nil, errors.Wrap(err, "postgres time parsing failed")
+	// }
+	// parsedPGTime, err := time.Parse("2006-01-02T15:04:05.000000Z07:00", pgTime)
+	// if err != nil {
+	// 	return nil, errors.Wrap(err, "postgres time parsing failed")
+	// }
+
+	// fmt.Printf("\n\n\n\n\n %d\n", parsedPGTime.UnixNano()/int64(time.Millisecond))
+	// time.Sleep(2 * time.Second)
+	// fmt.Printf("%d \n\n\n\n\n", time.Now().UnixNano()/int64(time.Millisecond))
 
 	return &PGStatMonitorQAN{
 		q:                    q,
@@ -341,6 +352,28 @@ func (m *PGStatMonitorQAN) getNewBuckets(ctx context.Context, periodLengthSecs u
 		return nil, err
 	}
 
+	row := &pgStatMonitorErrors{}
+	rows, err := m.q.SelectRows(pgStatMonitorErrorsView, "")
+	//errors, err := m.q.SelectAllFrom(pgStatMonitorErrorsView, "")
+	//fmt.Printf("\n\n\n\n\n\n\n\n err:%+v \n\n\n\n\n\n\n\n", errors)
+	if err != nil {
+		return nil, err
+	}
+
+	// for _, error := range errors {
+	// 	fmt.Println(error)
+	// }
+
+	for ctx.Err() == nil {
+		if err = m.q.NextRow(row, rows); err != nil {
+			if errors.Is(err, reform.ErrNoRows) {
+				err = nil
+			}
+			break
+		}
+		fmt.Println(row.MessageTime)
+	}
+
 	buckets := m.makeBuckets(current, prev)
 	m.l.Debugf("Made %d buckets out of %d stat monitor in %d interval.",
 		len(buckets), len(current), periodLengthSecs)
@@ -365,6 +398,7 @@ func (m *PGStatMonitorQAN) getNewBuckets(ctx context.Context, periodLengthSecs u
 func (m *PGStatMonitorQAN) makeBuckets(current, cache map[time.Time]map[string]*pgStatMonitorExtended) []*agentpb.MetricsBucket {
 	res := make([]*agentpb.MetricsBucket, 0, len(current))
 
+	//var errors []reform.Struct
 	for bucketStartTime, bucket := range current {
 		prev := cache[bucketStartTime]
 		for queryID, currentPSM := range bucket {
