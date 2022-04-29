@@ -207,20 +207,6 @@ func newPgStatMonitorQAN(q *reform.Querier, dbCloser io.Closer, agentID string, 
 		}
 	}
 
-	// var pgTime string
-	// err = q.QueryRow(fmt.Sprintf("SELECT /* %s */ NOW()", queryTag)).Scan(&pgTime)
-	// if err != nil {
-	// 	return nil, errors.Wrap(err, "postgres time parsing failed")
-	// }
-	// parsedPGTime, err := time.Parse("2006-01-02T15:04:05.000000Z07:00", pgTime)
-	// if err != nil {
-	// 	return nil, errors.Wrap(err, "postgres time parsing failed")
-	// }
-
-	// fmt.Printf("\n\n\n\n\n %d\n", parsedPGTime.UnixNano()/int64(time.Millisecond))
-	// time.Sleep(2 * time.Second)
-	// fmt.Printf("%d \n\n\n\n\n", time.Now().UnixNano()/int64(time.Millisecond))
-
 	return &PGStatMonitorQAN{
 		q:                    q,
 		dbCloser:             dbCloser,
@@ -354,24 +340,37 @@ func (m *PGStatMonitorQAN) getNewBuckets(ctx context.Context, periodLengthSecs u
 
 	row := &pgStatMonitorErrors{}
 	rows, err := m.q.SelectRows(pgStatMonitorErrorsView, "")
-	//errors, err := m.q.SelectAllFrom(pgStatMonitorErrorsView, "")
-	//fmt.Printf("\n\n\n\n\n\n\n\n err:%+v \n\n\n\n\n\n\n\n", errors)
 	if err != nil {
 		return nil, err
 	}
 
-	// for _, error := range errors {
-	// 	fmt.Println(error)
-	// }
-
+	now := time.Now().UTC()
 	for ctx.Err() == nil {
 		if err = m.q.NextRow(row, rows); err != nil {
 			if errors.Is(err, reform.ErrNoRows) {
-				err = nil
+				break
 			}
-			break
+
+			return nil, err
 		}
-		fmt.Println(row.MessageTime)
+
+		messageTime, err := time.Parse("2006-01-02 15:04:05", row.MessageTime)
+		if err != nil {
+			return nil, err
+		}
+		if now.After(messageTime) {
+			continue
+		}
+
+		template := "Message: %s, Calls: %d"
+		switch row.Severity {
+		case "INFO":
+			m.l.Infof(template, row.Message, row.Calls)
+		case "WARNING":
+			m.l.Warningf(template, row.Message, row.Calls)
+		case "ERROR":
+			m.l.Errorf(template, row.Message, row.Calls)
+		}
 	}
 
 	buckets := m.makeBuckets(current, prev)
