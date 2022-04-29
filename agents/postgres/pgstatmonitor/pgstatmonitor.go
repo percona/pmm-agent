@@ -397,7 +397,6 @@ func (m *PGStatMonitorQAN) getNewBuckets(ctx context.Context, periodLengthSecs u
 func (m *PGStatMonitorQAN) makeBuckets(current, cache map[time.Time]map[string]*pgStatMonitorExtended) []*agentpb.MetricsBucket {
 	res := make([]*agentpb.MetricsBucket, 0, len(current))
 
-	//var errors []reform.Struct
 	for bucketStartTime, bucket := range current {
 		prev := cache[bucketStartTime]
 		for queryID, currentPSM := range bucket {
