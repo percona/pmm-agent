@@ -393,6 +393,8 @@ func (m *PGStatMonitorQAN) checkErrorsView(ctx context.Context) error {
 			m.l.Errorf(template, row.Message, row.Calls)
 		}
 	}
+
+	return nil
 }
 
 // makeBuckets uses current state of pg_stat_monitor table and accumulated previous state
