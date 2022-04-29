@@ -344,7 +344,7 @@ func (m *PGStatMonitorQAN) getNewBuckets(ctx context.Context, periodLengthSecs u
 		return nil, err
 	}
 
-	now := time.Now().UTC()
+	now := time.Now()
 	for ctx.Err() == nil {
 		if err = m.q.NextRow(row, rows); err != nil {
 			if errors.Is(err, reform.ErrNoRows) {
