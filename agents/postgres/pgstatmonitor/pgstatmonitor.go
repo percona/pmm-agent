@@ -59,7 +59,6 @@ type PGStatMonitorQAN struct {
 	// options.
 	pgsmNormalizedQuery  bool
 	waitTime             time.Duration
-	timeDiff             time.Duration
 	disableQueryExamples bool
 }
 
@@ -93,7 +92,7 @@ const (
 	commandTypeUpdate       = "UPDATE"
 	commandTypeInsert       = "INSERT"
 	commandTypeDelete       = "DELETE"
-	commandTypeUtiity       = "UTILITY"
+	commandTypeUtility      = "UTILITY"
 )
 
 var commandTypeToText = []string{
@@ -102,7 +101,7 @@ var commandTypeToText = []string{
 	commandTypeUpdate,
 	commandTypeInsert,
 	commandTypeDelete,
-	commandTypeUtiity,
+	commandTypeUtility,
 	commandTextNotAvailable,
 }
 
