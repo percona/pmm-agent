@@ -16,6 +16,7 @@
 package defaultsfile
 
 import (
+	"path/filepath"
 	"testing"
 
 	"github.com/percona/pmm/api/agentpb"
@@ -26,6 +27,9 @@ import (
 
 func TestDefaultsFileParser(t *testing.T) {
 	t.Parallel()
+	cnfFilePath, err := filepath.Abs("../testdata/defaultsfile/.my.cnf")
+	assert.NoError(t, err)
+
 	testCases := []struct {
 		name        string
 		req         *agentpb.ParseDefaultsFileRequest
@@ -35,7 +39,7 @@ func TestDefaultsFileParser(t *testing.T) {
 			name: "Valid MySQL file",
 			req: &agentpb.ParseDefaultsFileRequest{
 				ServiceType: inventorypb.ServiceType_MYSQL_SERVICE,
-				ConfigPath:  "../testdata/defaultsfile/.my.cnf",
+				ConfigPath:  cnfFilePath,
 			},
 		},
 		{
@@ -50,7 +54,7 @@ func TestDefaultsFileParser(t *testing.T) {
 			name: "Service type not supported",
 			req: &agentpb.ParseDefaultsFileRequest{
 				ServiceType: inventorypb.ServiceType_HAPROXY_SERVICE,
-				ConfigPath:  "../testdata/defaultsfile/.my.cnf",
+				ConfigPath:  cnfFilePath,
 			},
 			expectedErr: `unimplemented service type HAPROXY_SERVICE`,
 		},
