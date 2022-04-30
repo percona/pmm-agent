@@ -27,7 +27,7 @@ import (
 
 func TestDefaultsFileParser(t *testing.T) {
 	t.Parallel()
-	cnfFilePath, err := filepath.Abs("../testdata/defaultsfile/.my.cnf")
+	cnfFilePath, err := filepath.Abs("../utils/tests/testdata/defaultsfile/.my.cnf")
 	assert.NoError(t, err)
 
 	testCases := []struct {
