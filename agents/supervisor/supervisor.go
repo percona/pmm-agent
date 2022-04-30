@@ -130,7 +130,6 @@ func (s *Supervisor) AgentsList() []*agentlocalpb.AgentInfo {
 			AgentType:  agent.requestedState.Type,
 			Status:     s.lastStatuses[id],
 			ListenPort: uint32(agent.listenPort),
-			Logs:       agent.logs.GetLogs(),
 		}
 		res = append(res, info)
 	}
@@ -140,12 +139,30 @@ func (s *Supervisor) AgentsList() []*agentlocalpb.AgentInfo {
 			AgentId:   id,
 			AgentType: agent.requestedState.Type,
 			Status:    s.lastStatuses[id],
-			Logs:      agent.logs.GetLogs(),
 		}
 		res = append(res, info)
 	}
 
 	sort.Slice(res, func(i, j int) bool { return res[i].AgentId < res[j].AgentId })
+	return res
+}
+
+// AgentsLogs returns logs for all Agents managed by this supervisor.
+func (s *Supervisor) AgentsLogs() map[string][]string {
+	s.rw.RLock()
+	defer s.rw.RUnlock()
+	s.arw.RLock()
+	defer s.arw.RUnlock()
+
+	res := make(map[string][]string)
+
+	for id, agent := range s.agentProcesses {
+		res[strings.Join([]string{string(agent.requestedState.Type), id}, " ")] = agent.logs.GetLogs()
+	}
+
+	for id, agent := range s.builtinAgents {
+		res[strings.Join([]string{string(agent.requestedState.Type), id}, " ")] = agent.logs.GetLogs()
+	}
 	return res
 }
 

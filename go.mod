@@ -25,7 +25,7 @@ require (
 	github.com/percona/exporter_shared v0.7.3
 	github.com/percona/go-mysql v0.0.0-20200630114833-b77f37c0bfa2
 	github.com/percona/percona-toolkit v3.2.1+incompatible
-	github.com/percona/pmm v0.0.0-20220414205931-d83c6722ef32
+	github.com/percona/pmm v0.0.0-20220430090230-e099f53d5ddd
 	github.com/pganalyze/pg_query_go v1.0.3
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.12.1
@@ -35,7 +35,7 @@ require (
 	github.com/stretchr/testify v1.7.1
 	go.mongodb.org/mongo-driver v1.9.0
 	golang.org/x/sys v0.0.0-20220412211240-33da011f77ad
-	google.golang.org/genproto v0.0.0-20220413183235-5e96e2839df9
+	google.golang.org/genproto v0.0.0-20220414192740-2d67ff6cf2b4
 	google.golang.org/grpc v1.45.0
 	google.golang.org/protobuf v1.28.0
 	gopkg.in/alecthomas/kingpin.v2 v2.2.6

@@ -16,10 +16,14 @@
 package agentlocal
 
 import (
+	"archive/zip"
 	"bytes"
 	"context"
 	_ "expvar" // register /debug/vars
+	"fmt"
+	"github.com/percona/pmm-agent/storelogs"
 	"html/template"
+	"io"
 	"log"
 	"net"
 	"net/http"
@@ -61,6 +65,7 @@ type Server struct {
 	configFilepath string
 
 	l               *logrus.Entry
+	ringLogs        *storelogs.LogsStore
 	reload          chan struct{}
 	reloadCloseOnce sync.Once
 
@@ -71,13 +76,18 @@ type Server struct {
 //
 // Caller should call Run.
 func NewServer(cfg *config.Config, supervisor supervisor, client client, configFilepath string) *Server {
+	ringLog := storelogs.New(10)
+	logger := logrus.New()
+	logger.Out = io.MultiWriter(os.Stderr, ringLog)
+
 	return &Server{
 		cfg:            cfg,
 		supervisor:     supervisor,
 		client:         client,
 		configFilepath: configFilepath,
-		l:              logrus.WithField("component", "local-server"),
+		l:              logger.WithField("component", "local-server"),
 		reload:         make(chan struct{}),
+		ringLogs:       ringLog,
 	}
 }
 
@@ -173,6 +183,43 @@ func (s *Server) Reload(ctx context.Context, req *agentlocalpb.ReloadRequest) (*
 
 	// client may or may not receive this response due to server shutdown
 	return &agentlocalpb.ReloadResponse{}, nil
+}
+
+func (s *Server) LogZip(ctx context.Context, req *agentlocalpb.LogZipRequest) (*agentlocalpb.LogZipResponse, error) {
+	agentsLogs := s.supervisor.AgentsLogs()
+
+	buf := new(bytes.Buffer)
+	writer := zip.NewWriter(buf)
+	f, err := writer.Create("server-logs")
+	if err != nil {
+		log.Fatal(err)
+	}
+	for _, text := range s.ringLogs.GetLogs() {
+		_, err = fmt.Fprintln(f, text)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+	for filename, logs := range agentsLogs {
+		f, err := writer.Create(filename)
+		if err != nil {
+			log.Fatal(err)
+		}
+		for _, text := range logs {
+			_, err = fmt.Fprintln(f, text)
+			if err != nil {
+				log.Fatal(err)
+			}
+		}
+	}
+	err = writer.Close()
+	if err != nil {
+		log.Fatal(err)
+	}
+	//TODO fix to streaming
+	return &agentlocalpb.LogZipResponse{
+		Logs: buf.Bytes(),
+	}, nil
 }
 
 // runGRPCServer runs gRPC server until context is canceled, then gracefully stops it.
