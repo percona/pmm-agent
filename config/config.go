@@ -18,7 +18,6 @@ package config
 
 import (
 	"fmt"
-	"io/ioutil"
 	"net"
 	"net/url"
 	"os"
@@ -146,8 +145,9 @@ type Config struct {
 	Paths  Paths  `yaml:"paths"`
 	Ports  Ports  `yaml:"ports"`
 
-	Debug bool `yaml:"debug"`
-	Trace bool `yaml:"trace"`
+	LogLevel string `yaml:"log-level"`
+	Debug    bool   `yaml:"debug"`
+	Trace    bool   `yaml:"trace"`
 
 	Setup Setup `yaml:"-"`
 }
@@ -366,6 +366,8 @@ func Application(cfg *Config) (*kingpin.Application, *string) {
 	app.Flag("ports-max", "Maximal allowed port number for listening sockets [PMM_AGENT_PORTS_MAX]").
 		Envar("PMM_AGENT_PORTS_MAX").Uint16Var(&cfg.Ports.Max)
 
+	app.Flag("log-level", "Set logging level [PMM_AGENT_LOG_LEVEL]").
+		Envar("PMM_AGENT_LOG_LEVEL").EnumVar(&cfg.LogLevel, "debug", "info", "warn", "error", "fatal")
 	app.Flag("debug", "Enable debug output [PMM_AGENT_DEBUG]").
 		Envar("PMM_AGENT_DEBUG").BoolVar(&cfg.Debug)
 	app.Flag("trace", "Enable trace output (implies debug) [PMM_AGENT_TRACE]").
@@ -456,7 +458,7 @@ func loadFromFile(path string) (*Config, error) {
 		return nil, ErrConfigFileDoesNotExist(path)
 	}
 
-	b, err := ioutil.ReadFile(path) //nolint:gosec
+	b, err := os.ReadFile(path) //nolint:gosec
 	if err != nil {
 		return nil, err
 	}
@@ -481,7 +483,7 @@ func SaveToFile(path string, cfg *Config, comment string) error {
 	}
 	res = append(res, "---\n"...)
 	res = append(res, b...)
-	return ioutil.WriteFile(path, res, 0o640)
+	return os.WriteFile(path, res, 0o640)
 }
 
 // IsWritable checks if specified path is writable.

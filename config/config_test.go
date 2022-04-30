@@ -16,7 +16,6 @@
 package config
 
 import (
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -28,7 +27,7 @@ import (
 )
 
 func writeConfig(t *testing.T, cfg *Config) string {
-	f, err := ioutil.TempFile("", "pmm-agent-test-")
+	f, err := os.CreateTemp("", "pmm-agent-test-")
 	require.NoError(t, err)
 	require.NoError(t, f.Close())
 	require.NoError(t, SaveToFile(f.Name(), cfg, t.Name()))
@@ -69,7 +68,7 @@ func TestLoadFromFile(t *testing.T) {
 
 	t.Run("NotYAML", func(t *testing.T) {
 		name := writeConfig(t, nil)
-		require.NoError(t, ioutil.WriteFile(name, []byte(`not YAML`), 0o666))
+		require.NoError(t, os.WriteFile(name, []byte(`not YAML`), 0o666)) //nolint:gosec
 		defer removeConfig(t, name)
 
 		cfg, err := loadFromFile(name)
@@ -181,6 +180,7 @@ func TestGet(t *testing.T) {
 		actual, configFilepath, err := get([]string{
 			"--config-file=" + name,
 			"--id=flag-id",
+			"--log-level=info",
 			"--debug",
 		}, logrus.WithField("test", t.Name()))
 		require.NoError(t, err)
@@ -213,7 +213,8 @@ func TestGet(t *testing.T) {
 				Min: 42000,
 				Max: 51999,
 			},
-			Debug: true,
+			LogLevel: "info",
+			Debug:    true,
 		}
 		assert.Equal(t, expected, actual)
 		assert.Equal(t, name, configFilepath)
