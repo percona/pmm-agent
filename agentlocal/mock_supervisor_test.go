@@ -27,3 +27,19 @@ func (_m *mockSupervisor) AgentsList() []*agentlocalpb.AgentInfo {
 
 	return r0
 }
+
+// AgentsLogs provides a mock function with given fields:
+func (_m *mockSupervisor) AgentsLogs() []*AgentLogs {
+	ret := _m.Called()
+
+	var r0 []*AgentLogs
+	if rf, ok := ret.Get(0).(func() []*AgentLogs); ok {
+		r0 = rf()
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*AgentLogs)
+		}
+	}
+
+	return r0
+}

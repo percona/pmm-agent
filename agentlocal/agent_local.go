@@ -22,14 +22,12 @@ import (
 	"encoding/json"
 	_ "expvar" // register /debug/vars
 	"fmt"
-	"github.com/percona/pmm-agent/storelogs"
-	"github.com/percona/pmm/api/inventorypb"
 	"html/template"
 	"io"
 	"log"
 	"net"
 	"net/http"
-	_ "net/http/pprof" // register /debug/pprof
+	_ "net/http/pprof"
 	"os"
 	"strconv"
 	"strings"
@@ -39,6 +37,7 @@ import (
 	grpc_gateway "github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"github.com/percona/pmm/api/agentlocalpb"
 	"github.com/percona/pmm/api/agentpb"
+	"github.com/percona/pmm/api/inventorypb"
 	"github.com/percona/pmm/version"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/collectors"
@@ -53,6 +52,7 @@ import (
 	"google.golang.org/protobuf/types/known/durationpb"
 
 	"github.com/percona/pmm-agent/config"
+	"github.com/percona/pmm-agent/storelogs"
 )
 
 const (
@@ -328,7 +328,7 @@ func (s *Server) runJSONServer(ctx context.Context, grpcAddress string) {
 		}
 		w.Header().Set("Content-Type", "application/zip")
 		w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s.zip\"", "logs"))
-		//io.Copy(w, buf)
+		// io.Copy(w, buf)
 		w.Write(buf.Bytes())
 	})
 

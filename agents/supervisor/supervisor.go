@@ -19,7 +19,6 @@ package supervisor
 import (
 	"context"
 	"fmt"
-	"github.com/percona/pmm-agent/agentlocal"
 	"io"
 	"os"
 	"path/filepath"
@@ -29,8 +28,6 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/percona/pmm-agent/storelogs"
-
 	"github.com/percona/pmm/api/agentlocalpb"
 	"github.com/percona/pmm/api/agentpb"
 	"github.com/percona/pmm/api/inventorypb"
@@ -39,6 +36,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"google.golang.org/protobuf/proto"
 
+	"github.com/percona/pmm-agent/agentlocal"
 	"github.com/percona/pmm-agent/agents"
 	"github.com/percona/pmm-agent/agents/mongodb"
 	"github.com/percona/pmm-agent/agents/mysql/perfschema"
@@ -48,6 +46,7 @@ import (
 	"github.com/percona/pmm-agent/agents/postgres/pgstatstatements"
 	"github.com/percona/pmm-agent/agents/process"
 	"github.com/percona/pmm-agent/config"
+	"github.com/percona/pmm-agent/storelogs"
 	"github.com/percona/pmm-agent/utils/templates"
 )
 
