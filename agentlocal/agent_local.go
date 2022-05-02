@@ -16,10 +16,16 @@
 package agentlocal
 
 import (
+	"archive/zip"
 	"bytes"
 	"context"
+	"encoding/json"
 	_ "expvar" // register /debug/vars
+	"fmt"
+	"github.com/percona/pmm-agent/storelogs"
+	"github.com/percona/pmm/api/inventorypb"
 	"html/template"
+	"io"
 	"log"
 	"net"
 	"net/http"
@@ -61,23 +67,35 @@ type Server struct {
 	configFilepath string
 
 	l               *logrus.Entry
+	ringLogs        *storelogs.LogsStore
 	reload          chan struct{}
 	reloadCloseOnce sync.Once
 
 	agentlocalpb.UnimplementedAgentLocalServer
 }
 
+type AgentLogs struct {
+	Type inventorypb.AgentType
+	Id   string
+	Logs *storelogs.LogsStore
+}
+
 // NewServer creates new server.
 //
 // Caller should call Run.
 func NewServer(cfg *config.Config, supervisor supervisor, client client, configFilepath string) *Server {
+	ringLog := storelogs.New(10)
+	logger := logrus.New()
+	logger.Out = io.MultiWriter(os.Stderr, ringLog)
+
 	return &Server{
 		cfg:            cfg,
 		supervisor:     supervisor,
 		client:         client,
 		configFilepath: configFilepath,
-		l:              logrus.WithField("component", "local-server"),
+		l:              logger.WithField("component", "local-server"),
 		reload:         make(chan struct{}),
+		ringLogs:       ringLog,
 	}
 }
 
@@ -289,6 +307,30 @@ func (s *Server) runJSONServer(ctx context.Context, grpcAddress string) {
 	mux.Handle("/debug/", http.DefaultServeMux)
 	mux.Handle("/debug", debugPageHandler)
 	mux.Handle("/", proxyMux)
+	mux.HandleFunc("/logs.zip", func(w http.ResponseWriter, r *http.Request) {
+		buf := new(bytes.Buffer)
+		writer := zip.NewWriter(buf)
+		b, err := json.MarshalIndent(s.ringLogs.GetLogs(), "", "  ")
+		if err != nil {
+			log.Fatal(err)
+		}
+		addData(writer, "server.json", b)
+
+		for _, agent := range s.supervisor.AgentsLogs() {
+			if err != nil {
+				log.Fatal(err)
+			}
+			addData(writer, strings.Join([]string{agent.Type.String(), agent.Id}, " ")+".json", b)
+		}
+		err = writer.Close()
+		if err != nil {
+			log.Fatal(err)
+		}
+		w.Header().Set("Content-Type", "application/zip")
+		w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s.zip\"", "logs"))
+		//io.Copy(w, buf)
+		w.Write(buf.Bytes())
+	})
 
 	server := &http.Server{
 		Addr:     address,
@@ -312,6 +354,18 @@ func (s *Server) runJSONServer(ctx context.Context, grpcAddress string) {
 	}
 	cancel()
 	_ = server.Close() // call Close() in all cases
+}
+
+// addData add data to zip file
+func addData(zipW *zip.Writer, name string, data []byte) {
+	f, err := zipW.Create(name)
+	if err != nil {
+		log.Fatal(err)
+	}
+	_, err = f.Write(data)
+	if err != nil {
+		log.Fatal(err)
+	}
 }
 
 // check interfaces

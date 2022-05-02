@@ -19,6 +19,7 @@ package supervisor
 import (
 	"context"
 	"fmt"
+	"github.com/percona/pmm-agent/agentlocal"
 	"io"
 	"os"
 	"path/filepath"
@@ -130,7 +131,6 @@ func (s *Supervisor) AgentsList() []*agentlocalpb.AgentInfo {
 			AgentType:  agent.requestedState.Type,
 			Status:     s.lastStatuses[id],
 			ListenPort: uint32(agent.listenPort),
-			Logs:       agent.logs.GetLogs(),
 		}
 		res = append(res, info)
 	}
@@ -140,7 +140,6 @@ func (s *Supervisor) AgentsList() []*agentlocalpb.AgentInfo {
 			AgentId:   id,
 			AgentType: agent.requestedState.Type,
 			Status:    s.lastStatuses[id],
-			Logs:      agent.logs.GetLogs(),
 		}
 		res = append(res, info)
 	}
@@ -149,13 +148,33 @@ func (s *Supervisor) AgentsList() []*agentlocalpb.AgentInfo {
 	return res
 }
 
-// AgentsListWithoutLogs returns info for all Agents managed by this supervisor without logs.
-func (s *Supervisor) AgentsListWithoutLogs() []*agentlocalpb.AgentInfo {
-	agentList := s.AgentsList()
-	for i := range agentList {
-		agentList[i].Logs = nil
+// AgentsLogs returns logs for all Agents managed by this supervisor.
+func (s *Supervisor) AgentsLogs() []*agentlocal.AgentLogs {
+	s.rw.RLock()
+	defer s.rw.RUnlock()
+	s.arw.RLock()
+	defer s.arw.RUnlock()
+
+	res := make([]*agentlocal.AgentLogs, 0, len(s.agentProcesses)+len(s.builtinAgents))
+
+	for id, agent := range s.agentProcesses {
+		info := &agentlocal.AgentLogs{
+			Id:   id,
+			Type: agent.requestedState.Type,
+			Logs: agent.logs,
+		}
+		res = append(res, info)
 	}
-	return agentList
+
+	for id, agent := range s.builtinAgents {
+		info := &agentlocal.AgentLogs{
+			Id:   id,
+			Type: agent.requestedState.Type,
+			Logs: agent.logs,
+		}
+		res = append(res, info)
+	}
+	return res
 }
 
 // Changes returns channel with Agent's state changes.
