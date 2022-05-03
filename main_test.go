@@ -113,10 +113,10 @@ func TestImports(t *testing.T) {
 		"github.com/percona/pmm-agent/agents/postgres/pgstatstatements",
 		"github.com/percona/pmm-agent/agents/process",
 		"github.com/percona/pmm-agent/agents/cache",
+		"github.com/percona/pmm-agent/agentlocal",
 	} {
 		c := constraint{
 			denyPrefixes: []string{
-				"github.com/percona/pmm-agent/agentlocal",
 				"github.com/percona/pmm-agent/agents/",
 				"github.com/percona/pmm-agent/client",
 				"github.com/percona/pmm-agent/config",
