@@ -116,6 +116,7 @@ func TestImports(t *testing.T) {
 	} {
 		c := constraint{
 			denyPrefixes: []string{
+				"github.com/percona/pmm-agent/agentlocal",
 				"github.com/percona/pmm-agent/agents/",
 				"github.com/percona/pmm-agent/client",
 				"github.com/percona/pmm-agent/config",
@@ -150,8 +151,8 @@ func TestImports(t *testing.T) {
 	packs := []string{
 		// TODO https://jira.percona.com/browse/PMM-7206
 		// "github.com/percona/pmm-agent/actions",
-
-		"github.com/percona/pmm-agent/agentlocal",
+		// TODO https://jira.percona.com/browse/PMM-5680
+		//"github.com/percona/pmm-agent/agentlocal",
 		"github.com/percona/pmm-agent/agents/supervisor",
 		"github.com/percona/pmm-agent/client",
 		"github.com/percona/pmm-agent/connectionchecker",
@@ -171,7 +172,6 @@ func TestImports(t *testing.T) {
 	// just to add them to packages.dot
 	for _, service := range []string{
 		"github.com/percona/pmm-agent/commands",
-		"github.com/percona/pmm-agent/agentlocal",
 	} {
 		constraints[service] = constraint{}
 	}
