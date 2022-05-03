@@ -26,8 +26,7 @@ import (
 
 	"github.com/AlekSi/pointer"
 	ver "github.com/hashicorp/go-version"
-	"github.com/lib/pq"   //nolint:gci
-	_ "github.com/lib/pq" // register SQL driver.
+	"github.com/lib/pq" //nolint:gci
 	"github.com/percona/pmm/api/agentpb"
 	"github.com/percona/pmm/api/inventorypb"
 	"github.com/percona/pmm/utils/sqlmetrics"

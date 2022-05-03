@@ -38,15 +38,21 @@ type pgUser struct {
 // pgStatMonitorSettings represents a row in pg_stat_monitor_settings view before 1.0.0-rc.2.
 //reform:pg_stat_monitor_settings
 type pgStatMonitorSettings struct {
-	Name  string `reform:"name"`
-	Value int64  `reform:"value"`
+	Name  *string `reform:"name"`
+	Value int64   `reform:"value"`
 }
 
 // pgStatMonitorSettingsTextValue represents a row in pg_stat_monitor_settings view 1.0.0-rc.2 and higher.
 //reform:pg_stat_monitor_settings
 type pgStatMonitorSettingsTextValue struct {
-	Name  string `reform:"name"`
-	Value string `reform:"value"`
+	Name         *string `reform:"name"`
+	Value        *string `reform:"value"`
+	DefaultValue *string `reform:"default_value"`
+	Description  *string `reform:"description"`
+	Minimum      int64   `reform:"minimum"`
+	Maximum      int64   `reform:"maximum"`
+	Options      *string `reform:"options"`
+	Restart      bool    `reform:"restart"`
 }
 
 // pgStatMonitorExtended contains pgStatMonitor data and extends it with database, username and tables data.
