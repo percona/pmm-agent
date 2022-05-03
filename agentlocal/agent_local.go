@@ -308,7 +308,7 @@ func (s *Server) runJSONServer(ctx context.Context, grpcAddress string) {
 	mux.Handle("/debug", debugPageHandler)
 	mux.Handle("/", proxyMux)
 	mux.HandleFunc("/logs.zip", func(w http.ResponseWriter, r *http.Request) {
-		buf := new(bytes.Buffer)
+		buf := &bytes.Buffer{}
 		writer := zip.NewWriter(buf)
 		b, err := json.MarshalIndent(s.ringLogs.GetLogs(), "", "  ")
 		if err != nil {
