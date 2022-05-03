@@ -18,6 +18,7 @@ package collector
 import (
 	"context"
 	"fmt"
+	"github.com/percona/pmm-agent/mongo_fix"
 	"strings"
 	"sync"
 	"testing"
@@ -30,7 +31,6 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
 	"go.mongodb.org/mongo-driver/mongo/readpref"
 )
 
@@ -202,8 +202,12 @@ func createSession(dsn string, agentID string) (*mongo.Client, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), MgoTimeoutDialInfo)
 	defer cancel()
 
-	opts := options.Client().
-		ApplyURI(dsn).
+	opts, err := mongo_fix.ClientForDSN(dsn)
+	if err != nil {
+		panic(err)
+	}
+
+	opts = opts.
 		SetDirect(true).
 		SetReadPreference(readpref.Nearest()).
 		SetSocketTimeout(MgoTimeoutSessionSocket).

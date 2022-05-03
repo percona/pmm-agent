@@ -18,13 +18,13 @@ package profiler
 import (
 	"context"
 	"fmt"
+	"github.com/percona/pmm-agent/mongo_fix"
 	"runtime/pprof"
 	"sync"
 	"time"
 
 	"github.com/sirupsen/logrus"
 	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
 	"go.mongodb.org/mongo-driver/mongo/readpref"
 
 	"github.com/percona/pmm-agent/agents/mongodb/internal/profiler/aggregator"
@@ -192,8 +192,13 @@ func signalReady(ready *sync.Cond) {
 func createSession(dsn string, agentID string) (*mongo.Client, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), MgoTimeoutDialInfo)
 	defer cancel()
-	opts := options.Client().
-		ApplyURI(dsn).
+
+	opts, err := mongo_fix.ClientForDSN(dsn)
+	if err != nil {
+		return nil, err
+	}
+
+	opts = opts.
 		SetDirect(true).
 		SetReadPreference(readpref.Nearest()).
 		SetSocketTimeout(MgoTimeoutSessionSocket).

@@ -18,17 +18,16 @@ package actions
 import (
 	"context"
 	"fmt"
+	"github.com/percona/pmm-agent/mongo_fix"
 	"path/filepath"
 	"strings"
 
 	"github.com/percona/percona-toolkit/src/go/mongolib/proto"
+	"github.com/percona/pmm-agent/utils/templates"
 	"github.com/percona/pmm/api/agentpb"
 	"github.com/pkg/errors"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
-
-	"github.com/percona/pmm-agent/utils/templates"
 )
 
 type mongodbExplainAction struct {
@@ -68,7 +67,12 @@ func (a *mongodbExplainAction) Run(ctx context.Context) ([]byte, error) {
 		return nil, errors.WithStack(err)
 	}
 
-	client, err := mongo.Connect(ctx, options.Client().ApplyURI(dsn))
+	opts, err := mongo_fix.ClientForDSN(dsn)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+	client, err := mongo.Connect(ctx, opts)
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}

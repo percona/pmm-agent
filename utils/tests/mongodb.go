@@ -17,6 +17,7 @@ package tests
 
 import (
 	"context"
+	"github.com/percona/pmm-agent/mongo_fix"
 	"os"
 	"path/filepath"
 	"testing"
@@ -25,7 +26,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 // GetTestMongoDBDSN returns DNS for MongoDB test database.
@@ -104,7 +104,12 @@ func GetTestMongoDBReplicatedWithSSLDSN(tb testing.TB, pathToRoot string) (strin
 func OpenTestMongoDB(tb testing.TB, dsn string) *mongo.Client {
 	tb.Helper()
 
-	client, err := mongo.Connect(context.Background(), options.Client().ApplyURI(dsn))
+	opts, err := mongo_fix.ClientForDSN(dsn)
+	if err != nil {
+		panic(err)
+	}
+
+	client, err := mongo.Connect(context.Background(), opts)
 	require.NoError(tb, err)
 
 	require.NoError(tb, client.Ping(context.Background(), nil))
