@@ -74,15 +74,15 @@ type Server struct {
 	agentlocalpb.UnimplementedAgentLocalServer
 }
 
-// AgentLogs contains information about Agent logs
+// AgentLogs contains information about Agent logs.
 type AgentLogs struct {
 	Type inventorypb.AgentType
-	Id   string
+	ID   string
 	Logs *storelogs.LogsStore
 }
 
 // NewServer creates new server.
-//
+//`
 // Caller should call Run.
 func NewServer(cfg *config.Config, supervisor supervisor, client client, configFilepath string) *Server {
 	ringLog := storelogs.New(10)
@@ -321,7 +321,7 @@ func (s *Server) runJSONServer(ctx context.Context, grpcAddress string) {
 			if err != nil {
 				log.Fatal(err)
 			}
-			addData(writer, strings.Join([]string{agent.Type.String(), agent.Id}, " ")+".json", b)
+			addData(writer, strings.Join([]string{agent.Type.String(), agent.ID}, " ")+".json", b)
 		}
 		err = writer.Close()
 		if err != nil {

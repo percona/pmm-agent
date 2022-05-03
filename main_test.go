@@ -152,7 +152,7 @@ func TestImports(t *testing.T) {
 		// TODO https://jira.percona.com/browse/PMM-7206
 		// "github.com/percona/pmm-agent/actions",
 		// TODO https://jira.percona.com/browse/PMM-5680
-		//"github.com/percona/pmm-agent/agentlocal",
+		// "github.com/percona/pmm-agent/agentlocal",
 		"github.com/percona/pmm-agent/agents/supervisor",
 		"github.com/percona/pmm-agent/client",
 		"github.com/percona/pmm-agent/connectionchecker",
