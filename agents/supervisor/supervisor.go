@@ -158,7 +158,7 @@ func (s *Supervisor) AgentsLogs() []*agentlocal.AgentLogs {
 
 	for id, agent := range s.agentProcesses {
 		info := &agentlocal.AgentLogs{
-			Id:   id,
+			ID:   id,
 			Type: agent.requestedState.Type,
 			Logs: agent.logs,
 		}
@@ -167,7 +167,7 @@ func (s *Supervisor) AgentsLogs() []*agentlocal.AgentLogs {
 
 	for id, agent := range s.builtinAgents {
 		info := &agentlocal.AgentLogs{
-			Id:   id,
+			ID:   id,
 			Type: agent.requestedState.Type,
 			Logs: agent.logs,
 		}
