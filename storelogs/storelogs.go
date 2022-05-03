@@ -28,6 +28,7 @@ type LogsStore struct {
 	m   sync.RWMutex
 }
 
+// New creates LogsStore
 func New(count int) *LogsStore {
 	return &LogsStore{
 		log: ring.New(count),
@@ -35,6 +36,7 @@ func New(count int) *LogsStore {
 	}
 }
 
+// Write writes log for store
 func (l *LogsStore) Write(b []byte) (n int, err error) {
 	l.m.Lock()
 	l.log.Value = string(b)

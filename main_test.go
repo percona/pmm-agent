@@ -113,7 +113,6 @@ func TestImports(t *testing.T) {
 		"github.com/percona/pmm-agent/agents/postgres/pgstatstatements",
 		"github.com/percona/pmm-agent/agents/process",
 		"github.com/percona/pmm-agent/agents/cache",
-		"github.com/percona/pmm-agent/agentlocal",
 	} {
 		c := constraint{
 			denyPrefixes: []string{
@@ -172,6 +171,7 @@ func TestImports(t *testing.T) {
 	// just to add them to packages.dot
 	for _, service := range []string{
 		"github.com/percona/pmm-agent/commands",
+		"github.com/percona/pmm-agent/agentlocal",
 	} {
 		constraints[service] = constraint{}
 	}

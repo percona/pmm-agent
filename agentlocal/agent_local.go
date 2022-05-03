@@ -27,7 +27,7 @@ import (
 	"log"
 	"net"
 	"net/http"
-	_ "net/http/pprof"
+	_ "net/http/pprof" // register /debug/pprof
 	"os"
 	"strconv"
 	"strings"
@@ -74,6 +74,7 @@ type Server struct {
 	agentlocalpb.UnimplementedAgentLocalServer
 }
 
+// AgentLogs contains information about Agent logs
 type AgentLogs struct {
 	Type inventorypb.AgentType
 	Id   string
@@ -329,7 +330,10 @@ func (s *Server) runJSONServer(ctx context.Context, grpcAddress string) {
 		w.Header().Set("Content-Type", "application/zip")
 		w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s.zip\"", "logs"))
 		// io.Copy(w, buf)
-		w.Write(buf.Bytes())
+		_, err = w.Write(buf.Bytes())
+		if err != nil {
+			log.Fatal(err)
+		}
 	})
 
 	server := &http.Server{
