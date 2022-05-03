@@ -18,16 +18,17 @@ package actions
 import (
 	"context"
 	"fmt"
-	"github.com/percona/pmm-agent/mongo_fix"
 	"path/filepath"
 	"strings"
 
 	"github.com/percona/percona-toolkit/src/go/mongolib/proto"
-	"github.com/percona/pmm-agent/utils/templates"
 	"github.com/percona/pmm/api/agentpb"
 	"github.com/pkg/errors"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
+
+	"github.com/percona/pmm-agent/mongo_fix"
+	"github.com/percona/pmm-agent/utils/templates"
 )
 
 type mongodbExplainAction struct {

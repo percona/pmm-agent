@@ -18,7 +18,6 @@ package collector
 import (
 	"context"
 	"fmt"
-	"github.com/percona/pmm-agent/mongo_fix"
 	"strings"
 	"sync"
 	"testing"
@@ -32,6 +31,8 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/readpref"
+
+	"github.com/percona/pmm-agent/mongo_fix"
 )
 
 const (

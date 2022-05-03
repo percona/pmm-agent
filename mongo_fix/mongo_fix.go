@@ -1,9 +1,10 @@
 package mongo_fix
 
 import (
+	"net/url"
+
 	"github.com/pkg/errors"
 	"go.mongodb.org/mongo-driver/mongo/options"
-	"net/url"
 )
 
 // ClientForDSN applies URI to Client

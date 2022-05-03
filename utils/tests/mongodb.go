@@ -17,7 +17,6 @@ package tests
 
 import (
 	"context"
-	"github.com/percona/pmm-agent/mongo_fix"
 	"os"
 	"path/filepath"
 	"testing"
@@ -26,6 +25,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
+
+	"github.com/percona/pmm-agent/mongo_fix"
 )
 
 // GetTestMongoDBDSN returns DNS for MongoDB test database.

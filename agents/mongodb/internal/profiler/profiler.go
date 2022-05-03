@@ -18,7 +18,6 @@ package profiler
 import (
 	"context"
 	"fmt"
-	"github.com/percona/pmm-agent/mongo_fix"
 	"runtime/pprof"
 	"sync"
 	"time"
@@ -29,6 +28,7 @@ import (
 
 	"github.com/percona/pmm-agent/agents/mongodb/internal/profiler/aggregator"
 	"github.com/percona/pmm-agent/agents/mongodb/internal/profiler/sender"
+	"github.com/percona/pmm-agent/mongo_fix"
 )
 
 // New creates new Profiler
