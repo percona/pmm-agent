@@ -13,13 +13,14 @@ func ClientForDSN(dsn string) (*options.ClientOptions, error) {
 		return nil, errors.Wrap(err, "cannot parse DSN")
 	}
 
+	clientOptions := options.Client().ApplyURI(dsn)
+
+	// Workaround for PMM-9320
 	username := parsedDsn.User.Username()
 	password, _ := parsedDsn.User.Password()
-	creds := options.Credential{Username: username, Password: password}
-
-	clientOptions := options.Client().
-		ApplyURI(dsn).
-		SetAuth(creds) //Workaround for PMM-9320
+	if username != "" || password != "" {
+		clientOptions = clientOptions.SetAuth(options.Credential{Username: username, Password: password})
+	}
 
 	return clientOptions, nil
 }
