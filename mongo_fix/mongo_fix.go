@@ -22,7 +22,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-// ClientForDSN applies URI to Client
+// ClientForDSN applies URI to Client.
 func ClientForDSN(dsn string) (*options.ClientOptions, error) {
 	parsedDsn, err := url.Parse(dsn)
 	if err != nil {
