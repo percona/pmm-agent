@@ -107,7 +107,7 @@ func OpenTestMongoDB(tb testing.TB, dsn string) *mongo.Client {
 
 	opts, err := mongo_fix.ClientOptionsForDSN(dsn)
 	if err != nil {
-		panic(err)
+		require.NoError(tb, err)
 	}
 
 	client, err := mongo.Connect(context.Background(), opts)
