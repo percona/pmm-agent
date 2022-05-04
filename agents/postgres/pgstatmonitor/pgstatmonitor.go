@@ -22,7 +22,6 @@ import (
 	"fmt"
 	"io"
 	"strconv"
-	"sync"
 	"time"
 
 	"github.com/AlekSi/pointer"
@@ -30,6 +29,7 @@ import (
 	"github.com/lib/pq" //nolint:gci
 	"github.com/percona/pmm/api/agentpb"
 	"github.com/percona/pmm/api/inventorypb"
+	qanv1beta1 "github.com/percona/pmm/api/qanpb"
 	"github.com/percona/pmm/utils/sqlmetrics"
 	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus"
@@ -41,32 +41,15 @@ import (
 	"github.com/percona/pmm-agent/utils/version"
 )
 
-const defaultWaitTime = 60 * time.Second
-
 // PGStatMonitorQAN QAN services connects to PostgreSQL and extracts stats.
 type PGStatMonitorQAN struct {
-	q            *reform.Querier
-	dbCloser     io.Closer
-	agentID      string
-	l            *logrus.Entry
-	changes      chan agents.Change
-	monitorCache *statMonitorCache
-
-	// By default, query shows the actual parameter instead of the placeholder.
-	// It is quite useful when users want to use that query and try to run that
-	// query to check the abnormalities. But in most cases users like the queries
-	// with a placeholder. This parameter is used to toggle between the two said
-	// options.
-	pgsmNormalizedQuery  bool
-	pgsmSettings         *settingsCache
-	waitTime             time.Duration
+	q                    *reform.Querier
+	dbCloser             io.Closer
+	agentID              string
+	l                    *logrus.Entry
+	changes              chan agents.Change
+	monitorCache         *statMonitorCache
 	disableQueryExamples bool
-}
-
-// settingsCache provides cached access to pg_stat_monitor_settings view.
-type settingsCache struct {
-	rw    sync.RWMutex
-	items []*pgStatMonitorSettingsTextValue
 }
 
 // Params represent Agent parameters.
@@ -129,25 +112,6 @@ func New(params *Params, l *logrus.Entry) (*PGStatMonitorQAN, error) {
 	return newPgStatMonitorQAN(q, sqlDB, params.AgentID, params.DisableQueryExamples, l)
 }
 
-func isPropertyValueInt(property string) bool {
-	switch property {
-	case
-		"pg_stat_monitor.pgsm_histogram_max",
-		"pg_stat_monitor.pgsm_query_max_len",
-		"pg_stat_monitor.pgsm_max",
-		"pg_stat_monitor.pgsm_bucket_time",
-		"pg_stat_monitor.pgsm_query_shared_buffer",
-		"pg_stat_monitor.pgsm_max_buckets",
-		"pg_stat_monitor.pgsm_histogram_buckets",
-		"pg_stat_monitor.pgsm_overflow_target",
-		"pg_stat_monitor.pgsm_histogram_min":
-
-		return true
-	}
-
-	return false
-}
-
 func areSettingsTextValues(q *reform.Querier) (bool, error) {
 	pgsmVersion, prerelease, err := getPGMonitorVersion(q)
 	if err != nil {
@@ -162,70 +126,6 @@ func areSettingsTextValues(q *reform.Querier) (bool, error) {
 }
 
 func newPgStatMonitorQAN(q *reform.Querier, dbCloser io.Closer, agentID string, disableQueryExamples bool, l *logrus.Entry) (*PGStatMonitorQAN, error) {
-	var settings []reform.Struct
-
-	settingsValuesAreText, err := areSettingsTextValues(q)
-	if err != nil {
-		return nil, err
-	}
-	if settingsValuesAreText {
-		settings, err = q.SelectAllFrom(pgStatMonitorSettingsTextValueView, "")
-	} else {
-		settings, err = q.SelectAllFrom(pgStatMonitorSettingsView, "")
-	}
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to get settings")
-	}
-
-	var settingsCache *settingsCache
-	var normalizedQuery bool
-	waitTime := defaultWaitTime
-	for _, row := range settings {
-		var name string
-		var value int64
-
-		if settingsValuesAreText {
-			setting := row.(*pgStatMonitorSettingsTextValue)
-			settingsCache.items = append(settingsCache.items, setting)
-			name = setting.Name
-			if !isPropertyValueInt(name) {
-				continue
-			}
-
-			valueInt, err := strconv.ParseInt(setting.Value, 10, 64)
-			if err != nil {
-				return nil, errors.Wrap(err, "value cannot be parsed as integer")
-			}
-			value = valueInt
-		} else {
-			setting := row.(*pgStatMonitorSettings)
-			name = setting.Name
-			value = setting.Value
-
-			settingsCache.items = append(settingsCache.items, &pgStatMonitorSettingsTextValue{
-				Name:         setting.Name,
-				Value:        fmt.Sprintf("%d", value),
-				DefaultValue: setting.DefaultValue,
-				Description:  setting.Description,
-				Minimum:      setting.Minimum,
-				Maximum:      setting.Maximum,
-				Options:      setting.Options,
-				Restart:      setting.Restart,
-			})
-		}
-
-		if err == nil {
-			switch name {
-			case "pg_stat_monitor.pgsm_normalized_query":
-				normalizedQuery = value == 1
-			case "pg_stat_monitor.pgsm_bucket_time":
-				if value < int64(defaultWaitTime.Seconds()) {
-					waitTime = time.Duration(value) * time.Second
-				}
-			}
-		}
-	}
-
 	return &PGStatMonitorQAN{
 		q:                    q,
 		dbCloser:             dbCloser,
@@ -233,9 +133,6 @@ func newPgStatMonitorQAN(q *reform.Querier, dbCloser io.Closer, agentID string, 
 		l:                    l,
 		changes:              make(chan agents.Change, 10),
 		monitorCache:         newStatMonitorCache(l),
-		pgsmNormalizedQuery:  normalizedQuery,
-		pgsmSettings:         settingsCache,
-		waitTime:             waitTime,
 		disableQueryExamples: disableQueryExamples,
 	}, nil
 }
@@ -297,10 +194,21 @@ func (m *PGStatMonitorQAN) Run(ctx context.Context) {
 		close(m.changes)
 	}()
 
+	settings, err := m.getSettings()
+	if err != nil {
+		m.l.Error(err)
+		m.changes <- agents.Change{Status: inventorypb.AgentStatus_WAITING}
+	}
+	normalizedQuery, err := settings.getNormalizedQueryValue()
+	if err != nil {
+		m.l.Error(err)
+		m.changes <- agents.Change{Status: inventorypb.AgentStatus_WAITING}
+	}
+
 	// add current stat monitor to cache so they are not send as new on first iteration with incorrect timestamps
 	var running bool
 	m.changes <- agents.Change{Status: inventorypb.AgentStatus_STARTING}
-	if current, _, err := m.monitorCache.getStatMonitorExtended(ctx, m.q, m.pgsmNormalizedQuery); err == nil {
+	if current, _, err := m.monitorCache.getStatMonitorExtended(ctx, m.q, normalizedQuery); err == nil {
 		m.monitorCache.refresh(current)
 		m.l.Debugf("Got %d initial stat monitor.", len(current))
 		running = true
@@ -310,10 +218,16 @@ func (m *PGStatMonitorQAN) Run(ctx context.Context) {
 		m.changes <- agents.Change{Status: inventorypb.AgentStatus_WAITING}
 	}
 
+	waitTime, err := settings.getWaitTime()
+	if err != nil {
+		m.l.Error(err)
+		m.changes <- agents.Change{Status: inventorypb.AgentStatus_WAITING}
+	}
+
 	// query pg_stat_monitor every waitTime seconds
 	start := time.Now()
-	m.l.Debugf("Scheduling next collection in %s at %s.", m.waitTime, start.Add(m.waitTime).Format("15:04:05"))
-	t := time.NewTimer(m.waitTime)
+	m.l.Debugf("Scheduling next collection in %s at %s.", waitTime, start.Add(waitTime).Format("15:04:05"))
+	t := time.NewTimer(waitTime)
 	defer t.Stop()
 
 	for {
@@ -328,12 +242,12 @@ func (m *PGStatMonitorQAN) Run(ctx context.Context) {
 				m.changes <- agents.Change{Status: inventorypb.AgentStatus_STARTING}
 			}
 
-			lengthS := uint32(m.waitTime.Seconds())
+			lengthS := uint32(waitTime.Seconds())
 			buckets, err := m.getNewBuckets(ctx, lengthS)
 
 			start = time.Now()
-			m.l.Debugf("Scheduling next collection in %s at %s.", m.waitTime, start.Add(m.waitTime).Format("15:04:05"))
-			t.Reset(m.waitTime)
+			m.l.Debugf("Scheduling next collection in %s at %s.", waitTime, start.Add(waitTime).Format("15:04:05"))
+			t.Reset(waitTime)
 
 			if err != nil {
 				m.l.Error(errors.Wrap(err, "getNewBuckets failed"))
@@ -352,8 +266,98 @@ func (m *PGStatMonitorQAN) Run(ctx context.Context) {
 	}
 }
 
+type settings map[string]*pgStatMonitorSettingsTextValue
+
+func (m *PGStatMonitorQAN) getSettings() (settings, error) {
+	var settingsRows []reform.Struct
+
+	settingsValuesAreText, err := areSettingsTextValues(m.q)
+	if err != nil {
+		return nil, err
+	}
+	if settingsValuesAreText {
+		settingsRows, err = m.q.SelectAllFrom(pgStatMonitorSettingsTextValueView, "")
+	} else {
+		settingsRows, err = m.q.SelectAllFrom(pgStatMonitorSettingsView, "")
+	}
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get settings")
+	}
+
+	settings := make(settings)
+	for _, row := range settingsRows {
+		if settingsValuesAreText {
+			setting := row.(*pgStatMonitorSettingsTextValue)
+			settings[setting.Name] = setting
+		} else {
+			setting := row.(*pgStatMonitorSettings)
+			name := setting.Name
+			settings[name] = &pgStatMonitorSettingsTextValue{
+				Name:  name,
+				Value: fmt.Sprintf("%d", setting.Value),
+			}
+		}
+	}
+
+	return settings, nil
+}
+
+func (s settings) getNormalizedQueryValue() (bool, error) {
+	key := "pg_stat_monitor.pgsm_normalized_query"
+	if _, ok := s[key]; !ok {
+		return false, errors.New("failed to get pgsm_normalized_query property")
+	}
+
+	if s[key].Value == "yes" {
+		return true, nil
+	}
+
+	return false, nil
+}
+
+func (s settings) toQANSettingsItems() []*qanv1beta1.SettingsItem {
+	var res []*qanv1beta1.SettingsItem
+	for _, setting := range s {
+		res = append(res, &qanv1beta1.SettingsItem{
+			Name:         setting.Name,
+			Value:        setting.Value,
+			DefaultValue: setting.DefaultValue,
+			Description:  setting.Description,
+			Minimum:      setting.Minimum,
+			Maximum:      setting.Maximum,
+			Options:      setting.Options,
+			Restart:      setting.Restart,
+		})
+	}
+
+	return res
+}
+
+func (s settings) getWaitTime() (time.Duration, error) {
+	key := "pg_stat_monitor.pgsm_bucket_time"
+	if _, ok := s[key]; !ok {
+		return 0, errors.New("failed to get pgsm_bucket_time")
+	}
+
+	valueInt, err := strconv.ParseInt(s[key].Value, 10, 64)
+	if err != nil {
+		return 0, errors.Wrap(err, "property pgsm_bucket_time cannot be parsed as uinteger")
+	}
+
+	return time.Duration(valueInt) * time.Second, nil
+}
+
 func (m *PGStatMonitorQAN) getNewBuckets(ctx context.Context, periodLengthSecs uint32) ([]*agentpb.MetricsBucket, error) {
-	current, prev, err := m.monitorCache.getStatMonitorExtended(ctx, m.q, m.pgsmNormalizedQuery)
+	settings, err := m.getSettings()
+	if err != nil {
+		m.l.Errorf(err.Error())
+	}
+	normalizedQuery, err := settings.getNormalizedQueryValue()
+	if err != nil {
+		m.l.Errorf(err.Error())
+	}
+
+	current, prev, err := m.monitorCache.getStatMonitorExtended(ctx, m.q, normalizedQuery)
 	if err != nil {
 		return nil, err
 	}
@@ -381,6 +385,12 @@ func (m *PGStatMonitorQAN) getNewBuckets(ctx context.Context, periodLengthSecs u
 // to make metrics buckets.
 func (m *PGStatMonitorQAN) makeBuckets(current, cache map[time.Time]map[string]*pgStatMonitorExtended) []*agentpb.MetricsBucket {
 	res := make([]*agentpb.MetricsBucket, 0, len(current))
+
+	settings, err := m.getSettings()
+	if err != nil {
+		m.l.Errorf(err.Error())
+	}
+	settingsItems := settings.toQANSettingsItems()
 
 	for bucketStartTime, bucket := range current {
 		prev := cache[bucketStartTime]
@@ -444,6 +454,8 @@ func (m *PGStatMonitorQAN) makeBuckets(current, cache map[time.Time]map[string]*
 			} else {
 				mb.Postgresql.HistogramItems = histogram
 			}
+
+			mb.Postgresql.SettingsItems = settingsItems
 
 			if (currentPSM.PlanTotalTime - prevPSM.PlanTotalTime) != 0 {
 				mb.Postgresql.MPlanTimeSum = float32(currentPSM.PlanTotalTime-prevPSM.PlanTotalTime) / 1000
