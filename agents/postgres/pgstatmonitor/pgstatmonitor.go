@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"io"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/AlekSi/pointer"
@@ -57,8 +58,15 @@ type PGStatMonitorQAN struct {
 	// with a placeholder. This parameter is used to toggle between the two said
 	// options.
 	pgsmNormalizedQuery  bool
+	pgsmSettings         *settingsCache
 	waitTime             time.Duration
 	disableQueryExamples bool
+}
+
+// settingsCache provides cached access to pg_stat_monitor_settings view.
+type settingsCache struct {
+	rw    sync.RWMutex
+	items []*pgStatMonitorSettingsTextValue
 }
 
 // Params represent Agent parameters.
@@ -91,7 +99,7 @@ const (
 	commandTypeUpdate       = "UPDATE"
 	commandTypeInsert       = "INSERT"
 	commandTypeDelete       = "DELETE"
-	commandTypeUtiity       = "UTILITY"
+	commandTypeUtility      = "UTILITY"
 )
 
 var commandTypeToText = []string{
@@ -100,7 +108,7 @@ var commandTypeToText = []string{
 	commandTypeUpdate,
 	commandTypeInsert,
 	commandTypeDelete,
-	commandTypeUtiity,
+	commandTypeUtility,
 	commandTextNotAvailable,
 }
 
@@ -169,6 +177,7 @@ func newPgStatMonitorQAN(q *reform.Querier, dbCloser io.Closer, agentID string, 
 		return nil, errors.Wrap(err, "failed to get settings")
 	}
 
+	var settingsCache *settingsCache
 	var normalizedQuery bool
 	waitTime := defaultWaitTime
 	for _, row := range settings {
@@ -177,6 +186,7 @@ func newPgStatMonitorQAN(q *reform.Querier, dbCloser io.Closer, agentID string, 
 
 		if settingsValuesAreText {
 			setting := row.(*pgStatMonitorSettingsTextValue)
+			settingsCache.items = append(settingsCache.items, setting)
 			name = setting.Name
 			if !isPropertyValueInt(name) {
 				continue
@@ -191,6 +201,17 @@ func newPgStatMonitorQAN(q *reform.Querier, dbCloser io.Closer, agentID string, 
 			setting := row.(*pgStatMonitorSettings)
 			name = setting.Name
 			value = setting.Value
+
+			settingsCache.items = append(settingsCache.items, &pgStatMonitorSettingsTextValue{
+				Name:         setting.Name,
+				Value:        fmt.Sprintf("%d", value),
+				DefaultValue: setting.DefaultValue,
+				Description:  setting.Description,
+				Minimum:      setting.Minimum,
+				Maximum:      setting.Maximum,
+				Options:      setting.Options,
+				Restart:      setting.Restart,
+			})
 		}
 
 		if err == nil {
@@ -213,6 +234,7 @@ func newPgStatMonitorQAN(q *reform.Querier, dbCloser io.Closer, agentID string, 
 		changes:              make(chan agents.Change, 10),
 		monitorCache:         newStatMonitorCache(l),
 		pgsmNormalizedQuery:  normalizedQuery,
+		pgsmSettings:         settingsCache,
 		waitTime:             waitTime,
 		disableQueryExamples: disableQueryExamples,
 	}, nil

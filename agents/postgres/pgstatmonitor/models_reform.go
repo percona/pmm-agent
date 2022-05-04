@@ -192,6 +192,12 @@ func (v *pgStatMonitorSettingsViewType) Columns() []string {
 	return []string{
 		"name",
 		"value",
+		"default_value",
+		"description",
+		"minimum",
+		"maximum",
+		"options",
+		"restart",
 	}
 }
 
@@ -206,8 +212,14 @@ var pgStatMonitorSettingsView = &pgStatMonitorSettingsViewType{
 		Type:    "pgStatMonitorSettings",
 		SQLName: "pg_stat_monitor_settings",
 		Fields: []parse.FieldInfo{
-			{Name: "Name", Type: "*string", Column: "name"},
+			{Name: "Name", Type: "string", Column: "name"},
 			{Name: "Value", Type: "int64", Column: "value"},
+			{Name: "DefaultValue", Type: "string", Column: "default_value"},
+			{Name: "Description", Type: "string", Column: "description"},
+			{Name: "Minimum", Type: "int64", Column: "minimum"},
+			{Name: "Maximum", Type: "int64", Column: "maximum"},
+			{Name: "Options", Type: "string", Column: "options"},
+			{Name: "Restart", Type: "bool", Column: "restart"},
 		},
 		PKFieldIndex: -1,
 	},
@@ -216,9 +228,15 @@ var pgStatMonitorSettingsView = &pgStatMonitorSettingsViewType{
 
 // String returns a string representation of this struct or record.
 func (s pgStatMonitorSettings) String() string {
-	res := make([]string, 2)
+	res := make([]string, 8)
 	res[0] = "Name: " + reform.Inspect(s.Name, true)
 	res[1] = "Value: " + reform.Inspect(s.Value, true)
+	res[2] = "DefaultValue: " + reform.Inspect(s.DefaultValue, true)
+	res[3] = "Description: " + reform.Inspect(s.Description, true)
+	res[4] = "Minimum: " + reform.Inspect(s.Minimum, true)
+	res[5] = "Maximum: " + reform.Inspect(s.Maximum, true)
+	res[6] = "Options: " + reform.Inspect(s.Options, true)
+	res[7] = "Restart: " + reform.Inspect(s.Restart, true)
 	return strings.Join(res, ", ")
 }
 
@@ -228,6 +246,12 @@ func (s *pgStatMonitorSettings) Values() []interface{} {
 	return []interface{}{
 		s.Name,
 		s.Value,
+		s.DefaultValue,
+		s.Description,
+		s.Minimum,
+		s.Maximum,
+		s.Options,
+		s.Restart,
 	}
 }
 
@@ -237,6 +261,12 @@ func (s *pgStatMonitorSettings) Pointers() []interface{} {
 	return []interface{}{
 		&s.Name,
 		&s.Value,
+		&s.DefaultValue,
+		&s.Description,
+		&s.Minimum,
+		&s.Maximum,
+		&s.Options,
+		&s.Restart,
 	}
 }
 
@@ -292,13 +322,13 @@ var pgStatMonitorSettingsTextValueView = &pgStatMonitorSettingsTextValueViewType
 		Type:    "pgStatMonitorSettingsTextValue",
 		SQLName: "pg_stat_monitor_settings",
 		Fields: []parse.FieldInfo{
-			{Name: "Name", Type: "*string", Column: "name"},
-			{Name: "Value", Type: "*string", Column: "value"},
-			{Name: "DefaultValue", Type: "*string", Column: "default_value"},
-			{Name: "Description", Type: "*string", Column: "description"},
+			{Name: "Name", Type: "string", Column: "name"},
+			{Name: "Value", Type: "string", Column: "value"},
+			{Name: "DefaultValue", Type: "string", Column: "default_value"},
+			{Name: "Description", Type: "string", Column: "description"},
 			{Name: "Minimum", Type: "int64", Column: "minimum"},
 			{Name: "Maximum", Type: "int64", Column: "maximum"},
-			{Name: "Options", Type: "*string", Column: "options"},
+			{Name: "Options", Type: "string", Column: "options"},
 			{Name: "Restart", Type: "bool", Column: "restart"},
 		},
 		PKFieldIndex: -1,
