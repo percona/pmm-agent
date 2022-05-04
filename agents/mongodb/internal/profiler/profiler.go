@@ -193,7 +193,7 @@ func createSession(dsn string, agentID string) (*mongo.Client, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), MgoTimeoutDialInfo)
 	defer cancel()
 
-	opts, err := mongo_fix.ClientForDSN(dsn)
+	opts, err := mongo_fix.ClientOptionsForDSN(dsn)
 	if err != nil {
 		return nil, err
 	}

@@ -105,7 +105,7 @@ func GetTestMongoDBReplicatedWithSSLDSN(tb testing.TB, pathToRoot string) (strin
 func OpenTestMongoDB(tb testing.TB, dsn string) *mongo.Client {
 	tb.Helper()
 
-	opts, err := mongo_fix.ClientForDSN(dsn)
+	opts, err := mongo_fix.ClientOptionsForDSN(dsn)
 	if err != nil {
 		panic(err)
 	}

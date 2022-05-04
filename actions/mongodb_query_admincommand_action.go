@@ -77,7 +77,7 @@ func (a *mongodbQueryAdmincommandAction) Run(ctx context.Context) ([]byte, error
 		return nil, errors.WithStack(err)
 	}
 
-	opts, err := mongo_fix.ClientForDSN(dsn)
+	opts, err := mongo_fix.ClientOptionsForDSN(dsn)
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}

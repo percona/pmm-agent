@@ -162,7 +162,7 @@ func (cc *ConnectionChecker) checkMongoDBConnection(ctx context.Context, dsn str
 		return &res
 	}
 
-	opts, err := mongo_fix.ClientForDSN(dsn)
+	opts, err := mongo_fix.ClientOptionsForDSN(dsn)
 	if err != nil {
 		cc.l.Debugf("failed to parse DSN: %s", err)
 		res.Error = err.Error()
