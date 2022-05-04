@@ -158,18 +158,18 @@ func (s *Supervisor) AgentsLogs() []*agentlocal.AgentLogs {
 
 	for id, agent := range s.agentProcesses {
 		info := &agentlocal.AgentLogs{
-			ID:   id,
-			Type: agent.requestedState.Type,
-			Logs: agent.logs,
+			ID:       id,
+			Type:     agent.requestedState.Type,
+			RingLogs: agent.logs,
 		}
 		res = append(res, info)
 	}
 
 	for id, agent := range s.builtinAgents {
 		info := &agentlocal.AgentLogs{
-			ID:   id,
-			Type: agent.requestedState.Type,
-			Logs: agent.logs,
+			ID:       id,
+			Type:     agent.requestedState.Type,
+			RingLogs: agent.logs,
 		}
 		res = append(res, info)
 	}

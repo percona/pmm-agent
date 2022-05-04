@@ -76,9 +76,9 @@ type Server struct {
 
 // AgentLogs contains information about Agent logs.
 type AgentLogs struct {
-	Type inventorypb.AgentType
-	ID   string
-	Logs *storelogs.LogsStore
+	Type     inventorypb.AgentType
+	ID       string
+	RingLogs *storelogs.LogsStore
 }
 
 // NewServer creates new server.
@@ -318,6 +318,10 @@ func (s *Server) runJSONServer(ctx context.Context, grpcAddress string) {
 		addData(writer, "server.json", b)
 
 		for _, agent := range s.supervisor.AgentsLogs() {
+			if err != nil {
+				log.Fatal(err)
+			}
+			b, err := json.MarshalIndent(agent.RingLogs.GetLogs(), "", "  ")
 			if err != nil {
 				log.Fatal(err)
 			}
