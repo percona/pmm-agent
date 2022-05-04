@@ -323,9 +323,9 @@ func (s settings) toQANSettingsItems() []*qanv1beta1.SettingsItem {
 			Value:        setting.Value,
 			DefaultValue: setting.DefaultValue,
 			Description:  setting.Description,
-			Minimum:      setting.Minimum,
-			Maximum:      setting.Maximum,
-			Options:      setting.Options,
+			Minimum:      pointer.GetInt64(setting.Minimum),
+			Maximum:      pointer.GetInt64(setting.Maximum),
+			Options:      pointer.GetString(setting.Options),
 			Restart:      setting.Restart,
 		})
 	}

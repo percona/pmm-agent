@@ -45,14 +45,14 @@ type pgStatMonitorSettings struct {
 // pgStatMonitorSettingsTextValue represents a row in pg_stat_monitor_settings view 1.0.0-rc.2 and higher.
 //reform:pg_stat_monitor_settings
 type pgStatMonitorSettingsTextValue struct {
-	Name         string `reform:"name"`
-	Value        string `reform:"value"`
-	DefaultValue string `reform:"default_value"`
-	Description  string `reform:"description"`
-	Minimum      int64  `reform:"minimum"`
-	Maximum      int64  `reform:"maximum"`
-	Options      string `reform:"options"`
-	Restart      string `reform:"restart"`
+	Name         string  `reform:"name"`
+	Value        string  `reform:"value"`
+	DefaultValue string  `reform:"default_value"`
+	Description  string  `reform:"description"`
+	Minimum      *int64  `reform:"minimum"`
+	Maximum      *int64  `reform:"maximum"`
+	Options      *string `reform:"options"`
+	Restart      string  `reform:"restart"`
 }
 
 // pgStatMonitorExtended contains pgStatMonitor data and extends it with database, username and tables data.
