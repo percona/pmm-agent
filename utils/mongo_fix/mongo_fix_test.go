@@ -1,9 +1,10 @@
 package mongo_fix
 
 import (
-	"github.com/stretchr/testify/assert"
 	"net/url"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestClientOptionsForDSN(t *testing.T) {

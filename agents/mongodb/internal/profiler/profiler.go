@@ -28,7 +28,7 @@ import (
 
 	"github.com/percona/pmm-agent/agents/mongodb/internal/profiler/aggregator"
 	"github.com/percona/pmm-agent/agents/mongodb/internal/profiler/sender"
-	"github.com/percona/pmm-agent/mongo_fix"
+	"github.com/percona/pmm-agent/utils/mongo_fix"
 )
 
 // New creates new Profiler

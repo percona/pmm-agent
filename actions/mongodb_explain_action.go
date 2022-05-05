@@ -27,7 +27,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 
-	"github.com/percona/pmm-agent/mongo_fix"
+	"github.com/percona/pmm-agent/utils/mongo_fix"
 	"github.com/percona/pmm-agent/utils/templates"
 )
 
