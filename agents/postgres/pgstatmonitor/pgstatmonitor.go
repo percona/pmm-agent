@@ -29,7 +29,6 @@ import (
 	"github.com/lib/pq" //nolint:gci
 	"github.com/percona/pmm/api/agentpb"
 	"github.com/percona/pmm/api/inventorypb"
-	qanv1beta1 "github.com/percona/pmm/api/qanpb"
 	"github.com/percona/pmm/utils/sqlmetrics"
 	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus"
@@ -220,8 +219,8 @@ func (m *PGStatMonitorQAN) Run(ctx context.Context) {
 
 	waitTime, err := settings.getWaitTime()
 	if err != nil {
-		m.l.Error(err)
-		m.changes <- agents.Change{Status: inventorypb.AgentStatus_WAITING}
+		m.l.Warning(err)
+		waitTime = 60
 	}
 
 	// query pg_stat_monitor every waitTime seconds
@@ -315,10 +314,10 @@ func (s settings) getNormalizedQueryValue() (bool, error) {
 	return false, nil
 }
 
-func (s settings) toQANSettingsItems() []*qanv1beta1.SettingsItem {
-	var res []*qanv1beta1.SettingsItem
+func (s settings) toQANSettingsItems() []*agentpb.SettingsItem {
+	var res []*agentpb.SettingsItem
 	for _, setting := range s {
-		res = append(res, &qanv1beta1.SettingsItem{
+		res = append(res, &agentpb.SettingsItem{
 			Name:         setting.Name,
 			Value:        setting.Value,
 			DefaultValue: setting.DefaultValue,
@@ -341,7 +340,7 @@ func (s settings) getWaitTime() (time.Duration, error) {
 
 	valueInt, err := strconv.ParseInt(s[key].Value, 10, 64)
 	if err != nil {
-		return 0, errors.Wrap(err, "property pgsm_bucket_time cannot be parsed as uinteger")
+		return 0, errors.Wrap(err, "property pgsm_bucket_time cannot be parsed as integer")
 	}
 
 	return time.Duration(valueInt) * time.Second, nil

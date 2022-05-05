@@ -213,7 +213,13 @@ func TestPGStatMonitorSchema(t *testing.T) {
 		assert.Equal(t, float32(5), actual.Postgresql.MSharedBlksHitSum+actual.Postgresql.MSharedBlksReadSum)
 		assert.InDelta(t, 1.5, actual.Postgresql.MSharedBlksHitCnt+actual.Postgresql.MSharedBlksReadCnt, 0.5)
 		example := ""
-		if !m.pgsmNormalizedQuery && !m.disableQueryExamples {
+
+		settings, err := m.getSettings()
+		require.NoError(t, err)
+		normalizedQuery, err := settings.getNormalizedQueryValue()
+		require.NoError(t, err)
+
+		if !normalizedQuery && !m.disableQueryExamples {
 			example = actual.Common.Example
 		}
 
@@ -248,6 +254,7 @@ func TestPGStatMonitorSchema(t *testing.T) {
 				MCpuSysTimeSum:     actual.Postgresql.MCpuSysTimeSum,
 				CmdType:            selectCMDType,
 				HistogramItems:     actual.Postgresql.HistogramItems,
+				SettingsItems:      actual.Postgresql.SettingsItems,
 				MPlansCallsSum:     actual.Postgresql.MPlansCallsSum,
 				MPlansCallsCnt:     mPlansCallsCnt,
 				MPlanTimeCnt:       mPlansTimeCnt,
