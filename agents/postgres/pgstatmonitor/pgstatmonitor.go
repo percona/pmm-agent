@@ -220,7 +220,6 @@ func (m *PGStatMonitorQAN) Run(ctx context.Context) {
 	waitTime, err := settings.getWaitTime()
 	if err != nil {
 		m.l.Warning(err)
-		waitTime = 60
 	}
 
 	// query pg_stat_monitor every waitTime seconds
@@ -333,14 +332,15 @@ func (s settings) toQANSettingsItems() []*agentpb.SettingsItem {
 }
 
 func (s settings) getWaitTime() (time.Duration, error) {
+	defaultWaitTime := 60 * time.Second
 	key := "pg_stat_monitor.pgsm_bucket_time"
 	if _, ok := s[key]; !ok {
-		return 0, errors.New("failed to get pgsm_bucket_time")
+		return defaultWaitTime, errors.New("failed to get pgsm_bucket_time, wait time set on 60 seconds")
 	}
 
 	valueInt, err := strconv.ParseInt(s[key].Value, 10, 64)
 	if err != nil {
-		return 0, errors.Wrap(err, "property pgsm_bucket_time cannot be parsed as integer")
+		return defaultWaitTime, errors.Wrap(err, "property pgsm_bucket_time cannot be parsed as integer, wait time set on 60 seconds")
 	}
 
 	return time.Duration(valueInt) * time.Second, nil
