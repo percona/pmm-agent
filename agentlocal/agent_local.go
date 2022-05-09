@@ -19,7 +19,6 @@ import (
 	"archive/zip"
 	"bytes"
 	"context"
-	"encoding/json"
 	_ "expvar" // register /debug/vars
 	"fmt"
 	"html/template"
@@ -311,21 +310,27 @@ func (s *Server) runJSONServer(ctx context.Context, grpcAddress string) {
 	mux.HandleFunc("/logs.zip", func(w http.ResponseWriter, r *http.Request) {
 		buf := &bytes.Buffer{}
 		writer := zip.NewWriter(buf)
-		b, err := json.MarshalIndent(s.ringLogs.GetLogs(), "", "  ")
-		if err != nil {
-			log.Fatal(err)
+		b := &bytes.Buffer{}
+		for _, serverLog := range s.ringLogs.GetLogs() {
+			_, err := b.WriteString(serverLog)
+			if err != nil {
+				log.Fatal(err)
+			}
 		}
-		addData(writer, "server.json", b)
+		addData(writer, "server.txt", b.Bytes())
 
 		for _, agent := range s.supervisor.AgentsLogs() {
 			if err != nil {
 				log.Fatal(err)
 			}
-			b, err := json.MarshalIndent(agent.RingLogs.GetLogs(), "", "  ")
-			if err != nil {
-				log.Fatal(err)
+			b := &bytes.Buffer{}
+			for _, agentLog := range agent.RingLogs.GetLogs() {
+				_, err := b.WriteString(agentLog + "\n")
+				if err != nil {
+					log.Fatal(err)
+				}
 			}
-			addData(writer, strings.Join([]string{agent.Type.String(), agent.ID}, " ")+".json", b)
+			addData(writer, fmt.Sprintf("%s %s.txt", agent.Type.String(), agent.ID), b.Bytes())
 		}
 		err = writer.Close()
 		if err != nil {

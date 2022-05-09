@@ -60,6 +60,7 @@ type Process struct {
 	changes chan inventorypb.AgentStatus
 	backoff *backoff.Backoff
 	ctxDone chan struct{}
+
 	// recreated on each restart
 	cmd     *exec.Cmd
 	cmdDone chan struct{}
@@ -230,7 +231,7 @@ func (p *Process) Changes() <-chan inventorypb.AgentStatus {
 	return p.changes
 }
 
-// Logs returns latest process l.
+// Logs returns latest process logs.
 func (p *Process) Logs() []string {
 	return p.pl.Latest()
 }
