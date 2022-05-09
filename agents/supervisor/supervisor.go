@@ -36,7 +36,6 @@ import (
 	"github.com/sirupsen/logrus"
 	"google.golang.org/protobuf/proto"
 
-	"github.com/percona/pmm-agent/agentlocal"
 	"github.com/percona/pmm-agent/agents"
 	"github.com/percona/pmm-agent/agents/mongodb"
 	"github.com/percona/pmm-agent/agents/mysql/perfschema"
@@ -85,6 +84,13 @@ type builtinAgentInfo struct {
 	describe       func(chan<- *prometheus.Desc)  // agent's func to describe Prometheus metrics
 	collect        func(chan<- prometheus.Metric) // agent's func to provide Prometheus metrics
 	logs           *storelogs.LogsStore           // store logs
+}
+
+// AgentLogs contains information about Agent logs.
+type AgentLogs struct {
+	Type     inventorypb.AgentType
+	ID       string
+	RingLogs *storelogs.LogsStore
 }
 
 // NewSupervisor creates new Supervisor object.
@@ -148,16 +154,16 @@ func (s *Supervisor) AgentsList() []*agentlocalpb.AgentInfo {
 }
 
 // AgentsLogs returns logs for all Agents managed by this supervisor.
-func (s *Supervisor) AgentsLogs() []*agentlocal.AgentLogs {
+func (s *Supervisor) AgentsLogs() []*AgentLogs {
 	s.rw.RLock()
 	defer s.rw.RUnlock()
 	s.arw.RLock()
 	defer s.arw.RUnlock()
 
-	res := make([]*agentlocal.AgentLogs, 0, len(s.agentProcesses)+len(s.builtinAgents))
+	res := make([]*AgentLogs, 0, len(s.agentProcesses)+len(s.builtinAgents))
 
 	for id, agent := range s.agentProcesses {
-		info := &agentlocal.AgentLogs{
+		info := &AgentLogs{
 			ID:       id,
 			Type:     agent.requestedState.Type,
 			RingLogs: agent.logs,
@@ -166,7 +172,7 @@ func (s *Supervisor) AgentsLogs() []*agentlocal.AgentLogs {
 	}
 
 	for id, agent := range s.builtinAgents {
-		info := &agentlocal.AgentLogs{
+		info := &AgentLogs{
 			ID:       id,
 			Type:     agent.requestedState.Type,
 			RingLogs: agent.logs,

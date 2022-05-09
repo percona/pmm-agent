@@ -17,6 +17,7 @@ package agentlocal
 
 import (
 	"context"
+	"github.com/percona/pmm-agent/storelogs"
 	"testing"
 	"time"
 
@@ -61,7 +62,8 @@ func TestServerStatus(t *testing.T) {
 		agentInfo, supervisor, client, cfg := setup(t)
 		defer supervisor.AssertExpectations(t)
 		defer client.AssertExpectations(t)
-		s := NewServer(cfg, supervisor, client, "/some/dir/pmm-agent.yaml")
+		ringLog := storelogs.New(500)
+		s := NewServer(cfg, supervisor, client, "/some/dir/pmm-agent.yaml", ringLog)
 
 		// without network info
 		actual, err := s.Status(context.Background(), &agentlocalpb.StatusRequest{GetNetworkInfo: false})
@@ -87,7 +89,8 @@ func TestServerStatus(t *testing.T) {
 		client.On("GetNetworkInformation").Return(latency, clockDrift, nil)
 		defer supervisor.AssertExpectations(t)
 		defer client.AssertExpectations(t)
-		s := NewServer(cfg, supervisor, client, "/some/dir/pmm-agent.yaml")
+		ringLog := storelogs.New(500)
+		s := NewServer(cfg, supervisor, client, "/some/dir/pmm-agent.yaml", ringLog)
 
 		// with network info
 		actual, err := s.Status(context.Background(), &agentlocalpb.StatusRequest{GetNetworkInfo: true})

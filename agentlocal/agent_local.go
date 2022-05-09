@@ -36,7 +36,6 @@ import (
 	grpc_gateway "github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"github.com/percona/pmm/api/agentlocalpb"
 	"github.com/percona/pmm/api/agentpb"
-	"github.com/percona/pmm/api/inventorypb"
 	"github.com/percona/pmm/version"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/collectors"
@@ -73,18 +72,17 @@ type Server struct {
 	agentlocalpb.UnimplementedAgentLocalServer
 }
 
-// AgentLogs contains information about Agent logs.
-type AgentLogs struct {
-	Type     inventorypb.AgentType
-	ID       string
-	RingLogs *storelogs.LogsStore
-}
+//// AgentLogs contains information about Agent logs.
+//type AgentLogs struct {
+//	Type     inventorypb.AgentType
+//	ID       string
+//	RingLogs *storelogs.LogsStore
+//}
 
 // NewServer creates new server.
 //`
 // Caller should call Run.
-func NewServer(cfg *config.Config, supervisor supervisor, client client, configFilepath string) *Server {
-	ringLog := storelogs.New(10)
+func NewServer(cfg *config.Config, supervisor supervisor, client client, configFilepath string, ringLog *storelogs.LogsStore) *Server {
 	logger := logrus.New()
 	logger.Out = io.MultiWriter(os.Stderr, ringLog)
 

@@ -17,6 +17,7 @@ package commands
 
 import (
 	"context"
+	"github.com/percona/pmm-agent/storelogs"
 	"os"
 	"os/signal"
 
@@ -77,7 +78,8 @@ func run(ctx context.Context, cfg *config.Config, configFilepath string) {
 	connectionChecker := connectionchecker.New(&cfg.Paths)
 	v := versioner.New(&versioner.RealExecFunctions{})
 	client := client.New(cfg, supervisor, connectionChecker, v)
-	localServer := agentlocal.NewServer(cfg, supervisor, client, configFilepath)
+	ringLog := storelogs.New(500)
+	localServer := agentlocal.NewServer(cfg, supervisor, client, configFilepath, ringLog)
 
 	go func() {
 		_ = client.Run(ctx)
