@@ -1,4 +1,3 @@
-// pmm-managed
 // Copyright (C) 2022 Percona LLC
 //
 // This program is free software: you can redistribute it and/or modify
@@ -22,6 +21,7 @@ import (
 	"syscall"
 	"time"
 
+	reaper "github.com/ramr/go-reaper"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -90,13 +90,13 @@ func (process processRunner) run(commandLine string, restartPolicy RestartPolicy
 		if err := cmd.Wait(); err != nil {
 			if exitError, ok := err.(*exec.ExitError); ok {
 				if restartPolicy == RestartAlways || (restartPolicy == RestartOnFail && exitError.ExitCode() != 0) {
-					log.Info("Restarting %s in %s seconds because PMM_AGENT_SIDECAR is enabled ...", commandLine, process.pmmAgentSidecarSleep)
+					log.Infof("Restarting %s in %s seconds because PMM_AGENT_SIDECAR is enabled ...", commandLine, process.pmmAgentSidecarSleep)
 					time.Sleep(time.Duration(process.pmmAgentSidecarSleep) * time.Second)
 				} else {
 					return exitError.ExitCode()
 				}
 			} else {
-				log.Error("Can't get exit code for %s.", commandLine)
+				log.Errorf("Can't get exit code for %s.", commandLine)
 				return -1
 			}
 		}
@@ -104,6 +104,8 @@ func (process processRunner) run(commandLine string, restartPolicy RestartPolicy
 }
 
 func main() {
+	go reaper.Reap()
+
 	var status int
 
 	if len(os.Args) > 1 {
