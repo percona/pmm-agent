@@ -15,12 +15,16 @@
 package main
 
 import (
+	"context"
 	"os"
 	"os/exec"
+	"os/signal"
 	"strconv"
 	"strings"
 	"syscall"
 	"time"
+
+	"golang.org/x/sys/unix"
 
 	reaper "github.com/ramr/go-reaper"
 	"github.com/sirupsen/logrus"
@@ -125,9 +129,21 @@ func main() {
 
 	l := logrus.WithField("component", "entrypoint")
 
+	ctx, cancel := context.WithCancel(context.Background())
+
+	signals := make(chan os.Signal, 1)
+	signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)
+
+	go func() {
+		s := <-signals
+		signal.Stop(signals)
+		l.Warnf("Got %s, shutting down...", unix.SignalName(s.(unix.Signal)))
+		cancel()
+	}()
+
 	if len(os.Args) > 1 {
 		l.Info(helpText)
-		exec.Command("pmm-agent", "setup", "--help")
+		exec.CommandContext(ctx, "pmm-agent", "setup", "--help")
 		os.Exit(1)
 	}
 
@@ -163,7 +179,7 @@ func main() {
 		if pmmAgentSidecar {
 			restartPolicy = RestartOnFail
 			l.Info("Starting pmm-agent for liveness probe...")
-			agent = runPmmAgent([]string{"run"})
+			agent = runPmmAgent(ctx, []string{"run"})
 			agent.Stdout = os.Stdout
 			agent.Stderr = os.Stderr
 			err := agent.Start()
@@ -184,31 +200,33 @@ func main() {
 	}
 
 	if pmmAgentPrerunFile != "" || pmmAgentPrerunScript != "" {
-		l.Info("Starting pmm-agent for prerun ...")
-		agent := runPmmAgent([]string{"run"})
-		agent.Stdout = os.Stdout
-		agent.Stderr = os.Stderr
+		l.Info("Starting pmm-agent for prerun...")
+		agent := runPmmAgent(ctx, []string{"run"})
 		err := agent.Start()
 		if err != nil {
 			l.Errorf("Failed to run pmm-agent run command: %s")
 		}
 
 		if pmmAgentPrerunFile != "" {
-			l.Info("Running prerun file %s...", pmmAgentPrerunFile)
-			cmd := exec.Command(pmmAgentPrerunFile)
+			l.Infof("Running prerun file %s...", pmmAgentPrerunFile)
+			cmd := exec.CommandContext(ctx, pmmAgentPrerunFile)
+			cmd.Stdout = os.Stdout
+			cmd.Stderr = os.Stderr
 			if err := cmd.Run(); err != nil {
 				if exitError, ok := err.(*exec.ExitError); ok {
-					l.Info("Prerun file exited with %s", exitError.ExitCode())
+					l.Infof("Prerun file exited with %d", exitError.ExitCode())
 				}
 			}
 		}
 
 		if pmmAgentPrerunScript != "" {
-			l.Info("Running prerun shell script %s...", pmmAgentPrerunScript)
-			cmd := exec.Command("/bin/sh " + pmmAgentPrerunScript)
+			l.Infof("Running prerun shell script %s...", pmmAgentPrerunScript)
+			cmd := exec.CommandContext(ctx, "/bin/sh", pmmAgentPrerunScript)
+			cmd.Stdout = os.Stdout
+			cmd.Stderr = os.Stderr
 			if err := cmd.Run(); err != nil {
 				if exitError, ok := err.(*exec.ExitError); ok {
-					l.Info("Prerun shell script exited with %s", exitError.ExitCode())
+					l.Infof("Prerun shell script exited with %d", exitError.ExitCode())
 				}
 			}
 		}
