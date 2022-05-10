@@ -121,6 +121,16 @@ func commandPmmAgent(args []string) *exec.Cmd {
 	return command
 }
 
+func sendSIGKILLwithTimeout(process os.Process, timeout int, l *logrus.Entry) *time.Timer {
+	return time.AfterFunc(time.Second*time.Duration(timeout), func() {
+		l.Infof("Failed to finish process in %d second. Send SIGKILL", timeout)
+		err := process.Kill()
+		if err != nil {
+			l.Warnf("Failed to kill pmm-agent: %s", err)
+		}
+	})
+}
+
 func main() {
 	go reaper.Reap()
 
@@ -138,10 +148,16 @@ func main() {
 		signal.Stop(signals)
 		l.Warnf("Got %s, shutting down...", unix.SignalName(s.(unix.Signal)))
 		if pmmAgentProcessID != 0 {
+			l.Info("Graceful shutdown for pmm-agent...")
 			// gracefull shutdown for pmm-agent
 			if err := syscall.Kill(pmmAgentProcessID, syscall.SIGTERM); err != nil {
 				l.Warn("Failed to send SIGTERM, command must have exited:", err)
 			}
+			pmmAgentProcess, _ := os.FindProcess(pmmAgentProcessID) // always succeeds even process is not exist
+			preSIGKILLtimeout := 10
+			timer := sendSIGKILLwithTimeout(*pmmAgentProcess, preSIGKILLtimeout, l)
+			pmmAgentProcess.Wait()
+			timer.Stop()
 		}
 		cancel()
 		os.Exit(1)
@@ -240,14 +256,8 @@ func main() {
 		}
 
 		// kill pmm-agent process in 10 seconds if SIGTERM doesn't work
-		pmmAgentProcessTimeout := 10
-		timer := time.AfterFunc(time.Second*time.Duration(pmmAgentProcessTimeout), func() {
-			l.Infof("Can't finish pmm-agent process in %d second. Send SIGKILL", pmmAgentProcessTimeout)
-			err := agent.Process.Kill()
-			if err != nil {
-				l.Warnf("Failed to kill pmm-agent: %s", err)
-			}
-		})
+		preSIGKILLtimeout := 10
+		timer := sendSIGKILLwithTimeout(*agent.Process, preSIGKILLtimeout, l)
 
 		err = agent.Wait()
 		if err != nil {
