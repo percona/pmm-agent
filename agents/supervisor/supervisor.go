@@ -155,12 +155,12 @@ func (s *Supervisor) AgentsLogs() map[string][]string {
 
 	var res map[string][]string
 
-	for id, agent := range s.agentProcesses {
-		res[fmt.Sprintf("%s %s", id, agent.requestedState.Type.String())] = agent.logs.GetLogs()
+	for _, agent := range s.agentProcesses {
+		res[agent.requestedState.Type.String()] = agent.logs.GetLogs()
 	}
 
-	for id, agent := range s.builtinAgents {
-		res[fmt.Sprintf("%s %s", id, agent.requestedState.Type.String())] = agent.logs.GetLogs()
+	for _, agent := range s.builtinAgents {
+		res[agent.requestedState.Type.String()] = agent.logs.GetLogs()
 	}
 	return res
 }
