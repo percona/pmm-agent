@@ -63,10 +63,9 @@ var (
 	pmmAgentPrerunScript    = getEnvWithDefault("PMM_AGENT_PRERUN_SCRIPT", "")
 )
 
-type processRunner struct {
-	command              *exec.Cmd
-	pmmAgentSidecarSleep int
-}
+var (
+	pmmAgentProcessID int = 0
+)
 
 func getEnvWithDefault(key, defautlValue string) string {
 	if value, ok := os.LookupEnv(key); ok {
@@ -83,17 +82,17 @@ func init() {
 	})
 }
 
-func (process processRunner) run(commandLineArgs []string, restartPolicy RestartPolicy, l *logrus.Entry) int {
+func runPmmAgent(commandLineArgs []string, restartPolicy RestartPolicy, l *logrus.Entry, pmmAgentSidecarSleep int) int {
 	pmmAgentFullCommand := "pmm-admin " + strings.Join(commandLineArgs, " ")
 	for {
 		l.Infof("Starting 'pmm-admin %s'...", strings.Join(commandLineArgs, " "))
-		cmd := runPmmAgent(commandLineArgs)
+		cmd := commandPmmAgent(commandLineArgs)
 		if err := cmd.Start(); err != nil {
 			l.Errorf("Can't run: '%s', Error: %s", commandLineArgs, err)
 			return -1
 		}
-		process.command = cmd
 		var exitCode int
+		pmmAgentProcessID = cmd.Process.Pid
 		if err := cmd.Wait(); err != nil {
 			exitError, ok := err.(*exec.ExitError)
 			if !ok {
@@ -105,8 +104,8 @@ func (process processRunner) run(commandLineArgs []string, restartPolicy Restart
 		l.Infof("'%s' exited with %d", pmmAgentFullCommand, exitCode)
 
 		if restartPolicy == RestartAlways || (restartPolicy == RestartOnFail && exitCode != 0) {
-			l.Infof("Restarting `%s` in %d seconds because PMM_AGENT_SIDECAR is enabled...", pmmAgentFullCommand, process.pmmAgentSidecarSleep)
-			time.Sleep(time.Duration(process.pmmAgentSidecarSleep) * time.Second)
+			l.Infof("Restarting `%s` in %d seconds because PMM_AGENT_SIDECAR is enabled...", pmmAgentFullCommand, pmmAgentSidecarSleep)
+			time.Sleep(time.Duration(pmmAgentSidecarSleep) * time.Second)
 		} else {
 			return exitCode
 		}
@@ -114,7 +113,7 @@ func (process processRunner) run(commandLineArgs []string, restartPolicy Restart
 	}
 }
 
-func runPmmAgent(args []string) *exec.Cmd {
+func commandPmmAgent(args []string) *exec.Cmd {
 	const pmmAgentCommandName = "pmm-agent"
 	command := exec.Command(pmmAgentCommandName, args...)
 	command.Stdout = os.Stdout
@@ -138,7 +137,14 @@ func main() {
 		s := <-signals
 		signal.Stop(signals)
 		l.Warnf("Got %s, shutting down...", unix.SignalName(s.(unix.Signal)))
+		if pmmAgentProcessID != 0 {
+			// gracefull shutdown for pmm-agent
+			if err := syscall.Kill(pmmAgentProcessID, syscall.SIGTERM); err != nil {
+				l.Warn("Failed to send SIGTERM, command must have exited:", err)
+			}
+		}
 		cancel()
+		os.Exit(1)
 	}()
 
 	if len(os.Args) > 1 {
@@ -169,27 +175,21 @@ func main() {
 		os.Exit(1)
 	}
 
-	runner := processRunner{
-		pmmAgentSidecarSleep: pmmAgentSidecarSleep,
-	}
-
 	if pmmAgentSetup {
 		var agent *exec.Cmd
 		restartPolicy := DoNotRestart
 		if pmmAgentSidecar {
 			restartPolicy = RestartOnFail
 			l.Info("Starting pmm-agent for liveness probe...")
-			agent = runPmmAgent(ctx, []string{"run"})
-			agent.Stdout = os.Stdout
-			agent.Stderr = os.Stderr
+			agent = commandPmmAgent([]string{"run"})
 			err := agent.Start()
 			if err != nil {
 				l.Fatalf("Can't run pmm-agent: %s", err)
 			}
 		}
-		status := runner.run([]string{"setup"}, restartPolicy, l)
-		if status != 0 {
-			os.Exit(status)
+		statusSetup := runPmmAgent([]string{"setup"}, restartPolicy, l, pmmAgentSidecarSleep)
+		if statusSetup != 0 {
+			os.Exit(statusSetup)
 		}
 		if pmmAgentSidecar {
 			l.Info("Stopping pmm-agent...")
@@ -199,9 +199,10 @@ func main() {
 		}
 	}
 
+	status = 0
 	if pmmAgentPrerunFile != "" || pmmAgentPrerunScript != "" {
 		l.Info("Starting pmm-agent for prerun...")
-		agent := runPmmAgent(ctx, []string{"run"})
+		agent := commandPmmAgent([]string{"run"})
 		err := agent.Start()
 		if err != nil {
 			l.Errorf("Failed to run pmm-agent run command: %s")
@@ -214,6 +215,7 @@ func main() {
 			cmd.Stderr = os.Stderr
 			if err := cmd.Run(); err != nil {
 				if exitError, ok := err.(*exec.ExitError); ok {
+					status = exitError.ExitCode()
 					l.Infof("Prerun file exited with %d", exitError.ExitCode())
 				}
 			}
@@ -226,6 +228,7 @@ func main() {
 			cmd.Stderr = os.Stderr
 			if err := cmd.Run(); err != nil {
 				if exitError, ok := err.(*exec.ExitError); ok {
+					status = exitError.ExitCode()
 					l.Infof("Prerun shell script exited with %d", exitError.ExitCode())
 				}
 			}
@@ -233,20 +236,28 @@ func main() {
 
 		l.Info("Stopping pmm-agent...")
 		if err := agent.Process.Signal(syscall.SIGTERM); err != nil {
-			l.Fatalf("Failed to kill pmm-agent: %s", err)
-		}
-		for i := 0; i < 10; i++ {
-			if agent.ProcessState.Exited() {
-				break
-			}
-			time.Sleep(1 * time.Second)
+			l.Infof("Failed to term pmm-agent: %s", err)
 		}
 
-		if !agent.ProcessState.Exited() {
-			l.Info("Killing pmm-agent...")
-			agent.Process.Kill()
+		// kill pmm-agent process in 10 seconds if SIGTERM doesn't work
+		pmmAgentProcessTimeout := 10
+		timer := time.AfterFunc(time.Second*time.Duration(pmmAgentProcessTimeout), func() {
+			l.Infof("Can't finish pmm-agent process in %d second. Send SIGKILL", pmmAgentProcessTimeout)
+			err := agent.Process.Kill()
+			if err != nil {
+				l.Warnf("Failed to kill pmm-agent: %s", err)
+			}
+		})
+
+		err = agent.Wait()
+		if err != nil {
+			exitError, ok := err.(*exec.ExitError)
+			if !ok {
+				l.Warnf("Can't get exit code for pmm-agent. Error code: %s", err)
+			}
+			l.Infof("Prerun pmm-agent exited with %d", exitError.ExitCode())
 		}
-		agent.Wait()
+		timer.Stop()
 
 		if status != 0 && !pmmAgentSidecar {
 			os.Exit(status)
@@ -256,5 +267,5 @@ func main() {
 	if pmmAgentSidecar {
 		restartPolicy = RestartAlways
 	}
-	runner.run([]string{"run"}, restartPolicy, l)
+	runPmmAgent([]string{"run"}, restartPolicy, l, pmmAgentSidecarSleep)
 }
