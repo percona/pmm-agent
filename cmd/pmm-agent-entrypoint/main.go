@@ -63,7 +63,7 @@ var (
 	pmmAgentPrerunScript    = getEnvWithDefault("PMM_AGENT_PRERUN_SCRIPT", "")
 )
 
-var pmmAgentProcessID int = 0
+var pmmAgentProcessID = 0
 
 func getEnvWithDefault(key, defautlValue string) string {
 	if value, ok := os.LookupEnv(key); ok {
@@ -94,7 +94,7 @@ func runPmmAgent(commandLineArgs []string, restartPolicy RestartPolicy, l *logru
 		if err := cmd.Wait(); err != nil {
 			exitError, ok := err.(*exec.ExitError)
 			if !ok {
-				l.Errorf("Can't get exit code for '%d'. Error code: %s", pmmAgentFullCommand, err)
+				l.Errorf("Can't get exit code for '%s'. err: %s", pmmAgentFullCommand, err)
 				return -1
 			}
 			exitCode = exitError.ExitCode()
@@ -119,7 +119,7 @@ func commandPmmAgent(args []string) *exec.Cmd {
 	return command
 }
 
-func sendSIGKILLwithTimeout(process os.Process, timeout int, l *logrus.Entry) *time.Timer {
+func sendSIGKILLwithTimeout(process *os.Process, timeout int, l *logrus.Entry) *time.Timer {
 	return time.AfterFunc(time.Second*time.Duration(timeout), func() {
 		l.Infof("Failed to finish process in %d second. Send SIGKILL", timeout)
 		err := process.Kill()
@@ -153,7 +153,7 @@ func main() {
 			}
 			pmmAgentProcess, _ := os.FindProcess(pmmAgentProcessID) // always succeeds even process is not exist
 			preSIGKILLtimeout := 10
-			timer := sendSIGKILLwithTimeout(*pmmAgentProcess, preSIGKILLtimeout, l)
+			timer := sendSIGKILLwithTimeout(pmmAgentProcess, preSIGKILLtimeout, l)
 			pmmAgentProcess.Wait()
 			timer.Stop()
 		}
@@ -219,7 +219,7 @@ func main() {
 		agent := commandPmmAgent([]string{"run"})
 		err := agent.Start()
 		if err != nil {
-			l.Errorf("Failed to run pmm-agent run command: %s")
+			l.Errorf("Failed to run pmm-agent run command: %s", err)
 		}
 
 		if pmmAgentPrerunFile != "" {
@@ -255,7 +255,7 @@ func main() {
 
 		// kill pmm-agent process in 10 seconds if SIGTERM doesn't work
 		preSIGKILLtimeout := 10
-		timer := sendSIGKILLwithTimeout(*agent.Process, preSIGKILLtimeout, l)
+		timer := sendSIGKILLwithTimeout(agent.Process, preSIGKILLtimeout, l)
 
 		err = agent.Wait()
 		if err != nil {
