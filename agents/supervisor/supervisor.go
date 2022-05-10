@@ -152,15 +152,16 @@ func (s *Supervisor) AgentsLogs() map[string][]string {
 	defer s.rw.RUnlock()
 	s.arw.RLock()
 	defer s.arw.RUnlock()
+	res := make(map[string][]string)
 
-	var res map[string][]string
-
-	for _, agent := range s.agentProcesses {
-		res[agent.requestedState.Type.String()] = agent.logs.GetLogs()
+	for id, agent := range s.agentProcesses {
+		newId := strings.ReplaceAll(id, "/agent_id/", "")
+		res[fmt.Sprintf("%s %s", agent.requestedState.Type.String(), newId)] = agent.logs.GetLogs()
 	}
 
-	for _, agent := range s.builtinAgents {
-		res[agent.requestedState.Type.String()] = agent.logs.GetLogs()
+	for id, agent := range s.builtinAgents {
+		newId := strings.ReplaceAll(id, "/agent_id/", "")
+		res[fmt.Sprintf("%s %s", agent.requestedState.Type.String(), newId)] = agent.logs.GetLogs()
 	}
 	return res
 }
