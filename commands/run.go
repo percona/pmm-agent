@@ -32,6 +32,8 @@ import (
 	"github.com/percona/pmm-agent/versioner"
 )
 
+const COUNT_SERVER_LOGS = 500
+
 // Run implements `pmm-agent run` default command.
 func Run() {
 	l := logrus.WithField("component", "main")
@@ -41,7 +43,7 @@ func Run() {
 	// handle termination signals
 	signals := make(chan os.Signal, 1)
 	signal.Notify(signals, unix.SIGTERM, unix.SIGINT)
-	ringLog := storelogs.New(500)
+	ringLog := storelogs.New(COUNT_SERVER_LOGS)
 	go func() {
 		s := <-signals
 		signal.Stop(signals)

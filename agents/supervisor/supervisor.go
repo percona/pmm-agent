@@ -349,8 +349,9 @@ func filter(existing, new map[string]agentpb.AgentParams) (toStart, toRestart, t
 
 //nolint:golint
 const (
-	type_TEST_SLEEP inventorypb.AgentType = 998 // process
-	type_TEST_NOOP  inventorypb.AgentType = 999 // built-in
+	type_TEST_SLEEP  inventorypb.AgentType = 998 // process
+	type_TEST_NOOP   inventorypb.AgentType = 999 // built-in
+	COUNT_AGENT_LOGS                       = 10
 )
 
 // startProcess starts Agent's process.
@@ -393,7 +394,7 @@ func (s *Supervisor) startProcess(agentID string, agentProcess *agentpb.SetState
 }
 
 func (s *Supervisor) newLogger(component string, agentID string, agentType string) (*storelogs.LogsStore, *logrus.Entry) {
-	ringLog := storelogs.New(10)
+	ringLog := storelogs.New(COUNT_AGENT_LOGS)
 	logger := logrus.New()
 	logger.SetFormatter(logrus.StandardLogger().Formatter)
 	logger.Out = io.MultiWriter(os.Stderr, ringLog)

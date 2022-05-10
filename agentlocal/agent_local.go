@@ -72,13 +72,6 @@ type Server struct {
 	agentlocalpb.UnimplementedAgentLocalServer
 }
 
-//// AgentLogs contains information about Agent logs.
-//type AgentLogs struct {
-//	Type     inventorypb.AgentType
-//	ID       string
-//	RingLogs *storelogs.LogsStore
-//}
-
 // NewServer creates new server.
 //`
 // Caller should call Run.
