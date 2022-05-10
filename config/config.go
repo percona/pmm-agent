@@ -35,6 +35,16 @@ import (
 
 const pathBaseDefault = "/usr/local/percona/pmm2"
 
+// ExporterAddress stores listen address values for exporters
+type ExporterAddress struct {
+	Default string `yaml:"default"`
+}
+
+// ListenAddress returns the exporter listen-address
+func (e *ExporterAddress) ListenAddress() string {
+	return e.Default
+}
+
 // Server represents PMM Server configuration.
 type Server struct {
 	Address     string `yaml:"address"`
@@ -142,6 +152,8 @@ type Config struct {
 	ID            string `yaml:"id"`
 	ListenAddress string `yaml:"listen-address"`
 	ListenPort    uint16 `yaml:"listen-port"`
+
+	ExporterListenAddress ExporterAddress `yaml:"exporter-listen-address"`
 
 	Server Server `yaml:"server"`
 	Paths  Paths  `yaml:"paths"`
@@ -324,6 +336,8 @@ func Application(cfg *Config) (*kingpin.Application, *string) {
 		Envar("PMM_AGENT_LISTEN_ADDRESS").StringVar(&cfg.ListenAddress)
 	app.Flag("listen-port", "Agent local API port [PMM_AGENT_LISTEN_PORT]").
 		Envar("PMM_AGENT_LISTEN_PORT").Uint16Var(&cfg.ListenPort)
+	app.Flag("exporter-listen-address", "Exporter web interface address [PMM_AGENT_EXPORTER_LISTEN_ADDRESS]").
+		Envar("PMM_AGENT_EXPORTER_LISTEN_ADDRESS").StringVar(&cfg.ExporterListenAddress.Default)
 
 	app.Flag("server-address", "PMM Server address [PMM_AGENT_SERVER_ADDRESS]").
 		Envar("PMM_AGENT_SERVER_ADDRESS").PlaceHolder("<host:port>").StringVar(&cfg.Server.Address)

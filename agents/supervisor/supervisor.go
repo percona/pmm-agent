@@ -48,13 +48,14 @@ import (
 
 // Supervisor manages all Agents, both processes and built-in.
 type Supervisor struct {
-	ctx           context.Context
-	paths         *config.Paths
-	serverCfg     *config.Server
-	portsRegistry *portsRegistry
-	changes       chan *agentpb.StateChangedRequest
-	qanRequests   chan *agentpb.QANCollectRequest
-	l             *logrus.Entry
+	ctx             context.Context
+	paths           *config.Paths
+	serverCfg       *config.Server
+	exporterAddress *config.ExporterAddress
+	portsRegistry   *portsRegistry
+	changes         chan *agentpb.StateChangedRequest
+	qanRequests     chan *agentpb.QANCollectRequest
+	l               *logrus.Entry
 
 	rw             sync.RWMutex
 	agentProcesses map[string]*agentProcessInfo
@@ -86,15 +87,16 @@ type builtinAgentInfo struct {
 // Supervisor is gracefully stopped when context passed to NewSupervisor is canceled.
 // Changes of Agent statuses are reported via Changes() channel which must be read until it is closed.
 // QAN data is sent to QANRequests() channel which must be read until it is closed.
-func NewSupervisor(ctx context.Context, paths *config.Paths, ports *config.Ports, server *config.Server) *Supervisor {
+func NewSupervisor(ctx context.Context, paths *config.Paths, ports *config.Ports, server *config.Server, exporterAddress *config.ExporterAddress) *Supervisor {
 	supervisor := &Supervisor{
-		ctx:           ctx,
-		paths:         paths,
-		serverCfg:     server,
-		portsRegistry: newPortsRegistry(ports.Min, ports.Max, nil),
-		changes:       make(chan *agentpb.StateChangedRequest, 10),
-		qanRequests:   make(chan *agentpb.QANCollectRequest, 10),
-		l:             logrus.WithField("component", "supervisor"),
+		ctx:             ctx,
+		paths:           paths,
+		serverCfg:       server,
+		exporterAddress: exporterAddress,
+		portsRegistry:   newPortsRegistry(ports.Min, ports.Max, nil),
+		changes:         make(chan *agentpb.StateChangedRequest, 10),
+		qanRequests:     make(chan *agentpb.QANCollectRequest, 10),
+		l:               logrus.WithField("component", "supervisor"),
 
 		agentProcesses: make(map[string]*agentProcessInfo),
 		builtinAgents:  make(map[string]*builtinAgentInfo),
@@ -498,6 +500,11 @@ func (s *Supervisor) processParams(agentID string, agentProcess *agentpb.SetStat
 	var processParams process.Params
 	processParams.Type = agentProcess.Type
 
+	l := logrus.WithFields(logrus.Fields{
+		"component": "agent-process",
+		"agentID":   agentID,
+	})
+
 	templateParams := map[string]interface{}{
 		"listen_port": port,
 	}
@@ -562,6 +569,11 @@ func (s *Supervisor) processParams(agentID string, agentProcess *agentpb.SetStat
 			return nil, err
 		}
 		processParams.Args[i] = string(b)
+
+		if strings.Contains(e, "-web.listen-address=:") {
+			processParams.Args[i] = strings.Replace(processParams.Args[i], "=:", fmt.Sprintf("=%s:", s.exporterAddress.ListenAddress()), 1)
+			l.Debugf("Set --web.listen-address to %s", processParams.Args[i])
+		}
 	}
 
 	processParams.Env = make([]string, len(agentProcess.Env))
