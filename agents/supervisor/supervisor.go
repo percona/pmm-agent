@@ -86,13 +86,6 @@ type builtinAgentInfo struct {
 	logs           *storelogs.LogsStore           // store logs
 }
 
-// AgentLogs contains information about Agent logs.
-type AgentLogs struct {
-	Type     inventorypb.AgentType
-	ID       string
-	RingLogs *storelogs.LogsStore
-}
-
 // NewSupervisor creates new Supervisor object.
 //
 // Supervisor is gracefully stopped when context passed to NewSupervisor is canceled.
@@ -154,30 +147,20 @@ func (s *Supervisor) AgentsList() []*agentlocalpb.AgentInfo {
 }
 
 // AgentsLogs returns logs for all Agents managed by this supervisor.
-func (s *Supervisor) AgentsLogs() []*AgentLogs {
+func (s *Supervisor) AgentsLogs() map[string][]string {
 	s.rw.RLock()
 	defer s.rw.RUnlock()
 	s.arw.RLock()
 	defer s.arw.RUnlock()
 
-	res := make([]*AgentLogs, 0, len(s.agentProcesses)+len(s.builtinAgents))
+	var res map[string][]string
 
 	for id, agent := range s.agentProcesses {
-		info := &AgentLogs{
-			ID:       id,
-			Type:     agent.requestedState.Type,
-			RingLogs: agent.logs,
-		}
-		res = append(res, info)
+		res[fmt.Sprintf("%s %s", id, agent.requestedState.Type.String())] = agent.logs.GetLogs()
 	}
 
 	for id, agent := range s.builtinAgents {
-		info := &AgentLogs{
-			ID:       id,
-			Type:     agent.requestedState.Type,
-			RingLogs: agent.logs,
-		}
-		res = append(res, info)
+		res[fmt.Sprintf("%s %s", id, agent.requestedState.Type.String())] = agent.logs.GetLogs()
 	}
 	return res
 }

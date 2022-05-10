@@ -21,8 +21,6 @@ import (
 	"github.com/percona/pmm/api/agentlocalpb"
 	"github.com/percona/pmm/api/agentpb"
 	"github.com/prometheus/client_golang/prometheus"
-
-	sp "github.com/percona/pmm-agent/agents/supervisor"
 )
 
 //go:generate mockery -name=client -case=snake -inpkg -testonly
@@ -41,5 +39,5 @@ type client interface {
 // We use it instead of real type for testing and to avoid dependency cycle.
 type supervisor interface {
 	AgentsList() []*agentlocalpb.AgentInfo
-	AgentsLogs() []*sp.AgentLogs
+	AgentsLogs() map[string][]string
 }

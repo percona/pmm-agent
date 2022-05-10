@@ -317,18 +317,18 @@ func (s *Server) runJSONServer(ctx context.Context, grpcAddress string) {
 		}
 		addData(writer, "server.txt", b.Bytes())
 
-		for _, agent := range s.supervisor.AgentsLogs() {
+		for id, logs := range s.supervisor.AgentsLogs() {
 			if err != nil {
 				log.Fatal(err)
 			}
 			b := &bytes.Buffer{}
-			for _, agentLog := range agent.RingLogs.GetLogs() {
-				_, err := b.WriteString(agentLog + "\n")
+			for _, l := range logs {
+				_, err := b.WriteString(l + "\n")
 				if err != nil {
 					log.Fatal(err)
 				}
 			}
-			addData(writer, fmt.Sprintf("%s %s.txt", agent.Type.String(), agent.ID), b.Bytes())
+			addData(writer, fmt.Sprintf("%s.txt", id), b.Bytes())
 		}
 		err = writer.Close()
 		if err != nil {
