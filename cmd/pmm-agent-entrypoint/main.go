@@ -47,12 +47,12 @@ Additionally, the many environment variables are recognized by pmm-agent itself.
 The following help text shows them as [PMM_AGENT_XXX].
 `
 
-type RestartPolicy int
+type restartPolicy int
 
 const (
-	DoNotRestart RestartPolicy = iota + 1
-	RestartAlways
-	RestartOnFail
+	doNotRestart restartPolicy = iota + 1
+	restartAlways
+	restartOnFail
 )
 
 var (
@@ -72,15 +72,7 @@ func getEnvWithDefault(key, defautlValue string) string {
 	return defautlValue
 }
 
-func init() {
-	logrus.SetFormatter(&logrus.TextFormatter{
-		ForceColors:     true,
-		FullTimestamp:   true,
-		TimestampFormat: "2006-01-02T15:04:05.000-07:00",
-	})
-}
-
-func runPmmAgent(commandLineArgs []string, restartPolicy RestartPolicy, l *logrus.Entry, pmmAgentSidecarSleep int) int {
+func runPmmAgent(commandLineArgs []string, restartPolicy restartPolicy, l *logrus.Entry, pmmAgentSidecarSleep int) int {
 	pmmAgentFullCommand := "pmm-admin " + strings.Join(commandLineArgs, " ")
 	for {
 		l.Infof("Starting 'pmm-admin %s'...", strings.Join(commandLineArgs, " "))
@@ -101,13 +93,12 @@ func runPmmAgent(commandLineArgs []string, restartPolicy RestartPolicy, l *logru
 		}
 		l.Infof("'%s' exited with %d", pmmAgentFullCommand, exitCode)
 
-		if restartPolicy == RestartAlways || (restartPolicy == RestartOnFail && exitCode != 0) {
+		if restartPolicy == restartAlways || (restartPolicy == restartOnFail && exitCode != 0) {
 			l.Infof("Restarting `%s` in %d seconds because PMM_AGENT_SIDECAR is enabled...", pmmAgentFullCommand, pmmAgentSidecarSleep)
 			time.Sleep(time.Duration(pmmAgentSidecarSleep) * time.Second)
 		} else {
 			return exitCode
 		}
-
 	}
 }
 
@@ -134,6 +125,12 @@ func main() {
 
 	var status int
 
+	logrus.SetFormatter(&logrus.TextFormatter{
+		ForceColors:     true,
+		FullTimestamp:   true,
+		TimestampFormat: "2006-01-02T15:04:05.000-07:00",
+	})
+
 	l := logrus.WithField("component", "entrypoint")
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -147,14 +144,17 @@ func main() {
 		l.Warnf("Got %s, shutting down...", unix.SignalName(s.(unix.Signal)))
 		if pmmAgentProcessID != 0 {
 			l.Info("Graceful shutdown for pmm-agent...")
-			// gracefull shutdown for pmm-agent
+			// graceful shutdown for pmm-agent
 			if err := syscall.Kill(pmmAgentProcessID, syscall.SIGTERM); err != nil {
 				l.Warn("Failed to send SIGTERM, command must have exited:", err)
 			}
 			pmmAgentProcess, _ := os.FindProcess(pmmAgentProcessID) // always succeeds even process is not exist
 			preSIGKILLtimeout := 10
 			timer := sendSIGKILLwithTimeout(pmmAgentProcess, preSIGKILLtimeout, l)
-			pmmAgentProcess.Wait()
+			_, err := pmmAgentProcess.Wait()
+			if err != nil {
+				l.Warn("Failed to finish pmm-agent")
+			}
 			timer.Stop()
 		}
 		cancel()
@@ -191,9 +191,9 @@ func main() {
 
 	if pmmAgentSetup {
 		var agent *exec.Cmd
-		restartPolicy := DoNotRestart
+		restartPolicy := doNotRestart
 		if pmmAgentSidecar {
-			restartPolicy = RestartOnFail
+			restartPolicy = restartOnFail
 			l.Info("Starting pmm-agent for liveness probe...")
 			agent = commandPmmAgent([]string{"run"})
 			err := agent.Start()
@@ -271,9 +271,9 @@ func main() {
 			os.Exit(status)
 		}
 	}
-	restartPolicy := DoNotRestart
+	restartPolicy := doNotRestart
 	if pmmAgentSidecar {
-		restartPolicy = RestartAlways
+		restartPolicy = restartAlways
 	}
 	runPmmAgent([]string{"run"}, restartPolicy, l, pmmAgentSidecarSleep)
 }
