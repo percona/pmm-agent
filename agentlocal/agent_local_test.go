@@ -17,7 +17,6 @@ package agentlocal
 
 import (
 	"context"
-	"github.com/percona/pmm-agent/storelogs"
 	"testing"
 	"time"
 
@@ -29,6 +28,7 @@ import (
 	"google.golang.org/protobuf/types/known/durationpb"
 
 	"github.com/percona/pmm-agent/config"
+	"github.com/percona/pmm-agent/storelogs"
 )
 
 func TestServerStatus(t *testing.T) {
