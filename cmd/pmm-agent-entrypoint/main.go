@@ -24,10 +24,9 @@ import (
 	"syscall"
 	"time"
 
-	"golang.org/x/sys/unix"
-
 	reaper "github.com/ramr/go-reaper"
 	"github.com/sirupsen/logrus"
+	"golang.org/x/sys/unix"
 )
 
 var helpText = `
@@ -63,9 +62,7 @@ var (
 	pmmAgentPrerunScript    = getEnvWithDefault("PMM_AGENT_PRERUN_SCRIPT", "")
 )
 
-var (
-	pmmAgentProcessID int = 0
-)
+var pmmAgentProcessID int = 0
 
 func getEnvWithDefault(key, defautlValue string) string {
 	if value, ok := os.LookupEnv(key); ok {
