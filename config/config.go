@@ -35,12 +35,12 @@ import (
 
 const pathBaseDefault = "/usr/local/percona/pmm2"
 
-// ExporterAddress stores listen address values for exporters
+// ExporterAddress stores listen address values for exporters.
 type ExporterAddress struct {
 	Default string `yaml:"default"`
 }
 
-// ListenAddress returns the exporter listen-address
+// ListenAddress returns the exporter listen-address.
 func (e *ExporterAddress) ListenAddress() string {
 	return e.Default
 }
