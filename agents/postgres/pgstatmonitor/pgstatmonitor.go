@@ -40,6 +40,8 @@ import (
 	"github.com/percona/pmm-agent/utils/version"
 )
 
+const defaultWaitTime = 60 * time.Second
+
 // PGStatMonitorQAN QAN services connects to PostgreSQL and extracts stats.
 type PGStatMonitorQAN struct {
 	q                    *reform.Querier
@@ -332,7 +334,6 @@ func (s settings) toQANSettingsItems() []*agentpb.SettingsItem {
 }
 
 func (s settings) getWaitTime() (time.Duration, error) {
-	defaultWaitTime := 60 * time.Second
 	key := "pg_stat_monitor.pgsm_bucket_time"
 	if _, ok := s[key]; !ok {
 		return defaultWaitTime, errors.New("failed to get pgsm_bucket_time, wait time set on 60 seconds")
