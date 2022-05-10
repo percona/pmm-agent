@@ -51,7 +51,8 @@ func TestSupervisor(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	tempDir, err := os.MkdirTemp("", "pmm-agent-")
 	require.NoError(t, err)
-	s := NewSupervisor(ctx, &config.Paths{TempDir: tempDir}, &config.Ports{Min: 65000, Max: 65099}, &config.Server{Address: "localhost:443"}, &config.ExporterAddress{Default: ""})
+	s := NewSupervisor(ctx, &config.Paths{TempDir: tempDir}, &config.Ports{Min: 65000, Max: 65099},
+		&config.Server{Address: "localhost:443"}, &config.ExporterAddress{Default: ""})
 
 	t.Run("Start13", func(t *testing.T) {
 		expectedList := []*agentlocalpb.AgentInfo{}
