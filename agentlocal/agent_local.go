@@ -329,7 +329,6 @@ func (s *Server) runJSONServer(ctx context.Context, grpcAddress string) {
 		}
 		w.Header().Set("Content-Type", "application/zip")
 		w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s.zip\"", "logs"))
-		// io.Copy(w, buf)
 		_, err = w.Write(buf.Bytes())
 		if err != nil {
 			log.Fatal(err)
