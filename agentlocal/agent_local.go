@@ -73,7 +73,7 @@ type Server struct {
 }
 
 // NewServer creates new server.
-//`
+
 // Caller should call Run.
 func NewServer(cfg *config.Config, supervisor supervisor, client client, configFilepath string, ringLog *storelogs.LogsStore) *Server {
 	logger := logrus.New()

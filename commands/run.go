@@ -32,7 +32,7 @@ import (
 	"github.com/percona/pmm-agent/versioner"
 )
 
-const COUNT_SERVER_LOGS = 500
+const maxServerLogs = 500 // max number logs can store server
 
 // Run implements `pmm-agent run` default command.
 func Run() {
@@ -43,7 +43,7 @@ func Run() {
 	// handle termination signals
 	signals := make(chan os.Signal, 1)
 	signal.Notify(signals, unix.SIGTERM, unix.SIGINT)
-	ringLog := storelogs.New(COUNT_SERVER_LOGS)
+	ringLog := storelogs.New(maxServerLogs)
 	go func() {
 		s := <-signals
 		signal.Stop(signals)
