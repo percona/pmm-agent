@@ -315,24 +315,6 @@ func (s settings) getNormalizedQueryValue() (bool, error) {
 	return false, nil
 }
 
-func (s settings) toQANSettingsItems() []*agentpb.SettingsItem {
-	var res []*agentpb.SettingsItem
-	for _, setting := range s {
-		res = append(res, &agentpb.SettingsItem{
-			Name:         setting.Name,
-			Value:        setting.Value,
-			DefaultValue: setting.DefaultValue,
-			Description:  setting.Description,
-			Minimum:      pointer.GetInt64(setting.Minimum),
-			Maximum:      pointer.GetInt64(setting.Maximum),
-			Options:      pointer.GetString(setting.Options),
-			Restart:      setting.Restart,
-		})
-	}
-
-	return res
-}
-
 func (s settings) getWaitTime() (time.Duration, error) {
 	key := "pg_stat_monitor.pgsm_bucket_time"
 	if _, ok := s[key]; !ok {
@@ -385,12 +367,6 @@ func (m *PGStatMonitorQAN) getNewBuckets(ctx context.Context, periodLengthSecs u
 // to make metrics buckets.
 func (m *PGStatMonitorQAN) makeBuckets(current, cache map[time.Time]map[string]*pgStatMonitorExtended) []*agentpb.MetricsBucket {
 	res := make([]*agentpb.MetricsBucket, 0, len(current))
-
-	settings, err := m.getSettings()
-	if err != nil {
-		m.l.Errorf(err.Error())
-	}
-	settingsItems := settings.toQANSettingsItems()
 
 	for bucketStartTime, bucket := range current {
 		prev := cache[bucketStartTime]
@@ -454,8 +430,6 @@ func (m *PGStatMonitorQAN) makeBuckets(current, cache map[time.Time]map[string]*
 			} else {
 				mb.Postgresql.HistogramItems = histogram
 			}
-
-			mb.Postgresql.SettingsItems = settingsItems
 
 			if (currentPSM.PlanTotalTime - prevPSM.PlanTotalTime) != 0 {
 				mb.Postgresql.MPlanTimeSum = float32(currentPSM.PlanTotalTime-prevPSM.PlanTotalTime) / 1000

@@ -254,7 +254,6 @@ func TestPGStatMonitorSchema(t *testing.T) {
 				MCpuSysTimeSum:     actual.Postgresql.MCpuSysTimeSum,
 				CmdType:            selectCMDType,
 				HistogramItems:     actual.Postgresql.HistogramItems,
-				SettingsItems:      actual.Postgresql.SettingsItems,
 				MPlansCallsSum:     actual.Postgresql.MPlansCallsSum,
 				MPlansCallsCnt:     mPlansCallsCnt,
 				MPlanTimeCnt:       mPlansTimeCnt,
