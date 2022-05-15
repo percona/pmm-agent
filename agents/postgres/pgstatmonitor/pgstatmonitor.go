@@ -345,7 +345,6 @@ func (s settings) getWaitTime() (time.Duration, error) {
 }
 
 func (m *PGStatMonitorQAN) getNewBuckets(ctx context.Context, periodLengthSecs uint32, normalizedQuery bool) ([]*agentpb.MetricsBucket, error) {
-
 	current, prev, err := m.monitorCache.getStatMonitorExtended(ctx, m.q, normalizedQuery)
 	if err != nil {
 		return nil, err
