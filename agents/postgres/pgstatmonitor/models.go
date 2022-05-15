@@ -49,14 +49,8 @@ type pgStatMonitorSettings struct {
 //
 //reform:pg_stat_monitor_settings
 type pgStatMonitorSettingsTextValue struct {
-	Name         string  `reform:"name"`
-	Value        string  `reform:"value"`
-	DefaultValue string  `reform:"default_value"`
-	Description  string  `reform:"description"`
-	Minimum      *int64  `reform:"minimum"`
-	Maximum      *int64  `reform:"maximum"`
-	Options      *string `reform:"options"`
-	Restart      string  `reform:"restart"`
+	Name  string `reform:"name"`
+	Value string `reform:"value"`
 }
 
 // pgStatMonitorExtended contains pgStatMonitor data and extends it with database, username and tables data.

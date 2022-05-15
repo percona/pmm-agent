@@ -242,8 +242,23 @@ func (m *PGStatMonitorQAN) Run(ctx context.Context) {
 				m.changes <- agents.Change{Status: inventorypb.AgentStatus_STARTING}
 			}
 
+			settings, err := m.getSettings()
+			if err != nil {
+				m.l.Errorf(err.Error())
+				running = false
+				m.changes <- agents.Change{Status: inventorypb.AgentStatus_WAITING}
+				continue
+			}
+			normalizedQuery, err := settings.getNormalizedQueryValue()
+			if err != nil {
+				m.l.Errorf(err.Error())
+				running = false
+				m.changes <- agents.Change{Status: inventorypb.AgentStatus_WAITING}
+				continue
+			}
+
 			lengthS := uint32(waitTime.Seconds())
-			buckets, err := m.getNewBuckets(ctx, lengthS)
+			buckets, err := m.getNewBuckets(ctx, lengthS, normalizedQuery)
 
 			start = time.Now()
 			m.l.Debugf("Scheduling next collection in %s at %s.", waitTime, start.Add(waitTime).Format("15:04:05"))
@@ -329,15 +344,7 @@ func (s settings) getWaitTime() (time.Duration, error) {
 	return time.Duration(valueInt) * time.Second, nil
 }
 
-func (m *PGStatMonitorQAN) getNewBuckets(ctx context.Context, periodLengthSecs uint32) ([]*agentpb.MetricsBucket, error) {
-	settings, err := m.getSettings()
-	if err != nil {
-		m.l.Errorf(err.Error())
-	}
-	normalizedQuery, err := settings.getNormalizedQueryValue()
-	if err != nil {
-		m.l.Errorf(err.Error())
-	}
+func (m *PGStatMonitorQAN) getNewBuckets(ctx context.Context, periodLengthSecs uint32, normalizedQuery bool) ([]*agentpb.MetricsBucket, error) {
 
 	current, prev, err := m.monitorCache.getStatMonitorExtended(ctx, m.q, normalizedQuery)
 	if err != nil {
