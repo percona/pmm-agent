@@ -17,6 +17,8 @@ package agentlocal
 
 import (
 	"context"
+	"fmt"
+	"net/http/httptest"
 	"testing"
 	"time"
 
@@ -41,6 +43,12 @@ func TestServerStatus(t *testing.T) {
 		var supervisor mockSupervisor
 		supervisor.Test(t)
 		supervisor.On("AgentsList").Return(agentInfo)
+		agentLogs := make(map[string][]string)
+		agentLogs[inventorypb.AgentType_NODE_EXPORTER.String()] = []string{
+			"logs1",
+			"logs2",
+		}
+		supervisor.On("AgentsLogs").Return(agentInfo)
 		var client mockClient
 		client.Test(t)
 		client.On("GetServerConnectMetadata").Return(&agentpb.ServerConnectMetadata{
@@ -109,5 +117,24 @@ func TestServerStatus(t *testing.T) {
 			ConfigFilepath: "/some/dir/pmm-agent.yaml",
 		}
 		assert.Equal(t, expected, actual)
+	})
+	t.Run("with network info", func(t *testing.T) {
+		_, supervisor, client, cfg := setup(t)
+		latency := 5 * time.Millisecond
+		clockDrift := time.Second
+		client.On("GetNetworkInformation").Return(latency, clockDrift, nil)
+		defer supervisor.AssertExpectations(t)
+		defer client.AssertExpectations(t)
+		ringLog := storelogs.New(500)
+		s := NewServer(cfg, supervisor, client, "/some/dir/pmm-agent.yaml", ringLog)
+
+		// with network info
+		rec := httptest.NewRecorder()
+		req := httptest.NewRequest("GET", "/logs.zip", nil)
+		s.Zip(rec, req)
+		//handler.ServeHTTP(rec, req)
+		fmt.Println(rec.Body)
+		//fmt.Println(handler)
+
 	})
 }

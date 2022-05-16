@@ -298,42 +298,7 @@ func (s *Server) runJSONServer(ctx context.Context, grpcAddress string) {
 	mux.Handle("/debug/", http.DefaultServeMux)
 	mux.Handle("/debug", debugPageHandler)
 	mux.Handle("/", proxyMux)
-	mux.HandleFunc("/logs.zip", func(w http.ResponseWriter, r *http.Request) {
-		buf := &bytes.Buffer{}
-		writer := zip.NewWriter(buf)
-		b := &bytes.Buffer{}
-		for _, serverLog := range s.ringLogs.GetLogs() {
-			_, err := b.WriteString(serverLog)
-			if err != nil {
-				log.Fatal(err)
-			}
-		}
-		addData(writer, "server.txt", b.Bytes())
-
-		for id, logs := range s.supervisor.AgentsLogs() {
-			if err != nil {
-				log.Fatal(err)
-			}
-			b := &bytes.Buffer{}
-			for _, l := range logs {
-				_, err := b.WriteString(l + "\n")
-				if err != nil {
-					log.Fatal(err)
-				}
-			}
-			addData(writer, fmt.Sprintf("%s.txt", id), b.Bytes())
-		}
-		err = writer.Close()
-		if err != nil {
-			log.Fatal(err)
-		}
-		w.Header().Set("Content-Type", "application/zip")
-		w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s.zip\"", "logs"))
-		_, err = w.Write(buf.Bytes())
-		if err != nil {
-			log.Fatal(err)
-		}
-	})
+	mux.HandleFunc("/logs.zip", s.Zip)
 
 	server := &http.Server{
 		Addr:     address,
@@ -375,3 +340,37 @@ func addData(zipW *zip.Writer, name string, data []byte) {
 var (
 	_ agentlocalpb.AgentLocalServer = (*Server)(nil)
 )
+
+func (s *Server) Zip(w http.ResponseWriter, r *http.Request) {
+	buf := &bytes.Buffer{}
+	writer := zip.NewWriter(buf)
+	b := &bytes.Buffer{}
+	for _, serverLog := range s.ringLogs.GetLogs() {
+		_, err := b.WriteString(serverLog)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+	addData(writer, "server.txt", b.Bytes())
+
+	for id, logs := range s.supervisor.AgentsLogs() {
+		b := &bytes.Buffer{}
+		for _, l := range logs {
+			_, err := b.WriteString(l + "\n")
+			if err != nil {
+				log.Fatal(err)
+			}
+		}
+		addData(writer, fmt.Sprintf("%s.txt", id), b.Bytes())
+	}
+	err := writer.Close()
+	if err != nil {
+		log.Fatal(err)
+	}
+	w.Header().Set("Content-Type", "application/zip")
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s.zip\"", "logs"))
+	_, err = w.Write(buf.Bytes())
+	if err != nil {
+		log.Fatal(err)
+	}
+}
