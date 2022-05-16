@@ -323,7 +323,7 @@ func (s settings) getNormalizedQueryValue() (bool, error) {
 		return false, errors.New("failed to get pgsm_normalized_query property")
 	}
 
-	if s[key].Value == "yes" {
+	if s[key].Value == "yes" || s[key].Value == "1" {
 		return true, nil
 	}
 
