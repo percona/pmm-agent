@@ -20,12 +20,13 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
-	"strconv"
 	"strings"
 	"syscall"
 	"time"
 
 	reaper "github.com/ramr/go-reaper"
+	"gopkg.in/alecthomas/kingpin.v2"
+
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
 )
@@ -56,23 +57,16 @@ const (
 )
 
 var (
-	pmmAgentSetupEnv        = getEnvWithDefault("PMM_AGENT_SETUP", "false")
-	pmmAgentSidecarEnv      = getEnvWithDefault("PMM_AGENT_SIDECAR", "false")
-	pmmAgentSidecarSleepEnv = getEnvWithDefault("PMM_AGENT_SIDECAR_SLEEP", "1")
-	pmmAgentPrerunFile      = getEnvWithDefault("PMM_AGENT_PRERUN_FILE", "")
-	pmmAgentPrerunScript    = getEnvWithDefault("PMM_AGENT_PRERUN_SCRIPT", "")
+	pmmAgentSetup        = kingpin.Flag("pmm-agent-setup", "if true, 'pmm-agent setup' is called before 'pmm-agent run'").Default("false").Envar("PMM_AGENT_SETUP").Bool()
+	pmmAgentSidecar      = kingpin.Flag("pmm-agent-sidecar", "if true, 'pmm-agent' will be restarted in case of it's failed").Default("false").Envar("PMM_AGENT_SIDECAR").Bool()
+	pmmAgentSidecarSleep = kingpin.Flag("pmm-agent-sidecar-sleep", "time to wait before restarting pmm-agent if PMM_AGENT_SIDECAR is true. 1 second by default").Default("1").Envar("PMM_AGENT_SIDECAR_SLEEP").Duration()
+	pmmAgentPrerunFile   = kingpin.Flag("pmm-agent-prerun-file", "if non-empty, runs given file with 'pmm-agent run' running in the background").Envar("PMM_AGENT_PRERUN_FILE").String()
+	pmmAgentPrerunScript = kingpin.Flag("pmm-agent-prerun-script", "if non-empty, runs given shell script content with 'pmm-agent run' running in the background").Envar("PMM_AGENT_PRERUN_SCRIPT").String()
 )
 
 var pmmAgentProcessID = 0
 
-func getEnvWithDefault(key, defautlValue string) string {
-	if value, ok := os.LookupEnv(key); ok {
-		return value
-	}
-	return defautlValue
-}
-
-func runPmmAgent(commandLineArgs []string, restartPolicy restartPolicy, l *logrus.Entry, pmmAgentSidecarSleep int) int {
+func runPmmAgent(commandLineArgs []string, restartPolicy restartPolicy, l *logrus.Entry, pmmAgentSidecarSleep time.Duration) int {
 	pmmAgentFullCommand := "pmm-admin " + strings.Join(commandLineArgs, " ")
 	for {
 		l.Infof("Starting 'pmm-admin %s'...", strings.Join(commandLineArgs, " "))
@@ -95,7 +89,7 @@ func runPmmAgent(commandLineArgs []string, restartPolicy restartPolicy, l *logru
 
 		if restartPolicy == restartAlways || (restartPolicy == restartOnFail && exitCode != 0) {
 			l.Infof("Restarting `%s` in %d seconds because PMM_AGENT_SIDECAR is enabled...", pmmAgentFullCommand, pmmAgentSidecarSleep)
-			time.Sleep(time.Duration(pmmAgentSidecarSleep) * time.Second)
+			time.Sleep(pmmAgentSidecarSleep * time.Second)
 		} else {
 			return exitCode
 		}
@@ -167,32 +161,16 @@ func main() {
 		os.Exit(1)
 	}
 
-	pmmAgentSetup, err := strconv.ParseBool(pmmAgentSetupEnv)
-	if err != nil {
-		l.Fatalf("Can't parse %s as boolean variable", pmmAgentSetupEnv)
-	}
-	l.Infof("Run setup: %t", pmmAgentSetup)
-
-	pmmAgentSidecar, err := strconv.ParseBool(pmmAgentSidecarEnv)
-	if err != nil {
-		l.Fatalf("Can't parse %s as boolean variable", pmmAgentSidecarEnv)
-	}
-	l.Infof("Sidecar mode: %t", pmmAgentSidecar)
-
-	pmmAgentSidecarSleep, err := strconv.Atoi(pmmAgentSidecarSleepEnv)
-	if err != nil {
-		l.Fatalf("Can't parse %s as int variable", pmmAgentSidecarSleepEnv)
-	}
-
-	if pmmAgentPrerunFile != "" && pmmAgentPrerunScript != "" {
+	l.Infof("Run setup: %t Sidecar mode: %t", *pmmAgentSetup, *pmmAgentSidecar)
+	if *pmmAgentPrerunFile != "" && *pmmAgentPrerunScript != "" {
 		l.Error("Both PMM_AGENT_PRERUN_FILE and PMM_AGENT_PRERUN_SCRIPT cannot be set.")
 		os.Exit(1)
 	}
 
-	if pmmAgentSetup {
+	if *pmmAgentSetup {
 		var agent *exec.Cmd
 		restartPolicy := doNotRestart
-		if pmmAgentSidecar {
+		if *pmmAgentSidecar {
 			restartPolicy = restartOnFail
 			l.Info("Starting pmm-agent for liveness probe...")
 			agent = commandPmmAgent([]string{"run"})
@@ -201,11 +179,11 @@ func main() {
 				l.Fatalf("Can't run pmm-agent: %s", err)
 			}
 		}
-		statusSetup := runPmmAgent([]string{"setup"}, restartPolicy, l, pmmAgentSidecarSleep)
+		statusSetup := runPmmAgent([]string{"setup"}, restartPolicy, l, *pmmAgentSidecarSleep)
 		if statusSetup != 0 {
 			os.Exit(statusSetup)
 		}
-		if pmmAgentSidecar {
+		if *pmmAgentSidecar {
 			l.Info("Stopping pmm-agent...")
 			if err := agent.Process.Signal(syscall.SIGTERM); err != nil {
 				l.Fatal("Failed to kill pmm-agent: ", err)
@@ -214,7 +192,7 @@ func main() {
 	}
 
 	status = 0
-	if pmmAgentPrerunFile != "" || pmmAgentPrerunScript != "" {
+	if *pmmAgentPrerunFile != "" || *pmmAgentPrerunScript != "" {
 		l.Info("Starting pmm-agent for prerun...")
 		agent := commandPmmAgent([]string{"run"})
 		err := agent.Start()
@@ -222,9 +200,9 @@ func main() {
 			l.Errorf("Failed to run pmm-agent run command: %s", err)
 		}
 
-		if pmmAgentPrerunFile != "" {
-			l.Infof("Running prerun file %s...", pmmAgentPrerunFile)
-			cmd := exec.CommandContext(ctx, pmmAgentPrerunFile)
+		if *pmmAgentPrerunFile != "" {
+			l.Infof("Running prerun file %s...", *pmmAgentPrerunFile)
+			cmd := exec.CommandContext(ctx, *pmmAgentPrerunFile)
 			cmd.Stdout = os.Stdout
 			cmd.Stderr = os.Stderr
 			if err := cmd.Run(); err != nil {
@@ -235,9 +213,9 @@ func main() {
 			}
 		}
 
-		if pmmAgentPrerunScript != "" {
-			l.Infof("Running prerun shell script %s...", pmmAgentPrerunScript)
-			cmd := exec.CommandContext(ctx, "/bin/sh", pmmAgentPrerunScript)
+		if *pmmAgentPrerunScript != "" {
+			l.Infof("Running prerun shell script %s...", *pmmAgentPrerunScript)
+			cmd := exec.CommandContext(ctx, "/bin/sh", *pmmAgentPrerunScript)
 			cmd.Stdout = os.Stdout
 			cmd.Stderr = os.Stderr
 			if err := cmd.Run(); err != nil {
@@ -262,18 +240,19 @@ func main() {
 			exitError, ok := err.(*exec.ExitError)
 			if !ok {
 				l.Warnf("Can't get exit code for pmm-agent. Error code: %s", err)
+			} else {
+				l.Infof("Prerun pmm-agent exited with %d", exitError.ExitCode())
 			}
-			l.Infof("Prerun pmm-agent exited with %d", exitError.ExitCode())
 		}
 		timer.Stop()
 
-		if status != 0 && !pmmAgentSidecar {
+		if status != 0 && !*pmmAgentSidecar {
 			os.Exit(status)
 		}
 	}
 	restartPolicy := doNotRestart
-	if pmmAgentSidecar {
+	if *pmmAgentSidecar {
 		restartPolicy = restartAlways
 	}
-	runPmmAgent([]string{"run"}, restartPolicy, l, pmmAgentSidecarSleep)
+	runPmmAgent([]string{"run"}, restartPolicy, l, *pmmAgentSidecarSleep)
 }
