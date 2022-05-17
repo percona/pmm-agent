@@ -20,6 +20,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"github.com/percona/pmm-agent/utils/encryption"
 	"io"
 	"math"
 	"net/http"
@@ -63,6 +64,14 @@ func (cc *ConnectionChecker) Check(ctx context.Context, msg *agentpb.CheckConnec
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeout(ctx, timeout)
 		defer cancel()
+	}
+
+	encryptor := encryption.GetEncryptor(ctx)
+	dsn, err := encryptor.DecryptDsn(msg.Dsn)
+	if err != nil {
+		cc.l.Debugf("Failed to decrypt DSN: %s", err)
+	} else {
+		msg.Dsn = dsn
 	}
 
 	switch msg.Type {
