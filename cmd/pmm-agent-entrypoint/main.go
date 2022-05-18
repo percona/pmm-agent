@@ -56,11 +56,16 @@ const (
 )
 
 var (
-	pmmAgentSetup        = kingpin.Flag("pmm-agent-setup", "if true, 'pmm-agent setup' is called before 'pmm-agent run'").Default("false").Envar("PMM_AGENT_SETUP").Bool()
-	pmmAgentSidecar      = kingpin.Flag("pmm-agent-sidecar", "if true, 'pmm-agent' will be restarted in case of it's failed").Default("false").Envar("PMM_AGENT_SIDECAR").Bool()
-	pmmAgentSidecarSleep = kingpin.Flag("pmm-agent-sidecar-sleep", "time to wait before restarting pmm-agent if PMM_AGENT_SIDECAR is true. 1 second by default").Default("1").Envar("PMM_AGENT_SIDECAR_SLEEP").Duration()
-	pmmAgentPrerunFile   = kingpin.Flag("pmm-agent-prerun-file", "if non-empty, runs given file with 'pmm-agent run' running in the background").Envar("PMM_AGENT_PRERUN_FILE").String()
-	pmmAgentPrerunScript = kingpin.Flag("pmm-agent-prerun-script", "if non-empty, runs given shell script content with 'pmm-agent run' running in the background").Envar("PMM_AGENT_PRERUN_SCRIPT").String()
+	pmmAgentSetup = kingpin.Flag("pmm-agent-setup",
+		"if true, 'pmm-agent setup' is called before 'pmm-agent run'").Default("false").Envar("PMM_AGENT_SETUP").Bool()
+	pmmAgentSidecar = kingpin.Flag("pmm-agent-sidecar",
+		"if true, 'pmm-agent' will be restarted in case of it's failed").Default("false").Envar("PMM_AGENT_SIDECAR").Bool()
+	pmmAgentSidecarSleep = kingpin.Flag("pmm-agent-sidecar-sleep",
+		"time to wait before restarting pmm-agent if PMM_AGENT_SIDECAR is true. 1 second by default").Default("1").Envar("PMM_AGENT_SIDECAR_SLEEP").Duration()
+	pmmAgentPrerunFile = kingpin.Flag("pmm-agent-prerun-file",
+		"if non-empty, runs given file with 'pmm-agent run' running in the background").Envar("PMM_AGENT_PRERUN_FILE").String()
+	pmmAgentPrerunScript = kingpin.Flag("pmm-agent-prerun-script",
+		"if non-empty, runs given shell script content with 'pmm-agent run' running in the background").Envar("PMM_AGENT_PRERUN_SCRIPT").String()
 )
 
 var pmmAgentProcessID = 0
