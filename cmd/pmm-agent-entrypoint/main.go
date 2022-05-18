@@ -25,10 +25,10 @@ import (
 	"time"
 
 	reaper "github.com/ramr/go-reaper"
-	"gopkg.in/alecthomas/kingpin.v2"
 
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
+	"gopkg.in/alecthomas/kingpin.v2"
 )
 
 var helpText = `
@@ -66,7 +66,7 @@ var (
 
 var pmmAgentProcessID = 0
 
-func runPmmAgent(commandLineArgs []string, restartPolicy restartPolicy, l *logrus.Entry, pmmAgentSidecarSleep time.Duration) int {
+func runPmmAgent(ctx context.Context, commandLineArgs []string, restartPolicy restartPolicy, l *logrus.Entry, pmmAgentSidecarSleep time.Duration) int {
 	pmmAgentFullCommand := "pmm-admin " + strings.Join(commandLineArgs, " ")
 	for {
 		l.Infof("Starting 'pmm-admin %s'...", strings.Join(commandLineArgs, " "))
@@ -77,6 +77,11 @@ func runPmmAgent(commandLineArgs []string, restartPolicy restartPolicy, l *logru
 		}
 		var exitCode int
 		pmmAgentProcessID = cmd.Process.Pid
+		select {
+		case <-ctx.Done():
+			return 1
+		default:
+		}
 		if err := cmd.Wait(); err != nil {
 			exitError, ok := err.(*exec.ExitError)
 			if !ok {
@@ -179,7 +184,7 @@ func main() {
 				l.Fatalf("Can't run pmm-agent: %s", err)
 			}
 		}
-		statusSetup := runPmmAgent([]string{"setup"}, restartPolicy, l, *pmmAgentSidecarSleep)
+		statusSetup := runPmmAgent(ctx, []string{"setup"}, restartPolicy, l, *pmmAgentSidecarSleep)
 		if statusSetup != 0 {
 			os.Exit(statusSetup)
 		}
@@ -254,5 +259,5 @@ func main() {
 	if *pmmAgentSidecar {
 		restartPolicy = restartAlways
 	}
-	runPmmAgent([]string{"run"}, restartPolicy, l, *pmmAgentSidecarSleep)
+	runPmmAgent(ctx, []string{"run"}, restartPolicy, l, *pmmAgentSidecarSleep)
 }
