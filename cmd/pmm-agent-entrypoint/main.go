@@ -25,7 +25,6 @@ import (
 	"time"
 
 	reaper "github.com/ramr/go-reaper"
-
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
 	"gopkg.in/alecthomas/kingpin.v2"
