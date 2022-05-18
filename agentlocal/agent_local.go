@@ -33,8 +33,6 @@ import (
 	grpc_gateway "github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/percona/pmm/api/agentlocalpb"
 	"github.com/percona/pmm/api/agentpb"
-
-	// register /debug/vars
 	pmmerrors "github.com/percona/pmm/utils/errors"
 	"github.com/percona/pmm/version"
 	"github.com/prometheus/client_golang/prometheus"
@@ -284,8 +282,7 @@ func (s *Server) runJSONServer(ctx context.Context, grpcAddress string) {
 				DiscardUnknown: true,
 			},
 		}),
-		grpc_gateway.WithErrorHandler(pmmerrors.PMMHTTPErrorHandler),
-	)
+		grpc_gateway.WithErrorHandler(pmmerrors.PMMHTTPErrorHandler))
 
 	opts := []grpc.DialOption{
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
