@@ -18,12 +18,12 @@ package agentlocal
 import (
 	"bytes"
 	"context"
-	_ "expvar"
+	_ "expvar" // register /debug/vars
 	"html/template"
 	"log"
 	"net"
 	"net/http"
-	_ "net/http/pprof"
+	_ "net/http/pprof" // register /debug/pprof
 	"os"
 	"strconv"
 	"strings"
