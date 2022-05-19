@@ -74,6 +74,7 @@ type agentProcessInfo struct {
 	requestedState  *agentpb.SetStateRequest_AgentProcess
 	listenPort      uint16
 	processExecPath string
+	logs            *storelogs.LogsStore // store logs
 }
 
 // builtinAgentInfo describes built-in Agent.
@@ -392,7 +393,7 @@ func (s *Supervisor) startProcess(agentID string, agentProcess *agentpb.SetState
 		requestedState:  proto.Clone(agentProcess).(*agentpb.SetStateRequest_AgentProcess),
 		listenPort:      port,
 		processExecPath: processParams.Path,
-		logs:           ringLog,
+		logs:            ringLog,
 	}
 	return nil
 }

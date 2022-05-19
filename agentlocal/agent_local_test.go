@@ -21,6 +21,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+
 	//"github.com/sirupsen/logrus"
 	"io/ioutil"
 	"net/http/httptest"
@@ -159,7 +160,7 @@ func TestGetZipFile(t *testing.T) {
 		ringLog := storelogs.New(10)
 		s := NewServer(cfg, supervisor, client, "/some/dir/pmm-agent.yaml", ringLog)
 		_, err := s.Status(context.Background(), &agentlocalpb.StatusRequest{GetNetworkInfo: false})
-		//fmt.Sprintf("%v %v", actual, err)
+		// fmt.Sprintf("%v %v", actual, err)
 		rec := httptest.NewRecorder()
 		req := httptest.NewRequest("GET", "/logs.zip", nil)
 		s.Zip(rec, req)
@@ -174,6 +175,7 @@ func TestGetZipFile(t *testing.T) {
 		assert.Equal(t, expectedFile, b)
 	})
 }
+
 func generateTestZip(s *Server) ([]byte, error) {
 	agentLogs := make(map[string][]string)
 	agentLogs[inventorypb.AgentType_NODE_EXPORTER.String()] = []string{
