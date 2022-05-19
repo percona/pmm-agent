@@ -219,7 +219,6 @@ func NewPgStatMonitorStructs(v pgStatMonitorVersion) (*pgStatMonitor, reform.Vie
 	return s, pgStatMonitorDefaultView
 }
 
-//
 type pgStatMonitorAllViewType struct {
 	s parse.StructInfo
 	z []interface{}
