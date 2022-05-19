@@ -19,6 +19,7 @@ package storelogs
 import (
 	"container/ring"
 	"fmt"
+	"strings"
 	"sync"
 )
 
@@ -51,8 +52,9 @@ func (l *LogsStore) GetLogs() (logs []string) {
 		l.m.Lock()
 		l.log.Do(func(p interface{}) {
 			log := fmt.Sprint(p)
+			replacer := strings.NewReplacer("\u001B[36m", "", "\u001B[0m", "", "\u001B[33", "", "\u001B[31m", "", "        ", " ")
 			if p != nil {
-				logs = append(logs, log)
+				logs = append(logs, replacer.Replace(log))
 			}
 		})
 		l.m.Unlock()

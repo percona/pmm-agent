@@ -16,8 +16,13 @@
 package agentlocal
 
 import (
+	"archive/zip"
+	//"bufio"
+	"bytes"
 	"context"
 	"fmt"
+	//"github.com/sirupsen/logrus"
+	"io/ioutil"
 	"net/http/httptest"
 	"testing"
 	"time"
@@ -43,12 +48,6 @@ func TestServerStatus(t *testing.T) {
 		var supervisor mockSupervisor
 		supervisor.Test(t)
 		supervisor.On("AgentsList").Return(agentInfo)
-		agentLogs := make(map[string][]string)
-		agentLogs[inventorypb.AgentType_NODE_EXPORTER.String()] = []string{
-			"logs1",
-			"logs2",
-		}
-		supervisor.On("AgentsLogs").Return(agentInfo)
 		var client mockClient
 		client.Test(t)
 		client.On("GetServerConnectMetadata").Return(&agentpb.ServerConnectMetadata{
@@ -118,23 +117,93 @@ func TestServerStatus(t *testing.T) {
 		}
 		assert.Equal(t, expected, actual)
 	})
-	t.Run("with network info", func(t *testing.T) {
+}
+
+func TestGetZipFile(t *testing.T) {
+	setup := func(t *testing.T) ([]*agentlocalpb.AgentInfo, *mockSupervisor, *mockClient, *config.Config) {
+		agentInfo := []*agentlocalpb.AgentInfo{{
+			AgentId:   "/agent_id/00000000-0000-4000-8000-000000000002",
+			AgentType: inventorypb.AgentType_NODE_EXPORTER,
+			Status:    inventorypb.AgentStatus_RUNNING,
+		}}
+		var supervisor mockSupervisor
+		supervisor.Test(t)
+		supervisor.On("AgentsList").Return(agentInfo)
+		agentLogs := make(map[string][]string)
+		agentLogs[inventorypb.AgentType_NODE_EXPORTER.String()] = []string{
+			"logs1",
+			"logs2",
+		}
+		supervisor.On("AgentsLogs").Return(agentLogs)
+		var client mockClient
+		client.Test(t)
+		client.On("GetServerConnectMetadata").Return(&agentpb.ServerConnectMetadata{
+			AgentRunsOnNodeID: "/node_id/00000000-0000-4000-8000-000000000003",
+			ServerVersion:     "2.0.0-dev",
+		})
+		cfg := &config.Config{
+			ID: "/agent_id/00000000-0000-4000-8000-000000000001",
+			Server: config.Server{
+				Address:  "127.0.0.1:8443",
+				Username: "username",
+				Password: "password",
+			},
+		}
+		return agentInfo, &supervisor, &client, cfg
+	}
+
+	t.Run("test zip file", func(t *testing.T) {
 		_, supervisor, client, cfg := setup(t)
-		latency := 5 * time.Millisecond
-		clockDrift := time.Second
-		client.On("GetNetworkInformation").Return(latency, clockDrift, nil)
 		defer supervisor.AssertExpectations(t)
 		defer client.AssertExpectations(t)
-		ringLog := storelogs.New(500)
+		ringLog := storelogs.New(10)
 		s := NewServer(cfg, supervisor, client, "/some/dir/pmm-agent.yaml", ringLog)
-
-		// with network info
+		_, err := s.Status(context.Background(), &agentlocalpb.StatusRequest{GetNetworkInfo: false})
+		//fmt.Sprintf("%v %v", actual, err)
 		rec := httptest.NewRecorder()
 		req := httptest.NewRequest("GET", "/logs.zip", nil)
 		s.Zip(rec, req)
-		//handler.ServeHTTP(rec, req)
-		fmt.Println(rec.Body)
-		//fmt.Println(handler)
-
+		b, err := ioutil.ReadAll(rec.Body)
+		if err != nil {
+			t.Errorf("Fail readBody: %+v", err)
+		}
+		expectedFile, err := generateTestZip(s)
+		if err != nil {
+			t.Errorf("Fail to generate ZipFile: %+v", err)
+		}
+		assert.Equal(t, expectedFile, b)
 	})
+}
+func generateTestZip(s *Server) ([]byte, error) {
+	agentLogs := make(map[string][]string)
+	agentLogs[inventorypb.AgentType_NODE_EXPORTER.String()] = []string{
+		"logs1",
+		"logs2",
+	}
+	buf := &bytes.Buffer{}
+	writer := zip.NewWriter(buf)
+	b := &bytes.Buffer{}
+	for _, serverLog := range s.ringLogs.GetLogs() {
+		_, err := b.WriteString(serverLog)
+		if err != nil {
+			return nil, err
+		}
+	}
+	addData(writer, "server.txt", b.Bytes())
+
+	for id, logs := range agentLogs {
+		b := &bytes.Buffer{}
+		for _, l := range logs {
+			_, err := b.WriteString(l + "\n")
+			if err != nil {
+				return nil, err
+			}
+		}
+		addData(writer, fmt.Sprintf("%s.txt", id), b.Bytes())
+	}
+	err := writer.Close()
+	if err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
 }
