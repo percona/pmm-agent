@@ -17,12 +17,9 @@ package agentlocal
 
 import (
 	"archive/zip"
-	//"bufio"
 	"bytes"
 	"context"
 	"fmt"
-
-	//"github.com/sirupsen/logrus"
 	"io/ioutil"
 	"net/http/httptest"
 	"testing"
@@ -160,18 +157,16 @@ func TestGetZipFile(t *testing.T) {
 		ringLog := storelogs.New(10)
 		s := NewServer(cfg, supervisor, client, "/some/dir/pmm-agent.yaml", ringLog)
 		_, err := s.Status(context.Background(), &agentlocalpb.StatusRequest{GetNetworkInfo: false})
+		require.NoError(t, err)
 		// fmt.Sprintf("%v %v", actual, err)
 		rec := httptest.NewRecorder()
 		req := httptest.NewRequest("GET", "/logs.zip", nil)
 		s.Zip(rec, req)
 		b, err := ioutil.ReadAll(rec.Body)
-		if err != nil {
-			t.Errorf("Fail readBody: %+v", err)
-		}
+		require.NoError(t, err)
+
 		expectedFile, err := generateTestZip(s)
-		if err != nil {
-			t.Errorf("Fail to generate ZipFile: %+v", err)
-		}
+		require.NoError(t, err)
 		assert.Equal(t, expectedFile, b)
 	})
 }
