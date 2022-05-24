@@ -76,3 +76,45 @@ func TestDefaultsFileParser(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateResults(t *testing.T) {
+	t.Parallel()
+	t.Run("validation error", func(t *testing.T) {
+		t.Parallel()
+		err := validateDefaultsFileResults(&defaultsFile{
+			"",
+			"",
+			"",
+			0,
+			"",
+		})
+
+		require.Error(t, err)
+	})
+
+	t.Run("validation ok - user and password", func(t *testing.T) {
+		t.Parallel()
+		err := validateDefaultsFileResults(&defaultsFile{
+			"root",
+			"root123",
+			"",
+			0,
+			"",
+		})
+
+		require.NoError(t, err)
+	})
+
+	t.Run("validation ok - only port", func(t *testing.T) {
+		t.Parallel()
+		err := validateDefaultsFileResults(&defaultsFile{
+			"",
+			"",
+			"",
+			3133,
+			"",
+		})
+
+		require.NoError(t, err)
+	})
+}

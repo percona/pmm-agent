@@ -96,13 +96,27 @@ func parseMySQLDefaultsFile(configPath string) (*defaultsFile, error) {
 	cfgSection := cfg.Section("client")
 	port, _ := cfgSection.Key("port").Uint()
 
-	return &defaultsFile{
+	parsedData := &defaultsFile{
 		username: cfgSection.Key("user").String(),
 		password: cfgSection.Key("password").String(),
 		host:     cfgSection.Key("host").String(),
 		port:     uint32(port),
 		socket:   cfgSection.Key("socket").String(),
-	}, nil
+	}
+
+	err = validateDefaultsFileResults(parsedData)
+	if err != nil {
+		return nil, err
+	}
+
+	return parsedData, nil
+}
+
+func validateDefaultsFileResults(data *defaultsFile) error {
+	if data.username == "" && data.password == "" && data.host == "" && data.port == 0 && data.socket == "" {
+		return errors.New("no data found in defaults file")
+	}
+	return nil
 }
 
 func expandPath(path string) (string, error) {
