@@ -17,10 +17,12 @@ package agentlocal
 
 import (
 	"archive/zip"
+	"bufio"
 	"bytes"
 	"context"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http/httptest"
 	"testing"
 	"time"
@@ -158,19 +160,33 @@ func TestGetZipFile(t *testing.T) {
 		s := NewServer(cfg, supervisor, client, "/some/dir/pmm-agent.yaml", ringLog)
 		_, err := s.Status(context.Background(), &agentlocalpb.StatusRequest{GetNetworkInfo: false})
 		require.NoError(t, err)
-		// fmt.Sprintf("%v %v", actual, err)
+
 		rec := httptest.NewRecorder()
 		req := httptest.NewRequest("GET", "/logs.zip", nil)
 		s.Zip(rec, req)
-		b, err := ioutil.ReadAll(rec.Body)
+		existFile, err := ioutil.ReadAll(rec.Body)
 		require.NoError(t, err)
 
 		expectedFile, err := generateTestZip(s)
 		require.NoError(t, err)
-		assert.Equal(t, expectedFile, b)
+		bufExp := bytes.NewReader(expectedFile)
+		bufExs := bytes.NewReader(existFile)
+
+		zipExp, err := zip.NewReader(bufExp, bufExp.Size())
+		require.NoError(t, err)
+		zipExs, err := zip.NewReader(bufExp, bufExs.Size())
+		require.NoError(t, err)
+
+		for i, ex := range zipExp.File {
+			assert.Equal(t, ex.Name, zipExs.File[i].Name)
+			deepCompare(t, ex, zipExs.File[i])
+		}
+		require.NoError(t, err)
+		assert.Equal(t, expectedFile, existFile)
 	})
 }
 
+// generateTestZip generate test zip file.
 func generateTestZip(s *Server) ([]byte, error) {
 	agentLogs := make(map[string][]string)
 	agentLogs[inventorypb.AgentType_NODE_EXPORTER.String()] = []string{
@@ -203,4 +219,27 @@ func generateTestZip(s *Server) ([]byte, error) {
 		return nil, err
 	}
 	return buf.Bytes(), nil
+}
+
+// deepCompare compare two zip files.
+func deepCompare(t *testing.T, file1, file2 *zip.File) bool {
+	sf, err := file1.Open()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	df, err := file2.Open()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	sscan := bufio.NewScanner(sf)
+	dscan := bufio.NewScanner(df)
+
+	for sscan.Scan() {
+		dscan.Scan()
+		assert.Equal(t, sscan.Bytes(), dscan.Bytes())
+	}
+
+	return false
 }
