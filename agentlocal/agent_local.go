@@ -19,6 +19,7 @@ import (
 	"bytes"
 	"context"
 	_ "expvar" // register /debug/vars
+	"fmt"
 	"html/template"
 	"log"
 	"net"
@@ -147,6 +148,7 @@ func (s *Server) Status(ctx context.Context, req *agentlocalpb.StatusRequest) (*
 	}
 
 	agentsInfo := s.supervisor.AgentsList()
+	fmt.Printf("%+v", agentsInfo)
 
 	return &agentlocalpb.StatusResponse{
 		AgentId:        s.cfg.ID,
