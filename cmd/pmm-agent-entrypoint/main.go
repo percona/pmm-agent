@@ -125,6 +125,7 @@ func sendSIGKILLwithTimeout(process *os.Process, timeout int, l *logrus.Entry) *
 
 func main() {
 	go reaper.Reap()
+	kingpin.Parse()
 
 	var status int
 
