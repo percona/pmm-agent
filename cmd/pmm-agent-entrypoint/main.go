@@ -61,7 +61,7 @@ var (
 	pmmAgentSidecar = kingpin.Flag("pmm-agent-sidecar",
 		"if true, 'pmm-agent' will be restarted in case of it's failed").Default("false").Envar("PMM_AGENT_SIDECAR").Bool()
 	pmmAgentSidecarSleep = kingpin.Flag("pmm-agent-sidecar-sleep",
-		"time to wait before restarting pmm-agent if PMM_AGENT_SIDECAR is true. 1 second by default").Default("1").Envar("PMM_AGENT_SIDECAR_SLEEP").Duration()
+		"time to wait before restarting pmm-agent if PMM_AGENT_SIDECAR is true. 1 second by default").Default("1").Envar("PMM_AGENT_SIDECAR_SLEEP").Int()
 	pmmAgentPrerunFile = kingpin.Flag("pmm-agent-prerun-file",
 		"if non-empty, runs given file with 'pmm-agent run' running in the background").Envar("PMM_AGENT_PRERUN_FILE").String()
 	pmmAgentPrerunScript = kingpin.Flag("pmm-agent-prerun-script",
@@ -70,7 +70,7 @@ var (
 
 var pmmAgentProcessID = 0
 
-func runPmmAgent(ctx context.Context, commandLineArgs []string, restartPolicy restartPolicy, l *logrus.Entry, pmmAgentSidecarSleep time.Duration) int {
+func runPmmAgent(ctx context.Context, commandLineArgs []string, restartPolicy restartPolicy, l *logrus.Entry, pmmAgentSidecarSleep int) int {
 	pmmAgentFullCommand := "pmm-admin " + strings.Join(commandLineArgs, " ")
 	for {
 		l.Infof("Starting 'pmm-admin %s'...", strings.Join(commandLineArgs, " "))
@@ -98,7 +98,7 @@ func runPmmAgent(ctx context.Context, commandLineArgs []string, restartPolicy re
 
 		if restartPolicy == restartAlways || (restartPolicy == restartOnFail && exitCode != 0) {
 			l.Infof("Restarting `%s` in %d seconds because PMM_AGENT_SIDECAR is enabled...", pmmAgentFullCommand, pmmAgentSidecarSleep)
-			time.Sleep(pmmAgentSidecarSleep * time.Second)
+			time.Sleep(time.Duration(pmmAgentSidecarSleep) * time.Second)
 		} else {
 			return exitCode
 		}
