@@ -30,9 +30,10 @@ import (
 	"sync"
 	"time"
 
-	grpc_gateway "github.com/grpc-ecosystem/grpc-gateway/runtime"
+	grpc_gateway "github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/percona/pmm/api/agentlocalpb"
 	"github.com/percona/pmm/api/agentpb"
+	pmmerrors "github.com/percona/pmm/utils/errors"
 	"github.com/percona/pmm/version"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/collectors"
@@ -44,6 +45,7 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/types/known/durationpb"
 
 	"github.com/percona/pmm-agent/config"
@@ -271,11 +273,17 @@ func (s *Server) runJSONServer(ctx context.Context, grpcAddress string) {
 
 	proxyMux := grpc_gateway.NewServeMux(
 		grpc_gateway.WithMarshalerOption(grpc_gateway.MIMEWildcard, &grpc_gateway.JSONPb{
-			EmitDefaults: true,
-			Indent:       "  ",
-			OrigName:     true,
+			MarshalOptions: protojson.MarshalOptions{
+				EmitUnpopulated: true,
+				Indent:          "  ",
+				UseProtoNames:   true,
+			},
+			UnmarshalOptions: protojson.UnmarshalOptions{
+				DiscardUnknown: true,
+			},
 		}),
-	)
+		grpc_gateway.WithErrorHandler(pmmerrors.PMMHTTPErrorHandler))
+
 	opts := []grpc.DialOption{
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithBlock(),
