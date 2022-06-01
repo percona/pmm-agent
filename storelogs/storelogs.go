@@ -41,8 +41,8 @@ func New(count int) *LogsStore {
 func (l *LogsStore) Write(b []byte) (n int, err error) {
 	l.m.Lock()
 	l.log.Value = string(b)
-	l.m.Unlock()
 	l.log = l.log.Next()
+	l.m.Unlock()
 	return len(b), nil
 }
 

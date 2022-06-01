@@ -202,7 +202,7 @@ func generateTestZip(s *Server) ([]byte, error) {
 			return nil, err
 		}
 	}
-	addData(writer, "server.txt", b.Bytes())
+	addData(writer, "pmm-agent.txt", b.Bytes())
 
 	for id, logs := range agentLogs {
 		b := &bytes.Buffer{}

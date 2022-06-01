@@ -73,7 +73,7 @@ type Server struct {
 }
 
 // NewServer creates new server.
-
+//
 // Caller should call Run.
 func NewServer(cfg *config.Config, supervisor supervisor, client client, configFilepath string, ringLog *storelogs.LogsStore) *Server {
 	logger := logrus.New()
@@ -351,7 +351,7 @@ func (s *Server) Zip(w http.ResponseWriter, r *http.Request) {
 			log.Fatal(err)
 		}
 	}
-	addData(writer, "server.txt", b.Bytes())
+	addData(writer, "pmm-agent.txt", b.Bytes())
 
 	for id, logs := range s.supervisor.AgentsLogs() {
 		b := &bytes.Buffer{}
