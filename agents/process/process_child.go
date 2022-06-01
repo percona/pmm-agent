@@ -25,7 +25,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"io"
+	"io/ioutil"
 	"time"
 
 	"github.com/percona/pmm/api/inventorypb"
@@ -37,9 +37,8 @@ import (
 func main() {
 	flag.Parse()
 	logger := logrus.New()
-	logger.SetOutput(io.Discard)
+	logger.SetOutput(ioutil.Discard)
 	l := logrus.NewEntry(logger)
-
 	p := process.New(&process.Params{Path: "sleep", Args: []string{"100500"}}, nil, l)
 	go p.Run(context.Background())
 

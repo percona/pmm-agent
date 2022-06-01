@@ -16,10 +16,13 @@
 package agentlocal
 
 import (
+	"archive/zip"
 	"bytes"
 	"context"
 	_ "expvar" // register /debug/vars
+	"fmt"
 	"html/template"
+	"io"
 	"log"
 	"net"
 	"net/http"
@@ -47,6 +50,7 @@ import (
 	"google.golang.org/protobuf/types/known/durationpb"
 
 	"github.com/percona/pmm-agent/config"
+	"github.com/percona/pmm-agent/storelogs"
 )
 
 const (
@@ -61,6 +65,7 @@ type Server struct {
 	configFilepath string
 
 	l               *logrus.Entry
+	ringLogs        *storelogs.LogsStore
 	reload          chan struct{}
 	reloadCloseOnce sync.Once
 
@@ -70,14 +75,18 @@ type Server struct {
 // NewServer creates new server.
 //
 // Caller should call Run.
-func NewServer(cfg *config.Config, supervisor supervisor, client client, configFilepath string) *Server {
+func NewServer(cfg *config.Config, supervisor supervisor, client client, configFilepath string, ringLog *storelogs.LogsStore) *Server {
+	logger := logrus.New()
+	logger.Out = io.MultiWriter(os.Stderr, ringLog)
+
 	return &Server{
 		cfg:            cfg,
 		supervisor:     supervisor,
 		client:         client,
 		configFilepath: configFilepath,
-		l:              logrus.WithField("component", "local-server"),
+		l:              logger.WithField("component", "local-server"),
 		reload:         make(chan struct{}),
+		ringLogs:       ringLog,
 	}
 }
 
@@ -289,6 +298,7 @@ func (s *Server) runJSONServer(ctx context.Context, grpcAddress string) {
 	mux.Handle("/debug/", http.DefaultServeMux)
 	mux.Handle("/debug", debugPageHandler)
 	mux.Handle("/", proxyMux)
+	mux.HandleFunc("/logs.zip", s.Zip)
 
 	server := &http.Server{
 		Addr:     address,
@@ -314,7 +324,53 @@ func (s *Server) runJSONServer(ctx context.Context, grpcAddress string) {
 	_ = server.Close() // call Close() in all cases
 }
 
+// addData add data to zip file
+func addData(zipW *zip.Writer, name string, data []byte) {
+	f, err := zipW.Create(name)
+	if err != nil {
+		log.Fatal(err)
+	}
+	_, err = f.Write(data)
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
 // check interfaces
 var (
 	_ agentlocalpb.AgentLocalServer = (*Server)(nil)
 )
+
+func (s *Server) Zip(w http.ResponseWriter, r *http.Request) {
+	buf := &bytes.Buffer{}
+	writer := zip.NewWriter(buf)
+	b := &bytes.Buffer{}
+	for _, serverLog := range s.ringLogs.GetLogs() {
+		_, err := b.WriteString(serverLog)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+	addData(writer, "pmm-agent.txt", b.Bytes())
+
+	for id, logs := range s.supervisor.AgentsLogs() {
+		b := &bytes.Buffer{}
+		for _, l := range logs {
+			_, err := b.WriteString(l + "\n")
+			if err != nil {
+				log.Fatal(err)
+			}
+		}
+		addData(writer, fmt.Sprintf("%s.txt", id), b.Bytes())
+	}
+	err := writer.Close()
+	if err != nil {
+		log.Fatal(err)
+	}
+	w.Header().Set("Content-Type", "application/zip")
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s.zip\"", "logs"))
+	_, err = w.Write(buf.Bytes())
+	if err != nil {
+		log.Fatal(err)
+	}
+}
