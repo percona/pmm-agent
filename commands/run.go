@@ -17,6 +17,7 @@ package commands
 
 import (
 	"context"
+	"github.com/percona/pmm-agent/utils/encryption"
 	"os"
 	"os/signal"
 
@@ -35,6 +36,10 @@ import (
 func Run() {
 	l := logrus.WithField("component", "main")
 	ctx, cancel := context.WithCancel(context.Background())
+	ctx, err := encryption.InjectEncryptorIfNotPresent(ctx)
+	if err != nil {
+		l.Fatalf("Failed to inject encryptor: %s.", err)
+	}
 	defer l.Info("Done.")
 
 	// handle termination signals
