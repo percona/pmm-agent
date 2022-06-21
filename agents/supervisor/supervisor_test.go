@@ -17,6 +17,7 @@ package supervisor
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
@@ -50,7 +51,8 @@ func TestSupervisor(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	tempDir, err := os.MkdirTemp("", "pmm-agent-")
 	require.NoError(t, err)
-	s := NewSupervisor(ctx, &config.Paths{TempDir: tempDir}, &config.Ports{Min: 65000, Max: 65099}, &config.Server{Address: "localhost:443"})
+	s := NewSupervisor(ctx, &config.Paths{TempDir: tempDir}, &config.Ports{Min: 65000, Max: 65099},
+		&config.Server{Address: "localhost:443"}, &config.ExporterAddress{Default: ""})
 
 	t.Run("Start13", func(t *testing.T) {
 		expectedList := []*agentlocalpb.AgentInfo{}
@@ -284,7 +286,7 @@ func TestSupervisorProcessParams(t *testing.T) {
 			TempDir:        temp,
 		}
 
-		s := NewSupervisor(ctx, paths, &config.Ports{}, &config.Server{}) //nolint:varnamelen
+		s := NewSupervisor(ctx, paths, &config.Ports{}, &config.Server{}, &config.ExporterAddress{Default: "127.0.0.1"}) //nolint:varnamelen
 
 		teardown := func() {
 			cancel()
@@ -326,7 +328,7 @@ func TestSupervisorProcessParams(t *testing.T) {
 		expected := process.Params{
 			Path: "/path/to/mysql_exporter",
 			Args: []string{
-				"-web.listen-address=:12345",
+				fmt.Sprintf("-web.listen-address=%s:12345", s.exporterAddress.ListenAddress()),
 				"-web.ssl-cert-file=" + filepath.Join(s.paths.TempDir, "mysqld_exporter", "ID", "Cert"),
 			},
 			Env: []string{

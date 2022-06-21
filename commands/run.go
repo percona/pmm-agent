@@ -73,7 +73,7 @@ func run(ctx context.Context, cfg *config.Config, configFilepath string) {
 	// It should be created separately.
 	// TODO https://jira.percona.com/browse/PMM-7206
 
-	supervisor := supervisor.NewSupervisor(ctx, &cfg.Paths, &cfg.Ports, &cfg.Server)
+	supervisor := supervisor.NewSupervisor(ctx, &cfg.Paths, &cfg.Ports, &cfg.Server, &cfg.ExporterListenAddress)
 	connectionChecker := connectionchecker.New(&cfg.Paths)
 	v := versioner.New(&versioner.RealExecFunctions{})
 	client := client.New(cfg, supervisor, connectionChecker, v)
