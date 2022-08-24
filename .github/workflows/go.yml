@@ -197,7 +197,7 @@ jobs:
         run: make test-crosscover
 
       - name: Upload coverage results
-        uses: percona-platform/codecov-action@v1
+        uses: percona-platform/codecov-action@v3
         with:
           file: cover.out
           flags: cover
@@ -205,7 +205,7 @@ jobs:
           fail_ci_if_error: false
 
       - name: Upload coverage results
-        uses: percona-platform/codecov-action@v1
+        uses: percona-platform/codecov-action@v3
         with:
           file: crosscover.out
           flags: crosscover
